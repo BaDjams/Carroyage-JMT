@@ -134,10 +134,11 @@
                             </Style>`;
 
       for (var i = 0; i < 26; i++) {
-        var line = i + 1; // Numbered line (1-26)
+	var row = String.fromCharCode(65 + i); // Convert ASCII code to letter (A-Z)      
+        
 
         for (var j = 0; j < 26; j++) {
-          var row = String.fromCharCode(65 + j); // Convert ASCII code to letter (A-Z)
+          var line = j + 1; // Numbered line (1-26)
           var lat = startingLat + (j * (length / metersPerDegreeLat));
           var lon = startingLon + (i * (length / (metersPerDegreeLat * Math.cos(lat * (Math.PI / 180)))));
 
