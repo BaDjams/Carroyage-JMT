@@ -45,6 +45,7 @@
     button:hover {
       background-color: #45a049;
     }
+   /* Styles for mobile devices */
     @media (max-width: 600px) {
       body {
         padding: 10px;
@@ -54,6 +55,14 @@
       }
       input, select, button {
         font-size: 14px;
+      }
+    }
+
+    /* Styles for PC browsers */
+    @media (min-width: 601px) {
+      body {
+        max-width: 600px;
+        margin: 0 auto;
       }
     }
   </style>
