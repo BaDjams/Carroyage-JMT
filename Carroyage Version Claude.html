@@ -2,36 +2,59 @@
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Générateur de carroyage CADO</title>
   <style>
     body {
       font-family: Arial, sans-serif;
-      max-width: 600px;
+      max-width: 100%;
       margin: 0 auto;
       padding: 20px;
+      box-sizing: border-box;
+    }
+    h1 {
+      font-size: 1.5em;
+      text-align: center;
     }
     label {
       display: block;
       margin-bottom: 5px;
+      font-size: 0.9em;
     }
     input, select {
       width: 100%;
       margin-bottom: 15px;
-      padding: 5px;
+      padding: 10px;
+      font-size: 16px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      box-sizing: border-box;
     }
     button {
       display: block;
       width: 100%;
       margin-bottom: 10px;
-      padding: 10px;
+      padding: 15px;
       background-color: #4CAF50;
       color: white;
       border: none;
+      border-radius: 4px;
       cursor: pointer;
+      font-size: 16px;
     }
     button:hover {
       background-color: #45a049;
+    }
+    @media (max-width: 600px) {
+      body {
+        padding: 10px;
+      }
+      h1 {
+        font-size: 1.2em;
+      }
+      input, select, button {
+        font-size: 14px;
+      }
     }
   </style>
 </head>
@@ -155,6 +178,16 @@
       document.body.appendChild(element);
       element.click();
       document.body.removeChild(element);
+    }
+    
+    // Add this function to improve touch response on mobile
+    function addTouchClass() {
+      document.documentElement.className += ' touch';
+    }
+
+    // Call this function when the page loads
+    if ('ontouchstart' in document.documentElement) {
+      addTouchClass();
     }
   </script>
 </body>
