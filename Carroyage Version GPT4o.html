@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Générateur de carroyage CADO</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 600px;
+      margin: 0 auto;
+      padding: 20px;
+      box-sizing: border-box;
+    }
+    h1 {
+      font-size: 1.5em;
+      text-align: center;
+    }
+    label {
+      display: block;
+      margin-bottom: 5px;
+      font-size: 0.9em;
+    }
+    input, select, button {
+      width: 100%;
+      margin-bottom: 15px;
+      padding: 10px;
+      font-size: 16px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      box-sizing: border-box;
+    }
+    button {
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #45a049;
+    }
+    @media (max-width: 600px) {
+      body {
+        padding: 10px;
+      }
+      h1 {
+        font-size: 1.2em;
+      }
+      input, select, button {
+        font-size: 14px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <h1>Générateur de carroyage CADO</h1>
+  
+  <label for="coordinates">Coordonnées (WGS84, format "google", par exemple : <i>48.803322, 2.126005</i>) :</label>
+  <input type="text" id="coordinates" placeholder="Entrer les Coordonnées" aria-label="Coordonnées">
+  
+  <label for="length">Échelle (en mètres) :</label>
+  <input type="number" id="length" placeholder="Spécifier l'échelle" aria-label="Échelle">
+  
+  <label for="color">Choisir une couleur :</label>
+  <select id="color" aria-label="Couleur">
+    <option value="BFFFFFFF">Blanc</option>
+    <option value="BF000000">Noir</option>
+    <option value="BFBEBEBE">Gris</option>
+    <option value="BF1478F0">Orange</option>
+  </select>
+  
+  <button onclick="generateKML('grid')">Télécharger le KML du carroyage</button>
+  <button onclick="generateKML('points')">Télécharger le KML des points</button>
+  
+  <script>
+    const METERS_PER_DEGREE_LAT = 111320;
+    const GRID_SIZE = 26;
+    const HALF_GRID_SIZE = Math.floor(GRID_SIZE / 2);
+
+    function generateKML(type) {
+      const coordinatesInput = document.getElementById("coordinates").value;
+      const lengthInput = document.getElementById("length").value;
+
+      if (!validateInputs(coordinatesInput, lengthInput)) return;
+
+      const [latitude, longitude] = coordinatesInput.split(',').map(coord => parseFloat(coord.trim()));
+      const length = parseFloat(lengthInput);
+      const color = document.getElementById("color").value;
+
+      const startingLat = latitude - (HALF_GRID_SIZE * (length / METERS_PER_DEGREE_LAT));
+      const startingLon = longitude - (HALF_GRID_SIZE * (length / (METERS_PER_DEGREE_LAT * Math.cos(latitude * (Math.PI / 180)))));
+
+      let kmlContent = getKMLHeader(color);
+
+      for (let i = 0; i < GRID_SIZE; i++) {
+        for (let j = 0; j < GRID_SIZE; j++) {
+          const row = String.fromCharCode(65 + (type === 'grid' ? j : i));
+          const line = type === 'grid' ? i + 1 : j + 1;
+          const lat = startingLat + (i * (length / METERS_PER_DEGREE_LAT));
+          const lon = startingLon + (j * (length / (METERS_PER_DEGREE_LAT * Math.cos(lat * (Math.PI / 180)))));
+
+          kmlContent += type === 'grid' 
+            ? getGridPlacemark(row, line, lon, lat, length, color) 
+            : getPointPlacemark(row, line, lon, lat, length);
+        }
+      }
+
+      kmlContent += `</Document></kml>`;
+      downloadKML(kmlContent, type === 'grid' ? 'carroyage.kml' : 'points.kml');
+    }
+
+    function validateInputs(coordinates, length) {
+      const coords = coordinates.split(',').map(coord => parseFloat(coord.trim()));
+      if (coords.length !== 2 || coords.some(isNaN)) {
+        alert('Veuillez entrer des coordonnées valides.');
+        return false;
+      }
+      if (isNaN(length) || length <= 0) {
+        alert('Veuillez entrer une échelle valide.');
+        return false;
+      }
+      return true;
+    }
+
+    function getKMLHeader(color) {
+      return `<?xml version="1.0" encoding="UTF-8"?>
+              <kml xmlns="http://www.opengis.net/kml/2.2">
+                <Document>
+                  <name>CADO JMT - Carroyage</name>
+                  <description>Copyright GIGN/CADO/JMT</description>
+                  <Style id="gridLineStyle">
+                    <LineStyle>
+                      <color>${color}</color>
+                      <width>2</width>
+                    </LineStyle>
+                  </Style>
+                  <Style id="cado">
+                    <LabelStyle>
+                      <scale>1</scale>
+                    </LabelStyle>
+                    <IconStyle>
+                      <scale>0.1</scale>
+                      <Icon>
+                        <href>https://upload.wikimedia.org/wikipedia/commons/8/8c/Transparent.png</href>
+                      </Icon>
+                      <hotSpot x="0.5" y="0.5" xunits="fraction" yunits="fraction"/>
+                    </IconStyle>
+                  </Style>`;
+    }
+
+    function getGridPlacemark(row, line, lon, lat, length, color) {
+      const lonDelta = length / (METERS_PER_DEGREE_LAT * Math.cos(lat * (Math.PI / 180)));
+      const latDelta = length / METERS_PER_DEGREE_LAT;
+      return `<Placemark>
+                <name>${row}${line}</name>
+                <Style>
+                  <LineStyle>
+                    <color>${color}</color>
+                    <width>2</width>
+                  </LineStyle>
+                </Style>
+                <LineString>
+                  <coordinates>${lon},${lat} ${lon + lonDelta},${lat} ${lon + lonDelta},${lat + latDelta} ${lon},${lat + latDelta} ${lon},${lat}</coordinates>
+                </LineString>
+              </Placemark>`;
+    }
+
+    function getPointPlacemark(row, line, lon, lat, length) {
+      const halfLonDelta = (length / (2 * METERS_PER_DEGREE_LAT * Math.cos(lat * (Math.PI / 180))));
+      const halfLatDelta = length / (2 * METERS_PER_DEGREE_LAT);
+      const centerLon = lon + halfLonDelta;
+      const centerLat = lat + halfLatDelta;
+
+      return `<Placemark>
+                <name>${row}${line}</name>
+                <styleUrl>#cado</styleUrl>
+                <Point>
+                  <coordinates>${centerLon},${centerLat}</coordinates>
+                </Point>
+              </Placemark>`;
+    }
+
+    function downloadKML(content, filename) {
+      const element = document.createElement('a');
+      element.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(content));
+      element.setAttribute('download', filename);
+      element.style.display = 'none';
+      document.body.appendChild(element);
+      element.click();
+      document.body.removeChild(element);
+    }
+  </script>
+</body>
+</html>
