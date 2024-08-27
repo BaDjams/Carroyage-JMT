@@ -106,7 +106,7 @@
       }
 
       kmlContent += `</Document></kml>`;
-      downloadKML(kmlContent, type === 'grid' ? 'carroyage.kml' : 'points.kml');
+      downloadKML(kmlContent, length, color, type);
     }
 
     function validateInputs(coordinates, length) {
@@ -180,7 +180,12 @@
               </Placemark>`;
     }
 
-    function downloadKML(content, filename) {
+    function downloadKML(content, length, color, type) {
+      const date = new Date();
+      const formattedDate = `${date.getDate().toString().padStart(2, '0')}.${(date.getMonth() + 1).toString().padStart(2, '0')}.${date.getFullYear()}`;
+      const colorName = document.querySelector(`#color option[value="${color}"]`).textContent;
+      const filename = `Carroyage_${length}_${colorName}_${formattedDate}.kml`;
+
       const element = document.createElement('a');
       element.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(content));
       element.setAttribute('download', filename);
