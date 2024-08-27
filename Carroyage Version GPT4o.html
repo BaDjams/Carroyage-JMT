@@ -72,8 +72,8 @@
   <label for="referencePoint">Point de référence :</label>
   <select id="referencePoint" aria-label="Point de référence">
     <option value="center">Milieu du carroyage</option>
-    <option value="topLeft">Coin haut gauche</option>
     <option value="bottomLeft">Coin bas gauche</option>
+    <option value="topLeft">Coin haut gauche</option>
   </select>
   
   <button onclick="generateKML('grid')">Télécharger le KML du carroyage</button>
@@ -95,20 +95,23 @@
       const color = document.getElementById("color").value;
       const referencePoint = document.getElementById("referencePoint").value;
 
-      let startingLat, startingLon;
+      let startingLat, startingLon, referenceCode;
 
       switch (referencePoint) {
         case "center":
           startingLat = latitude - (HALF_GRID_SIZE * (length / METERS_PER_DEGREE_LAT));
           startingLon = longitude - (HALF_GRID_SIZE * (length / (METERS_PER_DEGREE_LAT * Math.cos(latitude * (Math.PI / 180)))));
-          break;
-        case "topLeft":
-          startingLat = latitude;
-          startingLon = longitude;
+          referenceCode = "_C_";
           break;
         case "bottomLeft":
+          startingLat = latitude;
+          startingLon = longitude;
+          referenceCode = "_BG_";
+          break;
+        case "topLeft":
           startingLat = latitude - (GRID_SIZE * (length / METERS_PER_DEGREE_LAT));
           startingLon = longitude;
+          referenceCode = "_HG_";
           break;
       }
 
@@ -128,7 +131,7 @@
       }
 
       kmlContent += `</Document></kml>`;
-      downloadKML(kmlContent, length, color, type);
+      downloadKML(kmlContent, length, color, type, referenceCode);
     }
 
     function validateInputs(coordinates, length) {
@@ -202,13 +205,13 @@
               </Placemark>`;
     }
 
-    function downloadKML(content, length, color, type) {
+    function downloadKML(content, length, color, type, referenceCode) {
       const date = new Date();
       const formattedDate = `${date.getDate().toString().padStart(2, '0')}.${(date.getMonth() + 1).toString().padStart(2, '0')}.${date.getFullYear()}`;
       const formattedTime = `${date.getHours().toString().padStart(2, '0')}.${date.getMinutes().toString().padStart(2, '0')}`;
       const colorName = document.querySelector(`#color option[value="${color}"]`).textContent;
       const prefix = type === 'grid' ? 'Carroyage' : 'Points';
-      const filename = `${prefix}_${length}_${colorName}_${formattedDate}_${formattedTime}.kml`;
+      const filename = `${prefix}_${length}${referenceCode}${colorName}_${formattedDate}_${formattedTime}.kml`;
 
       const element = document.createElement('a');
       element.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(content));
