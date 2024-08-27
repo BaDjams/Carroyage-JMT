@@ -183,8 +183,10 @@
     function downloadKML(content, length, color, type) {
       const date = new Date();
       const formattedDate = `${date.getDate().toString().padStart(2, '0')}.${(date.getMonth() + 1).toString().padStart(2, '0')}.${date.getFullYear()}`;
+      const formattedTime = `${date.getHours().toString().padStart(2, '0')}.${date.getMinutes().toString().padStart(2, '0')}`;
       const colorName = document.querySelector(`#color option[value="${color}"]`).textContent;
-      const filename = `Carroyage_${length}_${colorName}_${formattedDate}.kml`;
+      const prefix = type === 'grid' ? 'Carroyage' : 'Points';
+      const filename = `${prefix}_${length}_${colorName}_${formattedDate}_${formattedTime}.kml`;
 
       const element = document.createElement('a');
       element.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(content));
