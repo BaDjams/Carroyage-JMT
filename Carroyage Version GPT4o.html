@@ -259,51 +259,51 @@
     }
 
     function rotatePoint(lon, lat, centerLon, centerLat, angle) {
-      const cosAngle = Math.cos(angle);
-      const sinAngle = Math.sin(angle);
+  const cosAngle = Math.cos(angle);
+  const sinAngle = Math.sin(angle);
 
-      const dLon = lon - centerLon;
-      const dLat = lat - centerLat;
+  const dLon = lon - centerLon;
+  const dLat = lat - centerLat;
 
-      const x = dLon * cosAngle - dLat * sinAngle;
-      const y = dLon * sinAngle + dLat * cosAngle;
+  const x = dLon * cosAngle + dLat * sinAngle;
+  const y = -dLon * sinAngle + dLat * cosAngle;
 
-      const rotatedLon = centerLon + x;
-      const rotatedLat = centerLat + y;
+  const rotatedLon = centerLon + x;
+  const rotatedLat = centerLat + y;
 
-      return [rotatedLon, rotatedLat];
-    }
+  return [rotatedLon, rotatedLat];
+}
 
-    function getGridPlacemark(row, line, lon, lat, length, angle, color) {
-      const dLon = length / (METERS_PER_DEGREE_LAT * Math.cos(lat * (Math.PI / 180)));
-      const dLat = length / METERS_PER_DEGREE_LAT;
+function getGridPlacemark(row, line, lon, lat, length, angle, color) {
+  const dLon = length / (METERS_PER_DEGREE_LAT * Math.cos(lat * (Math.PI / 180)));
+  const dLat = length / METERS_PER_DEGREE_LAT;
 
-      const centerLon = lon + dLon / 2;
-      const centerLat = lat + dLat / 2;
+  const centerLon = lon + dLon / 2;
+  const centerLat = lat + dLat / 2;
 
-      const corners = [
-        rotatePoint(lon, lat, centerLon, centerLat, angle),
-        rotatePoint(lon + dLon, lat, centerLon, centerLat, angle),
-        rotatePoint(lon + dLon, lat + dLat, centerLon, centerLat, angle),
-        rotatePoint(lon, lat + dLat, centerLon, centerLat, angle),
-        rotatePoint(lon, lat, centerLon, centerLat, angle)
-      ];
+  const corners = [
+    rotatePoint(lon, lat, centerLon, centerLat, angle),
+    rotatePoint(lon + dLon, lat, centerLon, centerLat, angle),
+    rotatePoint(lon + dLon, lat + dLat, centerLon, centerLat, angle),
+    rotatePoint(lon, lat + dLat, centerLon, centerLat, angle),
+    rotatePoint(lon, lat, centerLon, centerLat, angle)
+  ];
 
-      const coordinates = corners.map(corner => corner.join(',')).join(' ');
+  const coordinates = corners.map(corner => corner.join(',')).join(' ');
 
-      return `<Placemark>
-                <name>${row}${line}</name>
-                <Style>
-                  <LineStyle>
-                    <color>${color}</color>
-                    <width>2</width>
-                  </LineStyle>
-                </Style>
-                <LineString>
-                  <coordinates>${coordinates}</coordinates>
-                </LineString>
-              </Placemark>`;
-    }
+  return `<Placemark>
+            <name>${row}${line}</name>
+            <Style>
+              <LineStyle>
+                <color>${color}</color>
+                <width>2</width>
+              </LineStyle>
+            </Style>
+            <LineString>
+              <coordinates>${coordinates}</coordinates>
+            </LineString>
+          </Placemark>`;
+}
 
     function getPointPlacemark(row, line, lon, lat, length) {
       const halfLonDelta = (length / (2 * METERS_PER_DEGREE_LAT * Math.cos(lat * (Math.PI / 180))));
