@@ -64,6 +64,9 @@
   <label for="length">Échelle (en mètres) :</label>
   <input type="number" id="length" placeholder="Spécifier l'échelle" aria-label="Échelle" required min="1">
   
+  <label for="angle">Angle par rapport au nord (en degrés) :</label>
+  <input type="number" id="angle" placeholder="Angle de rotation" aria-label="Angle" required min="0" max="360" value="0">
+  
   <label for="color">Choisir une couleur :</label>
   <input type="color" id="color" aria-label="Couleur" value="#FFFFFF">
   
@@ -98,9 +101,9 @@
   </div>
 
   <div id="customGridOptions" style="display:none;">
-    <label for="customRows">Nombre de lignes (chiffres) :</label>
+    <label for="customRows">Nombre de lignes (lettres) :</label>
     <input type="number" id="customRows" min="1" max="26" value="26">
-    <label for="customCols">Nombre de colonnes (lettres) :</label>
+    <label for="customCols">Nombre de colonnes (nombres) :</label>
     <input type="number" id="customCols" min="1" max="26" value="26">
   </div>
   
@@ -127,15 +130,17 @@
     function generateKML(type) {
       const coordinatesInput = document.getElementById("coordinates").value;
       const lengthInput = document.getElementById("length").value;
+      const angleInput = document.getElementById("angle").value;
       const colorInput = document.getElementById("color").value;
       const transparencyInput = document.getElementById("transparency").value;
       const gridNameInput = document.getElementById("gridName").value.trim();
       const gridOption = document.getElementById("gridOption").value;
 
-      if (!validateInputs(coordinatesInput, lengthInput)) return;
+      if (!validateInputs(coordinatesInput, lengthInput, angleInput)) return;
 
       const [latitude, longitude] = coordinatesInput.split(',').map(coord => parseFloat(coord.trim()));
       const length = parseFloat(lengthInput);
+      const angle = parseFloat(angleInput) * Math.PI / 180; // Convert degrees to radians
       const referencePoint = document.getElementById("referencePoint").value;
 
       const transparencyHex = Math.floor((100 - transparencyInput) * 2.55).toString(16).padStart(2, '0');
@@ -197,9 +202,11 @@
           const lat = startingLat + (i * (length / METERS_PER_DEGREE_LAT));
           const lon = startingLon + (j * (length / (METERS_PER_DEGREE_LAT * Math.cos(lat * (Math.PI / 180)))));
 
+          const [rotatedLon, rotatedLat] = rotatePoint(lon, lat, length, angle);
+
           kmlContent += type === 'grid' 
-            ? getGridPlacemark(row, line, lon, lat, length, kmlColor) 
-            : getPointPlacemark(row, line, lon, lat, length);
+            ? getGridPlacemark(row, line, rotatedLon, rotatedLat, length, angle, kmlColor) 
+            : getPointPlacemark(row, line, rotatedLon, rotatedLat, length);
         }
       }
 
@@ -207,7 +214,7 @@
       downloadKML(kmlContent, length, kmlColor, type, referenceCode, gridNameInput, latitude, longitude, gridType);
     }
 
-    function validateInputs(coordinates, length) {
+    function validateInputs(coordinates, length, angle) {
       const coords = coordinates.split(',').map(coord => parseFloat(coord.trim()));
       if (coords.length !== 2 || coords.some(isNaN)) {
         alert('Veuillez entrer des coordonnées valides.');
@@ -217,7 +224,24 @@
         alert('Veuillez entrer une échelle valide.');
         return false;
       }
+      if (isNaN(angle) || angle < 0 || angle > 360) {
+        alert('Veuillez entrer un angle valide entre 0 et 360 degrés.');
+        return false;
+      }
       return true;
+    }
+
+    function rotatePoint(lon, lat, length, angle) {
+      const cosAngle = Math.cos(angle);
+      const sinAngle = Math.sin(angle);
+
+      const x = length * cosAngle - length * sinAngle;
+      const y = length * sinAngle + length * cosAngle;
+
+      const rotatedLon = lon + x / (METERS_PER_DEGREE_LAT * Math.cos(lat * (Math.PI / 180)));
+      const rotatedLat = lat + y / METERS_PER_DEGREE_LAT;
+
+      return [rotatedLon, rotatedLat];
     }
 
     function getKMLHeader(color) {
@@ -246,9 +270,23 @@
                   </Style>`;
     }
 
-    function getGridPlacemark(row, line, lon, lat, length, color) {
-      const lonDelta = length / (METERS_PER_DEGREE_LAT * Math.cos(lat * (Math.PI / 180)));
-      const latDelta = length / METERS_PER_DEGREE_LAT;
+    function getGridPlacemark(row, line, lon, lat, length, angle, color) {
+      const cosAngle = Math.cos(angle);
+      const sinAngle = Math.sin(angle);
+
+      const dLon = length / (METERS_PER_DEGREE_LAT * Math.cos(lat * (Math.PI / 180)));
+      const dLat = length / METERS_PER_DEGREE_LAT;
+
+      const corners = [
+        [lon, lat],
+        [lon + cosAngle * dLon, lat + sinAngle * dLat],
+        [lon + cosAngle * dLon - sinAngle * dLat, lat + sinAngle * dLon + cosAngle * dLat],
+        [lon - sinAngle * dLat, lat + cosAngle * dLat],
+        [lon, lat]
+      ];
+
+      const coordinates = corners.map(corner => corner.join(',')).join(' ');
+
       return `<Placemark>
                 <name>${row}${line}</name>
                 <Style>
@@ -258,7 +296,7 @@
                   </LineStyle>
                 </Style>
                 <LineString>
-                  <coordinates>${lon},${lat} ${lon + lonDelta},${lat} ${lon + lonDelta},${lat + latDelta} ${lon},${lat + latDelta} ${lon},${lat}</coordinates>
+                  <coordinates>${coordinates}</coordinates>
                 </LineString>
               </Placemark>`;
     }
