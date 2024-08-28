@@ -104,7 +104,8 @@
       const referencePoint = document.getElementById("referencePoint").value;
 
       const transparencyHex = (255 - Math.floor((transparencyInput / 100) * 255)).toString(16).padStart(2, '0');
-      const color = transparencyHex + colorInput.slice(1);
+      const rgbHex = colorInput.slice(1);
+      const kmlColor = transparencyHex + rgbHex.slice(4, 6) + rgbHex.slice(2, 4) + rgbHex.slice(0, 2);
 
       let startingLat, startingLon, referenceCode;
 
@@ -126,7 +127,7 @@
           break;
       }
 
-      let kmlContent = getKMLHeader(color);
+      let kmlContent = getKMLHeader(kmlColor);
 
       for (let i = 0; i < GRID_SIZE; i++) {
         for (let j = 0; j < GRID_SIZE; j++) {
@@ -136,13 +137,13 @@
           const lon = startingLon + (j * (length / (METERS_PER_DEGREE_LAT * Math.cos(lat * (Math.PI / 180)))));
 
           kmlContent += type === 'grid' 
-            ? getGridPlacemark(row, line, lon, lat, length, color) 
+            ? getGridPlacemark(row, line, lon, lat, length, kmlColor) 
             : getPointPlacemark(row, line, lon, lat, length);
         }
       }
 
       kmlContent += `</Document></kml>`;
-      downloadKML(kmlContent, length, color, type, referenceCode, gridNameInput, latitude, longitude);
+      downloadKML(kmlContent, length, kmlColor, type, referenceCode, gridNameInput, latitude, longitude);
     }
 
     function validateInputs(coordinates, length) {
