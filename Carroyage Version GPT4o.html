@@ -82,12 +82,27 @@
     <option value="topLeft">Coin haut gauche</option>
   </select>
   
-  <label for="gridType">Type de grille :</label>
-  <select id="gridType" aria-label="Type de grille">
-    <option value="Z26">Z26 (26x26)</option>
-    <option value="Z14" selected>Z14 (26x14)</option>
-    <option value="Q9">Q9 (17x9)</option>
+  <label for="gridOption">Option de grille :</label>
+  <select id="gridOption" aria-label="Option de grille" onchange="toggleCustomGridOptions()">
+    <option value="default">Grille par défaut</option>
+    <option value="custom">Grille custom</option>
   </select>
+
+  <div id="defaultGridOptions">
+    <label for="gridType">Type de grille :</label>
+    <select id="gridType" aria-label="Type de grille">
+      <option value="Z26">Z26 (26x26)</option>
+      <option value="Z14" selected>Z14 (26x14)</option>
+      <option value="Q9">Q9 (17x9)</option>
+    </select>
+  </div>
+
+  <div id="customGridOptions" style="display:none;">
+    <label for="customRows">Nombre de lignes (lettres) :</label>
+    <input type="number" id="customRows" min="1" max="26" value="26">
+    <label for="customCols">Nombre de colonnes (nombres) :</label>
+    <input type="number" id="customCols" min="1" max="26" value="26">
+  </div>
   
   <button onclick="generateKML('grid')">Télécharger le KML du carroyage</button>
   <button onclick="generateKML('points')">Télécharger le KML des points</button>
@@ -95,13 +110,27 @@
   <script>
     const METERS_PER_DEGREE_LAT = 111320;
 
+    function toggleCustomGridOptions() {
+      const gridOption = document.getElementById("gridOption").value;
+      const defaultGridOptions = document.getElementById("defaultGridOptions");
+      const customGridOptions = document.getElementById("customGridOptions");
+
+      if (gridOption === "custom") {
+        defaultGridOptions.style.display = "none";
+        customGridOptions.style.display = "block";
+      } else {
+        defaultGridOptions.style.display = "block";
+        customGridOptions.style.display = "none";
+      }
+    }
+
     function generateKML(type) {
       const coordinatesInput = document.getElementById("coordinates").value;
       const lengthInput = document.getElementById("length").value;
       const colorInput = document.getElementById("color").value;
       const transparencyInput = document.getElementById("transparency").value;
       const gridNameInput = document.getElementById("gridName").value.trim();
-      const gridType = document.getElementById("gridType").value;
+      const gridOption = document.getElementById("gridOption").value;
 
       if (!validateInputs(coordinatesInput, lengthInput)) return;
 
@@ -113,21 +142,29 @@
       const rgbHex = colorInput.slice(1);
       const kmlColor = transparencyHex + rgbHex.slice(4, 6) + rgbHex.slice(2, 4) + rgbHex.slice(0, 2);
 
-      let gridRows, gridCols;
-      switch (gridType) {
-        case "Z26":
-          gridRows = 26;
-          gridCols = 26;
-          break;
-        case "Z14":
-          gridRows = 14;
-          gridCols = 26;
-          break;
-        case "Q9":
-          gridRows = 9;
-          gridCols = 17;
-          break;
+      let gridRows, gridCols, gridType;
+      if (gridOption === "default") {
+        gridType = document.getElementById("gridType").value;
+        switch (gridType) {
+          case "Z26":
+            gridRows = 26;
+            gridCols = 26;
+            break;
+          case "Z14":
+            gridRows = 14;
+            gridCols = 26;
+            break;
+          case "Q9":
+            gridRows = 9;
+            gridCols = 17;
+            break;
+        }
+      } else {
+        gridRows = parseInt(document.getElementById("customRows").value);
+        gridCols = parseInt(document.getElementById("customCols").value);
+        gridType = `Custom_${gridRows}x${gridCols}`;
       }
+
       const HALF_GRID_ROWS = Math.floor(gridRows / 2);
       const HALF_GRID_COLS = Math.floor(gridCols / 2);
 
