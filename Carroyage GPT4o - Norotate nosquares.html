@@ -200,18 +200,18 @@
 
       switch (refPoint) {
         case "center":
-          startingLat = lat - (HALF_GRID_ROWS * (length / METERS_PER_DEGREE_LAT)) - (length / METERS_PER_DEGREE_LAT);
-          startingLon = lon - (HALF_GRID_COLS * (length / (METERS_PER_DEGREE_LAT * Math.cos(lat * (Math.PI / 180)))));
+          startingLat = lat - (HALF_GRID_ROWS * (length / METERS_PER_DEGREE_LAT)) - (length / (2 * METERS_PER_DEGREE_LAT));
+          startingLon = lon - (HALF_GRID_COLS * (length / (METERS_PER_DEGREE_LAT * Math.cos(lat * (Math.PI / 180))))) - (length / (2 * (METERS_PER_DEGREE_LAT * Math.cos(lat * (Math.PI / 180)))));
           referenceCode = "_C_";
           break;
         case "bottomLeft":
-          startingLat = lat - (length / METERS_PER_DEGREE_LAT);
-          startingLon = lon;
+          startingLat = lat - (length / (2 * METERS_PER_DEGREE_LAT));
+          startingLon = lon + (length / (2 * (METERS_PER_DEGREE_LAT * Math.cos(lat * (Math.PI / 180)))));
           referenceCode = "_BG_";
           break;
         case "topLeft":
-          startingLat = lat - (rows * (length / METERS_PER_DEGREE_LAT)) - (length / METERS_PER_DEGREE_LAT);
-          startingLon = lon;
+          startingLat = lat - (rows * (length / METERS_PER_DEGREE_LAT)) - (length / (2 * METERS_PER_DEGREE_LAT));
+          startingLon = lon + (length / (2 * (METERS_PER_DEGREE_LAT * Math.cos(lat * (Math.PI / 180)))));
           referenceCode = "_HG_";
           break;
       }
@@ -246,13 +246,13 @@
 
     function generateGridLines(lat, lon, rows, cols, length, color) {
       let lines = '';
-      for (let i = 0; i <= rows + 1; i++) {
+      for (let i = 0; i <= rows; i++) {
         const currentLat = lat + (i * (length / METERS_PER_DEGREE_LAT));
         lines += getLinePlacemark(currentLat, lon, cols, length, 'horizontal', color);
       }
       for (let j = 0; j <= cols; j++) {
         const currentLon = lon + (j * (length / (METERS_PER_DEGREE_LAT * Math.cos(lat * (Math.PI / 180)))));
-        lines += getLinePlacemark(lat, currentLon, rows + 1, length, 'vertical', color);
+        lines += getLinePlacemark(lat, currentLon, rows, length, 'vertical', color);
       }
       return lines;
     }
@@ -268,8 +268,8 @@
 
       for (let i = 0; i < rows; i++) {
         for (let j = 0; j < cols; j++) {
-          const currentLat = lat + ((i + 1) * (length / METERS_PER_DEGREE_LAT));
-          const currentLon = lon + (j * (length / (METERS_PER_DEGREE_LAT * Math.cos(currentLat * (Math.PI / 180)))));
+          const currentLat = lat + ((i + 0.5) * (length / METERS_PER_DEGREE_LAT));
+          const currentLon = lon + ((j + 0.5) * (length / (METERS_PER_DEGREE_LAT * Math.cos(currentLat * (Math.PI / 180)))));
           points += getPointPlacemark(rowLabels[i], colLabels[j], currentLon, currentLat);
         }
       }
