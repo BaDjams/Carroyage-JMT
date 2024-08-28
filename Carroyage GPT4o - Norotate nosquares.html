@@ -5,6 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Générateur de carroyage CADO</title>
   <style>
+    :root {
+      --primary-color: #4CAF50;
+      --hover-color: #45a049;
+    }
     body {
       font-family: Arial, sans-serif;
       max-width: 600px;
@@ -33,14 +37,15 @@
       height: 40px;
     }
     button {
-      background-color: #4CAF50;
+      background-color: var(--primary-color);
       color: white;
       border: none;
       cursor: pointer;
       padding: 10px;
+      transition: background-color 0.3s;
     }
     button:hover {
-      background-color: #45a049;
+      background-color: var(--hover-color);
     }
     @media (max-width: 600px) {
       body {
@@ -56,72 +61,68 @@
   </style>
 </head>
 <body>
-  <h1>Générateur de carroyage CADO</h1>
-  
-  <label for="coordinates">Coordonnées (WGS84, format "google", par exemple : <i>48.803322, 2.126005</i>) :</label>
-  <input type="text" id="coordinates" placeholder="Entrer les Coordonnées" aria-label="Coordonnées" required>
-  
-  <label for="length">Échelle (en mètres) :</label>
-  <input type="number" id="length" placeholder="Spécifier l'échelle" aria-label="Échelle" required min="1">
-  
-  <label for="color">Choisir une couleur :</label>
-  <input type="color" id="color" aria-label="Couleur" value="#FFFFFF">
-  
-  <div class="slider-container">
-    <label for="transparency">Transparence :</label>
-    <input type="range" id="transparency" min="0" max="100" value="20" aria-label="Transparence">
-  </div>
+  <main>
+    <h1>Générateur de carroyage CADO</h1>
+    
+    <section>
+      <label for="coordinates">Coordonnées (WGS84, format "google", par exemple : <i>48.803322, 2.126005</i>) :</label>
+      <input type="text" id="coordinates" placeholder="Entrer les Coordonnées" aria-label="Coordonnées" required pattern="^-?\d+(\.\d+)?,\s*-?\d+(\.\d+)?$">
+      
+      <label for="length">Échelle (en mètres) :</label>
+      <input type="number" id="length" placeholder="Spécifier l'échelle" aria-label="Échelle" required min="1">
+      
+      <label for="color">Choisir une couleur :</label>
+      <input type="color" id="color" aria-label="Couleur" value="#FFFFFF">
+      
+      <div class="slider-container">
+        <label for="transparency">Transparence :</label>
+        <input type="range" id="transparency" min="0" max="100" value="20" aria-label="Transparence">
+      </div>
 
-  <label for="gridName">Nom du carroyage :</label>
-  <input type="text" id="gridName" placeholder="Nom du carroyage (optionnel)" aria-label="Nom du carroyage">
+      <label for="gridName">Nom du carroyage :</label>
+      <input type="text" id="gridName" placeholder="Nom du carroyage (optionnel)" aria-label="Nom du carroyage">
 
-  <label for="referencePoint">Point de référence :</label>
-  <select id="referencePoint" aria-label="Point de référence">
-    <option value="center">Milieu du carroyage</option>
-    <option value="bottomLeft">Coin bas gauche</option>
-    <option value="topLeft">Coin haut gauche</option>
-  </select>
-  
-  <label for="gridOption">Option de grille :</label>
-  <select id="gridOption" aria-label="Option de grille" onchange="toggleCustomGridOptions()">
-    <option value="default">Grille par défaut</option>
-    <option value="custom">Grille custom</option>
-  </select>
+      <label for="referencePoint">Point de référence :</label>
+      <select id="referencePoint" aria-label="Point de référence">
+        <option value="center">Milieu du carroyage</option>
+        <option value="bottomLeft">Coin bas gauche</option>
+        <option value="topLeft">Coin haut gauche</option>
+      </select>
+      
+      <label for="gridOption">Option de grille :</label>
+      <select id="gridOption" aria-label="Option de grille" onchange="toggleCustomGridOptions()">
+        <option value="default">Grille par défaut</option>
+        <option value="custom">Grille custom</option>
+      </select>
 
-  <div id="defaultGridOptions">
-    <label for="gridType">Type de grille :</label>
-    <select id="gridType" aria-label="Type de grille">
-      <option value="Z26">Z26 (26x26)</option>
-      <option value="Z14" selected>Z14 (26x14)</option>
-      <option value="Q9">Q9 (17x9)</option>
-    </select>
-  </div>
+      <div id="defaultGridOptions">
+        <label for="gridType">Type de grille :</label>
+        <select id="gridType" aria-label="Type de grille">
+          <option value="Z26">Z26 (26x26)</option>
+          <option value="Z14" selected>Z14 (26x14)</option>
+          <option value="Q9">Q9 (17x9)</option>
+        </select>
+      </div>
 
-  <div id="customGridOptions" style="display:none;">
-    <label for="customRows">Nombre de lignes (chiffres) :</label>
-    <input type="number" id="customRows" min="1" max="26" value="26">
-    <label for="customCols">Nombre de colonnes (lettres) :</label>
-    <input type="number" id="customCols" min="1" max="26" value="26">
-  </div>
-  
-  <button onclick="generateKML('grid')">Télécharger le KML de la grille</button>
-  <button onclick="generateKML('points')">Télécharger le KML des points</button>
-  
+      <div id="customGridOptions" style="display:none;">
+        <label for="customRows">Nombre de lignes (chiffres) :</label>
+        <input type="number" id="customRows" min="1" max="26" value="26">
+        <label for="customCols">Nombre de colonnes (lettres) :</label>
+        <input type="number" id="customCols" min="1" max="26" value="26">
+      </div>
+      
+      <button onclick="generateKML('grid')">Télécharger le KML de la grille</button>
+      <button onclick="generateKML('points')">Télécharger le KML des points</button>
+    </section>
+  </main>
+
   <script>
     const METERS_PER_DEGREE_LAT = 111320;
 
     function toggleCustomGridOptions() {
       const gridOption = document.getElementById("gridOption").value;
-      const defaultGridOptions = document.getElementById("defaultGridOptions");
-      const customGridOptions = document.getElementById("customGridOptions");
-
-      if (gridOption === "custom") {
-        defaultGridOptions.style.display = "none";
-        customGridOptions.style.display = "block";
-      } else {
-        defaultGridOptions.style.display = "block";
-        customGridOptions.style.display = "none";
-      }
+      document.getElementById("defaultGridOptions").style.display = gridOption === "custom" ? "none" : "block";
+      document.getElementById("customGridOptions").style.display = gridOption === "custom" ? "block" : "none";
     }
 
     function generateKML(type) {
@@ -145,70 +146,20 @@
       let gridRows, gridCols, gridType;
       if (gridOption === "default") {
         gridType = document.getElementById("gridType").value;
-        switch (gridType) {
-          case "Z26":
-            gridRows = 26;
-            gridCols = 26;
-            break;
-          case "Z14":
-            gridRows = 14;
-            gridCols = 26;
-            break;
-          case "Q9":
-            gridRows = 9;
-            gridCols = 17;
-            break;
-        }
+        ({ gridRows, gridCols } = getDefaultGridDimensions(gridType));
       } else {
         gridRows = parseInt(document.getElementById("customRows").value);
         gridCols = parseInt(document.getElementById("customCols").value);
       }
 
-      const HALF_GRID_ROWS = Math.floor(gridRows / 2);
-      const HALF_GRID_COLS = Math.floor(gridCols / 2);
-
-      let startingLat, startingLon, referenceCode;
-
-      switch (referencePoint) {
-        case "center":
-          startingLat = latitude - (HALF_GRID_ROWS * (length / METERS_PER_DEGREE_LAT));
-          startingLon = longitude - (HALF_GRID_COLS * (length / (METERS_PER_DEGREE_LAT * Math.cos(latitude * (Math.PI / 180)))));
-          referenceCode = "_C_";
-          break;
-        case "bottomLeft":
-          startingLat = latitude;
-          startingLon = longitude;
-          referenceCode = "_BG_";
-          break;
-        case "topLeft":
-          startingLat = latitude - (gridRows * (length / METERS_PER_DEGREE_LAT));
-          startingLon = longitude;
-          referenceCode = "_HG_";
-          break;
-      }
+      const { startingLat, startingLon, referenceCode } = calculateStartingPoint(latitude, longitude, length, referencePoint, gridRows, gridCols);
 
       let kmlContent = getKMLHeader(kmlColor);
 
       if (type === 'grid') {
-        // Génération des lignes horizontales
-        for (let i = 0; i <= gridRows; i++) {
-          const lat = startingLat + (i * (length / METERS_PER_DEGREE_LAT));
-          kmlContent += getLinePlacemark(lat, startingLon, gridCols, length, 'horizontal', kmlColor);
-        }
-
-        // Génération des lignes verticales
-        for (let j = 0; j <= gridCols; j++) {
-          const lon = startingLon + (j * (length / (METERS_PER_DEGREE_LAT * Math.cos(latitude * (Math.PI / 180)))));
-          kmlContent += getLinePlacemark(startingLat, lon, gridRows, length, 'vertical', kmlColor);
-        }
+        kmlContent += generateGridLines(startingLat, startingLon, gridRows, gridCols, length, kmlColor);
       } else if (type === 'points') {
-        for (let i = 0; i < gridRows; i++) {
-          for (let j = 0; j < gridCols; j++) {
-            const lat = startingLat + (i * (length / METERS_PER_DEGREE_LAT));
-            const lon = startingLon + (j * (length / (METERS_PER_DEGREE_LAT * Math.cos(lat * (Math.PI / 180)))));
-            kmlContent += getPointPlacemark(i, j, lon, lat);
-          }
-        }
+        kmlContent += generateGridPoints(startingLat, startingLon, gridRows, gridCols, length, referencePoint);
       }
 
       kmlContent += `</Document></kml>`;
@@ -226,6 +177,45 @@
         return false;
       }
       return true;
+    }
+
+    function getDefaultGridDimensions(gridType) {
+      switch (gridType) {
+        case "Z26":
+          return { gridRows: 26, gridCols: 26 };
+        case "Z14":
+          return { gridRows: 14, gridCols: 26 };
+        case "Q9":
+          return { gridRows: 9, gridCols: 17 };
+        default:
+          return { gridRows: 26, gridCols: 26 };
+      }
+    }
+
+    function calculateStartingPoint(lat, lon, length, refPoint, rows, cols) {
+      const HALF_GRID_ROWS = Math.floor(rows / 2);
+      const HALF_GRID_COLS = Math.floor(cols / 2);
+
+      let startingLat, startingLon, referenceCode;
+
+      switch (refPoint) {
+        case "center":
+          startingLat = lat - (HALF_GRID_ROWS * (length / METERS_PER_DEGREE_LAT));
+          startingLon = lon - (HALF_GRID_COLS * (length / (METERS_PER_DEGREE_LAT * Math.cos(lat * (Math.PI / 180)))));
+          referenceCode = "_C_";
+          break;
+        case "bottomLeft":
+          startingLat = lat;
+          startingLon = lon;
+          referenceCode = "_BG_";
+          break;
+        case "topLeft":
+          startingLat = lat - (rows * (length / METERS_PER_DEGREE_LAT));
+          startingLon = lon;
+          referenceCode = "_HG_";
+          break;
+      }
+      return { startingLat, startingLon, referenceCode };
     }
 
     function getKMLHeader(color) {
@@ -254,6 +244,38 @@
                   </Style>`;
     }
 
+    function generateGridLines(lat, lon, rows, cols, length, color) {
+      let lines = '';
+      for (let i = 0; i <= rows; i++) {
+        const currentLat = lat + (i * (length / METERS_PER_DEGREE_LAT));
+        lines += getLinePlacemark(currentLat, lon, cols, length, 'horizontal', color);
+      }
+      for (let j = 0; j <= cols; j++) {
+        const currentLon = lon + (j * (length / (METERS_PER_DEGREE_LAT * Math.cos(lat * (Math.PI / 180)))));
+        lines += getLinePlacemark(lat, currentLon, rows, length, 'vertical', color);
+      }
+      return lines;
+    }
+
+    function generateGridPoints(lat, lon, rows, cols, length, refPoint) {
+      let points = '';
+      const colLabels = Array.from({ length: cols }, (_, i) => String.fromCharCode(65 + i));
+      const rowLabels = Array.from({ length: rows }, (_, i) => i + 1);
+      
+      if (refPoint === "topLeft") {
+        rowLabels.reverse();
+      }
+
+      for (let i = 0; i < rows; i++) {
+        for (let j = 0; j < cols; j++) {
+          const currentLat = lat + (i * (length / METERS_PER_DEGREE_LAT));
+          const currentLon = lon + (j * (length / (METERS_PER_DEGREE_LAT * Math.cos(currentLat * (Math.PI / 180)))));
+          points += getPointPlacemark(rowLabels[i], colLabels[j], currentLon, currentLat);
+        }
+      }
+      return points;
+    }
+
     function getLinePlacemark(lat, lon, count, length, direction, color) {
       let coordinates = '';
       if (direction === 'horizontal') {
@@ -278,7 +300,7 @@
 
     function getPointPlacemark(row, col, lon, lat) {
       return `<Placemark>
-                <name>Point ${row + 1}-${col + 1}</name>
+                <name>Point ${col}${row}</name>
                 <styleUrl>#cado</styleUrl>
                 <Point>
                   <coordinates>${lon},${lat}</coordinates>
