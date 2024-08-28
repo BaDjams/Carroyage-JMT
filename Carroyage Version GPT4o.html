@@ -21,16 +21,12 @@
       margin-bottom: 5px;
       font-size: 0.9em;
     }
-    input, select, button, .slider-container {
+    input, select, button {
       width: 100%;
       margin-bottom: 15px;
       padding: 10px;
       font-size: 16px;
       box-sizing: border-box;
-    }
-    input[type="color"], input[type="range"] {
-      padding: 0;
-      height: 40px;
     }
     button {
       background-color: #4CAF50;
@@ -49,7 +45,7 @@
       h1 {
         font-size: 1.2em;
       }
-      input, select, button, .slider-container {
+      input, select, button {
         font-size: 14px;
       }
     }
@@ -70,149 +66,56 @@
   <label for="color">Choisir une couleur :</label>
   <input type="color" id="color" aria-label="Couleur" value="#FFFFFF">
   
-  <div class="slider-container">
-    <label for="transparency">Transparence :</label>
-    <input type="range" id="transparency" min="0" max="100" value="20" aria-label="Transparence">
-  </div>
-
-  <label for="gridName">Nom du carroyage :</label>
-  <input type="text" id="gridName" placeholder="Nom du carroyage (optionnel)" aria-label="Nom du carroyage">
-
-  <label for="referencePoint">Point de référence :</label>
-  <select id="referencePoint" aria-label="Point de référence">
-    <option value="center">Milieu du carroyage</option>
-    <option value="bottomLeft">Coin bas gauche</option>
-    <option value="topLeft">Coin haut gauche</option>
-  </select>
-  
-  <label for="gridOption">Option de grille :</label>
-  <select id="gridOption" aria-label="Option de grille" onchange="toggleCustomGridOptions()">
-    <option value="default">Grille par défaut</option>
-    <option value="custom">Grille custom</option>
-  </select>
-
-  <div id="defaultGridOptions">
-    <label for="gridType">Type de grille :</label>
-    <select id="gridType" aria-label="Type de grille">
-      <option value="Z26">Z26 (26x26)</option>
-      <option value="Z14" selected>Z14 (26x14)</option>
-      <option value="Q9">Q9 (17x9)</option>
-    </select>
-  </div>
-
-  <div id="customGridOptions" style="display:none;">
-    <label for="customRows">Nombre de lignes (Chiffres) :</label>
-    <input type="number" id="customRows" min="1" max="26" value="26">
-    <label for="customCols">Nombre de colonnes (Lettres) :</label>
-    <input type="number" id="customCols" min="1" max="26" value="26">
-  </div>
-  
-  <button onclick="generateKML('grid')">Télécharger le KML du carroyage</button>
-  <button onclick="generateKML('points')">Télécharger le KML des points</button>
+  <button onclick="generateKML()">Télécharger le KML du carroyage</button>
   
   <script>
     const METERS_PER_DEGREE_LAT = 111320;
 
-    function toggleCustomGridOptions() {
-      const gridOption = document.getElementById("gridOption").value;
-      const defaultGridOptions = document.getElementById("defaultGridOptions");
-      const customGridOptions = document.getElementById("customGridOptions");
-
-      if (gridOption === "custom") {
-        defaultGridOptions.style.display = "none";
-        customGridOptions.style.display = "block";
-      } else {
-        defaultGridOptions.style.display = "block";
-        customGridOptions.style.display = "none";
-      }
-    }
-
-    function generateKML(type) {
+    function generateKML() {
       const coordinatesInput = document.getElementById("coordinates").value;
       const lengthInput = document.getElementById("length").value;
       const angleInput = document.getElementById("angle").value;
       const colorInput = document.getElementById("color").value;
-      const transparencyInput = document.getElementById("transparency").value;
-      const gridNameInput = document.getElementById("gridName").value.trim();
-      const gridOption = document.getElementById("gridOption").value;
 
       if (!validateInputs(coordinatesInput, lengthInput, angleInput)) return;
 
       const [latitude, longitude] = coordinatesInput.split(',').map(coord => parseFloat(coord.trim()));
       const length = parseFloat(lengthInput);
       const angle = parseFloat(angleInput) * Math.PI / 180; // Convert degrees to radians
-      const referencePoint = document.getElementById("referencePoint").value;
 
-      const transparencyHex = Math.floor((100 - transparencyInput) * 2.55).toString(16).padStart(2, '0');
+      const transparencyHex = '80';
       const rgbHex = colorInput.slice(1);
       const kmlColor = transparencyHex + rgbHex.slice(4, 6) + rgbHex.slice(2, 4) + rgbHex.slice(0, 2);
 
-      let gridRows, gridCols, gridType;
-      if (gridOption === "default") {
-        gridType = document.getElementById("gridType").value;
-        switch (gridType) {
-          case "Z26":
-            gridRows = 26;
-            gridCols = 26;
-            break;
-          case "Z14":
-            gridRows = 14;
-            gridCols = 26;
-            break;
-          case "Q9":
-            gridRows = 9;
-            gridCols = 17;
-            break;
-        }
-      } else {
-        gridRows = parseInt(document.getElementById("customRows").value);
-        gridCols = parseInt(document.getElementById("customCols").value);
-        gridType = `Custom_${gridRows}x${gridCols}`;
-      }
-
-      const HALF_GRID_ROWS = Math.floor(gridRows / 2);
-      const HALF_GRID_COLS = Math.floor(gridCols / 2);
-
-      let startingLat, startingLon, referenceCode;
-
-      switch (referencePoint) {
-        case "center":
-          startingLat = latitude - (HALF_GRID_ROWS * (length / METERS_PER_DEGREE_LAT));
-          startingLon = longitude - (HALF_GRID_COLS * (length / (METERS_PER_DEGREE_LAT * Math.cos(latitude * (Math.PI / 180)))));
-          referenceCode = "_C_";
-          break;
-        case "bottomLeft":
-          startingLat = latitude;
-          startingLon = longitude;
-          referenceCode = "_BG_";
-          break;
-        case "topLeft":
-          startingLat = latitude - (gridRows * (length / METERS_PER_DEGREE_LAT));
-          startingLon = longitude;
-          referenceCode = "_HG_";
-          break;
-      }
+      const gridRows = 10; // Example grid size
+      const gridCols = 10;
 
       let kmlContent = getKMLHeader(kmlColor);
 
-      for (let i = 0; i < gridRows; i++) {
-        for (let j = 0; j < gridCols; j++) {
-          const row = String.fromCharCode(65 + j);
-          const line = referencePoint === "topLeft" ? gridRows - i : i + 1;
-          
-          const baseLat = startingLat + (i * (length / METERS_PER_DEGREE_LAT));
-          const baseLon = startingLon + (j * (length / (METERS_PER_DEGREE_LAT * Math.cos(baseLat * (Math.PI / 180)))));
+      for (let i = 0; i <= gridRows; i++) {
+        const baseLat = latitude + (i - gridRows / 2) * (length / METERS_PER_DEGREE_LAT);
+        const startLon = longitude - (gridCols / 2) * (length / (METERS_PER_DEGREE_LAT * Math.cos(baseLat * (Math.PI / 180))));
+        const endLon = longitude + (gridCols / 2) * (length / (METERS_PER_DEGREE_LAT * Math.cos(baseLat * (Math.PI / 180))));
+        
+        const [startLatRot, startLonRot] = rotatePoint(startLon, baseLat, longitude, latitude, angle);
+        const [endLatRot, endLonRot] = rotatePoint(endLon, baseLat, longitude, latitude, angle);
 
-          const [lat, lon] = rotatePoint(baseLon, baseLat, longitude, latitude, angle);
+        kmlContent += getLinePlacemark(startLonRot, startLatRot, endLonRot, endLatRot, kmlColor);
+      }
 
-          kmlContent += type === 'grid' 
-            ? getGridPlacemark(row, line, lon, lat, length, angle, kmlColor) 
-            : getPointPlacemark(row, line, lon, lat, length);
-        }
+      for (let j = 0; j <= gridCols; j++) {
+        const baseLon = longitude + (j - gridCols / 2) * (length / (METERS_PER_DEGREE_LAT * Math.cos(latitude * (Math.PI / 180))));
+        const startLat = latitude - (gridRows / 2) * (length / METERS_PER_DEGREE_LAT);
+        const endLat = latitude + (gridRows / 2) * (length / METERS_PER_DEGREE_LAT);
+        
+        const [startLatRot, startLonRot] = rotatePoint(baseLon, startLat, longitude, latitude, angle);
+        const [endLatRot, endLonRot] = rotatePoint(baseLon, endLat, longitude, latitude, angle);
+
+        kmlContent += getLinePlacemark(startLonRot, startLatRot, endLonRot, endLatRot, kmlColor);
       }
 
       kmlContent += `</Document></kml>`;
-      downloadKML(kmlContent, length, kmlColor, type, referenceCode, gridNameInput, latitude, longitude, gridType);
+      downloadKML(kmlContent);
     }
 
     function validateInputs(coordinates, length, angle) {
@@ -237,96 +140,49 @@
               <kml xmlns="http://www.opengis.net/kml/2.2">
                 <Document>
                   <name>CADO JMT - Carroyage</name>
-                  <description>Copyright GIGN/CADO/JMT</description>
                   <Style id="gridLineStyle">
                     <LineStyle>
                       <color>${color}</color>
                       <width>2</width>
                     </LineStyle>
-                  </Style>
-                  <Style id="cado">
-                    <LabelStyle>
-                      <scale>1</scale>
-                    </LabelStyle>
-                    <IconStyle>
-                      <scale>0.1</scale>
-                      <Icon>
-                        <href>https://upload.wikimedia.org/wikipedia/commons/8/8c/Transparent.png</href>
-                      </Icon>
-                      <hotSpot x="0.5" y="0.5" xunits="fraction" yunits="fraction"/>
-                    </IconStyle>
                   </Style>`;
     }
 
     function rotatePoint(lon, lat, centerLon, centerLat, angle) {
-  const cosAngle = Math.cos(angle);
-  const sinAngle = Math.sin(angle);
+      const cosAngle = Math.cos(angle);
+      const sinAngle = Math.sin(angle);
 
-  const dLon = lon - centerLon;
-  const dLat = lat - centerLat;
+      const dLon = lon - centerLon;
+      const dLat = lat - centerLat;
 
-  const x = dLon * cosAngle + dLat * sinAngle;
-  const y = -dLon * sinAngle + dLat * cosAngle;
+      const x = dLon * cosAngle + dLat * sinAngle;
+      const y = -dLon * sinAngle + dLat * cosAngle;
 
-  const rotatedLon = centerLon + x;
-  const rotatedLat = centerLat + y;
+      const rotatedLon = centerLon + x;
+      const rotatedLat = centerLat + y;
 
-  return [rotatedLon, rotatedLat];
-}
+      return [rotatedLat, rotatedLon];
+    }
 
-function getGridPlacemark(row, line, lon, lat, length, angle, color) {
-  const dLon = length / (METERS_PER_DEGREE_LAT * Math.cos(lat * (Math.PI / 180)));
-  const dLat = length / METERS_PER_DEGREE_LAT;
-
-  const centerLon = lon + dLon / 2;
-  const centerLat = lat + dLat / 2;
-
-  const corners = [
-    rotatePoint(lon, lat, centerLon, centerLat, angle),
-    rotatePoint(lon + dLon, lat, centerLon, centerLat, angle),
-    rotatePoint(lon + dLon, lat + dLat, centerLon, centerLat, angle),
-    rotatePoint(lon, lat + dLat, centerLon, centerLat, angle),
-    rotatePoint(lon, lat, centerLon, centerLat, angle)
-  ];
-
-  const coordinates = corners.map(corner => corner.join(',')).join(' ');
-
-  return `<Placemark>
-            <name>${row}${line}</name>
-            <Style>
-              <LineStyle>
-                <color>${color}</color>
-                <width>2</width>
-              </LineStyle>
-            </Style>
-            <LineString>
-              <coordinates>${coordinates}</coordinates>
-            </LineString>
-          </Placemark>`;
-}
-
-    function getPointPlacemark(row, line, lon, lat, length) {
-      const halfLonDelta = (length / (2 * METERS_PER_DEGREE_LAT * Math.cos(lat * (Math.PI / 180))));
-      const halfLatDelta = length / (2 * METERS_PER_DEGREE_LAT);
-      const centerLon = lon + halfLonDelta;
-      const centerLat = lat + halfLatDelta;
-
+    function getLinePlacemark(startLon, startLat, endLon, endLat, color) {
       return `<Placemark>
-                <name>${row}${line}</name>
-                <styleUrl>#cado</styleUrl>
-                <Point>
-                  <coordinates>${centerLon},${centerLat}</coordinates>
-                </Point>
+                <Style>
+                  <LineStyle>
+                    <color>${color}</color>
+                    <width>2</width>
+                  </LineStyle>
+                </Style>
+                <LineString>
+                  <coordinates>${startLon},${startLat} ${endLon},${endLat}</coordinates>
+                </LineString>
               </Placemark>`;
     }
 
-    function downloadKML(content, length, color, type, referenceCode, gridNameInput, latitude, longitude, gridType) {
+    function downloadKML(content) {
       const date = new Date();
       const formattedDate = `${date.getDate().toString().padStart(2, '0')}.${(date.getMonth() + 1).toString().padStart(2, '0')}.${date.getFullYear()}`;
       const formattedTime = `${date.getHours().toString().padStart(2, '0')}.${date.getMinutes().toString().padStart(2, '0')}`;
-      const prefix = type === 'grid' ? 'Carroyage' : 'Points';
-      let filename = gridNameInput || `${latitude.toFixed(7)}_${longitude.toFixed(7)}`;
-      filename = `${prefix}_${filename}_${gridType}_${referenceCode}${formattedDate}_${formattedTime}.kml`;
+      const filename = `Carroyage_${formattedDate}_${formattedTime}.kml`;
 
       const element = document.createElement('a');
       element.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(content));
