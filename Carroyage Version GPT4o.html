@@ -30,6 +30,10 @@
       border-radius: 4px;
       box-sizing: border-box;
     }
+    input:focus, select:focus {
+      border-color: #4CAF50;
+      outline: none;
+    }
     button {
       background-color: #4CAF50;
       color: white;
@@ -56,10 +60,10 @@
   <h1>Générateur de carroyage CADO</h1>
   
   <label for="coordinates">Coordonnées (WGS84, format "google", par exemple : <i>48.803322, 2.126005</i>) :</label>
-  <input type="text" id="coordinates" placeholder="Entrer les Coordonnées" aria-label="Coordonnées">
+  <input type="text" id="coordinates" placeholder="Entrer les Coordonnées" aria-label="Coordonnées" required>
   
   <label for="length">Échelle (en mètres) :</label>
-  <input type="number" id="length" placeholder="Spécifier l'échelle" aria-label="Échelle">
+  <input type="number" id="length" placeholder="Spécifier l'échelle" aria-label="Échelle" required min="1">
   
   <label for="color">Choisir une couleur :</label>
   <select id="color" aria-label="Couleur">
