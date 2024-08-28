@@ -65,7 +65,7 @@
   <input type="number" id="length" placeholder="Spécifier l'échelle" aria-label="Échelle" required min="1">
   
   <label for="angle">Angle par rapport au nord (en degrés) :</label>
-  <input type="number" id="angle" placeholder="Angle de rotation" aria-label="Angle" required min="0" max="360" value="0">
+  <input type="number" id="angle" placeholder="Angle de rotation" aria-label="Angle" required min="-90" max="90" value="0">
   
   <label for="color">Choisir une couleur :</label>
   <input type="color" id="color" aria-label="Couleur" value="#FFFFFF">
@@ -202,11 +202,9 @@
           const lat = startingLat + (i * (length / METERS_PER_DEGREE_LAT));
           const lon = startingLon + (j * (length / (METERS_PER_DEGREE_LAT * Math.cos(lat * (Math.PI / 180)))));
 
-          const [rotatedLon, rotatedLat] = rotatePoint(lon, lat, length, angle);
-
           kmlContent += type === 'grid' 
-            ? getGridPlacemark(row, line, rotatedLon, rotatedLat, length, angle, kmlColor) 
-            : getPointPlacemark(row, line, rotatedLon, rotatedLat, length);
+            ? getGridPlacemark(row, line, lon, lat, length, angle, kmlColor) 
+            : getPointPlacemark(row, line, lon, lat, length);
         }
       }
 
@@ -224,24 +222,11 @@
         alert('Veuillez entrer une échelle valide.');
         return false;
       }
-      if (isNaN(angle) || angle < 0 || angle > 360) {
-        alert('Veuillez entrer un angle valide entre 0 et 360 degrés.');
+      if (isNaN(angle) || angle < -90 || angle > 90) {
+        alert('Veuillez entrer un angle valide entre -90 et 90 degrés.');
         return false;
       }
       return true;
-    }
-
-    function rotatePoint(lon, lat, length, angle) {
-      const cosAngle = Math.cos(angle);
-      const sinAngle = Math.sin(angle);
-
-      const x = length * cosAngle - length * sinAngle;
-      const y = length * sinAngle + length * cosAngle;
-
-      const rotatedLon = lon + x / (METERS_PER_DEGREE_LAT * Math.cos(lat * (Math.PI / 180)));
-      const rotatedLat = lat + y / METERS_PER_DEGREE_LAT;
-
-      return [rotatedLon, rotatedLat];
     }
 
     function getKMLHeader(color) {
@@ -270,18 +255,28 @@
                   </Style>`;
     }
 
-    function getGridPlacemark(row, line, lon, lat, length, angle, color) {
+    function rotatePoint(lon, lat, dLon, dLat, angle) {
       const cosAngle = Math.cos(angle);
       const sinAngle = Math.sin(angle);
 
+      const x = dLon * cosAngle - dLat * sinAngle;
+      const y = dLon * sinAngle + dLat * cosAngle;
+
+      const rotatedLon = lon + x;
+      const rotatedLat = lat + y;
+
+      return [rotatedLon, rotatedLat];
+    }
+
+    function getGridPlacemark(row, line, lon, lat, length, angle, color) {
       const dLon = length / (METERS_PER_DEGREE_LAT * Math.cos(lat * (Math.PI / 180)));
       const dLat = length / METERS_PER_DEGREE_LAT;
 
       const corners = [
         [lon, lat],
-        [lon + cosAngle * dLon, lat + sinAngle * dLat],
-        [lon + cosAngle * dLon - sinAngle * dLat, lat + sinAngle * dLon + cosAngle * dLat],
-        [lon - sinAngle * dLat, lat + cosAngle * dLat],
+        rotatePoint(lon, lat, dLon, 0, angle),
+        rotatePoint(lon, lat, dLon, dLat, angle),
+        rotatePoint(lon, lat, 0, dLat, angle),
         [lon, lat]
       ];
 
