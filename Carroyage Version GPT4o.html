@@ -103,7 +103,7 @@
       const length = parseFloat(lengthInput);
       const referencePoint = document.getElementById("referencePoint").value;
 
-      const transparencyHex = (255 - Math.floor((transparencyInput / 100) * 255)).toString(16).padStart(2, '0');
+      const transparencyHex = Math.floor((100 - transparencyInput) * 2.55).toString(16).padStart(2, '0');
       const rgbHex = colorInput.slice(1);
       const kmlColor = transparencyHex + rgbHex.slice(4, 6) + rgbHex.slice(2, 4) + rgbHex.slice(0, 2);
 
