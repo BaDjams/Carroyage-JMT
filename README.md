@@ -1,0 +1,2 @@
+modifions la partie de sélection de couleur de caroyage en ajoutant un "color picker" avec 9 couleurs (Blanc, noir, gris, orange, cyan, magenta, jaune, vert, violet). La couleur par défaut sera le blanc.
+Ajoutons également un "slider" qui permet de séléctionner la transparence du carroyage, de 0 (totalement opaque) à 100 (totalement transparent). La transparence par défaut sera fixée à 20 (donc opaque à 80%)
