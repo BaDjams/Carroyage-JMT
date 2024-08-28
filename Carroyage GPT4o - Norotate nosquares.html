@@ -104,7 +104,8 @@
     <input type="number" id="customCols" min="1" max="26" value="26">
   </div>
   
-  <button onclick="generateKML()">Télécharger le KML de la grille</button>
+  <button onclick="generateKML('grid')">Télécharger le KML de la grille</button>
+  <button onclick="generateKML('points')">Télécharger le KML des points</button>
   
   <script>
     const METERS_PER_DEGREE_LAT = 111320;
@@ -123,7 +124,7 @@
       }
     }
 
-    function generateKML() {
+    function generateKML(type) {
       const coordinatesInput = document.getElementById("coordinates").value;
       const lengthInput = document.getElementById("length").value;
       const colorInput = document.getElementById("color").value;
@@ -188,20 +189,30 @@
 
       let kmlContent = getKMLHeader(kmlColor);
 
-      // Génération des lignes horizontales
-      for (let i = 0; i <= gridRows; i++) {
-        const lat = startingLat + (i * (length / METERS_PER_DEGREE_LAT));
-        kmlContent += getLinePlacemark(lat, startingLon, gridCols, length, 'horizontal', kmlColor);
-      }
+      if (type === 'grid') {
+        // Génération des lignes horizontales
+        for (let i = 0; i <= gridRows; i++) {
+          const lat = startingLat + (i * (length / METERS_PER_DEGREE_LAT));
+          kmlContent += getLinePlacemark(lat, startingLon, gridCols, length, 'horizontal', kmlColor);
+        }
 
-      // Génération des lignes verticales
-      for (let j = 0; j <= gridCols; j++) {
-        const lon = startingLon + (j * (length / (METERS_PER_DEGREE_LAT * Math.cos(latitude * (Math.PI / 180)))));
-        kmlContent += getLinePlacemark(startingLat, lon, gridRows, length, 'vertical', kmlColor);
+        // Génération des lignes verticales
+        for (let j = 0; j <= gridCols; j++) {
+          const lon = startingLon + (j * (length / (METERS_PER_DEGREE_LAT * Math.cos(latitude * (Math.PI / 180)))));
+          kmlContent += getLinePlacemark(startingLat, lon, gridRows, length, 'vertical', kmlColor);
+        }
+      } else if (type === 'points') {
+        for (let i = 0; i < gridRows; i++) {
+          for (let j = 0; j < gridCols; j++) {
+            const lat = startingLat + (i * (length / METERS_PER_DEGREE_LAT));
+            const lon = startingLon + (j * (length / (METERS_PER_DEGREE_LAT * Math.cos(lat * (Math.PI / 180)))));
+            kmlContent += getPointPlacemark(i, j, lon, lat);
+          }
+        }
       }
 
       kmlContent += `</Document></kml>`;
-      downloadKML(kmlContent, length, kmlColor, gridNameInput, latitude, longitude, gridType);
+      downloadKML(kmlContent, length, kmlColor, type, referenceCode, gridNameInput, latitude, longitude, gridType);
     }
 
     function validateInputs(coordinates, length) {
@@ -228,6 +239,18 @@
                       <color>${color}</color>
                       <width>2</width>
                     </LineStyle>
+                  </Style>
+                  <Style id="cado">
+                    <LabelStyle>
+                      <scale>1</scale>
+                    </LabelStyle>
+                    <IconStyle>
+                      <scale>0.1</scale>
+                      <Icon>
+                        <href>https://upload.wikimedia.org/wikipedia/commons/8/8c/Transparent.png</href>
+                      </Icon>
+                      <hotSpot x="0.5" y="0.5" xunits="fraction" yunits="fraction"/>
+                    </IconStyle>
                   </Style>`;
     }
 
@@ -253,11 +276,23 @@
               </Placemark>`;
     }
 
-    function downloadKML(content, length, color, gridNameInput, latitude, longitude, gridType) {
+    function getPointPlacemark(row, col, lon, lat) {
+      return `<Placemark>
+                <name>Point ${row + 1}-${col + 1}</name>
+                <styleUrl>#cado</styleUrl>
+                <Point>
+                  <coordinates>${lon},${lat}</coordinates>
+                </Point>
+              </Placemark>`;
+    }
+
+    function downloadKML(content, length, color, type, referenceCode, gridNameInput, latitude, longitude, gridType) {
       const date = new Date();
       const formattedDate = `${date.getDate().toString().padStart(2, '0')}.${(date.getMonth() + 1).toString().padStart(2, '0')}.${date.getFullYear()}`;
       const formattedTime = `${date.getHours().toString().padStart(2, '0')}.${date.getMinutes().toString().padStart(2, '0')}`;
-      const filename = `Carroyage_${gridNameInput || `${latitude.toFixed(7)}_${longitude.toFixed(7)}`}_${gridType}_${formattedDate}_${formattedTime}.kml`;
+      const prefix = type === 'grid' ? 'Carroyage' : 'Points';
+      let filename = gridNameInput || `${latitude.toFixed(7)}_${longitude.toFixed(7)}`;
+      filename = `${prefix}_${filename}_${gridType}_${referenceCode}${formattedDate}_${formattedTime}.kml`;
 
       const element = document.createElement('a');
       element.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(content));
