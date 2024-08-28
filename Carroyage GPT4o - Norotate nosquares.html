@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Générateur de carroyage CADO</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 600px;
+      margin: 0 auto;
+      padding: 20px;
+      box-sizing: border-box;
+    }
+    h1 {
+      font-size: 1.5em;
+      text-align: center;
+    }
+    label {
+      display: block;
+      margin-bottom: 5px;
+      font-size: 0.9em;
+    }
+    input, select, button, .slider-container {
+      width: 100%;
+      margin-bottom: 15px;
+      padding: 10px;
+      font-size: 16px;
+      box-sizing: border-box;
+    }
+    input[type="color"], input[type="range"] {
+      padding: 0;
+      height: 40px;
+    }
+    button {
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+      cursor: pointer;
+      padding: 10px;
+    }
+    button:hover {
+      background-color: #45a049;
+    }
+    @media (max-width: 600px) {
+      body {
+        padding: 10px;
+      }
+      h1 {
+        font-size: 1.2em;
+      }
+      input, select, button, .slider-container {
+        font-size: 14px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <h1>Générateur de carroyage CADO</h1>
+  
+  <label for="coordinates">Coordonnées (WGS84, format "google", par exemple : <i>48.803322, 2.126005</i>) :</label>
+  <input type="text" id="coordinates" placeholder="Entrer les Coordonnées" aria-label="Coordonnées" required>
+  
+  <label for="length">Échelle (en mètres) :</label>
+  <input type="number" id="length" placeholder="Spécifier l'échelle" aria-label="Échelle" required min="1">
+  
+  <label for="color">Choisir une couleur :</label>
+  <input type="color" id="color" aria-label="Couleur" value="#FFFFFF">
+  
+  <div class="slider-container">
+    <label for="transparency">Transparence :</label>
+    <input type="range" id="transparency" min="0" max="100" value="20" aria-label="Transparence">
+  </div>
+
+  <label for="gridName">Nom du carroyage :</label>
+  <input type="text" id="gridName" placeholder="Nom du carroyage (optionnel)" aria-label="Nom du carroyage">
+
+  <label for="referencePoint">Point de référence :</label>
+  <select id="referencePoint" aria-label="Point de référence">
+    <option value="center">Milieu du carroyage</option>
+    <option value="bottomLeft">Coin bas gauche</option>
+    <option value="topLeft">Coin haut gauche</option>
+  </select>
+  
+  <label for="gridOption">Option de grille :</label>
+  <select id="gridOption" aria-label="Option de grille" onchange="toggleCustomGridOptions()">
+    <option value="default">Grille par défaut</option>
+    <option value="custom">Grille custom</option>
+  </select>
+
+  <div id="defaultGridOptions">
+    <label for="gridType">Type de grille :</label>
+    <select id="gridType" aria-label="Type de grille">
+      <option value="Z26">Z26 (26x26)</option>
+      <option value="Z14" selected>Z14 (26x14)</option>
+      <option value="Q9">Q9 (17x9)</option>
+    </select>
+  </div>
+
+  <div id="customGridOptions" style="display:none;">
+    <label for="customRows">Nombre de lignes (chiffres) :</label>
+    <input type="number" id="customRows" min="1" max="26" value="26">
+    <label for="customCols">Nombre de colonnes (lettres) :</label>
+    <input type="number" id="customCols" min="1" max="26" value="26">
+  </div>
+  
+  <button onclick="generateKML()">Télécharger le KML de la grille</button>
+  
+  <script>
+    const METERS_PER_DEGREE_LAT = 111320;
+
+    function toggleCustomGridOptions() {
+      const gridOption = document.getElementById("gridOption").value;
+      const defaultGridOptions = document.getElementById("defaultGridOptions");
+      const customGridOptions = document.getElementById("customGridOptions");
+
+      if (gridOption === "custom") {
+        defaultGridOptions.style.display = "none";
+        customGridOptions.style.display = "block";
+      } else {
+        defaultGridOptions.style.display = "block";
+        customGridOptions.style.display = "none";
+      }
+    }
+
+    function generateKML() {
+      const coordinatesInput = document.getElementById("coordinates").value;
+      const lengthInput = document.getElementById("length").value;
+      const colorInput = document.getElementById("color").value;
+      const transparencyInput = document.getElementById("transparency").value;
+      const gridNameInput = document.getElementById("gridName").value.trim();
+      const gridOption = document.getElementById("gridOption").value;
+
+      if (!validateInputs(coordinatesInput, lengthInput)) return;
+
+      const [latitude, longitude] = coordinatesInput.split(',').map(coord => parseFloat(coord.trim()));
+      const length = parseFloat(lengthInput);
+      const referencePoint = document.getElementById("referencePoint").value;
+
+      const transparencyHex = Math.floor((100 - transparencyInput) * 2.55).toString(16).padStart(2, '0');
+      const rgbHex = colorInput.slice(1);
+      const kmlColor = transparencyHex + rgbHex.slice(4, 6) + rgbHex.slice(2, 4) + rgbHex.slice(0, 2);
+
+      let gridRows, gridCols, gridType;
+      if (gridOption === "default") {
+        gridType = document.getElementById("gridType").value;
+        switch (gridType) {
+          case "Z26":
+            gridRows = 26;
+            gridCols = 26;
+            break;
+          case "Z14":
+            gridRows = 14;
+            gridCols = 26;
+            break;
+          case "Q9":
+            gridRows = 9;
+            gridCols = 17;
+            break;
+        }
+      } else {
+        gridRows = parseInt(document.getElementById("customRows").value);
+        gridCols = parseInt(document.getElementById("customCols").value);
+      }
+
+      const HALF_GRID_ROWS = Math.floor(gridRows / 2);
+      const HALF_GRID_COLS = Math.floor(gridCols / 2);
+
+      let startingLat, startingLon, referenceCode;
+
+      switch (referencePoint) {
+        case "center":
+          startingLat = latitude - (HALF_GRID_ROWS * (length / METERS_PER_DEGREE_LAT));
+          startingLon = longitude - (HALF_GRID_COLS * (length / (METERS_PER_DEGREE_LAT * Math.cos(latitude * (Math.PI / 180)))));
+          referenceCode = "_C_";
+          break;
+        case "bottomLeft":
+          startingLat = latitude;
+          startingLon = longitude;
+          referenceCode = "_BG_";
+          break;
+        case "topLeft":
+          startingLat = latitude - (gridRows * (length / METERS_PER_DEGREE_LAT));
+          startingLon = longitude;
+          referenceCode = "_HG_";
+          break;
+      }
+
+      let kmlContent = getKMLHeader(kmlColor);
+
+      // Génération des lignes horizontales
+      for (let i = 0; i <= gridRows; i++) {
+        const lat = startingLat + (i * (length / METERS_PER_DEGREE_LAT));
+        kmlContent += getLinePlacemark(lat, startingLon, gridCols, length, 'horizontal', kmlColor);
+      }
+
+      // Génération des lignes verticales
+      for (let j = 0; j <= gridCols; j++) {
+        const lon = startingLon + (j * (length / (METERS_PER_DEGREE_LAT * Math.cos(latitude * (Math.PI / 180)))));
+        kmlContent += getLinePlacemark(startingLat, lon, gridRows, length, 'vertical', kmlColor);
+      }
+
+      kmlContent += `</Document></kml>`;
+      downloadKML(kmlContent, length, kmlColor, gridNameInput, latitude, longitude, gridType);
+    }
+
+    function validateInputs(coordinates, length) {
+      const coordsPattern = /^-?\d+(\.\d+)?\s*,\s*-?\d+(\.\d+)?$/;
+      if (!coordsPattern.test(coordinates)) {
+        alert('Veuillez entrer des coordonnées valides.');
+        return false;
+      }
+      if (isNaN(length) || length <= 0) {
+        alert('Veuillez entrer une échelle valide.');
+        return false;
+      }
+      return true;
+    }
+
+    function getKMLHeader(color) {
+      return `<?xml version="1.0" encoding="UTF-8"?>
+              <kml xmlns="http://www.opengis.net/kml/2.2">
+                <Document>
+                  <name>CADO JMT - Carroyage</name>
+                  <description>Copyright GIGN/CADO/JMT</description>
+                  <Style id="gridLineStyle">
+                    <LineStyle>
+                      <color>${color}</color>
+                      <width>2</width>
+                    </LineStyle>
+                  </Style>`;
+    }
+
+    function getLinePlacemark(lat, lon, count, length, direction, color) {
+      let coordinates = '';
+      if (direction === 'horizontal') {
+        const endLon = lon + (count * (length / (METERS_PER_DEGREE_LAT * Math.cos(lat * (Math.PI / 180)))));
+        coordinates = `${lon},${lat} ${endLon},${lat}`;
+      } else if (direction === 'vertical') {
+        const endLat = lat + (count * (length / METERS_PER_DEGREE_LAT));
+        coordinates = `${lon},${lat} ${lon},${endLat}`;
+      }
+      return `<Placemark>
+                <Style>
+                  <LineStyle>
+                    <color>${color}</color>
+                    <width>2</width>
+                  </LineStyle>
+                </Style>
+                <LineString>
+                  <coordinates>${coordinates}</coordinates>
+                </LineString>
+              </Placemark>`;
+    }
+
+    function downloadKML(content, length, color, gridNameInput, latitude, longitude, gridType) {
+      const date = new Date();
+      const formattedDate = `${date.getDate().toString().padStart(2, '0')}.${(date.getMonth() + 1).toString().padStart(2, '0')}.${date.getFullYear()}`;
+      const formattedTime = `${date.getHours().toString().padStart(2, '0')}.${date.getMinutes().toString().padStart(2, '0')}`;
+      const filename = `Carroyage_${gridNameInput || `${latitude.toFixed(7)}_${longitude.toFixed(7)}`}_${gridType}_${formattedDate}_${formattedTime}.kml`;
+
+      const element = document.createElement('a');
+      element.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(content));
+      element.setAttribute('download', filename);
+      element.style.display = 'none';
+      document.body.appendChild(element);
+      element.click();
+      document.body.removeChild(element);
+    }
+  </script>
+</body>
+</html>
