@@ -192,31 +192,31 @@
       }
     }
 
-    function calculateStartingPoint(lat, lon, length, refPoint, rows, cols) {
-      const HALF_GRID_ROWS = Math.floor(rows / 2);
-      const HALF_GRID_COLS = Math.floor(cols / 2);
+function calculateStartingPoint(lat, lon, length, refPoint, rows, cols) {
+  const HALF_GRID_ROWS = Math.floor(rows / 2);
+  const HALF_GRID_COLS = Math.floor(cols / 2);
 
-      let startingLat, startingLon, referenceCode;
+  let startingLat, startingLon, referenceCode;
 
-      switch (refPoint) {
-        case "center":
-          startingLat = lat - (HALF_GRID_ROWS * (length / METERS_PER_DEGREE_LAT)) - (length / (2 * METERS_PER_DEGREE_LAT));
-          startingLon = lon - (HALF_GRID_COLS * (length / (METERS_PER_DEGREE_LAT * Math.cos(lat * (Math.PI / 180))))) - (length / (2 * (METERS_PER_DEGREE_LAT * Math.cos(lat * (Math.PI / 180)))));
-          referenceCode = "_C_";
-          break;
-        case "bottomLeft":
-          startingLat = lat - (length / (2 * METERS_PER_DEGREE_LAT));
-          startingLon = lon + (length / (2 * (METERS_PER_DEGREE_LAT * Math.cos(lat * (Math.PI / 180)))));
-          referenceCode = "_BG_";
-          break;
-        case "topLeft":
-          startingLat = lat - (rows * (length / METERS_PER_DEGREE_LAT)) - (length / (2 * METERS_PER_DEGREE_LAT));
-          startingLon = lon + (length / (2 * (METERS_PER_DEGREE_LAT * Math.cos(lat * (Math.PI / 180)))));
-          referenceCode = "_HG_";
-          break;
-      }
-      return { startingLat, startingLon, referenceCode };
-    }
+  switch (refPoint) {
+    case "center":
+      startingLat = lat - (HALF_GRID_ROWS * (length / METERS_PER_DEGREE_LAT)) - (length / (2 * METERS_PER_DEGREE_LAT));
+      startingLon = lon - (HALF_GRID_COLS * (length / (METERS_PER_DEGREE_LAT * Math.cos(lat * (Math.PI / 180))))) - (length / (2 * (METERS_PER_DEGREE_LAT * Math.cos(lat * (Math.PI / 180)))));
+      referenceCode = "_C_";
+      break;
+    case "bottomLeft":
+      startingLat = lat; // Removed unnecessary offset
+      startingLon = lon; // Removed unnecessary offset
+      referenceCode = "_BG_";
+      break;
+    case "topLeft":
+      startingLat = lat - (rows * (length / METERS_PER_DEGREE_LAT)); // Corrected to start at top
+      startingLon = lon; // Removed unnecessary offset
+      referenceCode = "_HG_";
+      break;
+  }
+  return { startingLat, startingLon, referenceCode };
+}
 
     function getKMLHeader(color) {
       return `<?xml version="1.0" encoding="UTF-8"?>
