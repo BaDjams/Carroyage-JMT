@@ -42,6 +42,15 @@
     button:hover {
       background-color: #45a049;
     }
+    .button-container {
+      display: flex;
+      justify-content: center;
+      margin-bottom: 15px;
+    }
+    .button-container button {
+      width: auto;
+      margin: 0 10px;
+    }
     @media (max-width: 600px) {
       body {
         padding: 10px;
@@ -52,11 +61,20 @@
       input, select, button, .slider-container {
         font-size: 14px;
       }
+      .button-container button {
+        font-size: 14px;
+      }
     }
   </style>
 </head>
 <body>
   <h1>Générateur de carroyage CADO</h1>
+
+  <div class="button-container">
+    <button onclick="window.open('https://maps.google.com', '_blank')">Ouvrir Google Maps</button>
+    <button onclick="window.open('https://www.google.com/mymaps', '_blank')">Ouvrir Google MyMaps</button>
+    <button onclick="window.open('https://earth.google.com/web/', '_blank')">Ouvrir Google Earth</button>
+  </div>
   
   <label for="coordinates">Coordonnées (WGS84, format "google", par exemple : <i>48.803322, 2.126005</i>) :</label>
   <input type="text" id="coordinates" placeholder="Entrer les Coordonnées" aria-label="Coordonnées" required>
