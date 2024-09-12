@@ -165,30 +165,13 @@
         gridType = `Custom_${gridRows}x${gridCols}`;
       }
 
-      const HALF_GRID_ROWS = Math.floor(gridRows / 2);
-      const HALF_GRID_COLS = Math.floor(gridCols / 2);
+      const { startingLat, startingLon, referenceCode } = calculateStartingPoint(latitude, longitude, length, referencePoint, gridRows, gridCols);
 
-      let startingLat, startingLon, referenceCode;
+      let filename = gridNameInput || `${latitude.toFixed(7)}_${longitude.toFixed(7)}`;
+      const prefix = type === 'grid' ? 'Grille' : 'Points';
+      filename = `${prefix}_${filename}_${gridType}_${referenceCode}.kml`;
 
-      switch (referencePoint) {
-        case "center":
-          startingLat = latitude - (HALF_GRID_ROWS * (length / METERS_PER_DEGREE_LAT));
-          startingLon = longitude - (HALF_GRID_COLS * (length / (METERS_PER_DEGREE_LAT * Math.cos(latitude * (Math.PI / 180)))));
-          referenceCode = "_C_";
-          break;
-        case "bottomLeft":
-          startingLat = latitude;
-          startingLon = longitude;
-          referenceCode = "_BG_";
-          break;
-        case "topLeft":
-          startingLat = latitude - (gridRows * (length / METERS_PER_DEGREE_LAT));
-          startingLon = longitude;
-          referenceCode = "_HG_";
-          break;
-      }
-
-      let kmlContent = getKMLHeader(kmlColor);
+      let kmlContent = getKMLHeader(kmlColor, filename);
 
       for (let i = 0; i < gridRows; i++) {
         for (let j = 0; j < gridCols; j++) {
@@ -204,7 +187,30 @@
       }
 
       kmlContent += `</Document></kml>`;
-      downloadKML(kmlContent, length, kmlColor, type, referenceCode, gridNameInput, latitude, longitude, gridType);
+      downloadKML(kmlContent, filename);
+    }
+
+    function calculateStartingPoint(lat, lon, length, refPoint, rows, cols) {
+      let startingLat, startingLon, referenceCode;
+
+      switch (refPoint) {
+        case "center":
+          startingLat = lat - (Math.floor(rows / 2) * (length / METERS_PER_DEGREE_LAT));
+          startingLon = lon - (Math.floor(cols / 2) * (length / (METERS_PER_DEGREE_LAT * Math.cos(lat * (Math.PI / 180)))));
+          referenceCode = "_C_";
+          break;
+        case "bottomLeft":
+          startingLat = lat;
+          startingLon = lon;
+          referenceCode = "_BG_";
+          break;
+        case "topLeft":
+          startingLat = lat - (rows * (length / METERS_PER_DEGREE_LAT));
+          startingLon = lon;
+          referenceCode = "_HG_";
+          break;
+      }
+      return { startingLat, startingLon, referenceCode };
     }
 
     function validateInputs(coordinates, length) {
@@ -220,11 +226,11 @@
       return true;
     }
 
-    function getKMLHeader(color) {
+    function getKMLHeader(color, filename) {
       return `<?xml version="1.0" encoding="UTF-8"?>
               <kml xmlns="http://www.opengis.net/kml/2.2">
                 <Document>
-                  <name>CADO JMT - Carroyage</name>
+                  <name>${filename}</name>
                   <description>Copyright GIGN/CADO/JMT</description>
                   <Style id="gridLineStyle">
                     <LineStyle>
@@ -278,14 +284,7 @@
               </Placemark>`;
     }
 
-    function downloadKML(content, length, color, type, referenceCode, gridNameInput, latitude, longitude, gridType) {
-      const date = new Date();
-      const formattedDate = `${date.getDate().toString().padStart(2, '0')}.${(date.getMonth() + 1).toString().padStart(2, '0')}.${date.getFullYear()}`;
-      const formattedTime = `${date.getHours().toString().padStart(2, '0')}.${date.getMinutes().toString().padStart(2, '0')}`;
-      const prefix = type === 'grid' ? 'Carroyage' : 'Points';
-      let filename = gridNameInput || `${latitude.toFixed(7)}_${longitude.toFixed(7)}`;
-      filename = `${prefix}_${filename}_${gridType}_${referenceCode}${formattedDate}_${formattedTime}.kml`;
-
+    function downloadKML(content, filename) {
       const element = document.createElement('a');
       element.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(content));
       element.setAttribute('download', filename);
