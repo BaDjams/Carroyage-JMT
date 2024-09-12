@@ -152,30 +152,41 @@
       downloadFile(kmlContent, filename, 'text/plain');
     }
 
-    function generateKMZ() {
-      const kmlContent = createKMLContent('kmz');
-      if (!kmlContent) return;
+    async function generateKMZ() {
+    const kmlContent = createKMLContent('kmz');
+    if (!kmlContent) return;
 
-      const zip = new JSZip();
-      zip.file("doc.kml", kmlContent);
+    const zip = new JSZip();
+    zip.file("doc.kml", kmlContent);
 
-      const gridRows = getGridRows();
-      const gridCols = getGridCols();
+    const gridRows = getGridRows();
+    const gridCols = getGridCols();
 
+    try {
       for (let i = 0; i < gridRows; i++) {
         for (let j = 0; j < gridCols; j++) {
           const row = String.fromCharCode(65 + j);
           const line = i + 1;
           const iconName = `icons/${row}${line}.png`;
-          zip.file(iconName, null, {binary: true, base64: true});
+
+          // Fetch the image and add it to the zip
+          const response = await fetch(iconName);
+          if (!response.ok) {
+            console.error(`Failed to fetch ${iconName}`);
+            continue;
+          }
+          const blob = await response.blob();
+          zip.file(iconName, blob);
         }
       }
 
-      zip.generateAsync({type: "blob"}).then(content => {
-        const filename = getKMLFilename('kmz').replace('.kml', '.kmz');
-        downloadFile(content, filename, 'application/vnd.google-earth.kmz');
-      });
+      const content = await zip.generateAsync({ type: "blob" });
+      const filename = getKMLFilename('kmz').replace('.kml', '.kmz');
+      downloadFile(content, filename, 'application/vnd.google-earth.kmz');
+    } catch (error) {
+      console.error('Error generating KMZ:', error);
     }
+  }
 
     function createKMLContent(type) {
       const coordinatesInput = document.getElementById("coordinates").value;
