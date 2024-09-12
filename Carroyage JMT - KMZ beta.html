@@ -149,44 +149,35 @@
       if (!kmlContent) return;
 
       const filename = getKMLFilename(type);
-      downloadFile(kmlContent, filename, 'application/vnd.google-earth.kml+xml');
+      downloadFile(kmlContent, filename, 'text/plain');
     }
 
-    async function generateKMZ() {
-      const kmlContentGrid = createKMLContent('grid');
-      const kmlContentPoints = createKMLContent('points', true);
-
-      if (!kmlContentGrid || !kmlContentPoints) return;
+    function generateKMZ() {
+      const kmlContent = createKMLContent('kmz');
+      if (!kmlContent) return;
 
       const zip = new JSZip();
-      zip.file("doc.kml", kmlContentGrid + kmlContentPoints + '</Document></kml>');
+      zip.file("doc.kml", kmlContent);
 
       const gridRows = getGridRows();
       const gridCols = getGridCols();
 
-      try {
-        for (let i = 0; i < gridRows; i++) {
-          for (let j = 0; j < gridCols; j++) {
-            const row = String.fromCharCode(65 + j).toUpperCase();
-            const line = i + 1;
-            const iconName = `icons/${row}${line}.png`;
-
-            const response = await fetch(iconName);
-            const blob = await response.blob();
-            const buffer = await blob.arrayBuffer();
-            zip.file(iconName, buffer);
-          }
+      for (let i = 0; i < gridRows; i++) {
+        for (let j = 0; j < gridCols; j++) {
+          const row = String.fromCharCode(65 + j);
+          const line = i + 1;
+          const iconName = `icons/${row}${line}.png`;
+          zip.file(iconName, null, {binary: true, base64: true});
         }
+      }
 
-        const content = await zip.generateAsync({ type: "blob" });
+      zip.generateAsync({type: "blob"}).then(content => {
         const filename = getKMLFilename('kmz').replace('.kml', '.kmz');
         downloadFile(content, filename, 'application/vnd.google-earth.kmz');
-      } catch (error) {
-        console.error('Error generating KMZ:', error);
-      }
+      });
     }
 
-    function createKMLContent(type, useIcons = false) {
+    function createKMLContent(type) {
       const coordinatesInput = document.getElementById("coordinates").value;
       const lengthInput = document.getElementById("length").value;
       const colorInput = document.getElementById("color").value;
@@ -212,20 +203,18 @@
 
       for (let i = 0; i < gridRows; i++) {
         for (let j = 0; j < gridCols; j++) {
-          const row = String.fromCharCode(65 + j).toUpperCase();
+          const row = String.fromCharCode(65 + j);
           const line = referencePoint === "topLeft" ? gridRows - i : i + 1;
           const lat = startingLat + (i * (length / METERS_PER_DEGREE_LAT));
           const lon = startingLon + (j * (length / (METERS_PER_DEGREE_LAT * Math.cos(lat * (Math.PI / 180)))));
 
-          if (type === 'grid') {
-            kmlContent += getGridPlacemark(row, line, lon, lat, length, kmlColor);
-          } else if (type === 'points' || useIcons) {
-            kmlContent += getPointPlacemark(row, line, lon, lat, length, useIcons);
-          }
+          kmlContent += type === 'grid' ? getGridPlacemark(row, line, lon, lat, length, kmlColor)
+                       : type === 'points' ? getPointPlacemark(row, line, lon, lat, length)
+                       : getKMZPlacemark(row, line, lon, lat, length);
         }
       }
 
-      kmlContent += '</Document></kml>';
+      kmlContent += `</Document></kml>`;
       return kmlContent;
     }
 
@@ -333,12 +322,27 @@
               </Placemark>`;
     }
 
-    function getPointPlacemark(row, line, lon, lat, length, useIcons) {
+    function getPointPlacemark(row, line, lon, lat, length) {
       const halfLonDelta = (length / (2 * METERS_PER_DEGREE_LAT * Math.cos(lat * (Math.PI / 180))));
       const halfLatDelta = length / (2 * METERS_PER_DEGREE_LAT);
       const centerLon = lon + halfLonDelta;
       const centerLat = lat + halfLatDelta;
-      const iconHref = useIcons ? `icons/${row.toUpperCase()}${line}.png` : 'https://upload.wikimedia.org/wikipedia/commons/8/8c/Transparent.png';
+
+      return `<Placemark>
+                <name>${row}${line}</name>
+                <styleUrl>#cado</styleUrl>
+                <Point>
+                  <coordinates>${centerLon},${centerLat}</coordinates>
+                </Point>
+              </Placemark>`;
+    }
+
+    function getKMZPlacemark(row, line, lon, lat, length) {
+      const halfLonDelta = (length / (2 * METERS_PER_DEGREE_LAT * Math.cos(lat * (Math.PI / 180))));
+      const halfLatDelta = length / (2 * METERS_PER_DEGREE_LAT);
+      const centerLon = lon + halfLonDelta;
+      const centerLat = lat + halfLatDelta;
+      const iconHref = `icons/${row}${line}.png`;
 
       return `<Placemark>
                 <name>${row}${line}</name>
