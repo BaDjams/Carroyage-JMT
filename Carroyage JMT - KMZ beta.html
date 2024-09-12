@@ -51,6 +51,10 @@
       width: auto;
       margin: 0 10px;
     }
+    .kmz-button {
+      background-color: #888;
+      cursor: not-allowed;
+    }
     @media (max-width: 600px) {
       body {
         padding: 10px;
@@ -125,7 +129,7 @@
   
   <button onclick="generateKML('grid')">Télécharger le KML du carroyage</button>
   <button onclick="generateKML('points')">Télécharger le KML des points</button>
-  <button onclick="generateKMZ()">Télécharger le KMZ</button>
+  <button id="kmzButton" class="kmz-button" onclick="generateKMZ()" disabled>Télécharger le KMZ</button>
   
   <script>
     const METERS_PER_DEGREE_LAT = 111320;
@@ -152,9 +156,15 @@
       downloadFile(kmlContent, filename, 'text/plain');
     }
 
-    function generateKMZ() {
+    async function generateKMZ() {
+      const kmzButton = document.getElementById("kmzButton");
+      kmzButton.disabled = true;
+
       const kmlContent = createKMLContent('kmz');
-      if (!kmlContent) return;
+      if (!kmlContent) {
+        kmzButton.disabled = false;
+        return;
+      }
 
       const zip = new JSZip();
       zip.file("doc.kml", kmlContent);
@@ -162,19 +172,28 @@
       const gridRows = getGridRows();
       const gridCols = getGridCols();
 
-      for (let i = 0; i < gridRows; i++) {
-        for (let j = 0; j < gridCols; j++) {
-          const row = String.fromCharCode(65 + j);
-          const line = i + 1;
-          const iconName = `icons/${row}${line}.png`;
-          zip.file(iconName, null, {binary: true, base64: true});
-        }
-      }
+      try {
+        for (let i = 0; i < gridRows; i++) {
+          for (let j = 0; j < gridCols; j++) {
+            const row = String.fromCharCode(65 + j).toUpperCase();
+            const line = i + 1;
+            const iconName = `icons/${row}${line}.png`;
 
-      zip.generateAsync({type: "blob"}).then(content => {
+            const response = await fetch(iconName);
+            const blob = await response.blob();
+            const buffer = await blob.arrayBuffer();
+            zip.file(iconName, buffer);
+          }
+        }
+
+        const content = await zip.generateAsync({ type: "blob" });
         const filename = getKMLFilename('kmz').replace('.kml', '.kmz');
         downloadFile(content, filename, 'application/vnd.google-earth.kmz');
-      });
+      } catch (error) {
+        console.error('Error generating KMZ:', error);
+      } finally {
+        kmzButton.disabled = false;
+      }
     }
 
     function createKMLContent(type) {
@@ -203,7 +222,7 @@
 
       for (let i = 0; i < gridRows; i++) {
         for (let j = 0; j < gridCols; j++) {
-          const row = String.fromCharCode(65 + j);
+          const row = String.fromCharCode(65 + j).toUpperCase();
           const line = referencePoint === "topLeft" ? gridRows - i : i + 1;
           const lat = startingLat + (i * (length / METERS_PER_DEGREE_LAT));
           const lon = startingLon + (j * (length / (METERS_PER_DEGREE_LAT * Math.cos(lat * (Math.PI / 180)))));
