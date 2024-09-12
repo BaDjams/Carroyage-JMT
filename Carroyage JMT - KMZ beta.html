@@ -51,9 +51,6 @@
       width: auto;
       margin: 0 10px;
     }
-    .kmz-button {
-      background-color: #888;
-    }
     @media (max-width: 600px) {
       body {
         padding: 10px;
@@ -128,7 +125,7 @@
   
   <button onclick="generateKML('grid')">Télécharger le KML du carroyage</button>
   <button onclick="generateKML('points')">Télécharger le KML des points</button>
-  <button id="kmzButton" class="kmz-button" onclick="generateKMZ()">Télécharger le KMZ</button>
+  <button onclick="generateKMZ()">Télécharger le KMZ</button>
   
   <script>
     const METERS_PER_DEGREE_LAT = 111320;
@@ -152,20 +149,14 @@
       if (!kmlContent) return;
 
       const filename = getKMLFilename(type);
-      downloadFile(kmlContent, filename, 'text/plain');
+      downloadFile(kmlContent, filename, 'application/vnd.google-earth.kml+xml');
     }
 
     async function generateKMZ() {
-      const kmzButton = document.getElementById("kmzButton");
-      kmzButton.disabled = true;
-
       const kmlContentGrid = createKMLContent('grid');
       const kmlContentPoints = createKMLContent('points', true);
 
-      if (!kmlContentGrid || !kmlContentPoints) {
-        kmzButton.disabled = false;
-        return;
-      }
+      if (!kmlContentGrid || !kmlContentPoints) return;
 
       const zip = new JSZip();
       zip.file("doc.kml", kmlContentGrid + kmlContentPoints + '</Document></kml>');
@@ -192,8 +183,6 @@
         downloadFile(content, filename, 'application/vnd.google-earth.kmz');
       } catch (error) {
         console.error('Error generating KMZ:', error);
-      } finally {
-        kmzButton.disabled = false;
       }
     }
 
@@ -219,7 +208,7 @@
 
       const { startingLat, startingLon } = calculateStartingPoint(latitude, longitude, length, referencePoint, gridRows, gridCols);
 
-      let kmlContent = type === 'kmz' ? '' : getKMLHeader(kmlColor);
+      let kmlContent = getKMLHeader(kmlColor);
 
       for (let i = 0; i < gridRows; i++) {
         for (let j = 0; j < gridCols; j++) {
@@ -236,6 +225,7 @@
         }
       }
 
+      kmlContent += '</Document></kml>';
       return kmlContent;
     }
 
@@ -387,11 +377,6 @@
       element.click();
       document.body.removeChild(element);
     }
-
-    // Enable KMZ button on load
-    document.addEventListener('DOMContentLoaded', () => {
-      document.getElementById("kmzButton").disabled = false;
-    });
   </script>
 </body>
 </html>
