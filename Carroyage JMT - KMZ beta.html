@@ -76,16 +76,16 @@
     <button onclick="window.open('https://www.google.com/mymaps', '_blank')">Ouvrir Google MyMaps</button>
     <button onclick="window.open('https://earth.google.com/web/', '_blank')">Ouvrir Google Earth</button>
   </div>
-  
+
   <label for="coordinates">Coordonnées (WGS84, format "google", par exemple : <i>48.803322, 2.126005</i>) :</label>
   <input type="text" id="coordinates" placeholder="Entrer les Coordonnées" aria-label="Coordonnées" required>
-  
+
   <label for="length">Échelle (en mètres) :</label>
   <input type="number" id="length" placeholder="Spécifier l'échelle" aria-label="Échelle" required min="1">
-  
+
   <label for="color">Choisir une couleur :</label>
   <input type="color" id="color" aria-label="Couleur" value="#FFFFFF">
-  
+
   <div class="slider-container">
     <label for="transparency">Transparence :</label>
     <input type="range" id="transparency" min="0" max="100" value="20" aria-label="Transparence">
@@ -100,7 +100,7 @@
     <option value="bottomLeft">Coin bas gauche</option>
     <option value="topLeft">Coin haut gauche</option>
   </select>
-  
+
   <label for="gridOption">Option de grille :</label>
   <select id="gridOption" aria-label="Option de grille" onchange="toggleCustomGridOptions()">
     <option value="default">Grille par défaut</option>
@@ -122,11 +122,11 @@
     <label for="customCols">Nombre de colonnes (lettres) :</label>
     <input type="number" id="customCols" min="1" max="26" value="26">
   </div>
-  
+
   <button onclick="generateKML('grid')">Télécharger le KML du carroyage</button>
   <button onclick="generateKML('points')">Télécharger le KML des points</button>
   <button onclick="generateKMZ()">Télécharger le KMZ</button>
-  
+
   <script>
     const METERS_PER_DEGREE_LAT = 111320;
 
@@ -152,42 +152,30 @@
       downloadFile(kmlContent, filename, 'text/plain');
     }
 
-  async function generateKMZ() {
-    const kmlContent = createKMLContent('kmz');
-    if (!kmlContent) return;
+    function generateKMZ() {
+      const kmlContent = createKMLContent('kmz');
+      if (!kmlContent) return;
 
-    const zip = new JSZip();
-    zip.file("doc.kml", kmlContent);
+      const zip = new JSZip();
+      zip.file("doc.kml", kmlContent);
 
-    const gridRows = getGridRows();
-    const gridCols = getGridCols();
+      const gridRows = getGridRows();
+      const gridCols = getGridCols();
 
-    try {
       for (let i = 0; i < gridRows; i++) {
         for (let j = 0; j < gridCols; j++) {
           const row = String.fromCharCode(65 + j);
           const line = i + 1;
           const iconName = `icons/${row}${line}.png`;
-
-          // Fetch the image and add it to the zip
-          const response = await fetch(iconName);
-          if (!response.ok) {
-            console.error(`Failed to fetch ${iconName}`);
-            continue;
-          }
-          const blob = await response.blob();
-          zip.file(iconName, blob);
+          zip.file(iconName, null, {binary: true, base64: true});
         }
       }
 
-      const content = await zip.generateAsync({ type: "blob" });
-      const filename = getKMLFilename('kmz').replace('.kml', '.kmz');
-      downloadFile(content, filename, 'application/vnd.google-earth.kmz');
-    } catch (error) {
-      console.error('Error generating KMZ:', error);
+      zip.generateAsync({type: "blob"}).then(content => {
+        const filename = getKMLFilename('kmz').replace('.kml', '.kmz');
+        downloadFile(content, filename, 'application/vnd.google-earth.kmz');
+      });
     }
-  }
-
 
     function createKMLContent(type) {
       const coordinatesInput = document.getElementById("coordinates").value;
@@ -237,7 +225,7 @@
         case "center":
           startingLat = lat - ((Math.floor(rows / 2) * length) / METERS_PER_DEGREE_LAT);
           startingLon = lon - ((Math.floor(cols / 2) * length) / (METERS_PER_DEGREE_LAT * Math.cos(lat * (Math.PI / 180))));
-          
+
           if (rows % 2 !== 0) {
             startingLat -= (length / (2 * METERS_PER_DEGREE_LAT));
           }
