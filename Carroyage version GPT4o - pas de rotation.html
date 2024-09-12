@@ -213,8 +213,16 @@
 
       switch (refPoint) {
         case "center":
-          startingLat = lat - (Math.floor(rows / 2) * (length / METERS_PER_DEGREE_LAT));
-          startingLon = lon - (Math.floor(cols / 2) * (length / (METERS_PER_DEGREE_LAT * Math.cos(lat * (Math.PI / 180)))));
+          startingLat = lat - ((rows / 2) * (length / METERS_PER_DEGREE_LAT));
+          startingLon = lon - ((cols / 2) * (length / (METERS_PER_DEGREE_LAT * Math.cos(lat * (Math.PI / 180)))));
+          
+          if (rows % 2 !== 0) {
+            startingLat += (length / (2 * METERS_PER_DEGREE_LAT));
+          }
+          if (cols % 2 !== 0) {
+            startingLon += (length / (2 * (METERS_PER_DEGREE_LAT * Math.cos(lat * (Math.PI / 180)))));
+          }
+          
           referenceCode = "_C_";
           break;
         case "bottomLeft":
