@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Générateur de carroyage CADO</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 600px;
+      margin: 0 auto;
+      padding: 20px;
+      box-sizing: border-box;
+    }
+    h1 {
+      font-size: 1.5em;
+      text-align: center;
+    }
+    label {
+      display: block;
+      margin-bottom: 5px;
+      font-size: 0.9em;
+    }
+    input, select, button, .slider-container {
+      width: 100%;
+      margin-bottom: 15px;
+      padding: 10px;
+      font-size: 16px;
+      box-sizing: border-box;
+    }
+    input[type="color"], input[type="range"] {
+      padding: 0;
+      height: 40px;
+    }
+    button {
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+      cursor: pointer;
+      padding: 10px;
+    }
+    button:hover {
+      background-color: #45a049;
+    }
+    .button-container {
+      display: flex;
+      justify-content: center;
+      margin-bottom: 15px;
+    }
+    .button-container button {
+      width: auto;
+      margin: 0 10px;
+    }
+    @media (max-width: 600px) {
+      body {
+        padding: 10px;
+      }
+      h1 {
+        font-size: 1.2em;
+      }
+      input, select, button, .slider-container {
+        font-size: 14px;
+      }
+      .button-container button {
+        font-size: 14px;
+      }
+    }
+  </style>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.7.1/jszip.min.js"></script>
+</head>
+<body>
+  <h1>Générateur de carroyage CADO</h1>
+
+  <div class="button-container">
+    <button onclick="window.open('https://maps.google.com', '_blank')">Ouvrir Google Maps</button>
+    <button onclick="window.open('https://www.google.com/mymaps', '_blank')">Ouvrir Google MyMaps</button>
+    <button onclick="window.open('https://earth.google.com/web/', '_blank')">Ouvrir Google Earth</button>
+  </div>
+  
+  <label for="coordinates">Coordonnées (WGS84, format "google", par exemple : <i>48.803322, 2.126005</i>) :</label>
+  <input type="text" id="coordinates" placeholder="Entrer les Coordonnées" aria-label="Coordonnées" required>
+  
+  <label for="length">Échelle (en mètres) :</label>
+  <input type="number" id="length" placeholder="Spécifier l'échelle" aria-label="Échelle" required min="1">
+  
+  <label for="color">Choisir une couleur :</label>
+  <input type="color" id="color" aria-label="Couleur" value="#FFFFFF">
+  
+  <div class="slider-container">
+    <label for="transparency">Transparence :</label>
+    <input type="range" id="transparency" min="0" max="100" value="20" aria-label="Transparence">
+  </div>
+
+  <label for="gridName">Nom du carroyage :</label>
+  <input type="text" id="gridName" placeholder="Nom du carroyage (optionnel)" aria-label="Nom du carroyage">
+
+  <label for="referencePoint">Point de référence :</label>
+  <select id="referencePoint" aria-label="Point de référence">
+    <option value="center">Milieu du carroyage</option>
+    <option value="bottomLeft">Coin bas gauche</option>
+    <option value="topLeft">Coin haut gauche</option>
+  </select>
+  
+  <label for="gridOption">Option de grille :</label>
+  <select id="gridOption" aria-label="Option de grille" onchange="toggleCustomGridOptions()">
+    <option value="default">Grille par défaut</option>
+    <option value="custom">Grille custom</option>
+  </select>
+
+  <div id="defaultGridOptions">
+    <label for="gridType">Type de grille :</label>
+    <select id="gridType" aria-label="Type de grille">
+      <option value="Z26">Z26 (26x26)</option>
+      <option value="Z14" selected>Z14 (26x14)</option>
+      <option value="Q9">Q9 (17x9)</option>
+    </select>
+  </div>
+
+  <div id="customGridOptions" style="display:none;">
+    <label for="customRows">Nombre de lignes (chiffres) :</label>
+    <input type="number" id="customRows" min="1" max="26" value="26">
+    <label for="customCols">Nombre de colonnes (lettres) :</label>
+    <input type="number" id="customCols" min="1" max="26" value="26">
+  </div>
+  
+  <button onclick="generateKML('grid')">Télécharger le KML du carroyage</button>
+  <button onclick="generateKML('points')">Télécharger le KML des points</button>
+  <button onclick="generateKMZ()">Télécharger le KMZ</button>
+  
+  <script>
+    const METERS_PER_DEGREE_LAT = 111320;
+
+    function toggleCustomGridOptions() {
+      const gridOption = document.getElementById("gridOption").value;
+      const defaultGridOptions = document.getElementById("defaultGridOptions");
+      const customGridOptions = document.getElementById("customGridOptions");
+
+      if (gridOption === "custom") {
+        defaultGridOptions.style.display = "none";
+        customGridOptions.style.display = "block";
+      } else {
+        defaultGridOptions.style.display = "block";
+        customGridOptions.style.display = "none";
+      }
+    }
+
+    function generateKML(type) {
+      const kmlContent = createKMLContent(type);
+      if (!kmlContent) return;
+
+      const filename = getKMLFilename(type);
+      downloadFile(kmlContent, filename, 'text/plain');
+    }
+
+    function generateKMZ() {
+      const kmlContent = createKMLContent('kmz');
+      if (!kmlContent) return;
+
+      const zip = new JSZip();
+      zip.file("doc.kml", kmlContent);
+
+      const gridRows = getGridRows();
+      const gridCols = getGridCols();
+
+      for (let i = 0; i < gridRows; i++) {
+        for (let j = 0; j < gridCols; j++) {
+          const row = String.fromCharCode(65 + j);
+          const line = i + 1;
+          const iconName = `icons/${row}${line}.png`;
+          zip.file(iconName, null, {binary: true, base64: true});
+        }
+      }
+
+      zip.generateAsync({type: "blob"}).then(content => {
+        const filename = getKMLFilename('kmz').replace('.kml', '.kmz');
+        downloadFile(content, filename, 'application/vnd.google-earth.kmz');
+      });
+    }
+
+    function createKMLContent(type) {
+      const coordinatesInput = document.getElementById("coordinates").value;
+      const lengthInput = document.getElementById("length").value;
+      const colorInput = document.getElementById("color").value;
+      const transparencyInput = document.getElementById("transparency").value;
+      const gridOption = document.getElementById("gridOption").value;
+
+      if (!validateInputs(coordinatesInput, lengthInput)) return null;
+
+      const [latitude, longitude] = coordinatesInput.split(',').map(coord => parseFloat(coord.trim()));
+      const length = parseFloat(lengthInput);
+      const referencePoint = document.getElementById("referencePoint").value;
+
+      const transparencyHex = Math.floor((100 - transparencyInput) * 2.55).toString(16).padStart(2, '0');
+      const rgbHex = colorInput.slice(1);
+      const kmlColor = transparencyHex + rgbHex.slice(4, 6) + rgbHex.slice(2, 4) + rgbHex.slice(0, 2);
+
+      const gridRows = getGridRows();
+      const gridCols = getGridCols();
+
+      const { startingLat, startingLon } = calculateStartingPoint(latitude, longitude, length, referencePoint, gridRows, gridCols);
+
+      let kmlContent = getKMLHeader(kmlColor);
+
+      for (let i = 0; i < gridRows; i++) {
+        for (let j = 0; j < gridCols; j++) {
+          const row = String.fromCharCode(65 + j);
+          const line = referencePoint === "topLeft" ? gridRows - i : i + 1;
+          const lat = startingLat + (i * (length / METERS_PER_DEGREE_LAT));
+          const lon = startingLon + (j * (length / (METERS_PER_DEGREE_LAT * Math.cos(lat * (Math.PI / 180)))));
+
+          kmlContent += type === 'grid' ? getGridPlacemark(row, line, lon, lat, length, kmlColor)
+                       : type === 'points' ? getPointPlacemark(row, line, lon, lat, length)
+                       : getKMZPlacemark(row, line, lon, lat, length);
+        }
+      }
+
+      kmlContent += `</Document></kml>`;
+      return kmlContent;
+    }
+
+    function calculateStartingPoint(lat, lon, length, refPoint, rows, cols) {
+      let startingLat, startingLon;
+
+      switch (refPoint) {
+        case "center":
+          startingLat = lat - ((Math.floor(rows / 2) * length) / METERS_PER_DEGREE_LAT);
+          startingLon = lon - ((Math.floor(cols / 2) * length) / (METERS_PER_DEGREE_LAT * Math.cos(lat * (Math.PI / 180))));
+          
+          if (rows % 2 !== 0) {
+            startingLat -= (length / (2 * METERS_PER_DEGREE_LAT));
+          }
+          if (cols % 2 !== 0) {
+            startingLon -= (length / (2 * (METERS_PER_DEGREE_LAT * Math.cos(lat * (Math.PI / 180)))));
+          }
+          break;
+        case "bottomLeft":
+          startingLat = lat;
+          startingLon = lon;
+          break;
+        case "topLeft":
+          startingLat = lat - (rows * (length / METERS_PER_DEGREE_LAT));
+          startingLon = lon;
+          break;
+      }
+      return { startingLat, startingLon };
+    }
+
+    function validateInputs(coordinates, length) {
+      const coords = coordinates.split(',').map(coord => parseFloat(coord.trim()));
+      if (coords.length !== 2 || coords.some(isNaN)) {
+        alert('Veuillez entrer des coordonnées valides.');
+        return false;
+      }
+      if (isNaN(length) || length <= 0) {
+        alert('Veuillez entrer une échelle valide.');
+        return false;
+      }
+      return true;
+    }
+
+    function getGridRows() {
+      return document.getElementById("gridOption").value === "default"
+             ? parseGridOption(document.getElementById("gridType").value).rows
+             : parseInt(document.getElementById("customRows").value);
+    }
+
+    function getGridCols() {
+      return document.getElementById("gridOption").value === "default"
+             ? parseGridOption(document.getElementById("gridType").value).cols
+             : parseInt(document.getElementById("customCols").value);
+    }
+
+    function parseGridOption(option) {
+      switch (option) {
+        case "Z26": return { rows: 26, cols: 26 };
+        case "Z14": return { rows: 14, cols: 26 };
+        case "Q9": return { rows: 9, cols: 17 };
+        default: return { rows: 26, cols: 26 };
+      }
+    }
+
+    function getKMLHeader(color) {
+      return `<?xml version="1.0" encoding="UTF-8"?>
+              <kml xmlns="http://www.opengis.net/kml/2.2">
+                <Document>
+                  <name>Carroyage</name>
+                  <description>Copyright GIGN/CADO/JMT</description>
+                  <Style id="gridLineStyle">
+                    <LineStyle>
+                      <color>${color}</color>
+                      <width>2</width>
+                    </LineStyle>
+                  </Style>
+                  <Style id="cado">
+                    <LabelStyle>
+                      <scale>1</scale>
+                    </LabelStyle>
+                    <IconStyle>
+                      <scale>0.1</scale>
+                      <Icon>
+                        <href>https://upload.wikimedia.org/wikipedia/commons/8/8c/Transparent.png</href>
+                      </Icon>
+                      <hotSpot x="0.5" y="0.5" xunits="fraction" yunits="fraction"/>
+                    </IconStyle>
+                  </Style>`;
+    }
+
+    function getGridPlacemark(row, line, lon, lat, length, color) {
+      const lonDelta = length / (METERS_PER_DEGREE_LAT * Math.cos(lat * (Math.PI / 180)));
+      const latDelta = length / METERS_PER_DEGREE_LAT;
+      return `<Placemark>
+                <name>${row}${line}</name>
+                <Style>
+                  <LineStyle>
+                    <color>${color}</color>
+                    <width>2</width>
+                  </LineStyle>
+                </Style>
+                <LineString>
+                  <coordinates>${lon},${lat} ${lon + lonDelta},${lat} ${lon + lonDelta},${lat + latDelta} ${lon},${lat + latDelta} ${lon},${lat}</coordinates>
+                </LineString>
+              </Placemark>`;
+    }
+
+    function getPointPlacemark(row, line, lon, lat, length) {
+      const halfLonDelta = (length / (2 * METERS_PER_DEGREE_LAT * Math.cos(lat * (Math.PI / 180))));
+      const halfLatDelta = length / (2 * METERS_PER_DEGREE_LAT);
+      const centerLon = lon + halfLonDelta;
+      const centerLat = lat + halfLatDelta;
+
+      return `<Placemark>
+                <name>${row}${line}</name>
+                <styleUrl>#cado</styleUrl>
+                <Point>
+                  <coordinates>${centerLon},${centerLat}</coordinates>
+                </Point>
+              </Placemark>`;
+    }
+
+    function getKMZPlacemark(row, line, lon, lat, length) {
+      const halfLonDelta = (length / (2 * METERS_PER_DEGREE_LAT * Math.cos(lat * (Math.PI / 180))));
+      const halfLatDelta = length / (2 * METERS_PER_DEGREE_LAT);
+      const centerLon = lon + halfLonDelta;
+      const centerLat = lat + halfLatDelta;
+      const iconHref = `icons/${row}${line}.png`;
+
+      return `<Placemark>
+                <name>${row}${line}</name>
+                <Style>
+                  <IconStyle>
+                    <scale>1.0</scale>
+                    <Icon>
+                      <href>${iconHref}</href>
+                    </Icon>
+                  </IconStyle>
+                </Style>
+                <Point>
+                  <coordinates>${centerLon},${centerLat}</coordinates>
+                </Point>
+              </Placemark>`;
+    }
+
+    function getKMLFilename(type) {
+      const gridNameInput = document.getElementById("gridName").value.trim();
+      const gridOption = document.getElementById("gridOption").value;
+      const gridType = gridOption === "default" 
+                       ? document.getElementById("gridType").value 
+                       : `Custom_${getGridRows()}x${getGridCols()}`;
+      const filename = gridNameInput || 'Carroyage';
+
+      return type === 'grid' ? `Grille_${filename}_${gridType}.kml`
+           : type === 'points' ? `Points_${filename}_${gridType}.kml`
+           : `Carroyage_${filename}_${gridType}.kmz`;
+    }
+
+    function downloadFile(content, filename, mimeType) {
+      const element = document.createElement('a');
+      element.setAttribute('href', URL.createObjectURL(new Blob([content], {type: mimeType})));
+      element.setAttribute('download', filename);
+      document.body.appendChild(element);
+      element.click();
+      document.body.removeChild(element);
+    }
+  </script>
+</body>
+</html>
