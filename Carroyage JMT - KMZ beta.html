@@ -53,6 +53,7 @@
     }
     .kmz-button {
       background-color: #888;
+      cursor: not-allowed;
     }
     @media (max-width: 600px) {
       body {
@@ -128,7 +129,7 @@
   
   <button onclick="generateKML('grid')">Télécharger le KML du carroyage</button>
   <button onclick="generateKML('points')">Télécharger le KML des points</button>
-  <button id="kmzButton" class="kmz-button" onclick="generateKMZ()">Télécharger le KMZ</button>
+  <button id="kmzButton" class="kmz-button" onclick="generateKMZ()" disabled>Télécharger le KMZ</button>
   
   <script>
     const METERS_PER_DEGREE_LAT = 111320;
@@ -159,14 +160,16 @@
       const kmzButton = document.getElementById("kmzButton");
       kmzButton.disabled = true;
 
-      const kmlContent = createKMLContent('kmz');
-      if (!kmlContent) {
+      const kmlContentGrid = createKMLContent('grid');
+      const kmlContentPoints = createKMLContent('points', true);
+
+      if (!kmlContentGrid || !kmlContentPoints) {
         kmzButton.disabled = false;
         return;
       }
 
       const zip = new JSZip();
-      zip.file("doc.kml", kmlContent);
+      zip.file("doc.kml", kmlContentGrid + kmlContentPoints + '</Document></kml>');
 
       const gridRows = getGridRows();
       const gridCols = getGridCols();
@@ -195,7 +198,7 @@
       }
     }
 
-    function createKMLContent(type) {
+    function createKMLContent(type, useIcons = false) {
       const coordinatesInput = document.getElementById("coordinates").value;
       const lengthInput = document.getElementById("length").value;
       const colorInput = document.getElementById("color").value;
@@ -217,7 +220,7 @@
 
       const { startingLat, startingLon } = calculateStartingPoint(latitude, longitude, length, referencePoint, gridRows, gridCols);
 
-      let kmlContent = getKMLHeader(kmlColor);
+      let kmlContent = type === 'kmz' ? '' : getKMLHeader(kmlColor);
 
       for (let i = 0; i < gridRows; i++) {
         for (let j = 0; j < gridCols; j++) {
@@ -226,13 +229,14 @@
           const lat = startingLat + (i * (length / METERS_PER_DEGREE_LAT));
           const lon = startingLon + (j * (length / (METERS_PER_DEGREE_LAT * Math.cos(lat * (Math.PI / 180)))));
 
-          kmlContent += type === 'grid' ? getGridPlacemark(row, line, lon, lat, length, kmlColor)
-                       : type === 'points' ? getPointPlacemark(row, line, lon, lat, length)
-                       : getKMZPlacemark(row, line, lon, lat, length);
+          if (type === 'grid') {
+            kmlContent += getGridPlacemark(row, line, lon, lat, length, kmlColor);
+          } else if (type === 'points' || useIcons) {
+            kmlContent += getPointPlacemark(row, line, lon, lat, length, useIcons);
+          }
         }
       }
 
-      kmlContent += `</Document></kml>`;
       return kmlContent;
     }
 
@@ -340,27 +344,12 @@
               </Placemark>`;
     }
 
-    function getPointPlacemark(row, line, lon, lat, length) {
+    function getPointPlacemark(row, line, lon, lat, length, useIcons) {
       const halfLonDelta = (length / (2 * METERS_PER_DEGREE_LAT * Math.cos(lat * (Math.PI / 180))));
       const halfLatDelta = length / (2 * METERS_PER_DEGREE_LAT);
       const centerLon = lon + halfLonDelta;
       const centerLat = lat + halfLatDelta;
-
-      return `<Placemark>
-                <name>${row}${line}</name>
-                <styleUrl>#cado</styleUrl>
-                <Point>
-                  <coordinates>${centerLon},${centerLat}</coordinates>
-                </Point>
-              </Placemark>`;
-    }
-
-    function getKMZPlacemark(row, line, lon, lat, length) {
-      const halfLonDelta = (length / (2 * METERS_PER_DEGREE_LAT * Math.cos(lat * (Math.PI / 180))));
-      const halfLatDelta = length / (2 * METERS_PER_DEGREE_LAT);
-      const centerLon = lon + halfLonDelta;
-      const centerLat = lat + halfLatDelta;
-      const iconHref = `icons/${row.toUpperCase()}${line}.png`;
+      const iconHref = useIcons ? `icons/${row.toUpperCase()}${line}.png` : 'https://upload.wikimedia.org/wikipedia/commons/8/8c/Transparent.png';
 
       return `<Placemark>
                 <name>${row}${line}</name>
@@ -399,6 +388,11 @@
       element.click();
       document.body.removeChild(element);
     }
+
+    // Enable KMZ button on load
+    document.addEventListener('DOMContentLoaded', () => {
+      document.getElementById("kmzButton").disabled = false;
+    });
   </script>
 </body>
 </html>
