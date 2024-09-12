@@ -109,9 +109,9 @@
   <div id="defaultGridOptions">
     <label for="gridType">Type de grille :</label>
     <select id="gridType" aria-label="Type de grille">
-      <option value="Z26">Z26 (26x26)</option>
-      <option value="Z14" selected>Z14 (26x14)</option>
-      <option value="Q9">Q9 (17x9)</option>
+      <option value="Z26">Z26 (lettres de A à Z et chiffres de 1 à 26)</option>
+      <option value="Z14" selected>Z14 (lettres de A à Z et chiffres de 1 à 14)</option>
+      <option value="Q9">Q9 (lettres de A à Q et chiffres de 1 à 9)</option>
     </select>
   </div>
 
@@ -223,17 +223,17 @@
             startingLon -= (length / (2 * (METERS_PER_DEGREE_LAT * Math.cos(lat * (Math.PI / 180)))));
           }
           
-          referenceCode = "_C_";
+          referenceCode = "_CENTRE_";
           break;
         case "bottomLeft":
           startingLat = lat;
           startingLon = lon;
-          referenceCode = "_BG_";
+          referenceCode = "_BAS_";
           break;
         case "topLeft":
           startingLat = lat - (rows * (length / METERS_PER_DEGREE_LAT));
           startingLon = lon;
-          referenceCode = "_HG_";
+          referenceCode = "_HAUT_";
           break;
       }
       return { startingLat, startingLon, referenceCode };
