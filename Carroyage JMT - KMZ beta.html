@@ -342,7 +342,7 @@
       const halfLatDelta = length / (2 * METERS_PER_DEGREE_LAT);
       const centerLon = lon + halfLonDelta;
       const centerLat = lat + halfLatDelta;
-      const iconHref = `icons/${row}${line}.png`;
+      const iconHref = `icons/${row.toUpperCase()}${line}.png`;
 
       return `<Placemark>
                 <name>${row}${line}</name>
