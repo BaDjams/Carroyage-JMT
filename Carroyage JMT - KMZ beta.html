@@ -103,13 +103,11 @@
       try {
         const icons = await JSZip.loadAsync(iconsData);
 
-        const kmlGridContent = createKMLContent('grid', false);
-        const kmlPointsContent = createKMLContent('points', true, icons);
-        if (!kmlGridContent || !kmlPointsContent) return;
+        const kmlDocContent = createKMLContent('doc', true, icons);
+        if (!kmlDocContent) return;
 
-        // Ajoute les fichiers KML à la racine du ZIP existant
-        icons.file("grille.kml", kmlGridContent);
-        icons.file("points.kml", kmlPointsContent);
+        // Ajoute le fichier KML fusionné au ZIP existant
+        icons.file("doc.kml", kmlDocContent);
 
         const content = await icons.generateAsync({ type: "blob" });
         const filename = getKMLFilename('kmz').replace('.kml', '.kmz');
@@ -141,7 +139,7 @@
 
       const { startingLat, startingLon } = calculateStartingPoint(latitude, longitude, length, referencePoint, gridRows, gridCols);
 
-      let kmlContent = getKMLHeader(kmlColor, type === 'points' && isKMZ);
+      let kmlContent = getKMLHeader(kmlColor, type === 'doc' && isKMZ);
 
       for (let i = 0; i < gridRows; i++) {
         for (let j = 0; j < gridCols; j++) {
@@ -150,9 +148,11 @@
           const lat = startingLat + (i * (length / METERS_PER_DEGREE_LAT));
           const lon = startingLon + (j * (length / (METERS_PER_DEGREE_LAT * Math.cos(lat * (Math.PI / 180)))));
 
-          if (type === 'grid') {
+          if (type === 'grid' || type === 'doc') {
             kmlContent += getGridPlacemark(row, line, lon, lat, length, kmlColor);
-          } else if (type === 'points') {
+          }
+
+          if (type === 'points' || type === 'doc') {
             if (isKMZ) {
               const iconHref = `icons/${row}${line}.png`;
               kmlContent += getKMZPointPlacemark(row, line, lon, lat, iconHref);
