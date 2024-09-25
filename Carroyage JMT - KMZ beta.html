@@ -51,6 +51,12 @@
       width: auto;
       margin: 0 10px;
     }
+    .slider-value {
+      text-align: center;
+      margin-top: -10px;
+      margin-bottom: 10px;
+      font-size: 0.9em;
+    }
     @media (max-width: 600px) {
       body {
         padding: 10px;
@@ -84,6 +90,12 @@
       }
     }
 
+    function updateSliderValue(sliderId, valueId, unit = '') {
+      const slider = document.getElementById(sliderId);
+      const valueElement = document.getElementById(valueId);
+      valueElement.textContent = slider.value + unit;
+    }
+
     function generateKML(type) {
       const kmlContent = createKMLContent(type, false);
       if (!kmlContent) return;
@@ -106,7 +118,6 @@
         const kmlDocContent = createKMLContent('doc', true, icons);
         if (!kmlDocContent) return;
 
-        // Ajoute le fichier KML fusionné au ZIP existant
         icons.file("doc.kml", kmlDocContent);
 
         const content = await icons.generateAsync({ type: "blob" });
@@ -140,7 +151,7 @@
 
       const { startingLat, startingLon } = calculateStartingPoint(latitude, longitude, length, referencePoint, gridRows, gridCols);
 
-      let kmlContent = getKMLHeader(kmlColor, type === 'doc' && isKMZ, iconSize);
+      let kmlContent = getKMLHeader(kmlColor, type === 'doc' && isKMZ, iconSize, transparencyHex);
 
       for (let i = 0; i < gridRows; i++) {
         for (let j = 0; j < gridCols; j++) {
@@ -149,7 +160,6 @@
           const lat = startingLat + (i * (length / METERS_PER_DEGREE_LAT));
           const lon = startingLon + (j * (length / (METERS_PER_DEGREE_LAT * Math.cos(lat * (Math.PI / 180)))));
 
-          // Calculate the center of the cell
           const centerLat = lat + (length / (2 * METERS_PER_DEGREE_LAT));
           const centerLon = lon + (length / (2 * (METERS_PER_DEGREE_LAT * Math.cos(lat * (Math.PI / 180)))));
 
@@ -160,7 +170,7 @@
           if (type === 'points' || type === 'doc') {
             if (isKMZ) {
               const iconHref = `icons/${row}${line}.png`;
-              kmlContent += getKMZPointPlacemark(row, line, centerLon, centerLat, iconHref, true, iconSize);
+              kmlContent += getKMZPointPlacemark(row, line, centerLon, centerLat, iconHref, true, iconSize, transparencyHex);
             } else {
               kmlContent += getTransparentPointPlacemark(row, line, centerLon, centerLat);
             }
@@ -233,7 +243,7 @@
       }
     }
 
-    function getKMLHeader(color, useIcons, iconSize) {
+    function getKMLHeader(color, useIcons, iconSize, transparencyHex) {
       return `<?xml version="1.0" encoding="UTF-8"?>
               <kml xmlns="http://www.opengis.net/kml/2.2">
                 <Document>
@@ -254,6 +264,7 @@
                       <Icon>
                         <href>${useIcons ? '' : 'https://upload.wikimedia.org/wikipedia/commons/8/8c/Transparent.png'}</href>
                       </Icon>
+                      <color>${transparencyHex}ffffff</color>
                       <hotSpot x="0.5" y="0.5" xunits="fraction" yunits="fraction"/>
                     </IconStyle>
                   </Style>`;
@@ -286,7 +297,7 @@
               </Placemark>`;
     }
 
-    function getKMZPointPlacemark(row, line, lon, lat, iconHref, hideLabel, iconSize) {
+    function getKMZPointPlacemark(row, line, lon, lat, iconHref, hideLabel, iconSize, transparencyHex) {
       return `<Placemark>
                 ${hideLabel ? '' : `<name>${row}${line}</name>`}
                 <Style>
@@ -295,6 +306,7 @@
                     <Icon>
                       <href>${iconHref}</href>
                     </Icon>
+                    <color>${transparencyHex}ffffff</color>
                   </IconStyle>
                 </Style>
                 <Point>
@@ -346,7 +358,8 @@
   
   <div class="slider-container">
     <label for="transparency">Transparence :</label>
-    <input type="range" id="transparency" min="0" max="100" value="20" aria-label="Transparence">
+    <input type="range" id="transparency" min="0" max="100" value="20" aria-label="Transparence" oninput="updateSliderValue('transparency', 'transparencyValue', '%')">
+    <div class="slider-value" id="transparencyValue">20%</div>
   </div>
 
   <label for="gridName">Nom du carroyage :</label>
@@ -384,9 +397,10 @@
   <label for="iconsFile">Sélectionner le fichier ZIP des icônes :</label>
   <input type="file" id="iconsFile" accept=".zip">
 
-  <div>
+  <div class="slider-container">
     <label for="iconSize">Taille des icônes :</label>
-    <input type="range" id="iconSize" min="1" max="10" value="1" aria-label="Taille des icônes">
+    <input type="range" id="iconSize" min="1" max="5" value="3" aria-label="Taille des icônes" oninput="updateSliderValue('iconSize', 'iconSizeValue')">
+    <div class="slider-value" id="iconSizeValue">3</div>
   </div>
 
   <button onclick="generateKML('grid')">Télécharger le KML du carroyage</button>
