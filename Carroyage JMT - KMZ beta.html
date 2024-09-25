@@ -148,6 +148,10 @@
           const lat = startingLat + (i * (length / METERS_PER_DEGREE_LAT));
           const lon = startingLon + (j * (length / (METERS_PER_DEGREE_LAT * Math.cos(lat * (Math.PI / 180)))));
 
+          // Calculate the center of the cell
+          const centerLat = lat + (length / (2 * METERS_PER_DEGREE_LAT));
+          const centerLon = lon + (length / (2 * (METERS_PER_DEGREE_LAT * Math.cos(lat * (Math.PI / 180)))));
+
           if (type === 'grid' || type === 'doc') {
             kmlContent += getGridPlacemark(row, line, lon, lat, length, kmlColor);
           }
@@ -155,9 +159,9 @@
           if (type === 'points' || type === 'doc') {
             if (isKMZ) {
               const iconHref = `icons/${row}${line}.png`;
-              kmlContent += getKMZPointPlacemark(row, line, lon, lat, iconHref);
+              kmlContent += getKMZPointPlacemark(row, line, centerLon, centerLat, iconHref, true);
             } else {
-              kmlContent += getTransparentPointPlacemark(row, line, lon, lat);
+              kmlContent += getTransparentPointPlacemark(row, line, centerLon, centerLat);
             }
           }
         }
@@ -242,10 +246,10 @@
                   </Style>
                   <Style id="cado">
                     <LabelStyle>
-                      <scale>1</scale>
+                      <scale>${useIcons ? '0' : '1'}</scale>
                     </LabelStyle>
                     <IconStyle>
-                      <scale>${useIcons ? '1.0' : '0.1'}</scale>
+                      <scale>${useIcons ? '1.2' : '0.1'}</scale>
                       <Icon>
                         <href>${useIcons ? '' : 'https://upload.wikimedia.org/wikipedia/commons/8/8c/Transparent.png'}</href>
                       </Icon>
@@ -281,12 +285,12 @@
               </Placemark>`;
     }
 
-    function getKMZPointPlacemark(row, line, lon, lat, iconHref) {
+    function getKMZPointPlacemark(row, line, lon, lat, iconHref, hideLabel) {
       return `<Placemark>
-                <name>${row}${line}</name>
+                ${hideLabel ? '' : `<name>${row}${line}</name>`}
                 <Style>
                   <IconStyle>
-                    <scale>1.0</scale>
+                    <scale>1.2</scale>
                     <Icon>
                       <href>${iconHref}</href>
                     </Icon>
