@@ -123,6 +123,7 @@
       const colorInput = document.getElementById("color").value;
       const transparencyInput = document.getElementById("transparency").value;
       const gridOption = document.getElementById("gridOption").value;
+      const iconSize = document.getElementById("iconSize").value;
 
       if (!validateInputs(coordinatesInput, lengthInput)) return null;
 
@@ -139,7 +140,7 @@
 
       const { startingLat, startingLon } = calculateStartingPoint(latitude, longitude, length, referencePoint, gridRows, gridCols);
 
-      let kmlContent = getKMLHeader(kmlColor, type === 'doc' && isKMZ);
+      let kmlContent = getKMLHeader(kmlColor, type === 'doc' && isKMZ, iconSize);
 
       for (let i = 0; i < gridRows; i++) {
         for (let j = 0; j < gridCols; j++) {
@@ -159,7 +160,7 @@
           if (type === 'points' || type === 'doc') {
             if (isKMZ) {
               const iconHref = `icons/${row}${line}.png`;
-              kmlContent += getKMZPointPlacemark(row, line, centerLon, centerLat, iconHref, true);
+              kmlContent += getKMZPointPlacemark(row, line, centerLon, centerLat, iconHref, true, iconSize);
             } else {
               kmlContent += getTransparentPointPlacemark(row, line, centerLon, centerLat);
             }
@@ -232,7 +233,7 @@
       }
     }
 
-    function getKMLHeader(color, useIcons) {
+    function getKMLHeader(color, useIcons, iconSize) {
       return `<?xml version="1.0" encoding="UTF-8"?>
               <kml xmlns="http://www.opengis.net/kml/2.2">
                 <Document>
@@ -249,7 +250,7 @@
                       <scale>${useIcons ? '0' : '1'}</scale>
                     </LabelStyle>
                     <IconStyle>
-                      <scale>${useIcons ? '10' : '0.1'}</scale>
+                      <scale>${useIcons ? iconSize : '0.1'}</scale>
                       <Icon>
                         <href>${useIcons ? '' : 'https://upload.wikimedia.org/wikipedia/commons/8/8c/Transparent.png'}</href>
                       </Icon>
@@ -285,12 +286,12 @@
               </Placemark>`;
     }
 
-    function getKMZPointPlacemark(row, line, lon, lat, iconHref, hideLabel) {
+    function getKMZPointPlacemark(row, line, lon, lat, iconHref, hideLabel, iconSize) {
       return `<Placemark>
                 ${hideLabel ? '' : `<name>${row}${line}</name>`}
                 <Style>
                   <IconStyle>
-                    <scale>1.2</scale>
+                    <scale>${iconSize}</scale>
                     <Icon>
                       <href>${iconHref}</href>
                     </Icon>
@@ -382,6 +383,11 @@
   
   <label for="iconsFile">Sélectionner le fichier ZIP des icônes :</label>
   <input type="file" id="iconsFile" accept=".zip">
+
+  <div>
+    <label for="iconSize">Taille des icônes :</label>
+    <input type="range" id="iconSize" min="1" max="10" value="1" aria-label="Taille des icônes">
+  </div>
 
   <button onclick="generateKML('grid')">Télécharger le KML du carroyage</button>
   <button onclick="generateKML('points')">Télécharger le KML des points</button>
