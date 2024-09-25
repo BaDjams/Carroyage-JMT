@@ -66,68 +66,9 @@
       }
     }
   </style>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.7.1/jszip.min.js"></script>
-</head>
-<body>
-  <h1>Générateur de carroyage CADO</h1>
+  <script src="jszip.js"></script>
+  <script>   
 
-  <div class="button-container">
-    <button onclick="window.open('https://maps.google.com', '_blank')">Ouvrir Google Maps</button>
-    <button onclick="window.open('https://www.google.com/mymaps', '_blank')">Ouvrir Google MyMaps</button>
-    <button onclick="window.open('https://earth.google.com/web/', '_blank')">Ouvrir Google Earth</button>
-  </div>
-  
-  <label for="coordinates">Coordonnées (WGS84, format "google", par exemple : <i>48.803322, 2.126005</i>) :</label>
-  <input type="text" id="coordinates" placeholder="Entrer les Coordonnées" aria-label="Coordonnées" required>
-  
-  <label for="length">Échelle (en mètres) :</label>
-  <input type="number" id="length" placeholder="Spécifier l'échelle" aria-label="Échelle" required min="1">
-  
-  <label for="color">Choisir une couleur :</label>
-  <input type="color" id="color" aria-label="Couleur" value="#FFFFFF">
-  
-  <div class="slider-container">
-    <label for="transparency">Transparence :</label>
-    <input type="range" id="transparency" min="0" max="100" value="20" aria-label="Transparence">
-  </div>
-
-  <label for="gridName">Nom du carroyage :</label>
-  <input type="text" id="gridName" placeholder="Nom du carroyage (optionnel)" aria-label="Nom du carroyage">
-
-  <label for="referencePoint">Point de référence :</label>
-  <select id="referencePoint" aria-label="Point de référence">
-    <option value="center">Milieu du carroyage</option>
-    <option value="bottomLeft">Coin bas gauche</option>
-    <option value="topLeft">Coin haut gauche</option>
-  </select>
-  
-  <label for="gridOption">Option de grille :</label>
-  <select id="gridOption" aria-label="Option de grille" onchange="toggleCustomGridOptions()">
-    <option value="default">Grille par défaut</option>
-    <option value="custom">Grille custom</option>
-  </select>
-
-  <div id="defaultGridOptions">
-    <label for="gridType">Type de grille :</label>
-    <select id="gridType" aria-label="Type de grille">
-      <option value="Z26">Z26 (26x26)</option>
-      <option value="Z14" selected>Z14 (26x14)</option>
-      <option value="Q9">Q9 (17x9)</option>
-    </select>
-  </div>
-
-  <div id="customGridOptions" style="display:none;">
-    <label for="customRows">Nombre de lignes (chiffres) :</label>
-    <input type="number" id="customRows" min="1" max="26" value="26">
-    <label for="customCols">Nombre de colonnes (lettres) :</label>
-    <input type="number" id="customCols" min="1" max="26" value="26">
-  </div>
-  
-  <button onclick="generateKML('grid')">Télécharger le KML du carroyage</button>
-  <button onclick="generateKML('points')">Télécharger le KML des points</button>
-  <button onclick="generateKMZ()">Télécharger le KMZ</button>
-  
-  <script>
     const METERS_PER_DEGREE_LAT = 111320;
 
     function toggleCustomGridOptions() {
@@ -153,13 +94,14 @@
     }
 
     async function generateKMZ() {
+      const fileInput = document.getElementById('zipFile');
+      if (fileInput.files.length === 0) {
+        alert('Veuillez sélectionner un fichier ZIP existant.');
+        return;
+      }
+
+      const zipData = fileInput.files[0];
       try {
-        const response = await fetch('icons.zip');
-        if (!response.ok) {
-          console.error('Failed to fetch existing ZIP');
-          return;
-        }
-        const zipData = await response.blob();
         const zip = await JSZip.loadAsync(zipData);
 
         const kmlGridContent = createKMLContent('grid');
@@ -382,5 +324,68 @@
       document.body.removeChild(element);
     }
   </script>
+</head>
+<body>
+  <h1>Générateur de carroyage CADO</h1>
+
+  <div class="button-container">
+    <button onclick="window.open('https://maps.google.com', '_blank')">Ouvrir Google Maps</button>
+    <button onclick="window.open('https://www.google.com/mymaps', '_blank')">Ouvrir Google MyMaps</button>
+    <button onclick="window.open('https://earth.google.com/web/', '_blank')">Ouvrir Google Earth</button>
+  </div>
+  
+  <label for="coordinates">Coordonnées (WGS84, format "google", par exemple : <i>48.803322, 2.126005</i>) :</label>
+  <input type="text" id="coordinates" placeholder="Entrer les Coordonnées" aria-label="Coordonnées" required>
+  
+  <label for="length">Échelle (en mètres) :</label>
+  <input type="number" id="length" placeholder="Spécifier l'échelle" aria-label="Échelle" required min="1">
+  
+  <label for="color">Choisir une couleur :</label>
+  <input type="color" id="color" aria-label="Couleur" value="#FFFFFF">
+  
+  <div class="slider-container">
+    <label for="transparency">Transparence :</label>
+    <input type="range" id="transparency" min="0" max="100" value="20" aria-label="Transparence">
+  </div>
+
+  <label for="gridName">Nom du carroyage :</label>
+  <input type="text" id="gridName" placeholder="Nom du carroyage (optionnel)" aria-label="Nom du carroyage">
+
+  <label for="referencePoint">Point de référence :</label>
+  <select id="referencePoint" aria-label="Point de référence">
+    <option value="center">Milieu du carroyage</option>
+    <option value="bottomLeft">Coin bas gauche</option>
+    <option value="topLeft">Coin haut gauche</option>
+  </select>
+  
+  <label for="gridOption">Option de grille :</label>
+  <select id="gridOption" aria-label="Option de grille" onchange="toggleCustomGridOptions()">
+    <option value="default">Grille par défaut</option>
+    <option value="custom">Grille custom</option>
+  </select>
+
+  <div id="defaultGridOptions">
+    <label for="gridType">Type de grille :</label>
+    <select id="gridType" aria-label="Type de grille">
+      <option value="Z26">Z26 (26x26)</option>
+      <option value="Z14" selected>Z14 (26x14)</option>
+      <option value="Q9">Q9 (17x9)</option>
+    </select>
+  </div>
+
+  <div id="customGridOptions" style="display:none;">
+    <label for="customRows">Nombre de lignes (chiffres) :</label>
+    <input type="number" id="customRows" min="1" max="26" value="26">
+    <label for="customCols">Nombre de colonnes (lettres) :</label>
+    <input type="number" id="customCols" min="1" max="26" value="26">
+  </div>
+  
+  <label for="zipFile">Sélectionner un fichier ZIP existant :</label>
+  <input type="file" id="zipFile" accept=".zip">
+
+  <button onclick="generateKML('grid')">Télécharger le KML du carroyage</button>
+  <button onclick="generateKML('points')">Télécharger le KML des points</button>
+  <button onclick="generateKMZ()">Télécharger le KMZ</button>
+
 </body>
 </html>
