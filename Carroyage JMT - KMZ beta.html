@@ -67,8 +67,7 @@
     }
   </style>
   <script src="jszip.js"></script>
-  <script>   
-
+  <script>
     const METERS_PER_DEGREE_LAT = 111320;
 
     function toggleCustomGridOptions() {
@@ -86,7 +85,7 @@
     }
 
     function generateKML(type) {
-      const kmlContent = createKMLContent(type);
+      const kmlContent = createKMLContent(type, false);
       if (!kmlContent) return;
 
       const filename = getKMLFilename(type);
@@ -94,22 +93,27 @@
     }
 
     async function generateKMZ() {
-      const fileInput = document.getElementById('zipFile');
-      if (fileInput.files.length === 0) {
-        alert('Veuillez sélectionner un fichier ZIP existant.');
+      const iconsInput = document.getElementById('iconsFile');
+      if (iconsInput.files.length === 0) {
+        alert('Veuillez sélectionner le fichier ZIP des icônes.');
         return;
       }
 
-      const zipData = fileInput.files[0];
+      const iconsData = iconsInput.files[0];
       try {
-        const zip = await JSZip.loadAsync(zipData);
+        const icons = await JSZip.loadAsync(iconsData);
 
-        const kmlGridContent = createKMLContent('grid');
-        const kmlPointsContent = createKMLContent('points');
+        const zip = new JSZip();
+        const kmlGridContent = createKMLContent('grid', false);
+        const kmlPointsContent = createKMLContent('points', true, icons);
         if (!kmlGridContent || !kmlPointsContent) return;
 
         zip.file("grille.kml", kmlGridContent);
         zip.file("points.kml", kmlPointsContent);
+
+        icons.forEach((relativePath, file) => {
+          zip.file(`icons/${relativePath}`, file);
+        });
 
         const content = await zip.generateAsync({ type: "blob" });
         const filename = getKMLFilename('kmz').replace('.kml', '.kmz');
@@ -119,7 +123,7 @@
       }
     }
 
-    function createKMLContent(type) {
+    function createKMLContent(type, isKMZ, icons = null) {
       const coordinatesInput = document.getElementById("coordinates").value;
       const lengthInput = document.getElementById("length").value;
       const colorInput = document.getElementById("color").value;
@@ -141,7 +145,7 @@
 
       const { startingLat, startingLon } = calculateStartingPoint(latitude, longitude, length, referencePoint, gridRows, gridCols);
 
-      let kmlContent = getKMLHeader(kmlColor);
+      let kmlContent = getKMLHeader(kmlColor, type === 'points' && isKMZ);
 
       for (let i = 0; i < gridRows; i++) {
         for (let j = 0; j < gridCols; j++) {
@@ -150,9 +154,16 @@
           const lat = startingLat + (i * (length / METERS_PER_DEGREE_LAT));
           const lon = startingLon + (j * (length / (METERS_PER_DEGREE_LAT * Math.cos(lat * (Math.PI / 180)))));
 
-          kmlContent += type === 'grid' ? getGridPlacemark(row, line, lon, lat, length, kmlColor)
-                       : type === 'points' ? getPointPlacemark(row, line, lon, lat, length)
-                       : getKMZPlacemark(row, line, lon, lat, length);
+          if (type === 'grid') {
+            kmlContent += getGridPlacemark(row, line, lon, lat, length, kmlColor);
+          } else if (type === 'points') {
+            if (isKMZ) {
+              const iconHref = `icons/${row}${line}.png`;
+              kmlContent += getKMZPointPlacemark(row, line, lon, lat, iconHref);
+            } else {
+              kmlContent += getTransparentPointPlacemark(row, line, lon, lat);
+            }
+          }
         }
       }
 
@@ -221,7 +232,7 @@
       }
     }
 
-    function getKMLHeader(color) {
+    function getKMLHeader(color, useIcons) {
       return `<?xml version="1.0" encoding="UTF-8"?>
               <kml xmlns="http://www.opengis.net/kml/2.2">
                 <Document>
@@ -238,9 +249,9 @@
                       <scale>1</scale>
                     </LabelStyle>
                     <IconStyle>
-                      <scale>0.1</scale>
+                      <scale>${useIcons ? '1.0' : '0.1'}</scale>
                       <Icon>
-                        <href>https://upload.wikimedia.org/wikipedia/commons/8/8c/Transparent.png</href>
+                        <href>${useIcons ? '' : 'https://upload.wikimedia.org/wikipedia/commons/8/8c/Transparent.png'}</href>
                       </Icon>
                       <hotSpot x="0.5" y="0.5" xunits="fraction" yunits="fraction"/>
                     </IconStyle>
@@ -264,28 +275,17 @@
               </Placemark>`;
     }
 
-    function getPointPlacemark(row, line, lon, lat, length) {
-      const halfLonDelta = (length / (2 * METERS_PER_DEGREE_LAT * Math.cos(lat * (Math.PI / 180))));
-      const halfLatDelta = length / (2 * METERS_PER_DEGREE_LAT);
-      const centerLon = lon + halfLonDelta;
-      const centerLat = lat + halfLatDelta;
-
+    function getTransparentPointPlacemark(row, line, lon, lat) {
       return `<Placemark>
                 <name>${row}${line}</name>
                 <styleUrl>#cado</styleUrl>
                 <Point>
-                  <coordinates>${centerLon},${centerLat}</coordinates>
+                  <coordinates>${lon},${lat}</coordinates>
                 </Point>
               </Placemark>`;
     }
 
-    function getKMZPlacemark(row, line, lon, lat, length) {
-      const halfLonDelta = (length / (2 * METERS_PER_DEGREE_LAT * Math.cos(lat * (Math.PI / 180))));
-      const halfLatDelta = length / (2 * METERS_PER_DEGREE_LAT);
-      const centerLon = lon + halfLonDelta;
-      const centerLat = lat + halfLatDelta;
-      const iconHref = `icons/${row}${line}.png`;
-
+    function getKMZPointPlacemark(row, line, lon, lat, iconHref) {
       return `<Placemark>
                 <name>${row}${line}</name>
                 <Style>
@@ -297,7 +297,7 @@
                   </IconStyle>
                 </Style>
                 <Point>
-                  <coordinates>${centerLon},${centerLat}</coordinates>
+                  <coordinates>${lon},${lat}</coordinates>
                 </Point>
               </Placemark>`;
     }
@@ -333,7 +333,7 @@
     <button onclick="window.open('https://www.google.com/mymaps', '_blank')">Ouvrir Google MyMaps</button>
     <button onclick="window.open('https://earth.google.com/web/', '_blank')">Ouvrir Google Earth</button>
   </div>
-  
+
   <label for="coordinates">Coordonnées (WGS84, format "google", par exemple : <i>48.803322, 2.126005</i>) :</label>
   <input type="text" id="coordinates" placeholder="Entrer les Coordonnées" aria-label="Coordonnées" required>
   
@@ -380,8 +380,8 @@
     <input type="number" id="customCols" min="1" max="26" value="26">
   </div>
   
-  <label for="zipFile">Sélectionner un fichier ZIP existant :</label>
-  <input type="file" id="zipFile" accept=".zip">
+  <label for="iconsFile">Sélectionner le fichier ZIP des icônes :</label>
+  <input type="file" id="iconsFile" accept=".zip">
 
   <button onclick="generateKML('grid')">Télécharger le KML du carroyage</button>
   <button onclick="generateKML('points')">Télécharger le KML des points</button>
