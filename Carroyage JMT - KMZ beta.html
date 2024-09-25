@@ -103,19 +103,15 @@
       try {
         const icons = await JSZip.loadAsync(iconsData);
 
-        const zip = new JSZip();
         const kmlGridContent = createKMLContent('grid', false);
         const kmlPointsContent = createKMLContent('points', true, icons);
         if (!kmlGridContent || !kmlPointsContent) return;
 
-        zip.file("grille.kml", kmlGridContent);
-        zip.file("points.kml", kmlPointsContent);
+        // Ajoute les fichiers KML à la racine du ZIP existant
+        icons.file("grille.kml", kmlGridContent);
+        icons.file("points.kml", kmlPointsContent);
 
-        icons.forEach((relativePath, file) => {
-          zip.file(`icons/${relativePath}`, file);
-        });
-
-        const content = await zip.generateAsync({ type: "blob" });
+        const content = await icons.generateAsync({ type: "blob" });
         const filename = getKMLFilename('kmz').replace('.kml', '.kmz');
         downloadFile(content, filename, 'application/vnd.google-earth.kmz');
       } catch (error) {
