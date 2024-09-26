@@ -164,10 +164,14 @@
           const centerLat = lat + (length / (2 * METERS_PER_DEGREE_LAT));
           const centerLon = lon + (length / (2 * (METERS_PER_DEGREE_LAT * Math.cos(lat * (Math.PI / 180)))));
 
+          // Correct the placement of the grid lines to ensure the points are centered
+          const topLat = centerLat - (length / (2 * METERS_PER_DEGREE_LAT));
+          const leftLon = centerLon - (length / (2 * (METERS_PER_DEGREE_LAT * Math.cos(lat * (Math.PI / 180)))));
+
           const rotatedCoords = rotateCoordinates(centerLat, centerLon, latitude, longitude, deviationInput);
 
           if (type === 'grid' || type === 'doc') {
-            kmlContent += getGridPlacemark(row, line, rotatedCoords.lon, rotatedCoords.lat, length, kmlColor, deviationInput);
+            kmlContent += getGridPlacemark(row, line, leftLon, topLat, length, kmlColor, deviationInput);
           }
 
           if (type === 'points' || type === 'doc') {
@@ -408,30 +412,30 @@
     <label for="gridType">Type de grille :</label>
     <select id="gridType" aria-label="Type de grille">
       <option value="Z26">Z26 (26x26)</option>
-      <option value="Z14" selected>Z14 (26x14)</option>
-      <option value="Q9">Q9 (17x9)</option>
+      <option value="Z14">Z14 (14x26)</option>
+      <option value="Q9">Q9 (9x17)</option>
     </select>
   </div>
 
   <div id="customGridOptions" style="display:none;">
-    <label for="customRows">Nombre de lignes (chiffres) :</label>
-    <input type="number" id="customRows" min="1" max="26" value="26">
-    <label for="customCols">Nombre de colonnes (lettres) :</label>
-    <input type="number" id="customCols" min="1" max="26" value="26">
+    <label for="customRows">Nombre de lignes :</label>
+    <input type="number" id="customRows" placeholder="Spécifier le nombre de lignes" aria-label="Nombre de lignes" min="1" value="10">
+    
+    <label for="customCols">Nombre de colonnes :</label>
+    <input type="number" id="customCols" placeholder="Spécifier le nombre de colonnes" aria-label="Nombre de colonnes" min="1" value="10">
   </div>
 
   <div class="slider-container">
-    <label for="deviation">Déviation (en degrés) :</label>
-    <input type="range" id="deviation" min="-180" max="180" value="0" aria-label="Déviation" oninput="updateSliderValue('deviation', 'deviationValue', '°')">
-    <div class="slider-value" id="deviationValue">0°</div>
+    <label for="iconSize">Taille des icônes :</label>
+    <input type="range" id="iconSize" min="1" max="5" value="3" aria-label="Taille des icônes" oninput="updateSliderValue('iconSize', 'iconSizeValue')">
+    <div class="slider-value" id="iconSizeValue">3</div>
   </div>
 
-  <label for="iconSize">Taille des icônes :</label>
-  <input type="range" id="iconSize" min="0.1" max="1.0" value="0.5" step="0.1" aria-label="Taille des icônes" oninput="updateSliderValue('iconSize', 'iconSizeValue')">
-  <div class="slider-value" id="iconSizeValue">0.5</div>
+  <label for="deviation">Déviation (en degrés) :</label>
+  <input type="number" id="deviation" placeholder="Spécifier la déviation" aria-label="Déviation" min="0" max="360" value="0">
 
-  <label for="iconsFile">Fichier ZIP des icônes :</label>
-  <input type="file" id="iconsFile" accept=".zip" aria-label="Fichier ZIP des icônes">
+  <label for="iconsFile">Fichier ZIP des icônes (pour KMZ) :</label>
+  <input type="file" id="iconsFile" aria-label="Fichier ZIP des icônes" accept=".zip">
 
   <div class="button-container">
     <button onclick="generateKML('grid')">Générer KML Grille</button>
