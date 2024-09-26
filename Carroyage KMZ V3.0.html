@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Générateur de carroyage CADO</title>
+  <title>Générateur de carroyage CADO V3.0</title>
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -265,10 +265,18 @@
     }
 
     function getKMLHeader(color, useIcons, iconSize, transparencyHex) {
+      const gridNameInput = document.getElementById("gridName").value.trim();
+      const gridOption = document.getElementById("gridOption").value;
+      const refPoint = document.getElementById("referencePoint").value;
+      const gridType = gridOption === "default" 
+                       ? document.getElementById("gridType").value 
+                       : `Custom_${getGridRows()}x${getGridCols()}`;
+      const filename = gridNameInput || 'Carroyage';
+
       return `<?xml version="1.0" encoding="UTF-8"?>
               <kml xmlns="http://www.opengis.net/kml/2.2">
                 <Document>
-                  <name>Carroyage</name>
+                  <name>${filename}_${refPoint}_${gridType}</name>
                   <description>Copyright GIGN/CADO/JMT</description>
                   <Style id="gridLineStyle">
                     <LineStyle>
@@ -351,14 +359,16 @@
     function getKMLFilename(type) {
       const gridNameInput = document.getElementById("gridName").value.trim();
       const gridOption = document.getElementById("gridOption").value;
+      const refPoint = document.getElementById("referencePoint").value;
+      const colorInput = document.getElementById("color").value;
       const gridType = gridOption === "default" 
                        ? document.getElementById("gridType").value 
                        : `Custom_${getGridRows()}x${getGridCols()}`;
       const filename = gridNameInput || 'Carroyage';
 
-      return type === 'grid' ? `Grille_${filename}_${gridType}.kml`
-           : type === 'points' ? `Points_${filename}_${gridType}.kml`
-           : `Carroyage_${filename}_${gridType}.kmz`;
+      return type === 'grid' ? `${filename}_KML-Grille_${refPoint}_${gridType}.kml`
+           : type === 'points' ? `${filename}_KML-Points_${refPoint}_${gridType}.kml`
+           : `${filename}_KMZ_${refPoint}_${gridType}.kmz`;
     }
 
     function downloadFile(content, filename, mimeType) {
