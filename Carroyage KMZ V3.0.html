@@ -266,21 +266,21 @@
 
     function getKMLHeader(color, useIcons, iconSize, transparencyHex) {
       const gridNameInput = document.getElementById("gridName").value.trim();
-      const gridOption = document.getElementById("gridOption").value;
+      const filename = gridNameInput || 'Carroyage';
+      const length = document.getElementById("length").value;
+      const scale = `${length}m`;
       const refPoint = document.getElementById("referencePoint").value;
       const deviation = document.getElementById("deviation").value;
-      const angle = deviation === 0 
-                    ? ``
-                    : `${deviation}°_`;
+      const angle = `${deviation}°`;
+      const gridOption = document.getElementById("gridOption").value;
       const gridType = gridOption === "default" 
                        ? document.getElementById("gridType").value 
                        : `Custom_${getGridRows()}x${getGridCols()}`;
-      const filename = gridNameInput || 'Carroyage';
 
       return `<?xml version="1.0" encoding="UTF-8"?>
               <kml xmlns="http://www.opengis.net/kml/2.2">
                 <Document>
-                  <name>${filename}_${refPoint}_${angle}${gridType}</name>
+                  <name>${filename}_${scale}_${refPoint}_${angle}_${gridType}</name>
                   <description>Copyright GIGN/CADO/JMT</description>
                   <Style id="gridLineStyle">
                     <LineStyle>
@@ -362,20 +362,19 @@
 
     function getKMLFilename(type) {
       const gridNameInput = document.getElementById("gridName").value.trim();
-      const gridOption = document.getElementById("gridOption").value;
+      const filename = gridNameInput || 'Carroyage';
+      const length = document.getElementById("length").value;
+      const scale = `${length}m`;
       const refPoint = document.getElementById("referencePoint").value;
       const deviation = document.getElementById("deviation").value;
-      const angle = deviation === 0 
-                    ? ``
-                    : `${deviation}°_`;
+      const angle = `${deviation}°`;
+      const gridOption = document.getElementById("gridOption").value;
       const gridType = gridOption === "default" 
                        ? document.getElementById("gridType").value 
                        : `Custom_${getGridRows()}x${getGridCols()}`;
-      const filename = gridNameInput || 'Carroyage';
-
-      return type === 'grid' ? `${filename}_KML-Grille_${refPoint}_${gridType}.kml`
-           : type === 'points' ? `${filename}_KML-Points_${refPoint}_${gridType}.kml`
-           : `${filename}_KMZ_${refPoint}_${angle}${gridType}.kmz`;
+      return type === 'grid' ? `${filename}_KML-Grille_${scale}_${refPoint}_${angle}_${gridType}.kml`
+           : type === 'points' ? `${filename}_KML-Points_${scale}_${refPoint}_${angle}_${gridType}.kml`
+           : `${filename}_KMZ_${scale}_${refPoint}_${angle}_${gridType}.kmz`;
     }
 
     function downloadFile(content, filename, mimeType) {
