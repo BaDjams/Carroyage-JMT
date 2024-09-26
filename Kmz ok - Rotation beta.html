@@ -161,10 +161,7 @@
           const lat = startingLat + (i * (length / METERS_PER_DEGREE_LAT));
           const lon = startingLon + (j * (length / (METERS_PER_DEGREE_LAT * Math.cos(lat * (Math.PI / 180)))));
 
-          const centerLat = lat + (length / (2 * METERS_PER_DEGREE_LAT));
-          const centerLon = lon + (length / (2 * (METERS_PER_DEGREE_LAT * Math.cos(lat * (Math.PI / 180)))));
-
-          const rotatedCoords = rotateCoordinates(centerLat, centerLon, latitude, longitude, deviationInput);
+          const rotatedCoords = rotateCoordinates(lat, lon, latitude, longitude, deviationInput);
 
           if (type === 'grid' || type === 'doc') {
             kmlContent += getGridPlacemark(row, line, rotatedCoords.lon, rotatedCoords.lat, length, kmlColor, deviationInput);
