@@ -186,6 +186,9 @@
     }
 
     function rotateCoordinates(lat, lon, refLat, refLon, angle) {
+      // If no deviation is specified, return the original coordinates
+      if (angle === 0) return { lat, lon };
+    
       const angleRad = angle * (Math.PI / 180);
       const x = (lon - refLon) * METERS_PER_DEGREE_LAT * Math.cos(refLat * (Math.PI / 180));
       const y = (lat - refLat) * METERS_PER_DEGREE_LAT;
