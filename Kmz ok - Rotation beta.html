@@ -161,26 +161,29 @@
           const lat = startingLat + (i * (length / METERS_PER_DEGREE_LAT));
           const lon = startingLon + (j * (length / (METERS_PER_DEGREE_LAT * Math.cos(lat * (Math.PI / 180)))));
         
+          // Rotate grid corners
+          const gridCoords = rotateCoordinates(lat, lon, latitude, longitude, deviationInput);
+    
+          // Calculate center for points with rotation
           const centerLat = lat + (length / (2 * METERS_PER_DEGREE_LAT));
           const centerLon = lon + (length / (2 * (METERS_PER_DEGREE_LAT * Math.cos(lat * (Math.PI / 180)))));
-      
-          const rotatedCoords = rotateCoordinates(lat, lon, centerLat, centerLon, deviationInput);
-
+          const pointCoords = rotateCoordinates(centerLat, centerLon, latitude, longitude, deviationInput);
+    
           if (type === 'grid' || type === 'doc') {
-            kmlContent += getGridPlacemark(row, line, rotatedCoords.lon, rotatedCoords.lat, length, kmlColor, deviationInput);
+            kmlContent += getGridPlacemark(row, line, gridCoords.lon, gridCoords.lat, length, kmlColor, deviationInput);
           }
-
+    
           if (type === 'points' || type === 'doc') {
             if (isKMZ) {
               const iconHref = `icons/${row}${line}.png`;
-              kmlContent += getKMZPointPlacemark(row, line, rotatedCoords.lon, rotatedCoords.lat, iconHref, true, iconSize, transparencyHex);
+              kmlContent += getKMZPointPlacemark(row, line, pointCoords.lon, pointCoords.lat, iconHref, true, iconSize, transparencyHex);
             } else {
-              kmlContent += getTransparentPointPlacemark(row, line, rotatedCoords.lon, rotatedCoords.lat);
+              kmlContent += getTransparentPointPlacemark(row, line, pointCoords.lon, pointCoords.lat);
             }
           }
         }
       }
-
+    
       kmlContent += `</Document></kml>`;
       return kmlContent;
     }
