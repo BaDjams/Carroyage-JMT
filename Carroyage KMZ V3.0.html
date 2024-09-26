@@ -268,6 +268,10 @@
       const gridNameInput = document.getElementById("gridName").value.trim();
       const gridOption = document.getElementById("gridOption").value;
       const refPoint = document.getElementById("referencePoint").value;
+      const deviation = document.getElementById("deviation").value;
+      const angle = deviation === 0 
+                    ? ``
+                    : `${deviation}°_`;
       const gridType = gridOption === "default" 
                        ? document.getElementById("gridType").value 
                        : `Custom_${getGridRows()}x${getGridCols()}`;
@@ -276,7 +280,7 @@
       return `<?xml version="1.0" encoding="UTF-8"?>
               <kml xmlns="http://www.opengis.net/kml/2.2">
                 <Document>
-                  <name>${filename}_${refPoint}_${gridType}</name>
+                  <name>${filename}_${refPoint}_${angle}${gridType}</name>
                   <description>Copyright GIGN/CADO/JMT</description>
                   <Style id="gridLineStyle">
                     <LineStyle>
@@ -360,7 +364,10 @@
       const gridNameInput = document.getElementById("gridName").value.trim();
       const gridOption = document.getElementById("gridOption").value;
       const refPoint = document.getElementById("referencePoint").value;
-      const colorInput = document.getElementById("color").value;
+      const deviation = document.getElementById("deviation").value;
+      const angle = deviation === 0 
+                    ? ``
+                    : `${deviation}°_`;
       const gridType = gridOption === "default" 
                        ? document.getElementById("gridType").value 
                        : `Custom_${getGridRows()}x${getGridCols()}`;
@@ -368,7 +375,7 @@
 
       return type === 'grid' ? `${filename}_KML-Grille_${refPoint}_${gridType}.kml`
            : type === 'points' ? `${filename}_KML-Points_${refPoint}_${gridType}.kml`
-           : `${filename}_KMZ_${refPoint}_${gridType}.kmz`;
+           : `${filename}_KMZ_${refPoint}_${angle}${gridType}.kmz`;
     }
 
     function downloadFile(content, filename, mimeType) {
