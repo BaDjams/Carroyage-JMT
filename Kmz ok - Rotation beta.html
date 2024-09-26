@@ -195,12 +195,13 @@
       const angleRad = angle * (Math.PI / 180);
       const x = (lon - refLon) * METERS_PER_DEGREE_LAT * Math.cos(refLat * (Math.PI / 180));
       const y = (lat - refLat) * METERS_PER_DEGREE_LAT;
-      const rotatedX = x * Math.cos(angleRad) - y * Math.sin(angleRad);
-      const rotatedY = x * Math.sin(angleRad) + y * Math.cos(angleRad);
+      const rotatedX = x * Math.cos(angleRad) + y * Math.sin(angleRad); // Adjusted for correct rotation direction
+      const rotatedY = -x * Math.sin(angleRad) + y * Math.cos(angleRad); // Adjusted for correct rotation direction
       const rotatedLon = rotatedX / (METERS_PER_DEGREE_LAT * Math.cos(refLat * (Math.PI / 180))) + refLon;
       const rotatedLat = rotatedY / METERS_PER_DEGREE_LAT + refLat;
       return { lat: rotatedLat, lon: rotatedLon };
     }
+
 
     function calculateStartingPoint(lat, lon, length, refPoint, rows, cols) {
       let startingLat, startingLon;
