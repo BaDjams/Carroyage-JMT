@@ -2277,11 +2277,13 @@
       let kmlContent = getKMLHeader(kmlColor, isKMZ, iconSize, transparencyHex, rowStart, rowEnd, colStart, colEnd);
 
       for (let rowIndex = rowStart; rowIndex <= rowEnd; rowIndex++) {
+        if (rowIndex === 0) continue; // Sauter le zéro pour les lignes
         for (let colIndex = colStart; colIndex <= colEnd; colIndex++) {
+          if (colIndex === 0) continue; // Sauter le zéro pour les colonnes
           const colLabel = getColumnLabel(colIndex);
-          const rowLabel = rowIndex.toString();
+          const rowLabel = getRowLabel(rowIndex);
 
-          const coords = getGridCellCoordinates(rowIndex, colIndex, startingLat, startingLon, length, rowStart, colStart);
+          const coords = getGridCellCoordinates(rowIndex, colIndex, startingLat, startingLon, length, rowStart, colStart, referencePoint);
 
           // Rotation des coins de la grille
           const gridCoords = rotateCoordinates(coords.lat, coords.lon, latitude, longitude, deviationInput);
@@ -2326,8 +2328,8 @@
 
     function calculateStartingPoint(lat, lon, length, refPoint, rowStart, rowEnd, colStart, colEnd) {
       let startingLat, startingLon;
-      const totalRows = rowEnd - rowStart + 1;
-      const totalCols = colEnd - colStart + 1;
+      const totalRows = rowEnd - rowStart + (rowStart * rowEnd <= 0 ? 0 : 1);
+      const totalCols = colEnd - colStart + (colStart * colEnd <= 0 ? 0 : 1);
 
       switch (refPoint) {
         case "center":
@@ -2341,6 +2343,10 @@
         case "topLeft":
           startingLat = lat - (totalRows * (length / METERS_PER_DEGREE_LAT));
           startingLon = lon;
+          break;
+        case "origin":
+          startingLat = lat - ((1 - rowStart) * length) / METERS_PER_DEGREE_LAT;
+          startingLon = lon - ((1 - colStart) * length) / (METERS_PER_DEGREE_LAT * Math.cos(lat * (Math.PI / 180)));
           break;
       }
       return { startingLat, startingLon };
@@ -2421,7 +2427,7 @@
 
     function getColumnLabel(index) {
       if (index === 0) {
-        return 'A'; // Gestion spéciale si nécessaire
+        return ''; // Pas de colonne zéro
       }
 
       let isNegative = index < 0;
@@ -2452,9 +2458,40 @@
       return isNegative ? -index : index;
     }
 
-    function getGridCellCoordinates(rowIndex, colIndex, startingLat, startingLon, length, rowStart, colStart) {
-      const deltaLat = (rowIndex - rowStart) * length / METERS_PER_DEGREE_LAT;
-      const deltaLon = (colIndex - colStart) * length / (METERS_PER_DEGREE_LAT * Math.cos(startingLat * (Math.PI / 180)));
+    function getRowLabel(index) {
+      if (index === 0) {
+        return ''; // Pas de ligne zéro
+      }
+      return index.toString();
+    }
+
+    function getGridCellCoordinates(rowIndex, colIndex, startingLat, startingLon, length, rowStart, colStart, referencePoint) {
+      let adjustedRowIndex, adjustedColIndex;
+
+      if (referencePoint === 'origin') {
+        adjustedRowIndex = rowIndex - 1;
+        adjustedColIndex = colIndex - 1;
+        if (rowIndex > 0 && rowStart <= 0) adjustedRowIndex -= 1;
+        if (colIndex > 0 && colStart <= 0) adjustedColIndex -= 1;
+      } else {
+        adjustedRowIndex = rowIndex - rowStart;
+        adjustedColIndex = colIndex - colStart;
+
+        if (rowIndex > 0 && rowStart <= 0) {
+          adjustedRowIndex -= 1;
+        } else if (rowIndex < 0 && rowStart <= 0) {
+          adjustedRowIndex += 1;
+        }
+
+        if (colIndex > 0 && colStart <= 0) {
+          adjustedColIndex -= 1;
+        } else if (colIndex < 0 && colStart <= 0) {
+          adjustedColIndex += 1;
+        }
+      }
+
+      const deltaLat = adjustedRowIndex * length / METERS_PER_DEGREE_LAT;
+      const deltaLon = adjustedColIndex * length / (METERS_PER_DEGREE_LAT * Math.cos(startingLat * (Math.PI / 180)));
 
       const lat = startingLat + deltaLat;
       const lon = startingLon + deltaLon;
@@ -2639,6 +2676,7 @@
     <option value="center">Milieu du carroyage</option>
     <option value="bottomLeft">Coin bas gauche</option>
     <option value="topLeft">Coin haut gauche</option>
+    <option value="origin">Origine (A1)</option>
   </select>
   
   <label for="gridOption">Option de grille :</label>
