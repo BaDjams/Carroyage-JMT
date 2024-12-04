@@ -2308,6 +2308,20 @@
         }
       }
 
+      // Ajouter le cercle blanc à l'origine
+      const lineWidth = 2; // Même épaisseur que les lignes de la grille
+      let originPoint;
+
+      if (referencePoint === 'origin') {
+        // L'origine est au coin bas gauche de la case A1
+        originPoint = { lat: startingLat, lon: startingLon };
+      } else {
+        // L'origine est aux coordonnées spécifiées par l'utilisateur
+        originPoint = { lat: latitude, lon: longitude };
+      }
+
+      kmlContent += getOriginCirclePlacemark(originPoint.lat, originPoint.lon, length, deviationInput, lineWidth);
+
       kmlContent += `</Document></kml>`;
       return kmlContent;
     }
@@ -2605,6 +2619,47 @@
                   <coordinates>${lon},${lat}</coordinates>
                 </Point>
               </Placemark>`;
+    }
+
+    // Nouvelle fonction pour générer le cercle blanc à l'origine
+    function getOriginCirclePlacemark(lat, lon, length, deviation, lineWidth) {
+      const circleColor = 'ffffffff'; // Blanc opaque en format KML (aabbggrr)
+      const radius = (length / 5) / METERS_PER_DEGREE_LAT; // Rayon en degrés
+
+      const numPoints = 36; // Nombre de points pour approximer le cercle
+      const angleStep = 360 / numPoints;
+
+      let coordinates = '';
+      for (let i = 0; i <= numPoints; i++) {
+        const angleDeg = i * angleStep;
+        const angleRad = (angleDeg + parseFloat(deviation)) * (Math.PI / 180);
+        const pointLat = lat + (radius * Math.cos(angleRad));
+        const pointLon = lon + (radius * Math.sin(angleRad)) / Math.cos(lat * (Math.PI / 180));
+        coordinates += `${pointLon},${pointLat} `;
+      }
+
+      const circlePlacemark = `
+        <Placemark>
+          <name>Point d'origine</name>
+          <Style>
+            <LineStyle>
+              <color>${circleColor}</color>
+              <width>${lineWidth}</width>
+            </LineStyle>
+          </Style>
+          <Polygon>
+            <outerBoundaryIs>
+              <LinearRing>
+                <coordinates>
+                  ${coordinates.trim()}
+                </coordinates>
+              </LinearRing>
+            </outerBoundaryIs>
+          </Polygon>
+        </Placemark>
+      `;
+
+      return circlePlacemark;
     }
 
     function getKMLFilename(type) {
