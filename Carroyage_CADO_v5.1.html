@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Générateur de carroyage CADO V5.5 - Correctif Final</title>
+  <title>Générateur de carroyage CADO V5.6 - Correctif Final</title>
   <style>
     /* Style CSS */
     body {
@@ -2284,7 +2284,7 @@
           const colLabel = getColumnLabel(colIndex);
           const rowLabel = getRowLabel(rowIndex);
 
-          const coords = getGridCellCoordinates(rowIndex, colIndex, startingLat, startingLon, length, rowIndices, colIndices);
+          const coords = getGridCellCoordinates(rowIndex, colIndex, startingLat, startingLon, length, rowIndices, colIndices, referencePoint);
 
           // Rotation des coins de la grille
           const gridCoords = rotateCoordinates(coords.lat, coords.lon, latitude, longitude, deviationInput);
@@ -2356,8 +2356,20 @@
           break;
         case "topLeft":
           {
-            startingLat = lat;
-            startingLon = lon;
+            // Trouver les indices de A1
+            const a1RowIndex = rowIndices.indexOf(1);
+            const a1ColIndex = colIndices.indexOf(1);
+
+            if (a1RowIndex === -1 || a1ColIndex === -1) {
+              alert("La case A1 n'existe pas dans le quadrillage spécifié.");
+              return null;
+            }
+
+            const deltaLat = -a1RowIndex * length / METERS_PER_DEGREE_LAT;
+            const deltaLon = -a1ColIndex * length / (METERS_PER_DEGREE_LAT * Math.cos(lat * (Math.PI / 180)));
+
+            startingLat = lat + deltaLat;
+            startingLon = lon + deltaLon;
           }
           break;
         case "origin":
@@ -2502,13 +2514,23 @@
       return index.toString();
     }
 
-    function getGridCellCoordinates(rowIndex, colIndex, startingLat, startingLon, length, rowIndices, colIndices) {
+    function getGridCellCoordinates(rowIndex, colIndex, startingLat, startingLon, length, rowIndices, colIndices, refPoint) {
       // Trouver l'index de la ligne et de la colonne dans les indices
       const rowPosition = rowIndices.indexOf(rowIndex);
       const colPosition = colIndices.indexOf(colIndex);
 
-      const deltaLat = rowPosition * length / METERS_PER_DEGREE_LAT;
-      const deltaLon = colPosition * length / (METERS_PER_DEGREE_LAT * Math.cos(startingLat * (Math.PI / 180)));
+      let deltaLat, deltaLon;
+
+      if (refPoint === "topLeft") {
+        // Pour "topLeft", les lignes négatives sont au-dessus, donc deltaLat est négatif pour les lignes positives
+        deltaLat = rowPosition * length / METERS_PER_DEGREE_LAT;
+        deltaLat = -deltaLat; // Inverser le signe pour descendre en latitude
+
+        deltaLon = colPosition * length / (METERS_PER_DEGREE_LAT * Math.cos(startingLat * (Math.PI / 180)));
+      } else {
+        deltaLat = rowPosition * length / METERS_PER_DEGREE_LAT;
+        deltaLon = colPosition * length / (METERS_PER_DEGREE_LAT * Math.cos(startingLat * (Math.PI / 180)));
+      }
 
       const lat = startingLat + deltaLat;
       const lon = startingLon + deltaLon;
@@ -2561,8 +2583,8 @@
 
       const topLeft = rotateCoordinates(lat, lon, lat, lon, deviation);
       const topRight = rotateCoordinates(lat, lon + lonDelta, lat, lon, deviation);
-      const bottomRight = rotateCoordinates(lat + latDelta, lon + lonDelta, lat, lon, deviation);
-      const bottomLeft = rotateCoordinates(lat + latDelta, lon, lat, lon, deviation);
+      const bottomRight = rotateCoordinates(lat - latDelta, lon + lonDelta, lat, lon, deviation);
+      const bottomLeft = rotateCoordinates(lat - latDelta, lon, lat, lon, deviation);
 
       return `<Placemark>
                 <name>${colLabel}${rowLabel}</name>
