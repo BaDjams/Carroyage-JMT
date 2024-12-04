@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Générateur de carroyage CADO V5.4 - Correctif Final</title>
+  <title>Générateur de carroyage CADO V5.5 - Correctif Final</title>
   <style>
     /* Style CSS */
     body {
@@ -2284,7 +2284,7 @@
           const colLabel = getColumnLabel(colIndex);
           const rowLabel = getRowLabel(rowIndex);
 
-          const coords = getGridCellCoordinates(rowIndex, colIndex, startingLat, startingLon, length, rowStart, colStart);
+          const coords = getGridCellCoordinates(rowIndex, colIndex, startingLat, startingLon, length, rowIndices, colIndices);
 
           // Rotation des coins de la grille
           const gridCoords = rotateCoordinates(coords.lat, coords.lon, latitude, longitude, deviationInput);
@@ -2337,9 +2337,12 @@
       let startingLat, startingLon;
       let rowIndices = [], colIndices = [];
 
-      // Nombre total de lignes et colonnes
-      const totalRows = Math.abs(rowEnd - rowStart) + 1;
-      const totalCols = Math.abs(colEnd - colStart) + 1;
+      // Générer les indices de lignes et de colonnes en excluant le zéro
+      rowIndices = generateIndices(rowStart, rowEnd);
+      colIndices = generateIndices(colStart, colEnd);
+
+      const totalRows = rowIndices.length;
+      const totalCols = colIndices.length;
 
       switch (refPoint) {
         case "center":
@@ -2349,55 +2352,49 @@
 
             startingLat = lat - (halfRows / METERS_PER_DEGREE_LAT);
             startingLon = lon - (halfCols / (METERS_PER_DEGREE_LAT * Math.cos(lat * (Math.PI / 180))));
-
-            rowIndices = [];
-            for (let i = rowStart; i <= rowEnd; i++) {
-              rowIndices.push(i);
-            }
-
-            colIndices = [];
-            for (let i = colStart; i <= colEnd; i++) {
-              colIndices.push(i);
-            }
           }
           break;
         case "topLeft":
           {
             startingLat = lat;
             startingLon = lon;
-
-            // Lignes : numérotation décroissante
-            rowIndices = [];
-            for (let i = rowEnd; i >= rowStart; i--) {
-              rowIndices.push(i);
-            }
-
-            // Colonnes : numérotation croissante
-            colIndices = [];
-            for (let i = colStart; i <= colEnd; i++) {
-              colIndices.push(i);
-            }
           }
           break;
         case "origin":
           {
-            startingLat = lat;
-            startingLon = lon;
+            // Trouver les indices de A1
+            const a1RowIndex = rowIndices.indexOf(1);
+            const a1ColIndex = colIndices.indexOf(1);
 
-            rowIndices = [];
-            for (let i = rowStart; i <= rowEnd; i++) {
-              rowIndices.push(i);
+            if (a1RowIndex === -1 || a1ColIndex === -1) {
+              alert("La case A1 n'existe pas dans le quadrillage spécifié.");
+              return null;
             }
 
-            colIndices = [];
-            for (let i = colStart; i <= colEnd; i++) {
-              colIndices.push(i);
-            }
+            const deltaLat = -a1RowIndex * length / METERS_PER_DEGREE_LAT;
+            const deltaLon = -a1ColIndex * length / (METERS_PER_DEGREE_LAT * Math.cos(lat * (Math.PI / 180)));
+
+            startingLat = lat + deltaLat;
+            startingLon = lon + deltaLon;
           }
           break;
       }
 
       return { startingLat, startingLon, rowIndices, colIndices };
+    }
+
+    function generateIndices(start, end) {
+      const indices = [];
+      if (start <= end) {
+        for (let i = start; i <= end; i++) {
+          if (i !== 0) indices.push(i);
+        }
+      } else {
+        for (let i = start; i >= end; i--) {
+          if (i !== 0) indices.push(i);
+        }
+      }
+      return indices;
     }
 
     function validateInputs(coordinates, length) {
@@ -2505,13 +2502,13 @@
       return index.toString();
     }
 
-    function getGridCellCoordinates(rowIndex, colIndex, startingLat, startingLon, length, rowStart, colStart) {
-      // Calcul du nombre de cellules à partir de zéro
-      const adjustedRowIndex = rowIndex - rowStart;
-      const adjustedColIndex = colIndex - colStart;
+    function getGridCellCoordinates(rowIndex, colIndex, startingLat, startingLon, length, rowIndices, colIndices) {
+      // Trouver l'index de la ligne et de la colonne dans les indices
+      const rowPosition = rowIndices.indexOf(rowIndex);
+      const colPosition = colIndices.indexOf(colIndex);
 
-      const deltaLat = adjustedRowIndex * length / METERS_PER_DEGREE_LAT;
-      const deltaLon = adjustedColIndex * length / (METERS_PER_DEGREE_LAT * Math.cos(startingLat * (Math.PI / 180)));
+      const deltaLat = rowPosition * length / METERS_PER_DEGREE_LAT;
+      const deltaLon = colPosition * length / (METERS_PER_DEGREE_LAT * Math.cos(startingLat * (Math.PI / 180)));
 
       const lat = startingLat + deltaLat;
       const lon = startingLon + deltaLon;
