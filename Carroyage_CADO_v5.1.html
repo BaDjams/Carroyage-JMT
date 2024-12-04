@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Générateur de carroyage CADO V5.0 - Correctif</title>
+  <title>Générateur de carroyage CADO V5.0 - Correctif Final</title>
   <style>
     /* Style CSS */
     body {
@@ -239,11 +239,11 @@
       let startingLat, startingLon;
 
       // Calcul du nombre de lignes et colonnes négatives et positives
-      const negativeRows = rowStart < 0 ? Math.abs(rowStart) : 0;
+      const negativeRows = rowStart < 0 ? Math.abs(rowStart) + (rowEnd >= 0 ? 1 : 0) : 0;
       const positiveRows = rowEnd > 0 ? rowEnd : 0;
       const totalRows = negativeRows + positiveRows;
 
-      const negativeCols = colStart < 0 ? Math.abs(colStart) : 0;
+      const negativeCols = colStart < 0 ? Math.abs(colStart) + (colEnd >= 0 ? 1 : 0) : 0;
       const positiveCols = colEnd > 0 ? colEnd : 0;
       const totalCols = negativeCols + positiveCols;
 
@@ -503,23 +503,13 @@
               </Placemark>`;
     }
 
-    // Fonction pour obtenir le nom de fichier d'icône en gérant les valeurs négatives
+    // Fonction pour obtenir le nom de fichier d'icône en utilisant les étiquettes directement
     function getIconHref(colLabel, rowLabel) {
-      let iconName = '';
-      if (colLabel.startsWith('-')) {
-        iconName += 'neg_' + colLabel.substring(1);
-      } else {
-        iconName += colLabel;
-      }
-      if (rowLabel.startsWith('-')) {
-        iconName += '_neg_' + rowLabel.substring(1);
-      } else {
-        iconName += '_' + rowLabel;
-      }
-      return `icons/${iconName}.png`;
+      const iconName = `${colLabel}${rowLabel}.png`;
+      return `icons/${iconName}`;
     }
 
-    // Nouvelle fonction pour générer le cercle blanc à l'origine (contour uniquement)
+    // Fonction pour générer le cercle blanc à l'origine (contour uniquement)
     function getOriginCirclePlacemark(lat, lon, length, deviation, lineWidth) {
       const circleColor = 'ffffffff'; // Blanc opaque en format KML (aabbggrr)
       const radius = (length / 5) / METERS_PER_DEGREE_LAT; // Rayon en degrés
