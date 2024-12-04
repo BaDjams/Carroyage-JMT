@@ -2348,8 +2348,11 @@
       switch (refPoint) {
         case "center":
           {
-            startingLat = lat - ((totalRows - 1) * length) / 2 / METERS_PER_DEGREE_LAT;
-            startingLon = lon - ((totalCols - 1) * length) / 2 / (METERS_PER_DEGREE_LAT * Math.cos(lat * (Math.PI / 180)));
+            const halfTotalRows = (totalRows % 2 === 0) ? totalRows / 2 : (totalRows - 1) / 2;
+            const halfTotalCols = (totalCols % 2 === 0) ? totalCols / 2 : (totalCols - 1) / 2;
+
+            startingLat = lat - (halfTotalRows * length) / METERS_PER_DEGREE_LAT;
+            startingLon = lon - (halfTotalCols * length) / (METERS_PER_DEGREE_LAT * Math.cos(lat * (Math.PI / 180)));
           }
           break;
         case "topLeft":
