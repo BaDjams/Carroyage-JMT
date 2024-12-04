@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Générateur de carroyage CADO V5.0 - Nozip</title>
+  <title>Générateur de carroyage CADO V5.0 - Correctif</title>
   <style>
     /* Style CSS */
     body {
@@ -170,11 +170,13 @@
       let kmlContent = getKMLHeader(kmlColor, isKMZ, iconSize, transparencyHex, rowStart, rowEnd, colStart, colEnd);
 
       for (let rowIndex = rowStart; rowIndex <= rowEnd; rowIndex++) {
+        if (rowIndex === 0) continue; // Sauter le zéro pour les lignes
         for (let colIndex = colStart; colIndex <= colEnd; colIndex++) {
+          if (colIndex === 0) continue; // Sauter le zéro pour les colonnes
           const colLabel = getColumnLabel(colIndex);
-          const rowLabel = rowIndex.toString();
+          const rowLabel = getRowLabel(rowIndex);
 
-          const coords = getGridCellCoordinates(rowIndex, colIndex, startingLat, startingLon, length, rowStart, colStart);
+          const coords = getGridCellCoordinates(rowIndex, colIndex, startingLat, startingLon, length, rowStart, colStart, referencePoint);
 
           // Rotation des coins de la grille
           const gridCoords = rotateCoordinates(coords.lat, coords.lon, latitude, longitude, deviationInput);
@@ -190,7 +192,7 @@
 
           if ((type === 'points' || type === 'doc' || type === 'pointsKMZ')) {
             if (isKMZ) {
-              const iconHref = `icons/${colLabel}${rowLabel}.png`;
+              const iconHref = getIconHref(colLabel, rowLabel);
               kmlContent += getKMZPointPlacemark(colLabel, rowLabel, pointCoords.lon, pointCoords.lat, iconHref, true, iconSize, transparencyHex);
             } else {
               kmlContent += getTransparentPointPlacemark(colLabel, rowLabel, pointCoords.lon, pointCoords.lat);
@@ -198,6 +200,20 @@
           }
         }
       }
+
+      // Ajouter le cercle blanc à l'origine
+      const lineWidth = 2; // Même épaisseur que les lignes de la grille
+      let originPoint;
+
+      if (referencePoint === 'origin') {
+        // L'origine est au coin bas gauche de la case A1
+        originPoint = { lat: startingLat, lon: startingLon };
+      } else {
+        // L'origine est aux coordonnées spécifiées par l'utilisateur
+        originPoint = { lat: latitude, lon: longitude };
+      }
+
+      kmlContent += getOriginCirclePlacemark(originPoint.lat, originPoint.lon, length, deviationInput, lineWidth);
 
       kmlContent += `</Document></kml>`;
       return kmlContent;
@@ -219,8 +235,8 @@
 
     function calculateStartingPoint(lat, lon, length, refPoint, rowStart, rowEnd, colStart, colEnd) {
       let startingLat, startingLon;
-      const totalRows = rowEnd - rowStart + 1;
-      const totalCols = colEnd - colStart + 1;
+      const totalRows = rowEnd - rowStart + (rowStart * rowEnd <= 0 ? 0 : 1);
+      const totalCols = colEnd - colStart + (colStart * colEnd <= 0 ? 0 : 1);
 
       switch (refPoint) {
         case "center":
@@ -234,6 +250,10 @@
         case "topLeft":
           startingLat = lat - (totalRows * (length / METERS_PER_DEGREE_LAT));
           startingLon = lon;
+          break;
+        case "origin":
+          startingLat = lat - ((1 - rowStart) * length) / METERS_PER_DEGREE_LAT;
+          startingLon = lon - ((1 - colStart) * length) / (METERS_PER_DEGREE_LAT * Math.cos(lat * (Math.PI / 180)));
           break;
       }
       return { startingLat, startingLon };
@@ -314,7 +334,7 @@
 
     function getColumnLabel(index) {
       if (index === 0) {
-        return 'A'; // Gestion spéciale si nécessaire
+        return ''; // Pas de colonne zéro
       }
 
       let isNegative = index < 0;
@@ -345,9 +365,41 @@
       return isNegative ? -index : index;
     }
 
-    function getGridCellCoordinates(rowIndex, colIndex, startingLat, startingLon, length, rowStart, colStart) {
-      const deltaLat = (rowIndex - rowStart) * length / METERS_PER_DEGREE_LAT;
-      const deltaLon = (colIndex - colStart) * length / (METERS_PER_DEGREE_LAT * Math.cos(startingLat * (Math.PI / 180)));
+    function getRowLabel(index) {
+      if (index === 0) {
+        return ''; // Pas de ligne zéro
+      }
+      return index.toString();
+    }
+
+    function getGridCellCoordinates(rowIndex, colIndex, startingLat, startingLon, length, rowStart, colStart, referencePoint) {
+      let adjustedRowIndex, adjustedColIndex;
+
+      if (referencePoint === 'origin') {
+        adjustedRowIndex = rowIndex - 1;
+        adjustedColIndex = colIndex - 1;
+        if (rowIndex > 0 && rowStart <= 0) adjustedRowIndex -= 1;
+        if (colIndex > 0 && colStart <= 0) adjustedColIndex -= 1;
+      } else {
+        adjustedRowIndex = rowIndex - rowStart;
+
+        if (rowIndex > 0 && rowStart <= 0) {
+          adjustedRowIndex -= 1;
+        } else if (rowIndex < 0 && rowStart <= 0) {
+          adjustedRowIndex += 1;
+        }
+
+        adjustedColIndex = colIndex - colStart;
+
+        if (colIndex > 0 && colStart <= 0) {
+          adjustedColIndex -= 1;
+        } else if (colIndex < 0 && colStart <= 0) {
+          adjustedColIndex += 1;
+        }
+      }
+
+      const deltaLat = adjustedRowIndex * length / METERS_PER_DEGREE_LAT;
+      const deltaLon = adjustedColIndex * length / (METERS_PER_DEGREE_LAT * Math.cos(startingLat * (Math.PI / 180)));
 
       const lat = startingLat + deltaLat;
       const lon = startingLon + deltaLon;
@@ -463,6 +515,66 @@
               </Placemark>`;
     }
 
+    // Nouvelle fonction pour obtenir le nom de fichier d'icône en gérant les valeurs négatives
+    function getIconHref(colLabel, rowLabel) {
+      let iconName = '';
+      if (colLabel.startsWith('-')) {
+        iconName += 'neg_' + colLabel.substring(1);
+      } else {
+        iconName += colLabel;
+      }
+      if (rowLabel.startsWith('-')) {
+        iconName += '_neg_' + rowLabel.substring(1);
+      } else {
+        iconName += '_' + rowLabel;
+      }
+      return `icons/${iconName}.png`;
+    }
+
+    // Nouvelle fonction pour générer le cercle blanc à l'origine (contour uniquement)
+    function getOriginCirclePlacemark(lat, lon, length, deviation, lineWidth) {
+      const circleColor = 'ffffffff'; // Blanc opaque en format KML (aabbggrr)
+      const radius = (length / 5) / METERS_PER_DEGREE_LAT; // Rayon en degrés
+
+      const numPoints = 36; // Nombre de points pour approximer le cercle
+      const angleStep = 360 / numPoints;
+
+      let coordinates = '';
+      for (let i = 0; i <= numPoints; i++) {
+        const angleDeg = i * angleStep;
+        const angleRad = (angleDeg + parseFloat(deviation)) * (Math.PI / 180);
+        const pointLat = lat + (radius * Math.cos(angleRad));
+        const pointLon = lon + (radius * Math.sin(angleRad)) / Math.cos(lat * (Math.PI / 180));
+        coordinates += `${pointLon},${pointLat} `;
+      }
+
+      const circlePlacemark = `
+        <Placemark>
+          <name>Point d'origine</name>
+          <Style>
+            <LineStyle>
+              <color>${circleColor}</color>
+              <width>${lineWidth}</width>
+            </LineStyle>
+            <PolyStyle>
+              <fill>0</fill> <!-- Ne pas remplir l'intérieur du polygone -->
+            </PolyStyle>
+          </Style>
+          <Polygon>
+            <outerBoundaryIs>
+              <LinearRing>
+                <coordinates>
+                  ${coordinates.trim()}
+                </coordinates>
+              </LinearRing>
+            </outerBoundaryIs>
+          </Polygon>
+        </Placemark>
+      `;
+
+      return circlePlacemark;
+    }
+
     function getKMLFilename(type) {
       const gridNameInput = document.getElementById("gridName").value.trim();
       const filename = gridNameInput || 'Carroyage';
@@ -532,6 +644,7 @@
     <option value="center">Milieu du carroyage</option>
     <option value="bottomLeft">Coin bas gauche</option>
     <option value="topLeft">Coin haut gauche</option>
+    <option value="origin">Origine (A1)</option>
   </select>
   
   <label for="gridOption">Option de grille :</label>
