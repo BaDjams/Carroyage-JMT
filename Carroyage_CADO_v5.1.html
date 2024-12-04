@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Générateur de carroyage CADO V5.6 - Correctif Final</title>
+  <title>Générateur de carroyage CADO V5.8 - Correctif Final</title>
   <style>
     /* Style CSS */
     body {
@@ -2290,12 +2290,13 @@
           const gridCoords = rotateCoordinates(coords.lat, coords.lon, latitude, longitude, deviationInput);
 
           // Calcul du centre pour les points avec rotation
-          const centerLat = coords.lat + (length / (2 * METERS_PER_DEGREE_LAT));
+          const centerLatOffset = (length / (2 * METERS_PER_DEGREE_LAT)) * ((referencePoint === "topLeft") ? -1 : 1);
+          const centerLat = coords.lat + centerLatOffset;
           const centerLon = coords.lon + (length / (2 * (METERS_PER_DEGREE_LAT * Math.cos(coords.lat * (Math.PI / 180)))));
           const pointCoords = rotateCoordinates(centerLat, centerLon, latitude, longitude, deviationInput);
 
           if ((type === 'grid' || type === 'doc') && type !== 'pointsKMZ') {
-            kmlContent += getGridPlacemark(colLabel, rowLabel, gridCoords.lon, gridCoords.lat, length, kmlColor, deviationInput);
+            kmlContent += getGridPlacemark(colLabel, rowLabel, gridCoords.lon, gridCoords.lat, length, kmlColor, deviationInput, referencePoint);
           }
 
           if ((type === 'points' || type === 'doc' || type === 'pointsKMZ')) {
@@ -2347,11 +2348,8 @@
       switch (refPoint) {
         case "center":
           {
-            const halfRows = (totalRows * length) / 2;
-            const halfCols = (totalCols * length) / 2;
-
-            startingLat = lat - (halfRows / METERS_PER_DEGREE_LAT);
-            startingLon = lon - (halfCols / (METERS_PER_DEGREE_LAT * Math.cos(lat * (Math.PI / 180))));
+            startingLat = lat - ((totalRows - 1) * length) / 2 / METERS_PER_DEGREE_LAT;
+            startingLon = lon - ((totalCols - 1) * length) / 2 / (METERS_PER_DEGREE_LAT * Math.cos(lat * (Math.PI / 180)));
           }
           break;
         case "topLeft":
@@ -2365,7 +2363,7 @@
               return null;
             }
 
-            const deltaLat = -a1RowIndex * length / METERS_PER_DEGREE_LAT;
+            const deltaLat = a1RowIndex * length / METERS_PER_DEGREE_LAT;
             const deltaLon = -a1ColIndex * length / (METERS_PER_DEGREE_LAT * Math.cos(lat * (Math.PI / 180)));
 
             startingLat = lat + deltaLat;
@@ -2522,10 +2520,7 @@
       let deltaLat, deltaLon;
 
       if (refPoint === "topLeft") {
-        // Pour "topLeft", les lignes négatives sont au-dessus, donc deltaLat est négatif pour les lignes positives
-        deltaLat = rowPosition * length / METERS_PER_DEGREE_LAT;
-        deltaLat = -deltaLat; // Inverser le signe pour descendre en latitude
-
+        deltaLat = -rowPosition * length / METERS_PER_DEGREE_LAT;
         deltaLon = colPosition * length / (METERS_PER_DEGREE_LAT * Math.cos(startingLat * (Math.PI / 180)));
       } else {
         deltaLat = rowPosition * length / METERS_PER_DEGREE_LAT;
@@ -2547,9 +2542,11 @@
       const deviation = document.getElementById("deviation").value;
       const angle = `${deviation}°`;
       const gridOption = document.getElementById("gridOption").value;
+      const rowRange = getGridRowRange();
+      const colRange = getGridColRange();
       const gridType = gridOption === "default" 
                        ? document.getElementById("gridType").value 
-                       : `Custom_${rowStart}_${rowEnd}_${getColumnLabel(colStart)}_${getColumnLabel(colEnd)}`;
+                       : `Custom_${rowRange.rowStart}_${rowRange.rowEnd}_${getColumnLabel(colRange.colStart)}_${getColumnLabel(colRange.colEnd)}`;
 
       return `<?xml version="1.0" encoding="UTF-8"?>
               <kml xmlns="http://www.opengis.net/kml/2.2">
@@ -2577,14 +2574,23 @@
                   </Style>`;
     }
 
-    function getGridPlacemark(colLabel, rowLabel, lon, lat, length, color, deviation) {
+    function getGridPlacemark(colLabel, rowLabel, lon, lat, length, color, deviation, refPoint) {
       const lonDelta = length / (METERS_PER_DEGREE_LAT * Math.cos(lat * (Math.PI / 180)));
       const latDelta = length / METERS_PER_DEGREE_LAT;
 
-      const topLeft = rotateCoordinates(lat, lon, lat, lon, deviation);
-      const topRight = rotateCoordinates(lat, lon + lonDelta, lat, lon, deviation);
-      const bottomRight = rotateCoordinates(lat - latDelta, lon + lonDelta, lat, lon, deviation);
-      const bottomLeft = rotateCoordinates(lat - latDelta, lon, lat, lon, deviation);
+      let topLeft, topRight, bottomRight, bottomLeft;
+
+      if (refPoint === "topLeft") {
+        topLeft = rotateCoordinates(lat, lon, lat, lon, deviation);
+        topRight = rotateCoordinates(lat, lon + lonDelta, lat, lon, deviation);
+        bottomRight = rotateCoordinates(lat - latDelta, lon + lonDelta, lat, lon, deviation);
+        bottomLeft = rotateCoordinates(lat - latDelta, lon, lat, lon, deviation);
+      } else {
+        topLeft = rotateCoordinates(lat, lon, lat, lon, deviation);
+        topRight = rotateCoordinates(lat, lon + lonDelta, lat, lon, deviation);
+        bottomRight = rotateCoordinates(lat + latDelta, lon + lonDelta, lat, lon, deviation);
+        bottomLeft = rotateCoordinates(lat + latDelta, lon, lat, lon, deviation);
+      }
 
       return `<Placemark>
                 <name>${colLabel}${rowLabel}</name>
@@ -2707,11 +2713,9 @@
       const gridOption = document.getElementById("gridOption").value;
       const rowRange = getGridRowRange();
       const colRange = getGridColRange();
-      const { rowStart, rowEnd } = rowRange;
-      const { colStart, colEnd } = colRange;
       const gridType = gridOption === "default" 
                        ? document.getElementById("gridType").value 
-                       : `Custom_${rowStart}_${rowEnd}_${getColumnLabel(colStart)}_${getColumnLabel(colEnd)}`;
+                       : `Custom_${rowRange.rowStart}_${rowRange.rowEnd}_${getColumnLabel(colRange.colStart)}_${getColumnLabel(colRange.colEnd)}`;
       if (type === 'grid') {
         return `${filename}_KML-Grille_${scale}_${refPoint}_${angle}_${gridType}.kml`;
       } else if (type === 'points') {
