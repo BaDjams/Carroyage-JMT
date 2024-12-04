@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Générateur de carroyage CADO V5.0 - Correctif</title>
+  <title>Générateur de carroyage CADO V5.0 - Correctif Final</title>
   <style>
     /* Style CSS */
     body {
@@ -169,14 +169,16 @@
 
       let kmlContent = getKMLHeader(kmlColor, isKMZ, iconSize, transparencyHex, rowStart, rowEnd, colStart, colEnd);
 
+      // Mise à jour des boucles pour ignorer la ligne et la colonne zéro
       for (let rowIndex = rowStart; rowIndex <= rowEnd; rowIndex++) {
         if (rowIndex === 0) continue; // Sauter le zéro pour les lignes
         for (let colIndex = colStart; colIndex <= colEnd; colIndex++) {
           if (colIndex === 0) continue; // Sauter le zéro pour les colonnes
+
           const colLabel = getColumnLabel(colIndex);
           const rowLabel = getRowLabel(rowIndex);
 
-          const coords = getGridCellCoordinates(rowIndex, colIndex, startingLat, startingLon, length, rowStart, colStart, referencePoint);
+          const coords = getGridCellCoordinates(rowIndex, colIndex, startingLat, startingLon, length);
 
           // Rotation des coins de la grille
           const gridCoords = rotateCoordinates(coords.lat, coords.lon, latitude, longitude, deviationInput);
@@ -235,8 +237,15 @@
 
     function calculateStartingPoint(lat, lon, length, refPoint, rowStart, rowEnd, colStart, colEnd) {
       let startingLat, startingLon;
-      const totalRows = rowEnd - rowStart + (rowStart * rowEnd <= 0 ? 0 : 1);
-      const totalCols = colEnd - colStart + (colStart * colEnd <= 0 ? 0 : 1);
+
+      // Calcul du nombre de lignes et colonnes négatives et positives
+      const negativeRows = rowStart < 0 ? Math.abs(rowStart) + (rowEnd >= 0 ? 1 : 0) : 0;
+      const positiveRows = rowEnd > 0 ? rowEnd : 0;
+      const totalRows = negativeRows + positiveRows;
+
+      const negativeCols = colStart < 0 ? Math.abs(colStart) + (colEnd >= 0 ? 1 : 0) : 0;
+      const positiveCols = colEnd > 0 ? colEnd : 0;
+      const totalCols = negativeCols + positiveCols;
 
       switch (refPoint) {
         case "center":
@@ -252,8 +261,8 @@
           startingLon = lon;
           break;
         case "origin":
-          startingLat = lat - ((1 - rowStart) * length) / METERS_PER_DEGREE_LAT;
-          startingLon = lon - ((1 - colStart) * length) / (METERS_PER_DEGREE_LAT * Math.cos(lat * (Math.PI / 180)));
+          startingLat = lat - (negativeRows * length) / METERS_PER_DEGREE_LAT;
+          startingLon = lon - (negativeCols * length) / (METERS_PER_DEGREE_LAT * Math.cos(lat * (Math.PI / 180)));
           break;
       }
       return { startingLat, startingLon };
@@ -372,31 +381,10 @@
       return index.toString();
     }
 
-    function getGridCellCoordinates(rowIndex, colIndex, startingLat, startingLon, length, rowStart, colStart, referencePoint) {
-      let adjustedRowIndex, adjustedColIndex;
-
-      if (referencePoint === 'origin') {
-        adjustedRowIndex = rowIndex - 1;
-        adjustedColIndex = colIndex - 1;
-        if (rowIndex > 0 && rowStart <= 0) adjustedRowIndex -= 1;
-        if (colIndex > 0 && colStart <= 0) adjustedColIndex -= 1;
-      } else {
-        adjustedRowIndex = rowIndex - rowStart;
-
-        if (rowIndex > 0 && rowStart <= 0) {
-          adjustedRowIndex -= 1;
-        } else if (rowIndex < 0 && rowStart <= 0) {
-          adjustedRowIndex += 1;
-        }
-
-        adjustedColIndex = colIndex - colStart;
-
-        if (colIndex > 0 && colStart <= 0) {
-          adjustedColIndex -= 1;
-        } else if (colIndex < 0 && colStart <= 0) {
-          adjustedColIndex += 1;
-        }
-      }
+    function getGridCellCoordinates(rowIndex, colIndex, startingLat, startingLon, length) {
+      // Calcul du nombre de cellules à partir de zéro
+      const adjustedRowIndex = rowIndex < 0 ? rowIndex : rowIndex - 1;
+      const adjustedColIndex = colIndex < 0 ? colIndex : colIndex - 1;
 
       const deltaLat = adjustedRowIndex * length / METERS_PER_DEGREE_LAT;
       const deltaLon = adjustedColIndex * length / (METERS_PER_DEGREE_LAT * Math.cos(startingLat * (Math.PI / 180)));
@@ -515,23 +503,13 @@
               </Placemark>`;
     }
 
-    // Nouvelle fonction pour obtenir le nom de fichier d'icône en gérant les valeurs négatives
+    // Fonction pour obtenir le nom de fichier d'icône en utilisant les étiquettes directement
     function getIconHref(colLabel, rowLabel) {
-      let iconName = '';
-      if (colLabel.startsWith('-')) {
-        iconName += 'neg_' + colLabel.substring(1);
-      } else {
-        iconName += colLabel;
-      }
-      if (rowLabel.startsWith('-')) {
-        iconName += '_neg_' + rowLabel.substring(1);
-      } else {
-        iconName += '_' + rowLabel;
-      }
-      return `icons/${iconName}.png`;
+      const iconName = `${colLabel}${rowLabel}.png`;
+      return `icons/${iconName}`;
     }
 
-    // Nouvelle fonction pour générer le cercle blanc à l'origine (contour uniquement)
+    // Fonction pour générer le cercle blanc à l'origine (contour uniquement)
     function getOriginCirclePlacemark(lat, lon, length, deviation, lineWidth) {
       const circleColor = 'ffffffff'; // Blanc opaque en format KML (aabbggrr)
       const radius = (length / 5) / METERS_PER_DEGREE_LAT; // Rayon en degrés
