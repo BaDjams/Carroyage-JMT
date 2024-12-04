@@ -111,6 +111,13 @@ def generate_numbers(start_number, end_number):
 
     return numbers
 
+def hex_to_rgb(hex_color):
+    """Convertit un code couleur hexadécimal en tuple RGB"""
+    hex_color = hex_color.lstrip('#')
+    if len(hex_color) != 6:
+        raise ValueError(f"Couleur hexadécimale invalide: {hex_color}")
+    return tuple(int(hex_color[i:i+2], 16) for i in (0, 2, 4))
+
 # Ajout de l'analyse des arguments de ligne de commande
 parser = argparse.ArgumentParser(description='Générer des images avec des combinaisons lettres/nombres.')
 parser.add_argument('--start_letter', type=str, default='A', help='Lettre de début (par défaut: A)')
@@ -119,8 +126,18 @@ parser.add_argument('--start_number', type=int, default=1, help='Nombre de débu
 parser.add_argument('--end_number', type=int, default=26, help='Nombre de fin (par défaut: 26)')
 parser.add_argument('--contour_thickness', type=int, default=1, help='Épaisseur du contour (par défaut: 1)')
 parser.add_argument('--export_png', action='store_true', help='Générer un dossier avec les images PNG')
+parser.add_argument('--text_color', type=str, default='#000000', help='Couleur du texte en hexadécimal (par défaut: #000000 pour noir)')
+parser.add_argument('--contour_color', type=str, default='#FFFFFF', help='Couleur du contour en hexadécimal (par défaut: #FFFFFF pour blanc)')
 
 args = parser.parse_args()
+
+# Conversion des couleurs hexadécimales en RGB
+try:
+    text_rgb = hex_to_rgb(args.text_color)
+    contour_rgb = hex_to_rgb(args.contour_color)
+except ValueError as e:
+    print(f"Erreur de couleur : {e}")
+    sys.exit(1)
 
 # Génération des lettres et des nombres en fonction des arguments
 lettres = generate_letters(args.start_letter, args.end_letter)
@@ -206,16 +223,16 @@ for lettre, nombre in combinations:
     img = Image.new('RGBA', (taille_image, taille_image), (255, 255, 255, 0))
     draw = ImageDraw.Draw(img)
 
-    # Dessiner un fin contour blanc autour du texte
+    # Dessiner un fin contour autour du texte avec la couleur spécifiée
     for x_offset in range(-epaisseur_contour, epaisseur_contour + 1):
         for y_offset in range(-epaisseur_contour, epaisseur_contour + 1):
             if x_offset == 0 and y_offset == 0:
                 continue
             position_offset = (position_x + x_offset, position_y + y_offset - ascent)
-            draw.text(position_offset, texte, font=police, fill=(255, 255, 255, 255))
+            draw.text(position_offset, texte, font=police, fill=contour_rgb + (255,))
 
-    # Dessiner le texte en noir
-    draw.text((position_x, position_y - ascent), texte, font=police, fill=(0, 0, 0, 255))
+    # Dessiner le texte avec la couleur spécifiée
+    draw.text((position_x, position_y - ascent), texte, font=police, fill=text_rgb + (255,))
 
     # Enregistrer l'image dans un buffer en mémoire
     buffer = io.BytesIO()
