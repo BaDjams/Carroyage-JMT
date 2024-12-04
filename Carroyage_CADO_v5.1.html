@@ -2264,19 +2264,24 @@
       const rgbHex = colorInput.slice(1);
       const kmlColor = transparencyHex + rgbHex.slice(4, 6) + rgbHex.slice(2, 4) + rgbHex.slice(0, 2);
 
-      const { rowStart, rowEnd } = getGridRowRange();
-      const { colStart, colEnd } = getGridColRange();
+      const rowRange = getGridRowRange();
+      const colRange = getGridColRange();
+
+      if (!rowRange || !colRange) return null; // Si validation échoue
+
+      const { rowStart, rowEnd } = rowRange;
+      const { colStart, colEnd } = colRange;
 
       const { startingLat, startingLon } = calculateStartingPoint(latitude, longitude, length, referencePoint, rowStart, rowEnd, colStart, colEnd);
 
-      let kmlContent = getKMLHeader(kmlColor, isKMZ, iconSize, transparencyHex);
+      let kmlContent = getKMLHeader(kmlColor, isKMZ, iconSize, transparencyHex, rowStart, rowEnd, colStart, colEnd);
 
       for (let rowIndex = rowStart; rowIndex <= rowEnd; rowIndex++) {
         for (let colIndex = colStart; colIndex <= colEnd; colIndex++) {
           const colLabel = getColumnLabel(colIndex);
           const rowLabel = rowIndex.toString();
 
-          const coords = getGridCellCoordinates(rowIndex, colIndex, startingLat, startingLon, length);
+          const coords = getGridCellCoordinates(rowIndex, colIndex, startingLat, startingLon, length, rowStart, colStart);
 
           // Rotation des coins de la grille
           const gridCoords = rotateCoordinates(coords.lat, coords.lon, latitude, longitude, deviationInput);
@@ -2359,9 +2364,21 @@
         const { start, end } = parseGridOption(document.getElementById("gridType").value).rows;
         return { rowStart: start, rowEnd: end };
       } else {
+        const rowStart = parseInt(document.getElementById("customRowStart").value);
+        const rowEnd = parseInt(document.getElementById("customRowEnd").value);
+
+        if (isNaN(rowStart) || isNaN(rowEnd)) {
+          alert('Veuillez entrer des nombres valides pour les lignes.');
+          return null;
+        }
+
+        if (rowStart > rowEnd) {
+          alert('La ligne de début doit être inférieure ou égale à la ligne de fin.');
+          return null;
+        }
         return {
-          rowStart: parseInt(document.getElementById("customRowStart").value),
-          rowEnd: parseInt(document.getElementById("customRowEnd").value)
+          rowStart: rowStart,
+          rowEnd: rowEnd
         };
       }
     }
@@ -2371,9 +2388,24 @@
         const { start, end } = parseGridOption(document.getElementById("gridType").value).cols;
         return { colStart: start, colEnd: end };
       } else {
+        const colStartLabel = document.getElementById("customColStart").value.trim();
+        const colEndLabel = document.getElementById("customColEnd").value.trim();
+
+        if (!colStartLabel || !colEndLabel) {
+          alert('Veuillez entrer des lettres valides pour les colonnes.');
+          return null;
+        }
+
+        const colStart = columnLabelToIndex(colStartLabel);
+        const colEnd = columnLabelToIndex(colEndLabel);
+
+        if (colStart > colEnd) {
+          alert('La colonne de début doit être inférieure ou égale à la colonne de fin.');
+          return null;
+        }
         return {
-          colStart: parseInt(document.getElementById("customColStart").value),
-          colEnd: parseInt(document.getElementById("customColEnd").value)
+          colStart: colStart,
+          colEnd: colEnd
         };
       }
     }
@@ -2405,7 +2437,22 @@
       return isNegative ? '-' + label : label;
     }
 
-    function getGridCellCoordinates(rowIndex, colIndex, startingLat, startingLon, length) {
+    function columnLabelToIndex(label) {
+      let isNegative = false;
+      if (label.startsWith('-')) {
+        isNegative = true;
+        label = label.substring(1);
+      }
+      label = label.toUpperCase();
+      let index = 0;
+      for (let i = 0; i < label.length; i++) {
+        let charCode = label.charCodeAt(i) - 64; // 'A' is 65
+        index = index * 26 + charCode;
+      }
+      return isNegative ? -index : index;
+    }
+
+    function getGridCellCoordinates(rowIndex, colIndex, startingLat, startingLon, length, rowStart, colStart) {
       const deltaLat = (rowIndex - rowStart) * length / METERS_PER_DEGREE_LAT;
       const deltaLon = (colIndex - colStart) * length / (METERS_PER_DEGREE_LAT * Math.cos(startingLat * (Math.PI / 180)));
 
@@ -2415,7 +2462,7 @@
       return { lat, lon };
     }
 
-    function getKMLHeader(color, useIcons, iconSize, transparencyHex) {
+    function getKMLHeader(color, useIcons, iconSize, transparencyHex, rowStart, rowEnd, colStart, colEnd) {
       const gridNameInput = document.getElementById("gridName").value.trim();
       const filename = gridNameInput || 'Carroyage';
       const length = document.getElementById("length").value;
@@ -2426,7 +2473,7 @@
       const gridOption = document.getElementById("gridOption").value;
       const gridType = gridOption === "default" 
                        ? document.getElementById("gridType").value 
-                       : `Custom_${rowStart}_${rowEnd}_${colStart}_${colEnd}`;
+                       : `Custom_${rowStart}_${rowEnd}_${getColumnLabel(colStart)}_${getColumnLabel(colEnd)}`;
 
       return `<?xml version="1.0" encoding="UTF-8"?>
               <kml xmlns="http://www.opengis.net/kml/2.2">
@@ -2532,9 +2579,13 @@
       const deviation = document.getElementById("deviation").value;
       const angle = `${deviation}°`;
       const gridOption = document.getElementById("gridOption").value;
+      const rowRange = getGridRowRange();
+      const colRange = getGridColRange();
+      const { rowStart, rowEnd } = rowRange;
+      const { colStart, colEnd } = colRange;
       const gridType = gridOption === "default" 
                        ? document.getElementById("gridType").value 
-                       : `Custom_${rowStart}_${rowEnd}_${colStart}_${colEnd}`;
+                       : `Custom_${rowStart}_${rowEnd}_${getColumnLabel(colStart)}_${getColumnLabel(colEnd)}`;
       if (type === 'grid') {
         return `${filename}_KML-Grille_${scale}_${refPoint}_${angle}_${gridType}.kml`;
       } else if (type === 'points') {
@@ -2610,10 +2661,10 @@
     <input type="number" id="customRowStart" value="1">
     <label for="customRowEnd">Fin des lignes (nombres) :</label>
     <input type="number" id="customRowEnd" value="26">
-    <label for="customColStart">Début des colonnes (indices) :</label>
-    <input type="number" id="customColStart" value="1">
-    <label for="customColEnd">Fin des colonnes (indices) :</label>
-    <input type="number" id="customColEnd" value="26">
+    <label for="customColStart">Début des colonnes (lettres) :</label>
+    <input type="text" id="customColStart" value="A">
+    <label for="customColEnd">Fin des colonnes (lettres) :</label>
+    <input type="text" id="customColEnd" value="Z">
   </div>
 
   <div class="slider-container">
