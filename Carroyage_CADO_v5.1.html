@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Générateur de carroyage CADO V5.3 - Correctif Final</title>
+  <title>Générateur de carroyage CADO V5.4 - Correctif Final</title>
   <style>
     /* Style CSS */
     body {
@@ -2284,7 +2284,7 @@
           const colLabel = getColumnLabel(colIndex);
           const rowLabel = getRowLabel(rowIndex);
 
-          const coords = getGridCellCoordinates(rowIndex, colIndex, startingLat, startingLon, length);
+          const coords = getGridCellCoordinates(rowIndex, colIndex, startingLat, startingLon, length, rowStart, colStart);
 
           // Rotation des coins de la grille
           const gridCoords = rotateCoordinates(coords.lat, coords.lon, latitude, longitude, deviationInput);
@@ -2341,19 +2341,14 @@
       const totalRows = Math.abs(rowEnd - rowStart) + 1;
       const totalCols = Math.abs(colEnd - colStart) + 1;
 
-      // Déterminer si le nombre total de lignes et colonnes est pair ou impair
-      const isTotalRowsEven = totalRows % 2 === 0;
-      const isTotalColsEven = totalCols % 2 === 0;
-
-      // Générer les indices de lignes et de colonnes en fonction du point de référence
       switch (refPoint) {
         case "center":
           {
-            const halfRows = Math.floor(totalRows / 2);
-            const halfCols = Math.floor(totalCols / 2);
+            const halfRows = (totalRows * length) / 2;
+            const halfCols = (totalCols * length) / 2;
 
-            startingLat = lat - ((halfRows * length) / METERS_PER_DEGREE_LAT);
-            startingLon = lon - ((halfCols * length) / (METERS_PER_DEGREE_LAT * Math.cos(lat * (Math.PI / 180))));
+            startingLat = lat - (halfRows / METERS_PER_DEGREE_LAT);
+            startingLon = lon - (halfCols / (METERS_PER_DEGREE_LAT * Math.cos(lat * (Math.PI / 180))));
 
             rowIndices = [];
             for (let i = rowStart; i <= rowEnd; i++) {
@@ -2510,7 +2505,7 @@
       return index.toString();
     }
 
-    function getGridCellCoordinates(rowIndex, colIndex, startingLat, startingLon, length) {
+    function getGridCellCoordinates(rowIndex, colIndex, startingLat, startingLon, length, rowStart, colStart) {
       // Calcul du nombre de cellules à partir de zéro
       const adjustedRowIndex = rowIndex - rowStart;
       const adjustedColIndex = colIndex - colStart;
