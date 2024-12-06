@@ -2347,28 +2347,28 @@
 
       switch (refPoint) {
         case "center":
-           {
-        // Calculer la distance totale en mètres
-        const totalHeight = totalRows * length;
-        const totalWidth = totalCols * length;
+            {
+            // Calculer la distance totale en mètres
+            const totalHeight = totalRows * length;
+            const totalWidth = totalCols * length;
 
-        // Calculer les décalages en degrés
-        let deltaLat = (totalHeight / 2 - length / 2) / METERS_PER_DEGREE_LAT;
-        let deltaLon = (totalWidth / 2 - length / 2) / (METERS_PER_DEGREE_LAT * Math.cos(lat * (Math.PI / 180)));
+            // Calculer les décalages en degrés
+            let deltaLat = (totalHeight / 2 - length / 2) / METERS_PER_DEGREE_LAT;
+            let deltaLon = (totalWidth / 2 - length / 2) / (METERS_PER_DEGREE_LAT * Math.cos(lat * (Math.PI / 180)));
 
-        // Si le nombre total de lignes est impair, ajuster deltaLat
-        if (totalRows % 2 !== 0) {
-          deltaLat += (length / METERS_PER_DEGREE_LAT) / 2;
-        }
+            // Si le nombre total de lignes est impair, ajuster deltaLat
+            if (totalRows % 2 !== 0) {
+              deltaLat += (length / METERS_PER_DEGREE_LAT) / 2;
+            }
 
-        // Si le nombre total de colonnes est impair, ajuster deltaLon
-        if (totalCols % 2 !== 0) {
-          deltaLon += (length / (METERS_PER_DEGREE_LAT * Math.cos(lat * (Math.PI / 180)))) / 2;
-        }
+            // Si le nombre total de colonnes est impair, ajuster deltaLon
+            if (totalCols % 2 !== 0) {
+              deltaLon += (length / (METERS_PER_DEGREE_LAT * Math.cos(lat * (Math.PI / 180)))) / 2;
+            }
 
-        startingLat = lat - deltaLat;
-        startingLon = lon - deltaLon;
-      }
+            startingLat = lat - deltaLat;
+            startingLon = lon - deltaLon;
+          }
           break;
         case "topLeft":
           {
