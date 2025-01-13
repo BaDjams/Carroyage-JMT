@@ -161,8 +161,7 @@
       // Ajouter uniquement les images nécessaires dans le dossier "icons" du KMZ
       const iconsFolder = zip.folder("icons");
       for (const [name, base64] of Object.entries(requiredImages)) {
-        const base64Content = base64.split(",")[1]; // Supprime le préfixe "data:image/png;base64,"
-        iconsFolder.file(`${name}.png`, base64Content, { base64: true });
+        iconsFolder.file(`${name}.png`, base64, { base64: true });
       }
 
 
