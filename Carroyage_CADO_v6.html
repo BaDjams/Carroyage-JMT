@@ -84,7 +84,7 @@
     imageBase64Data.forEach(item => {
       imageBase64Dict[item.name] = item.base64;
     });
-
+    
     const METERS_PER_DEGREE_LAT = 111320;
 
     function toggleCustomGridOptions() {
@@ -101,6 +101,19 @@
       }
     }
 
+      function getRequiredImages(points) {
+        const requiredImages = {};
+      
+        // Parcourir les noms des points nécessaires
+        points.forEach(point => {
+          if (imageBase64Dict[point]) {
+            requiredImages[point] = imageBase64Dict[point];
+          }
+        });
+      
+        return requiredImages;
+      }
+    
     function updateSliderValue(sliderId, valueId, unit = '') {
       const slider = document.getElementById(sliderId);
       const valueElement = document.getElementById(valueId);
@@ -115,6 +128,20 @@
       downloadFile(kmlContent, filename, 'text/plain');
     }
 
+        // Fonction pour extraire les noms des points depuis le contenu KML
+    function extractPointNames(kmlContent) {
+      const pointNames = [];
+      const regex = /<name>(.*?)<\/name>/g;
+      let match;
+    
+      while ((match = regex.exec(kmlContent)) !== null) {
+        pointNames.push(match[1]);
+      }
+    
+      return pointNames;
+    }
+
+
     async function generateKMZ(type) {
       const kmlDocContent = createKMLContent(type, true);
       if (!kmlDocContent) return;
@@ -125,10 +152,19 @@
       zip.file("doc.kml", kmlDocContent);
 
       // Générer les icônes à partir des données base64
+       // Extraire les noms des points nécessaires à partir du contenu KML
+      const points = extractPointNames(kmlDocContent);
+      
+      // Récupérer uniquement les images nécessaires
+      const requiredImages = getRequiredImages(points);
+      
+      // Ajouter uniquement les images nécessaires dans le dossier "icons" du KMZ
       const iconsFolder = zip.folder("icons");
-      for (const name in imageBase64Dict) {
-        iconsFolder.file(`${name}.png`, imageBase64Dict[name], { base64: true });
+      for (const [name, base64] of Object.entries(requiredImages)) {
+        const base64Content = base64.split(",")[1]; // Supprime le préfixe "data:image/png;base64,"
+        iconsFolder.file(`${name}.png`, base64Content, { base64: true });
       }
+
 
       const content = await zip.generateAsync({ type: "blob" });
       const filename = getKMLFilename(type).replace('.kml', '.kmz');
