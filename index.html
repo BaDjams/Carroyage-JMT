@@ -165,30 +165,36 @@
       }
       
       function isDMS(value) {
-        return /(\d{1,3})°\s*(\d{1,2})'\s*(\d{1,2}(\.\d+)?)\"\s*[NSEW],?\s*(\d{1,3})°\s*(\d{1,2})'\s*(\d{1,2}(\.\d+)?)\"\s*[NSEW]/i.test(value);
+        return /^(\d{1,3})°\s*(\d{1,2})'\s*(\d{1,2}(?:\.\d+)?)(?:''|\"?)\s*([NSEW]),?\s*(\d{1,3})°\s*(\d{1,2})'\s*(\d{1,2}(?:\.\d+)?)(?:''|\"?)\s*([NSEW])$/i.test(value);
       }
+
       
       function convertDecimalToDMS(decimal) {
-        let [lat, lon] = decimal.split(',').map(coord => parseFloat(coord.trim()));
-        return `${toDMS(lat, 'NS')}, ${toDMS(lon, 'EW')}`;
+        let coords = decimal.split(',').map(coord => parseFloat(coord.trim()));
+        if (coords.length !== 2 || isNaN(coords[0]) || isNaN(coords[1])) return "Format invalide.";
+      
+        return `${toDMS(coords[0], 'NS')}, ${toDMS(coords[1], 'EW')}`;
       }
+
       
       function convertDMSToDecimal(dms) {
-        const regex = /(\d{1,3})°\s*(\d{1,2})'\s*(\d{1,2}(\.\d+)?)\"\s*([NSEW])/gi;
-        let match, result = [];
+        const regex = /^(\d{1,3})°\s*(\d{1,2})'\s*(\d{1,2}(?:\.\d+)?)(?:''|\"?)\s*([NSEW]),?\s*(\d{1,3})°\s*(\d{1,2})'\s*(\d{1,2}(?:\.\d+)?)(?:''|\"?)\s*([NSEW])$/i;
+        let match = dms.match(regex);
+        
+        if (!match) return "Format invalide.";
       
-        while ((match = regex.exec(dms)) !== null) {
-          let degrees = parseFloat(match[1]);
-          let minutes = parseFloat(match[2]) / 60;
-          let seconds = parseFloat(match[3]) / 3600;
-          let direction = match[5];
-          let decimal = degrees + minutes + seconds;
+        function dmsToDecimal(degrees, minutes, seconds, direction) {
+          let decimal = parseFloat(degrees) + parseFloat(minutes) / 60 + parseFloat(seconds) / 3600;
           if (direction === "S" || direction === "W") decimal *= -1;
-          result.push(decimal);
+          return decimal.toFixed(6);
         }
       
-        return result.length === 2 ? result.join(", ") : "";
+        let lat = dmsToDecimal(match[1], match[2], match[3], match[4]);
+        let lon = dmsToDecimal(match[5], match[6], match[7], match[8]);
+      
+        return `${lat}, ${lon}`;
       }
+
       
       function toDMS(deg, type) {
         const absolute = Math.abs(deg);
