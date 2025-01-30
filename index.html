@@ -250,19 +250,20 @@
       valueElement.textContent = slider.value + unit;
     }
 
-    async function generateKML(type) {
+   async function generateKML(type) {
     const inputField = document.getElementById("coordinates");
 
-    // Vérifier et convertir en degrés décimaux si nécessaire
     if (isDMS(inputField.value)) {
         try {
-            const convertedValue = await convertDMSToDecimal(inputField.value);
-            inputField.value = convertedValue;
+            inputField.value = await convertDMSToDecimal(inputField.value);
         } catch (error) {
             alert("Veuillez entrer des coordonnées valides.");
             return;
         }
     }
+
+    // 🛑 Important : Exécuter validateInput() après conversion
+    validateInput();
 
     const kmlContent = createKMLContent(type, false);
     if (!kmlContent) return;
@@ -270,6 +271,7 @@
     const filename = getKMLFilename(type);
     downloadFile(kmlContent, filename, 'text/plain');
 }
+
 
 
 
@@ -288,36 +290,39 @@
 
 
    async function generateKMZ(type) {
-        const inputField = document.getElementById("coordinates");
-    
-        if (isDMS(inputField.value)) {
-            try {
-                const convertedValue = await convertDMSToDecimal(inputField.value);
-                inputField.value = convertedValue;
-            } catch (error) {
-                alert("Veuillez entrer des coordonnées valides.");
-                return;
-            }
+    const inputField = document.getElementById("coordinates");
+
+    if (isDMS(inputField.value)) {
+        try {
+            inputField.value = await convertDMSToDecimal(inputField.value);
+        } catch (error) {
+            alert("Veuillez entrer des coordonnées valides.");
+            return;
         }
-    
-        const kmlDocContent = createKMLContent(type, true);
-        if (!kmlDocContent) return;
-    
-        const zip = new JSZip();
-        zip.file("doc.kml", kmlDocContent);
-    
-        const points = extractPointNames(kmlDocContent);
-        const requiredImages = getRequiredImages(points);
-        const iconsFolder = zip.folder("icons");
-    
-        for (const [name, base64] of Object.entries(requiredImages)) {
-            iconsFolder.file(`${name}.png`, base64, { base64: true });
-        }
-    
-        const content = await zip.generateAsync({ type: "blob" });
-        const filename = getKMLFilename(type).replace('.kml', '.kmz');
-        downloadFile(content, filename, 'application/vnd.google-earth.kmz');
     }
+
+    // 🛑 Important : Exécuter validateInput() après conversion
+    validateInput();
+
+    const kmlDocContent = createKMLContent(type, true);
+    if (!kmlDocContent) return;
+
+    const zip = new JSZip();
+    zip.file("doc.kml", kmlDocContent);
+
+    const points = extractPointNames(kmlDocContent);
+    const requiredImages = getRequiredImages(points);
+    const iconsFolder = zip.folder("icons");
+
+    for (const [name, base64] of Object.entries(requiredImages)) {
+        iconsFolder.file(`${name}.png`, base64, { base64: true });
+    }
+
+    const content = await zip.generateAsync({ type: "blob" });
+    const filename = getKMLFilename(type).replace('.kml', '.kmz');
+    downloadFile(content, filename, 'application/vnd.google-earth.kmz');
+}
+
 
 
 
@@ -823,26 +828,35 @@ function validateInput() {
 }
 
 
-  async function convertCoordinates() {
-      const inputField = document.getElementById("coordinates");
-      let inputValue = inputField.value.trim();
-  
-      if (isDecimal(inputValue)) {
-          inputField.value = convertDecimalToDMS(inputValue);
-      } else if (isDMS(inputValue)) {
-          try {
-              const convertedValue = await convertDMSToDecimal(inputValue);
-              inputField.value = convertedValue;
-          } catch (error) {
-              console.error("Erreur de conversion : ", error);
-          }
-      } else {
-          alert("Format de coordonnées invalide. Veuillez entrer des coordonnées valides.");
-          return;
-      }
-  
-      validateInput();
-  }
+ async function convertCoordinates() {
+    const inputField = document.getElementById("coordinates");
+    let inputValue = inputField.value.trim();
+    let convertedValue = null;
+
+    if (isDecimal(inputValue)) {
+        convertedValue = convertDecimalToDMS(inputValue);
+    } else if (isDMS(inputValue)) {
+        try {
+            convertedValue = await convertDMSToDecimal(inputValue);
+        } catch (error) {
+            console.error("Erreur de conversion : ", error);
+            return;
+        }
+    } else {
+        alert("Format de coordonnées invalide. Veuillez entrer des coordonnées valides.");
+        return;
+    }
+
+    if (convertedValue !== null) {
+        inputField.value = convertedValue;
+        
+        // 🛑 Important : Forcer la validation après la mise à jour
+        setTimeout(() => {
+            validateInput();
+        }, 50);
+    }
+}
+
 
 
 
