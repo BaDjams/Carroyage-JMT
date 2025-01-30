@@ -67,6 +67,7 @@
       
       #coordinates {
         flex-grow: 1;
+        padding: 8px;
       }
       
       #convertButton {
@@ -81,6 +82,7 @@
       #convertButton:hover {
         background-color: #45a049;
       }
+
 
     .help-button:hover {
       background-color: #45a049;
@@ -875,15 +877,6 @@ function getKMLFilename(type) {
     <input type="text" id="coordinates" placeholder="48.803322, 2.126005" aria-label="Coordonnées" required>
     <button id="convertButton" onclick="convertCoordinates()">Convertir</button>
   </div>
-
-  
-  <label for="coordType">Format des coordonnées :</label>
-    <select id="coordType" onchange="updatePlaceholder()">
-      <option value="decimal">Degrés décimaux</option>
-      <option value="dms">Degrés / Minutes / Secondes (DMS)</option>
-      <option value="pluscode" disabled="disabled">+Code Google</option>
-      <option value="address" disabled="disabled">Adresse</option>
-    </select>
 
   <label for="length">Échelle (en mètres) :</label>
   <input type="number" id="length" placeholder="Spécifier l'échelle" aria-label="Échelle" required min="1">
