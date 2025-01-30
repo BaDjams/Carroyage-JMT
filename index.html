@@ -175,13 +175,28 @@
         return await geocodeAddress(input);
     }
 
-    function generateKML(type) {
-      const kmlContent = createKMLContent(type, false);
-      if (!kmlContent) return;
-
-      const filename = getKMLFilename(type);
-      downloadFile(kmlContent, filename, 'text/plain');
+    async function generateKML(type) {
+        const coordinatesInput = document.getElementById("coordinates").value;
+        
+        // Obtenir les coordonnées avec la fonction asynchrone
+        const coords = await getCoordinates(coordinatesInput);
+        if (!coords) {
+            alert("Les coordonnées ne sont pas valides.");
+            return;
+        }
+        
+        const { lat: latitude, lon: longitude } = coords;
+        
+        const kmlContent = createKMLContent(type, false, latitude, longitude);
+        if (!kmlContent) {
+            alert("Erreur lors de la création du KML.");
+            return;
+        }
+    
+        const filename = getKMLFilename(type);
+        downloadFile(kmlContent, filename, 'text/plain');
     }
+
 
         // Fonction pour extraire les noms des points depuis le contenu KML
     function extractPointNames(kmlContent) {
@@ -198,35 +213,47 @@
 
 
     async function generateKMZ(type) {
-      const kmlDocContent = createKMLContent(type, true);
-      if (!kmlDocContent) return;
-
-      // Créer un fichier KMZ en mémoire sans utiliser de fichier ZIP externe
-      const zip = new JSZip();
-
-      zip.file("doc.kml", kmlDocContent);
-
-      // Générer les icônes à partir des données base64
-       // Extraire les noms des points nécessaires à partir du contenu KML
-      const points = extractPointNames(kmlDocContent);
-      
-      // Récupérer uniquement les images nécessaires
-      const requiredImages = getRequiredImages(points);
-      
-      // Ajouter uniquement les images nécessaires dans le dossier "icons" du KMZ
-      const iconsFolder = zip.folder("icons");
-      for (const [name, base64] of Object.entries(requiredImages)) {
-        iconsFolder.file(`${name}.png`, base64, { base64: true });
-      }
-
-
-      const content = await zip.generateAsync({ type: "blob" });
-      const filename = getKMLFilename(type).replace('.kml', '.kmz');
-      downloadFile(content, filename, 'application/vnd.google-earth.kmz');
+        const coordinatesInput = document.getElementById("coordinates").value;
+        
+        // Obtenir les coordonnées
+        const coords = await getCoordinates(coordinatesInput);
+        if (!coords) {
+            alert("Les coordonnées ne sont pas valides.");
+            return;
+        }
+    
+        const { lat: latitude, lon: longitude } = coords;
+        
+        const kmlDocContent = createKMLContent(type, true, latitude, longitude);
+        if (!kmlDocContent) {
+            alert("Erreur lors de la création du KMZ.");
+            return;
+        }
+    
+        // Créer un fichier ZIP (KMZ)
+        const zip = new JSZip();
+        zip.file("doc.kml", kmlDocContent);
+    
+        // Extraire les noms des points nécessaires
+        const points = extractPointNames(kmlDocContent);
+    
+        // Récupérer uniquement les images nécessaires
+        const requiredImages = getRequiredImages(points);
+        
+        // Ajouter uniquement les images nécessaires au dossier "icons"
+        const iconsFolder = zip.folder("icons");
+        for (const [name, base64] of Object.entries(requiredImages)) {
+            iconsFolder.file(`${name}.png`, base64, { base64: true });
+        }
+    
+        // Générer le fichier KMZ et le télécharger
+        const content = await zip.generateAsync({ type: "blob" });
+        const filename = getKMLFilename(type).replace('.kml', '.kmz');
+        downloadFile(content, filename, 'application/vnd.google-earth.kmz');
     }
 
-    function createKMLContent(type, isKMZ) {
-      const coordinatesInput = document.getElementById("coordinates").value;
+
+    function createKMLContent(type, isKMZ, latitude, longitude) {
       const lengthInput = document.getElementById("length").value;
       const colorInput = document.getElementById("color").value;
       const transparencyInput = document.getElementById("transparency").value;
