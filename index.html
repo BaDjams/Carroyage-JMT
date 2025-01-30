@@ -158,13 +158,14 @@
 
          
      function isDecimal(value) {
-        return /^-?\d+(\.\d+)?,\s*-?\d+(\.\d+)?$/.test(value);
-      }
+    return /^-?\d+(\.\d+)?,\s*-?\d+(\.\d+)?$/.test(value);
+}
+
 
       
       function isDMS(value) {
-        return /^(\d{1,3})°\s*(\d{1,2})'\s*(\d{1,2}(?:\.\d+)?)(?:''|\"?)?\s*([NSEW]),?\s*(\d{1,3})°\s*(\d{1,2})'\s*(\d{1,2}(?:\.\d+)?)(?:''|\"?)?\s*([NSEW])$/i.test(value);
-      }
+    return /^(\d{1,3})°\s*(\d{1,2})'\s*(\d{1,2}(?:\.\d+)?)"?\s*[NS],?\s*(\d{1,3})°\s*(\d{1,2})'\s*(\d{1,2}(?:\.\d+)?)"?\s*[EW]$/i.test(value);
+}
 
 
       
@@ -483,19 +484,6 @@
       return indices;
     }
 
-    function validateInputs(coordinates, length) {
-      const coords = coordinates.split(',').map(coord => parseFloat(coord.trim()));
-      if (coords.length !== 2 || coords.some(isNaN)) {
-        alert('Veuillez entrer des coordonnées valides.');
-        return false;
-      }
-      if (isNaN(length) || length <= 0) {
-        alert('Veuillez entrer une échelle valide.');
-        return false;
-      }
-      return true;
-    }
-
     function getGridRowRange() {
       if (document.getElementById("gridOption").value === "default") {
         const { start, end } = parseGridOption(document.getElementById("gridType").value).rows;
@@ -800,12 +788,13 @@ function validateInput() {
     const convertButton = document.getElementById("convertButton");
     const inputValue = inputField.value.trim();
 
-    if (isDecimal(inputValue)) {
-        convertButton.textContent = "Convertir en DMS";
+    // 🛑 Vérifier d’abord si c’est du DMS avant de tester les décimaux
+    if (isDMS(inputValue)) {
+        convertButton.textContent = "Convertir en décimal";
         convertButton.classList.add("active");
         convertButton.disabled = false;
-    } else if (isDMS(inputValue)) {
-        convertButton.textContent = "Convertir en décimal";
+    } else if (isDecimal(inputValue)) {
+        convertButton.textContent = "Convertir en DMS";
         convertButton.classList.add("active");
         convertButton.disabled = false;
     } else {
@@ -816,20 +805,22 @@ function validateInput() {
 }
 
 
+
  async function convertCoordinates() {
     const inputField = document.getElementById("coordinates");
     let inputValue = inputField.value.trim();
     let convertedValue = null;
 
-    if (isDecimal(inputValue)) {
-        convertedValue = convertDecimalToDMS(inputValue);
-    } else if (isDMS(inputValue)) {
+    // 🛑 Correction : Vérifier d’abord si c’est du DMS avant de tester les décimaux
+    if (isDMS(inputValue)) {
         try {
             convertedValue = await convertDMSToDecimal(inputValue);
         } catch (error) {
             console.error("Erreur de conversion : ", error);
             return;
         }
+    } else if (isDecimal(inputValue)) {
+        convertedValue = convertDecimalToDMS(inputValue);
     } else {
         alert("Format de coordonnées invalide. Veuillez entrer des coordonnées valides.");
         return;
@@ -837,13 +828,12 @@ function validateInput() {
 
     if (convertedValue !== null) {
         inputField.value = convertedValue;
-        
-        // 🛑 Important : Forcer la validation après la mise à jour
-        setTimeout(() => {
-            validateInput();
-        }, 50);
+
+        // 🛑 Important : Valider après mise à jour
+        validateInput();
     }
 }
+
 
 
 
