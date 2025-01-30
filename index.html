@@ -190,7 +190,7 @@
 
       
       function convertDMSToDecimal(dms) {
-          const regex = /^(\d{1,3})°\s*(\d{1,2})'\s*(\d{1,2}(?:\.\d+)?)(?:''|\"?)?\s*([NSEW]),?\s*(\d{1,3})°\s*(\d{1,2})'\s*(\d{1,2}(?:\.\d+)?)(?:''|\"?)?\s*([NSEW])$/i;
+          const regex = /^(\d{1,3})°\s*(\d{1,2})'\s*(\d{1,2}(?:\.\d+)?)"\s*([NSEW]),?\s*(\d{1,3})°\s*(\d{1,2})'\s*(\d{1,2}(?:\.\d+)?)"\s*([NSEW])$/i;
           let match = dms.match(regex);
           
           if (!match) return "Format invalide.";
@@ -208,17 +208,23 @@
         }
 
 
+
       
       function toDMS(deg, type) {
-        const absolute = Math.abs(deg);
-        const degrees = Math.floor(absolute);
-        const minutesNotTruncated = (absolute - degrees) * 60;
-        const minutes = Math.floor(minutesNotTruncated);
-        const seconds = ((minutesNotTruncated - minutes) * 60).toFixed(2);
-        const direction = deg >= 0 ? (type === "NS" ? "N" : "E") : (type === "NS" ? "S" : "W");
+          const absolute = Math.abs(deg);
+          const degrees = Math.floor(absolute);
+          const minutesNotTruncated = (absolute - degrees) * 60;
+          const minutes = Math.floor(minutesNotTruncated);
+          const seconds = ((minutesNotTruncated - minutes) * 60).toFixed(2);
+          
+          // Formater les valeurs en assurant 2 chiffres minimum pour minutes/secondes
+          const formattedMinutes = minutes.toString().padStart(2, '0');
+          const formattedSeconds = seconds.toString().padStart(5, '0');
         
-        return `${degrees}° ${minutes}' ${seconds}" ${direction}`;
-      }
+          const direction = deg >= 0 ? (type === "NS" ? "N" : "E") : (type === "NS" ? "S" : "W");
+        
+          return `${degrees}° ${formattedMinutes}' ${formattedSeconds}" ${direction}`;
+        }
 
       function getRequiredImages(points) {
         const requiredImages = {};
