@@ -176,17 +176,27 @@
     }
 
     async function generateKML(type) {
+        console.log("Génération KML demandée pour :", type); // Debugging
+    
         const coordinatesInput = document.getElementById("coordinates").value;
-        
-        // Obtenir les coordonnées avec la fonction asynchrone
+    
+        // Vérifier que l'entrée est bien fournie
+        if (!coordinatesInput || coordinatesInput.trim() === "") {
+            alert("Veuillez entrer des coordonnées valides.");
+            return;
+        }
+    
+        // Récupérer les coordonnées GPS
         const coords = await getCoordinates(coordinatesInput);
         if (!coords) {
             alert("Les coordonnées ne sont pas valides.");
             return;
         }
-        
+    
         const { lat: latitude, lon: longitude } = coords;
-        
+        console.log("Coordonnées utilisées :", latitude, longitude); // Debugging
+    
+        // Générer le contenu KML
         const kmlContent = createKMLContent(type, false, latitude, longitude);
         if (!kmlContent) {
             alert("Erreur lors de la création du KML.");
@@ -194,28 +204,22 @@
         }
     
         const filename = getKMLFilename(type);
+        console.log("Téléchargement du fichier :", filename); // Debugging
         downloadFile(kmlContent, filename, 'text/plain');
     }
 
 
-        // Fonction pour extraire les noms des points depuis le contenu KML
-    function extractPointNames(kmlContent) {
-      const pointNames = [];
-      const regex = /<name>(.*?)<\/name>/g;
-      let match;
-    
-      while ((match = regex.exec(kmlContent)) !== null) {
-        pointNames.push(match[1]);
-      }
-    
-      return pointNames;
-    }
-
 
     async function generateKMZ(type) {
+        console.log("Génération KMZ demandée pour :", type); // Debugging
+    
         const coordinatesInput = document.getElementById("coordinates").value;
-        
-        // Obtenir les coordonnées
+    
+        if (!coordinatesInput || coordinatesInput.trim() === "") {
+            alert("Veuillez entrer des coordonnées valides.");
+            return;
+        }
+    
         const coords = await getCoordinates(coordinatesInput);
         if (!coords) {
             alert("Les coordonnées ne sont pas valides.");
@@ -223,7 +227,8 @@
         }
     
         const { lat: latitude, lon: longitude } = coords;
-        
+        console.log("Coordonnées utilisées :", latitude, longitude); // Debugging
+    
         const kmlDocContent = createKMLContent(type, true, latitude, longitude);
         if (!kmlDocContent) {
             alert("Erreur lors de la création du KMZ.");
@@ -236,19 +241,17 @@
     
         // Extraire les noms des points nécessaires
         const points = extractPointNames(kmlDocContent);
-    
-        // Récupérer uniquement les images nécessaires
         const requiredImages = getRequiredImages(points);
-        
-        // Ajouter uniquement les images nécessaires au dossier "icons"
+    
         const iconsFolder = zip.folder("icons");
         for (const [name, base64] of Object.entries(requiredImages)) {
             iconsFolder.file(`${name}.png`, base64, { base64: true });
         }
     
-        // Générer le fichier KMZ et le télécharger
+        // Générer et télécharger le fichier KMZ
         const content = await zip.generateAsync({ type: "blob" });
         const filename = getKMLFilename(type).replace('.kml', '.kmz');
+        console.log("Téléchargement du fichier :", filename); // Debugging
         downloadFile(content, filename, 'application/vnd.google-earth.kmz');
     }
 
@@ -801,13 +804,22 @@ function getKMLFilename(type) {
 
 
     function downloadFile(content, filename, mimeType) {
-      const element = document.createElement('a');
-      element.setAttribute('href', URL.createObjectURL(new Blob([content], {type: mimeType})));
-      element.setAttribute('download', filename);
-      document.body.appendChild(element);
-      element.click();
-      document.body.removeChild(element);
+        console.log("Téléchargement du fichier :", filename, "Type :", mimeType); // Debugging
+    
+        const blob = new Blob([content], { type: mimeType });
+        const url = URL.createObjectURL(blob);
+    
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+    
+        // Nettoyage
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
     }
+
   </script>
 </head>
 <body>
