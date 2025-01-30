@@ -189,29 +189,63 @@
 
 
       
-    function convertDMSToDecimal(dms) {
-    // Étape 1 : Séparer correctement latitude et longitude
-    const regex = /(\d{1,3})°\s*(\d{1,2})'\s*(\d{1,2}(?:\.\d+)?)"?\s*([NS]),?\s*(\d{1,3})°\s*(\d{1,2})'\s*(\d{1,2}(?:\.\d+)?)"?\s*([EW])/i;
-    let match = dms.match(regex);
+     function convertDMSToDecimal(dms) {
+          // Étape 1 : Séparer les coordonnées en latitude et longitude
+          const regex = /^([\d°'"\sNSEW.,-]+)[, ]+([\d°'"\sNSEW.,-]+)$/i;
+          let match = dms.match(regex);
+          
+          if (!match) {
+              alert("Format invalide. Veuillez entrer des coordonnées en DMS correctes.");
+              return;
+          }
+      
+          let latDMS = match[1].trim();
+          let lonDMS = match[2].trim();
+      
+          // Étape 2 : Supprimer toutes les virgules et espaces superflues
+          latDMS = latDMS.replace(/[, ]+/g, '');
+          lonDMS = lonDMS.replace(/[, ]+/g, '');
+      
+          // Étape 3 : Séparer chaque bloc en degrés, minutes, secondes
+          function parseDMS(dmsStr) {
+              const dmsRegex = /^(\d{1,3})°(\d{1,2})'(\d{1,2}(?:\.\d+)?)?"?([NSEW])$/i;
+              let dmsMatch = dmsStr.match(dmsRegex);
+              if (!dmsMatch) return null;
+      
+              let degrees = parseFloat(dmsMatch[1]);
+              let minutes = parseFloat(dmsMatch[2]) / 60;
+              let seconds = parseFloat(dmsMatch[3]) / 3600;
+              let direction = dmsMatch[4].toUpperCase();
+      
+              // Étape 4 : Conversion en degrés décimaux
+              let decimal = degrees + minutes + seconds;
+      
+              // Étape 5 : Appliquer le signe négatif si S ou W
+              if (direction === "S" || direction === "W") decimal *= -1;
+      
+              return decimal.toFixed(6);
+          }
+      
+          let latDecimal = parseDMS(latDMS);
+          let lonDecimal = parseDMS(lonDMS);
+      
+          if (latDecimal === null || lonDecimal === null) {
+              alert("Erreur de conversion. Vérifiez le format DMS.");
+              return;
+          }
+      
+          // **Mise à jour du champ input avec la nouvelle valeur**
+          document.getElementById("coordinates").value = `${latDecimal}, ${lonDecimal}`;
+      
+          // **Réactiver le bouton Convertir et mettre à jour le texte**
+          validateInput();
+      }
 
-    if (!match) {
-        alert("Format invalide. Veuillez entrer des coordonnées en DMS correctes.");
-        return null;
-    }
 
-    function dmsToDecimal(degrees, minutes, seconds, direction) {
-        let decimal = parseFloat(degrees) + parseFloat(minutes) / 60 + parseFloat(seconds) / 3600;
-        if (direction === "S" || direction === "W") decimal *= -1;
-        return decimal.toFixed(6);
-    }
 
-    let latDecimal = dmsToDecimal(match[1], match[2], match[3], match[4]);
-    let lonDecimal = dmsToDecimal(match[5], match[6], match[7], match[8]);
 
-    return `${latDecimal}, ${lonDecimal}`;
-}
 
-            
+      
       function toDMS(deg, type) {
           const absolute = Math.abs(deg);
           const degrees = Math.floor(absolute);
@@ -248,59 +282,19 @@
     }
 
     function generateKML(type) {
-    const inputField = document.getElementById("coordinates");
-
-    if (isDMS(inputField.value)) {
-        let convertedValue = convertDMSToDecimal(inputField.value);
-        if (convertedValue !== null) {
-            inputField.value = convertedValue;
-        } else {
-            alert("Veuillez entrer des coordonnées valides.");
-            return;
-        }
-    }
-
-    const kmlContent = createKMLContent(type, false);
-    if (!kmlContent) return;
-
-    const filename = getKMLFilename(type);
-    downloadFile(kmlContent, filename, 'text/plain');
-}
-
-async function generateKMZ(type) {
-    const inputField = document.getElementById("coordinates");
-
-    if (isDMS(inputField.value)) {
-        let convertedValue = convertDMSToDecimal(inputField.value);
-        if (convertedValue !== null) {
-            inputField.value = convertedValue;
-        } else {
-            alert("Veuillez entrer des coordonnées valides.");
-            return;
-        }
-    }
-
-    const kmlDocContent = createKMLContent(type, true);
-    if (!kmlDocContent) return;
-
-    const zip = new JSZip();
-    zip.file("doc.kml", kmlDocContent);
-    const points = extractPointNames(kmlDocContent);
+        const inputField = document.getElementById("coordinates");
         
-     // Récupérer uniquement les images nécessaires
-    const requiredImages = getRequiredImages(points);
-        
-    // Ajouter uniquement les images nécessaires dans le dossier "icons" du KMZ
-    const iconsFolder = zip.folder("icons");
-        for (const [name, base64] of Object.entries(requiredImages)) {
-          iconsFolder.file(`${name}.png`, base64, { base64: true });
+        // Convertir en degrés décimaux avant génération
+        if (isDMS(inputField.value)) {
+          inputField.value = convertDMSToDecimal(inputField.value);
         }
-
-    const content = await zip.generateAsync({ type: "blob" });
-    const filename = getKMLFilename(type).replace('.kml', '.kmz');
-    downloadFile(content, filename, 'application/vnd.google-earth.kmz');
-}
-
+      
+        const kmlContent = createKMLContent(type, false);
+        if (!kmlContent) return;
+      
+        const filename = getKMLFilename(type);
+        downloadFile(kmlContent, filename, 'text/plain');
+      }
 
 
         // Fonction pour extraire les noms des points depuis le contenu KML
@@ -316,6 +310,40 @@ async function generateKMZ(type) {
       return pointNames;
     }
 
+
+    async function generateKMZ(type) {
+        const inputField = document.getElementById("coordinates");
+      
+        // Convertir en degrés décimaux avant génération
+        if (isDMS(inputField.value)) {
+          inputField.value = convertDMSToDecimal(inputField.value);
+        }
+      const kmlDocContent = createKMLContent(type, true);
+      if (!kmlDocContent) return;
+
+      // Créer un fichier KMZ en mémoire sans utiliser de fichier ZIP externe
+      const zip = new JSZip();
+
+      zip.file("doc.kml", kmlDocContent);
+
+      // Générer les icônes à partir des données base64
+       // Extraire les noms des points nécessaires à partir du contenu KML
+      const points = extractPointNames(kmlDocContent);
+      
+      // Récupérer uniquement les images nécessaires
+      const requiredImages = getRequiredImages(points);
+      
+      // Ajouter uniquement les images nécessaires dans le dossier "icons" du KMZ
+      const iconsFolder = zip.folder("icons");
+      for (const [name, base64] of Object.entries(requiredImages)) {
+        iconsFolder.file(`${name}.png`, base64, { base64: true });
+      }
+
+
+      const content = await zip.generateAsync({ type: "blob" });
+      const filename = getKMLFilename(type).replace('.kml', '.kmz');
+      downloadFile(content, filename, 'application/vnd.google-earth.kmz');
+    }
 
     function createKMLContent(type, isKMZ) {
       const coordinatesInput = document.getElementById("coordinates").value;
@@ -486,27 +514,18 @@ async function generateKMZ(type) {
       return indices;
     }
 
-    function validateInput() {
-        const inputField = document.getElementById("coordinates");
-        const convertButton = document.getElementById("convertButton");
-        const inputValue = inputField.value.trim();
-    
-        if (isDecimal(inputValue)) {
-            convertButton.textContent = "Convertir en DMS";
-            convertButton.classList.add("active");
-            convertButton.disabled = false;
-        } else if (isDMS(inputValue)) {
-            convertButton.textContent = "Convertir en décimal";
-            convertButton.classList.add("active");
-            convertButton.disabled = false;
-        } else {
-            convertButton.textContent = "Convertir";
-            convertButton.classList.remove("active");
-            convertButton.disabled = true;
-        }
+    function validateInputs(coordinates, length) {
+      const coords = coordinates.split(',').map(coord => parseFloat(coord.trim()));
+      if (coords.length !== 2 || coords.some(isNaN)) {
+        alert('Veuillez entrer des coordonnées valides.');
+        return false;
+      }
+      if (isNaN(length) || length <= 0) {
+        alert('Veuillez entrer une échelle valide.');
+        return false;
+      }
+      return true;
     }
-
-
 
     function getGridRowRange() {
       if (document.getElementById("gridOption").value === "default") {
@@ -829,27 +848,18 @@ function validateInput() {
 
 
 function convertCoordinates() {
-    const inputField = document.getElementById("coordinates");
-    let inputValue = inputField.value.trim();
-    let convertedValue = null;
-
-    if (isDecimal(inputValue)) {
-        convertedValue = convertDecimalToDMS(inputValue);
-    } else if (isDMS(inputValue)) {
-        convertedValue = convertDMSToDecimal(inputValue);
-    } else {
-        alert("Format de coordonnées invalide. Veuillez entrer des coordonnées valides.");
-        return;
-    }
-
-    if (convertedValue !== null) {
-        inputField.value = convertedValue;
-    }
-
-    // Mise à jour immédiate du bouton après conversion
-    validateInput();
-}
-
+      const inputField = document.getElementById("coordinates");
+      let inputValue = inputField.value.trim();
+  
+      if (isDecimal(inputValue)) {
+          inputField.value = convertDecimalToDMS(inputValue);
+      } else if (isDMS(inputValue)) {
+          inputField.value = convertDMSToDecimal(inputValue);
+      }
+  
+      // **Mise à jour immédiate du bouton après conversion**
+      validateInput();
+  }
 
 
 
