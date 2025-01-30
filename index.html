@@ -514,18 +514,34 @@
       return indices;
     }
 
-    function validateInputs(coordinates, length) {
-      const coords = coordinates.split(',').map(coord => parseFloat(coord.trim()));
-      if (coords.length !== 2 || coords.some(isNaN)) {
-        alert('Veuillez entrer des coordonnées valides.');
-        return false;
-      }
-      if (isNaN(length) || length <= 0) {
-        alert('Veuillez entrer une échelle valide.');
-        return false;
-      }
-      return true;
+    async function validateInputs(coordinates, length) {
+        let validCoordinates = coordinates.trim();
+    
+        // Vérifier si les coordonnées sont en DMS
+        if (isDMS(validCoordinates)) {
+            try {
+                validCoordinates = await convertDMSToDecimal(validCoordinates);
+            } catch (error) {
+                alert("Erreur de conversion DMS → Décimal. Veuillez entrer des coordonnées valides.");
+                return false;
+            }
+        }
+    
+        // Vérifier si elles sont maintenant en décimal
+        if (!isDecimal(validCoordinates)) {
+            alert("Veuillez entrer des coordonnées valides en degrés décimaux ou DMS.");
+            return false;
+        }
+    
+        // Vérifier la validité de l'échelle
+        if (isNaN(length) || length <= 0) {
+            alert("Veuillez entrer une échelle valide.");
+            return false;
+        }
+    
+        return true;
     }
+
 
     function getGridRowRange() {
       if (document.getElementById("gridOption").value === "default") {
