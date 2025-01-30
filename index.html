@@ -634,30 +634,38 @@
       return circlePlacemark;
     }
 
-    function getKMLFilename(type) {
-      const gridNameInput = document.getElementById("gridName").value.trim();
-      const filename = gridNameInput || 'Carroyage';
-      const length = document.getElementById("length").value;
-      const scale = `${length}m`;
-      const refPoint = document.getElementById("referencePoint").value;
-      const deviation = document.getElementById("deviation").value;
-      const angle = `${deviation}°`;
-      const gridOption = document.getElementById("gridOption").value;
-      const rowRange = getGridRowRange();
-      const colRange = getGridColRange();
-      const gridType = gridOption === "default" 
+function getKMLFilename(type) {
+  const gridNameInput = document.getElementById("gridName").value.trim();
+  const filename = gridNameInput || 'Carroyage';
+
+  const coordinatesInput = document.getElementById("coordinates").value;
+  const [latitude, longitude] = coordinatesInput.split(',').map(coord => parseFloat(coord.trim()).toFixed(6)); // Arrondi à 6 chiffres
+
+  const length = document.getElementById("length").value;
+  const scale = `${length}m`;
+  const refPoint = document.getElementById("referencePoint").value;
+  const deviation = document.getElementById("deviation").value;
+  const angle = `${deviation}°`;
+  const gridOption = document.getElementById("gridOption").value;
+  const rowRange = getGridRowRange();
+  const colRange = getGridColRange();
+  const gridType = gridOption === "default" 
                        ? document.getElementById("gridType").value 
                        : `Custom_${rowRange.rowStart}_${rowRange.rowEnd}_${getColumnLabel(colRange.colStart)}_${getColumnLabel(colRange.colEnd)}`;
-      if (type === 'grid') {
-        return `${filename}_KML-Grille_${scale}_${refPoint}_${angle}_${gridType}.kml`;
-      } else if (type === 'points') {
-        return `${filename}_KML-Points_${scale}_${refPoint}_${angle}_${gridType}.kml`;
-      } else if (type === 'pointsKMZ') {
-        return `${filename}_KMZ-Points_${scale}_${refPoint}_${angle}_${gridType}.kmz`;
-      } else {
-        return `${filename}_KMZ_${scale}_${refPoint}_${angle}_${gridType}.kmz`;
-      }
-    }
+
+  const coordsString = `${latitude}_${longitude}`; // Ajoutez les coordonnées arrondies dans le nom
+
+  if (type === 'grid') {
+    return `${filename}_${coordsString}_KML-Grille_${scale}_${refPoint}_${angle}_${gridType}.kml`;
+  } else if (type === 'points') {
+    return `${filename}_${coordsString}_KML-Points_${scale}_${refPoint}_${angle}_${gridType}.kml`;
+  } else if (type === 'pointsKMZ') {
+    return `${filename}_${coordsString}_KMZ-Points_${scale}_${refPoint}_${angle}_${gridType}.kmz`;
+  } else {
+    return `${filename}_${coordsString}_KMZ_${scale}_${refPoint}_${angle}_${gridType}.kmz`;
+  }
+}
+
 
     function downloadFile(content, filename, mimeType) {
       const element = document.createElement('a');
