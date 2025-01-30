@@ -229,13 +229,20 @@
     }
 
     function generateKML(type) {
-      convertCoordinates(); 
-      const kmlContent = createKMLContent(type, false);
-      if (!kmlContent) return;
+        const inputField = document.getElementById("coordinates");
+        
+        // Convertir en degrés décimaux avant génération
+        if (isDMS(inputField.value)) {
+          inputField.value = convertDMSToDecimal(inputField.value);
+        }
+      
+        const kmlContent = createKMLContent(type, false);
+        if (!kmlContent) return;
+      
+        const filename = getKMLFilename(type);
+        downloadFile(kmlContent, filename, 'text/plain');
+      }
 
-      const filename = getKMLFilename(type);
-      downloadFile(kmlContent, filename, 'text/plain');
-    }
 
         // Fonction pour extraire les noms des points depuis le contenu KML
     function extractPointNames(kmlContent) {
@@ -252,7 +259,12 @@
 
 
     async function generateKMZ(type) {
-      convertCoordinates(); 
+        const inputField = document.getElementById("coordinates");
+      
+        // Convertir en degrés décimaux avant génération
+        if (isDMS(inputField.value)) {
+          inputField.value = convertDMSToDecimal(inputField.value);
+        }
       const kmlDocContent = createKMLContent(type, true);
       if (!kmlDocContent) return;
 
