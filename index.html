@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Générateur de carroyage CADO V7.0</title>
+  <title>Générateur de carroyage CADO V6.0</title>
   <style>
     /* Style CSS */
     body {
@@ -119,144 +119,59 @@
       const valueElement = document.getElementById(valueId);
       valueElement.textContent = slider.value + unit;
     }
-    function dmsToDecimal(dms) {
-          const regex = /(\d{1,3})[°d]\s*(\d{1,2})['m]?\s*(\d{1,2}(?:\.\d*)?)?["s]?\s*([NSEW])?/i;
-          const match = dms.match(regex);
-      
-          if (!match) return null;
-      
-          let degrees = parseFloat(match[1]);
-          let minutes = parseFloat(match[2]);
-          let seconds = match[3] ? parseFloat(match[3]) : 0;
-          let direction = match[4];
-      
-          let decimal = degrees + (minutes / 60) + (seconds / 3600);
-      
-          // Appliquer la direction (Sud/Nord, Ouest/Est)
-          if (direction === "S" || direction === "W") {
-              decimal = -decimal;
-          }
-      
-          return decimal;
+
+    function generateKML(type) {
+      const kmlContent = createKMLContent(type, false);
+      if (!kmlContent) return;
+
+      const filename = getKMLFilename(type);
+      downloadFile(kmlContent, filename, 'text/plain');
+    }
+
+        // Fonction pour extraire les noms des points depuis le contenu KML
+    function extractPointNames(kmlContent) {
+      const pointNames = [];
+      const regex = /<name>(.*?)<\/name>/g;
+      let match;
+    
+      while ((match = regex.exec(kmlContent)) !== null) {
+        pointNames.push(match[1]);
       }
-        
     
-     function getCoordinates(input) {
-        input = input.trim();
-    
-        // Vérifier si l'entrée est en format Degrés, Minutes, Secondes (DMS)
-        const dmsPattern = /[°'"]/;
-        if (dmsPattern.test(input)) {
-            const parts = input.split(/[,\s]+/);
-            if (parts.length >= 2) {
-                const lat = dmsToDecimal(parts[0]);
-                const lon = dmsToDecimal(parts[1]);
-                if (lat !== null && lon !== null) {
-                    return { lat, lon };
-                }
-            }
-            alert("Format DMS invalide. Exemple : 48°51'24\"N 2°21'03\"E");
-            return null;
-        }
-    
-        // Vérifier si l'entrée est déjà une paire de coordonnées GPS (format décimal)
-        const gpsPattern = /^-?\d{1,2}\.\d+,\s*-?\d{1,3}\.\d+$/;
-        if (gpsPattern.test(input)) {
-            const [lat, lon] = input.split(',').map(coord => parseFloat(coord.trim()));
-            return { lat, lon };
-        }
-    
-        // Vérifier si l'entrée est un Code Plus (Google Plus Code)
-        if (input.includes("+")) {
-            return  convertPlusCodeToCoords(input);
-        }
-    
-        // Sinon, essayer de géocoder une adresse classique
-        return  geocodeAddress(input);
-    }
-
-     function generateKML(type) {
-        console.log("Génération KML demandée pour :", type); // Debugging
-    
-        const coordinatesInput = document.getElementById("coordinates").value;
-    
-        // Vérifier que l'entrée est bien fournie
-        if (!coordinatesInput || coordinatesInput.trim() === "") {
-            alert("Veuillez entrer des coordonnées valides.");
-            return;
-        }
-    
-        // Récupérer les coordonnées GPS
-        const coords =  getCoordinates(coordinatesInput);
-        if (!coords) {
-            alert("Les coordonnées ne sont pas valides.");
-            return;
-        }
-    
-        const { lat: latitude, lon: longitude } = coords;
-        console.log("Coordonnées utilisées :", latitude, longitude); // Debugging
-    
-        // Générer le contenu KML
-        const kmlContent = createKMLContent(type, false, latitude, longitude);
-        if (!kmlContent) {
-            alert("Erreur lors de la création du KML.");
-            return;
-        }
-    
-        const filename = getKMLFilename(type);
-        console.log("Téléchargement du fichier :", filename); // Debugging
-        downloadFile(kmlContent, filename, 'text/plain');
+      return pointNames;
     }
 
 
+    async function generateKMZ(type) {
+      const kmlDocContent = createKMLContent(type, true);
+      if (!kmlDocContent) return;
 
-     function generateKMZ(type) {
-        console.log("Génération KMZ demandée pour :", type); // Debugging
-    
-        const coordinatesInput = document.getElementById("coordinates").value;
-    
-        if (!coordinatesInput || coordinatesInput.trim() === "") {
-            alert("Veuillez entrer des coordonnées valides.");
-            return;
-        }
-    
-        const coords =  getCoordinates(coordinatesInput);
-        if (!coords) {
-            alert("Les coordonnées ne sont pas valides.");
-            return;
-        }
-    
-        const { lat: latitude, lon: longitude } = coords;
-        console.log("Coordonnées utilisées :", latitude, longitude); // Debugging
-    
-        const kmlDocContent = createKMLContent(type, true, latitude, longitude);
-        if (!kmlDocContent) {
-            alert("Erreur lors de la création du KMZ.");
-            return;
-        }
-    
-        // Créer un fichier ZIP (KMZ)
-        const zip = new JSZip();
-        zip.file("doc.kml", kmlDocContent);
-    
-        // Extraire les noms des points nécessaires
-        const points = extractPointNames(kmlDocContent);
-        const requiredImages = getRequiredImages(points);
-    
-        const iconsFolder = zip.folder("icons");
-        for (const [name, base64] of Object.entries(requiredImages)) {
-            iconsFolder.file(`${name}.png`, base64, { base64: true });
-        }
-    
-        // Générer et télécharger le fichier KMZ
-        const content =  zip.generate({ type: "blob" });
-        const filename = getKMLFilename(type).replace('.kml', '.kmz');
-        console.log("Téléchargement du fichier :", filename); // Debugging
-        downloadFile(content, filename, 'application/vnd.google-earth.kmz');
+      // Créer un fichier KMZ en mémoire sans utiliser de fichier ZIP externe
+      const zip = new JSZip();
+
+      zip.file("doc.kml", kmlDocContent);
+
+      // Générer les icônes à partir des données base64
+       // Extraire les noms des points nécessaires à partir du contenu KML
+      const points = extractPointNames(kmlDocContent);
+      
+      // Récupérer uniquement les images nécessaires
+      const requiredImages = getRequiredImages(points);
+      
+      // Ajouter uniquement les images nécessaires dans le dossier "icons" du KMZ
+      const iconsFolder = zip.folder("icons");
+      for (const [name, base64] of Object.entries(requiredImages)) {
+        iconsFolder.file(`${name}.png`, base64, { base64: true });
+      }
+
+
+      const content = await zip.generateAsync({ type: "blob" });
+      const filename = getKMLFilename(type).replace('.kml', '.kmz');
+      downloadFile(content, filename, 'application/vnd.google-earth.kmz');
     }
 
-
-    function createKMLContent(type, isKMZ, latitude, longitude) {
+    function createKMLContent(type, isKMZ) {
+      const coordinatesInput = document.getElementById("coordinates").value;
       const lengthInput = document.getElementById("length").value;
       const colorInput = document.getElementById("color").value;
       const transparencyInput = document.getElementById("transparency").value;
@@ -266,13 +181,7 @@
 
       if (!validateInputs(coordinatesInput, lengthInput)) return null;
 
-      const coords =  getCoordinates(coordinatesInput);
-      if (!coords) {
-          alert("Les coordonnées ne sont pas valides.");
-          return;
-      }
-      const { lat: latitude, lon: longitude } = coords;
-
+      const [latitude, longitude] = coordinatesInput.split(',').map(coord => parseFloat(coord.trim()));
       const length = parseFloat(lengthInput);
       const referencePoint = document.getElementById("referencePoint").value;
 
@@ -334,51 +243,6 @@
 
       kmlContent += `</Document></kml>`;
       return kmlContent;
-    }
-     function convertPlusCodeToCoords(plusCode) {
-        const apiKey = "VOTRE_CLE_API_GOOGLE"; // Remplacez par votre clé Google Maps API
-        const url = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(plusCode)}&key=${apiKey}`;
-    
-        try {
-            const response =  fetch(url);
-            const data =  response.json();
-    
-            if (data.status === "OK" && data.results.length > 0) {
-                const location = data.results[0].geometry.location;
-                return { lat: location.lat, lon: location.lng };
-            } else {
-                console.error("Échec de la conversion du Plus Code :", data.status);
-                alert("Impossible de convertir le Code Plus en coordonnées GPS.");
-                return null;
-            }
-        } catch (error) {
-            console.error("Erreur lors de l'appel à l'API Google :", error);
-            alert("Erreur de connexion pour la conversion du Plus Code.");
-            return null;
-        }
-    }
-    
-     function geocodeAddress(address) {
-        const apiKey = "VOTRE_CLE_API_GOOGLE"; // Remplacez par votre clé Google Maps API
-        const url = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(address)}&key=${apiKey}`;
-    
-        try {
-            const response =  fetch(url);
-            const data =  response.json();
-    
-            if (data.status === "OK" && data.results.length > 0) {
-                const location = data.results[0].geometry.location;
-                return { lat: location.lat, lon: location.lng };
-            } else {
-                console.error("Échec de la conversion de l'adresse :", data.status);
-                alert("Impossible de géocoder l’adresse.");
-                return null;
-            }
-        } catch (error) {
-            console.error("Erreur lors de l'appel à l'API Google :", error);
-            alert("Erreur de connexion pour la recherche d’adresse.");
-            return null;
-        }
     }
 
     function rotateCoordinates(lat, lon, refLat, refLon, angle) {
@@ -804,22 +668,13 @@ function getKMLFilename(type) {
 
 
     function downloadFile(content, filename, mimeType) {
-        console.log("Téléchargement du fichier :", filename, "Type :", mimeType); // Debugging
-    
-        const blob = new Blob([content], { type: mimeType });
-        const url = URL.createObjectURL(blob);
-    
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = filename;
-        document.body.appendChild(a);
-        a.click();
-    
-        // Nettoyage
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
+      const element = document.createElement('a');
+      element.setAttribute('href', URL.createObjectURL(new Blob([content], {type: mimeType})));
+      element.setAttribute('download', filename);
+      document.body.appendChild(element);
+      element.click();
+      document.body.removeChild(element);
     }
-
   </script>
 </head>
 <body>
