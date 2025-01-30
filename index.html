@@ -141,7 +141,7 @@
       }
         
     
-    async function getCoordinates(input) {
+     function getCoordinates(input) {
         input = input.trim();
     
         // Vérifier si l'entrée est en format Degrés, Minutes, Secondes (DMS)
@@ -168,14 +168,14 @@
     
         // Vérifier si l'entrée est un Code Plus (Google Plus Code)
         if (input.includes("+")) {
-            return await convertPlusCodeToCoords(input);
+            return  convertPlusCodeToCoords(input);
         }
     
         // Sinon, essayer de géocoder une adresse classique
-        return await geocodeAddress(input);
+        return  geocodeAddress(input);
     }
 
-    async function generateKML(type) {
+     function generateKML(type) {
         console.log("Génération KML demandée pour :", type); // Debugging
     
         const coordinatesInput = document.getElementById("coordinates").value;
@@ -187,7 +187,7 @@
         }
     
         // Récupérer les coordonnées GPS
-        const coords = await getCoordinates(coordinatesInput);
+        const coords =  getCoordinates(coordinatesInput);
         if (!coords) {
             alert("Les coordonnées ne sont pas valides.");
             return;
@@ -210,7 +210,7 @@
 
 
 
-    async function generateKMZ(type) {
+     function generateKMZ(type) {
         console.log("Génération KMZ demandée pour :", type); // Debugging
     
         const coordinatesInput = document.getElementById("coordinates").value;
@@ -220,7 +220,7 @@
             return;
         }
     
-        const coords = await getCoordinates(coordinatesInput);
+        const coords =  getCoordinates(coordinatesInput);
         if (!coords) {
             alert("Les coordonnées ne sont pas valides.");
             return;
@@ -249,7 +249,7 @@
         }
     
         // Générer et télécharger le fichier KMZ
-        const content = await zip.generateAsync({ type: "blob" });
+        const content =  zip.generate({ type: "blob" });
         const filename = getKMLFilename(type).replace('.kml', '.kmz');
         console.log("Téléchargement du fichier :", filename); // Debugging
         downloadFile(content, filename, 'application/vnd.google-earth.kmz');
@@ -266,7 +266,7 @@
 
       if (!validateInputs(coordinatesInput, lengthInput)) return null;
 
-      const coords = await getCoordinates(coordinatesInput);
+      const coords =  getCoordinates(coordinatesInput);
       if (!coords) {
           alert("Les coordonnées ne sont pas valides.");
           return;
@@ -335,13 +335,13 @@
       kmlContent += `</Document></kml>`;
       return kmlContent;
     }
-    async function convertPlusCodeToCoords(plusCode) {
+     function convertPlusCodeToCoords(plusCode) {
         const apiKey = "VOTRE_CLE_API_GOOGLE"; // Remplacez par votre clé Google Maps API
         const url = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(plusCode)}&key=${apiKey}`;
     
         try {
-            const response = await fetch(url);
-            const data = await response.json();
+            const response =  fetch(url);
+            const data =  response.json();
     
             if (data.status === "OK" && data.results.length > 0) {
                 const location = data.results[0].geometry.location;
@@ -358,13 +358,13 @@
         }
     }
     
-    async function geocodeAddress(address) {
+     function geocodeAddress(address) {
         const apiKey = "VOTRE_CLE_API_GOOGLE"; // Remplacez par votre clé Google Maps API
         const url = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(address)}&key=${apiKey}`;
     
         try {
-            const response = await fetch(url);
-            const data = await response.json();
+            const response =  fetch(url);
+            const data =  response.json();
     
             if (data.status === "OK" && data.results.length > 0) {
                 const location = data.results[0].geometry.location;
