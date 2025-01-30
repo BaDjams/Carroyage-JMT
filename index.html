@@ -60,28 +60,35 @@
       text-decoration: none;
     }
     
-    .coord-container {
+   .coord-container {
         display: flex;
         align-items: center;
       }
       
       #coordinates {
-        flex-grow: 1;
+        flex: 7; /* 70% de la largeur */
         padding: 8px;
       }
       
       #convertButton {
+        flex: 3; /* 30% de la largeur */
         margin-left: 10px;
         padding: 8px 12px;
-        background-color: #4CAF50;
+        background-color: grey; /* Par défaut désactivé */
         color: white;
         border: none;
+        cursor: not-allowed; /* Désactivé par défaut */
+      }
+      
+      #convertButton.active {
+        background-color: #4CAF50; /* Vert quand actif */
         cursor: pointer;
       }
       
-      #convertButton:hover {
+      #convertButton:hover.active {
         background-color: #45a049;
       }
+
 
 
     .help-button:hover {
@@ -162,13 +169,15 @@
         }
       }
       
-      function isDecimal(value) {
+     function isDecimal(value) {
         return /^-?\d+(\.\d+)?,\s*-?\d+(\.\d+)?$/.test(value);
       }
+
       
       function isDMS(value) {
-        return /^(\d{1,3})°\s*(\d{1,2})'\s*(\d{1,2}(?:\.\d+)?)(?:''|\"?)\s*([NSEW]),?\s*(\d{1,3})°\s*(\d{1,2})'\s*(\d{1,2}(?:\.\d+)?)(?:''|\"?)\s*([NSEW])$/i.test(value);
+        return /^(\d{1,3})°\s*(\d{1,2})'\s*(\d{1,2}(?:\.\d+)?)(?:''|\"?)?\s*([NSEW]),?\s*(\d{1,3})°\s*(\d{1,2})'\s*(\d{1,2}(?:\.\d+)?)(?:''|\"?)?\s*([NSEW])$/i.test(value);
       }
+
 
       
       function convertDecimalToDMS(decimal) {
@@ -178,24 +187,26 @@
         return `${toDMS(coords[0], 'NS')}, ${toDMS(coords[1], 'EW')}`;
       }
 
+
       
       function convertDMSToDecimal(dms) {
-        const regex = /^(\d{1,3})°\s*(\d{1,2})'\s*(\d{1,2}(?:\.\d+)?)(?:''|\"?)\s*([NSEW]),?\s*(\d{1,3})°\s*(\d{1,2})'\s*(\d{1,2}(?:\.\d+)?)(?:''|\"?)\s*([NSEW])$/i;
-        let match = dms.match(regex);
+          const regex = /^(\d{1,3})°\s*(\d{1,2})'\s*(\d{1,2}(?:\.\d+)?)(?:''|\"?)?\s*([NSEW]),?\s*(\d{1,3})°\s*(\d{1,2})'\s*(\d{1,2}(?:\.\d+)?)(?:''|\"?)?\s*([NSEW])$/i;
+          let match = dms.match(regex);
+          
+          if (!match) return "Format invalide.";
         
-        if (!match) return "Format invalide.";
-      
-        function dmsToDecimal(degrees, minutes, seconds, direction) {
-          let decimal = parseFloat(degrees) + parseFloat(minutes) / 60 + parseFloat(seconds) / 3600;
-          if (direction === "S" || direction === "W") decimal *= -1;
-          return decimal.toFixed(6);
+          function dmsToDecimal(degrees, minutes, seconds, direction) {
+            let decimal = parseFloat(degrees) + parseFloat(minutes) / 60 + parseFloat(seconds) / 3600;
+            if (direction === "S" || direction === "W") decimal *= -1;
+            return decimal.toFixed(6);
+          }
+        
+          let lat = dmsToDecimal(match[1], match[2], match[3], match[4]);
+          let lon = dmsToDecimal(match[5], match[6], match[7], match[8]);
+        
+          return `${lat}, ${lon}`;
         }
-      
-        let lat = dmsToDecimal(match[1], match[2], match[3], match[4]);
-        let lon = dmsToDecimal(match[5], match[6], match[7], match[8]);
-      
-        return `${lat}, ${lon}`;
-      }
+
 
       
       function toDMS(deg, type) {
@@ -773,34 +784,40 @@ function updatePlaceholder() {
         inputField.placeholder = "48.803322, 2.126005";
     }
   }
+function validateInput() {
+  const inputField = document.getElementById("coordinates");
+  const convertButton = document.getElementById("convertButton");
+  const inputValue = inputField.value.trim();
 
-function convertCoordinates() {
-  const type = document.getElementById("coordType").value;
-  const inputValue = document.getElementById("coordinates").value.trim();
-
-  if (!inputValue) {
-    alert("Veuillez entrer une valeur.");
-    return;
-  }
-
-  let result = "";
-
-  if (type === "decimal") {
-    result = inputValue;
-  } else if (type === "dms") {
-    result = convertDMSToDecimal(inputValue);
-  } else if (type === "pluscode") {
-    result = convertPlusCodeToDecimal(inputValue);
-  } else if (type === "address") {
-    result = convertAddressToDecimal(inputValue);
-  }
-
-  if (result) {
-    document.getElementById("coordinates").value = result;
+  if (isDecimal(inputValue)) {
+    convertButton.textContent = "Convertir en DMS";
+    convertButton.classList.add("active");
+    convertButton.disabled = false;
+  } else if (isDMS(inputValue)) {
+    convertButton.textContent = "Convertir en décimal";
+    convertButton.classList.add("active");
+    convertButton.disabled = false;
   } else {
-    alert("Format invalide ou conversion impossible.");
+    convertButton.textContent = "Convertir";
+    convertButton.classList.remove("active");
+    convertButton.disabled = true;
   }
 }
+
+function convertCoordinates() {
+  const inputField = document.getElementById("coordinates");
+  let inputValue = inputField.value.trim();
+
+  if (isDecimal(inputValue)) {
+    inputField.value = convertDecimalToDMS(inputValue);
+  } else if (isDMS(inputValue)) {
+    inputField.value = convertDMSToDecimal(inputValue);
+  }
+
+  // Met à jour l'état du bouton après conversion
+  validateInput();
+}
+
 
 function convertDMSToDecimal(dms) {
   const regex = /(\\d+)°\\s*(\\d+)'\\s*(\\d+(?:\\.\\d+)?)\"?\\s*([NSEW])/gi;
@@ -886,8 +903,8 @@ function getKMLFilename(type) {
 
  <label for="coordinates">Coordonnées :</label>
   <div class="coord-container">
-    <input type="text" id="coordinates" placeholder="48.803322, 2.126005" aria-label="Coordonnées" required>
-    <button id="convertButton" onclick="convertCoordinates()">Convertir</button>
+    <input type="text" id="coordinates" placeholder="Degrés décimaux ou DMS" oninput="validateInput()" aria-label="Coordonnées" required>
+    <button id="convertButton" onclick="convertCoordinates()" disabled>Convertir</button>
   </div>
 
   <label for="length">Échelle (en mètres) :</label>
