@@ -189,17 +189,20 @@
 
 
       
-      function convertDMSToDecimal(dms) {
+     function convertDMSToDecimal(dms) {
           // Étape 1 : Séparer les coordonnées en latitude et longitude
           const regex = /^([\d°'"\sNSEW.,-]+)[, ]+([\d°'"\sNSEW.,-]+)$/i;
           let match = dms.match(regex);
           
-          if (!match) return "Format invalide.";
+          if (!match) {
+              alert("Format invalide. Veuillez entrer des coordonnées en DMS correctes.");
+              return;
+          }
       
           let latDMS = match[1].trim();
           let lonDMS = match[2].trim();
       
-          // Étape 2 : Supprimer toutes les virgules et espaces
+          // Étape 2 : Supprimer toutes les virgules et espaces superflues
           latDMS = latDMS.replace(/[, ]+/g, '');
           lonDMS = lonDMS.replace(/[, ]+/g, '');
       
@@ -207,29 +210,37 @@
           function parseDMS(dmsStr) {
               const dmsRegex = /^(\d{1,3})°(\d{1,2})'(\d{1,2}(?:\.\d+)?)?"?([NSEW])$/i;
               let dmsMatch = dmsStr.match(dmsRegex);
-              if (!dmsMatch) return null; // Format incorrect
+              if (!dmsMatch) return null;
       
               let degrees = parseFloat(dmsMatch[1]);
               let minutes = parseFloat(dmsMatch[2]) / 60;
               let seconds = parseFloat(dmsMatch[3]) / 3600;
               let direction = dmsMatch[4].toUpperCase();
       
-              // Étape 4 : Convertir minutes et secondes en valeurs décimales
+              // Étape 4 : Conversion en degrés décimaux
               let decimal = degrees + minutes + seconds;
       
-              // Étape 5 : Ajouter un signe négatif pour S ou W
+              // Étape 5 : Appliquer le signe négatif si S ou W
               if (direction === "S" || direction === "W") decimal *= -1;
       
-              return decimal.toFixed(6); // Retourner avec 6 décimales
+              return decimal.toFixed(6);
           }
       
           let latDecimal = parseDMS(latDMS);
           let lonDecimal = parseDMS(lonDMS);
       
-          if (latDecimal === null || lonDecimal === null) return "Format invalide.";
+          if (latDecimal === null || lonDecimal === null) {
+              alert("Erreur de conversion. Vérifiez le format DMS.");
+              return;
+          }
       
-          return `${latDecimal}, ${lonDecimal}`;
+          // **Mise à jour du champ input avec la nouvelle valeur**
+          document.getElementById("coordinates").value = `${latDecimal}, ${lonDecimal}`;
+      
+          // **Réactiver le bouton Convertir et mettre à jour le texte**
+          validateInput();
       }
+
 
 
 
@@ -816,38 +827,40 @@ function updatePlaceholder() {
     }
   }
 function validateInput() {
-  const inputField = document.getElementById("coordinates");
-  const convertButton = document.getElementById("convertButton");
-  const inputValue = inputField.value.trim();
+    const inputField = document.getElementById("coordinates");
+    const convertButton = document.getElementById("convertButton");
+    const inputValue = inputField.value.trim();
 
-  if (isDecimal(inputValue)) {
-    convertButton.textContent = "Convertir en DMS";
-    convertButton.classList.add("active");
-    convertButton.disabled = false;
-  } else if (isDMS(inputValue)) {
-    convertButton.textContent = "Convertir en décimal";
-    convertButton.classList.add("active");
-    convertButton.disabled = false;
-  } else {
-    convertButton.textContent = "Convertir";
-    convertButton.classList.remove("active");
-    convertButton.disabled = true;
-  }
+    if (isDecimal(inputValue)) {
+        convertButton.textContent = "Convertir en DMS";
+        convertButton.classList.add("active");
+        convertButton.disabled = false;
+    } else if (isDMS(inputValue)) {
+        convertButton.textContent = "Convertir en décimal";
+        convertButton.classList.add("active");
+        convertButton.disabled = false;
+    } else {
+        convertButton.textContent = "Convertir";
+        convertButton.classList.remove("active");
+        convertButton.disabled = true;
+    }
 }
+
 
 function convertCoordinates() {
-  const inputField = document.getElementById("coordinates");
-  let inputValue = inputField.value.trim();
-
-  if (isDecimal(inputValue)) {
-    inputField.value = convertDecimalToDMS(inputValue);
-  } else if (isDMS(inputValue)) {
-    inputField.value = convertDMSToDecimal(inputValue);
+      const inputField = document.getElementById("coordinates");
+      let inputValue = inputField.value.trim();
+  
+      if (isDecimal(inputValue)) {
+          inputField.value = convertDecimalToDMS(inputValue);
+      } else if (isDMS(inputValue)) {
+          inputField.value = convertDMSToDecimal(inputValue);
+      }
+  
+      // **Mise à jour immédiate du bouton après conversion**
+      validateInput();
   }
 
-  // Met à jour l'état du bouton après conversion
-  validateInput();
-}
 
 
 function convertDMSToDecimal(dms) {
