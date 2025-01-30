@@ -633,6 +633,82 @@
 
       return circlePlacemark;
     }
+function updatePlaceholder() {
+    const type = document.getElementById("coordType").value;
+    const inputField = document.getElementById("coordinates");
+  
+    switch (type) {
+      case "dms":
+        inputField.placeholder = "48°48'12.5\"N, 2°17'40.3\"E";
+        break;
+      case "pluscode":
+        inputField.placeholder = "8FW4VMC5+G6";
+        break;
+      case "address":
+        inputField.placeholder = "Tour Eiffel, Paris";
+        break;
+      default:
+        inputField.placeholder = "48.803322, 2.126005";
+    }
+  }
+
+function convertCoordinates() {
+  const type = document.getElementById("coordType").value;
+  const inputValue = document.getElementById("coordinates").value.trim();
+
+  if (!inputValue) {
+    alert("Veuillez entrer une valeur.");
+    return;
+  }
+
+  let result = "";
+
+  if (type === "decimal") {
+    result = inputValue;
+  } else if (type === "dms") {
+    result = convertDMSToDecimal(inputValue);
+  } else if (type === "pluscode") {
+    result = convertPlusCodeToDecimal(inputValue);
+  } else if (type === "address") {
+    result = convertAddressToDecimal(inputValue);
+  }
+
+  if (result) {
+    document.getElementById("coordinates").value = result;
+  } else {
+    alert("Format invalide ou conversion impossible.");
+  }
+}
+
+function convertDMSToDecimal(dms) {
+  const regex = /(\\d+)°\\s*(\\d+)'\\s*(\\d+(?:\\.\\d+)?)\"?\\s*([NSEW])/gi;
+  let result = [];
+  let match;
+
+  while ((match = regex.exec(dms)) !== null) {
+    let degrees = parseFloat(match[1]);
+    let minutes = parseFloat(match[2]) / 60;
+    let seconds = parseFloat(match[3]) / 3600;
+    let direction = match[4];
+    let decimal = degrees + minutes + seconds;
+    if (direction === "S" || direction === "W") decimal *= -1;
+    result.push(decimal);
+  }
+
+  return result.length === 2 ? result.join(", ") : "";
+}
+
+async function convertPlusCodeToDecimal(pluscode) {
+  // Nécessite un appel API pour la conversion réelle
+  alert("Conversion du PlusCode en coordonnées non implémentée.");
+  return "";
+}
+
+async function convertAddressToDecimal(address) {
+  // Nécessite un appel API pour la conversion réelle
+  alert("Conversion d'adresse en coordonnées non implémentée.");
+  return "";
+}
 
 function getKMLFilename(type) {
   const gridNameInput = document.getElementById("gridName").value.trim();
@@ -686,9 +762,18 @@ function getKMLFilename(type) {
     <button onclick="window.open('https://earth.google.com/web/', '_blank')">Ouvrir Google Earth</button>
   </div>
 
-  <label for="coordinates">Coordonnées (WGS84, format "google", par exemple : <i>48.803322, 2.126005</i>) :</label>
-  <input type="text" id="coordinates" placeholder="Entrer les Coordonnées" aria-label="Coordonnées" required>
+ <label for="coordinates">Coordonnées :</label>
+  <input type="text" id="coordinates" placeholder="48.803322, 2.126005" aria-label="Coordonnées" required>
+  <button onclick="convertCoordinates()">Convertir</button>
   
+  <label for="coordType">Format des coordonnées :</label>
+    <select id="coordType" onchange="updatePlaceholder()">
+      <option value="decimal">Degrés décimaux</option>
+      <option value="dms">Degrés / Minutes / Secondes (DMS)</option>
+      <option value="pluscode" disabled="disabled">+Code Google</option>
+      <option value="address" disabled="disabled">Adresse</option>
+    </select>
+
   <label for="length">Échelle (en mètres) :</label>
   <input type="number" id="length" placeholder="Spécifier l'échelle" aria-label="Échelle" required min="1">
   
