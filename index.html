@@ -156,19 +156,7 @@
       }
     }
 
-    function convertCoordinates() {
-        const inputField = document.getElementById("coordinates");
-        let inputValue = inputField.value.trim();
-      
-        if (isDecimal(inputValue)) {
-          inputField.value = convertDecimalToDMS(inputValue);
-        } else if (isDMS(inputValue)) {
-          inputField.value = convertDMSToDecimal(inputValue);
-        } else {
-          alert("Format de coordonnées invalide. Veuillez entrer des coordonnées valides.");
-        }
-      }
-      
+         
      function isDecimal(value) {
         return /^-?\d+(\.\d+)?,\s*-?\d+(\.\d+)?$/.test(value);
       }
