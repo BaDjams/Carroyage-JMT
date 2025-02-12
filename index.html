@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Générateur de carroyage CADO V6.0</title>
+  <title>Générateur de carroyage CADO V7a</title>
   <style>
     /* Style CSS */
     body {
@@ -126,6 +126,7 @@
       }
     }
   </style>
+  <script src="openlocationcode.js"></script>
   <!-- Inclure jszip.js localement pour un fonctionnement hors ligne -->
   <script src="jszip.js"></script>
     <!-- Inclure le fichier images.js AVANT votre script principal -->
@@ -861,6 +862,46 @@ function convertCoordinates() {
       validateInput();
   }
 
+function convertCoordinatesToPlusCode() {
+    const inputField = document.getElementById("gpsCoordinates");
+    let inputValue = inputField.value.trim();
+
+    if (!inputValue) {
+        alert("Veuillez entrer des coordonnées GPS.");
+        return;
+    }
+
+    const coords = inputValue.split(',').map(coord => parseFloat(coord.trim()));
+
+    if (coords.length !== 2 || isNaN(coords[0]) || isNaN(coords[1])) {
+        alert("Format invalide. Veuillez entrer des coordonnées sous la forme : latitude, longitude.");
+        return;
+    }
+
+    const plusCode = OpenLocationCode.encode(coords[0], coords[1]);
+    document.getElementById("plusCode").value = plusCode;
+}
+
+function convertPlusCodeToCoordinates() {
+    const inputField = document.getElementById("plusCode");
+    let plusCode = inputField.value.trim();
+
+    if (!plusCode) {
+        alert("Veuillez entrer un Plus Code.");
+        return;
+    }
+
+    if (!OpenLocationCode.isValid(plusCode)) {
+        alert("Plus Code invalide.");
+        return;
+    }
+
+    const decoded = OpenLocationCode.decode(plusCode);
+    const lat = decoded.latitudeCenter.toFixed(6);
+    const lon = decoded.longitudeCenter.toFixed(6);
+
+    document.getElementById("gpsCoordinates").value = `${lat}, ${lon}`;
+}
 
 
 function convertDMSToDecimal(dms) {
@@ -950,6 +991,20 @@ function getKMLFilename(type) {
     <input type="text" id="coordinates" placeholder="Degrés décimaux ou DMS" oninput="validateInput()" aria-label="Coordonnées" required>
     <button id="convertButton" onclick="convertCoordinates()" disabled>Convertir</button>
   </div>
+
+  <!-- Conversion entre coordonnées GPS et Plus Code -->
+  <label for="plusCode">Plus Code :</label>
+  <div class="coord-container">
+      <input type="text" id="plusCode" placeholder="8FW4VMC5+G6" aria-label="Plus Code">
+      <button onclick="convertPlusCodeToCoordinates()">Convertir en coordonnées</button>
+  </div>
+  
+  <label for="gpsCoordinates">Coordonnées GPS :</label>
+  <div class="coord-container">
+      <input type="text" id="gpsCoordinates" placeholder="Latitude, Longitude" aria-label="Coordonnées GPS">
+      <button onclick="convertCoordinatesToPlusCode()">Convertir en Plus Code</button>
+  </div>
+
 
   <label for="length">Échelle (en mètres) :</label>
   <input type="number" id="length" placeholder="Spécifier l'échelle" aria-label="Échelle" required min="1">
