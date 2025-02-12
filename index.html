@@ -747,8 +747,8 @@ function convertFromDMS() {
         return;
     }
 
-    const latDec = geoPoint.getLatDec().toFixed(6);
-    const lonDec = geoPoint.getLonDec().toFixed(6);
+    const latDec = geoPoint.getLatDec().toFixed(8);
+    const lonDec = geoPoint.getLonDec().toFixed(8);
     document.getElementById("gpsDecimal").value = `${latDec}, ${lonDec}`;
 
     // Conversion en Plus Code
@@ -772,15 +772,17 @@ function convertFromPlusCode() {
     }
 
     const decoded = OpenLocationCode.decode(plusCode);
-    const lat = decoded.latitudeCenter.toFixed(6);
-    const lon = decoded.longitudeCenter.toFixed(6);
+    const lat = decoded.latitudeCenter.toFixed(8);
+    const lon = decoded.longitudeCenter.toFixed(8);
 
-    // Remplir les champs correspondants
+    // Mise à jour du champ GPS décimal
     document.getElementById("gpsDecimal").value = `${lat}, ${lon}`;
 
-    let geoPoint = new GeoPoint(lat, lon);
+    // Correction : GeoPoint attend (lon, lat)
+    let geoPoint = new GeoPoint(lon, lat);
     document.getElementById("gpsDMS").value = `${geoPoint.getLatDeg()} N, ${geoPoint.getLonDeg()} E`;
 }
+
 
 
 
