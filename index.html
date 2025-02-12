@@ -182,9 +182,6 @@
         const inputField = document.getElementById("gpsDecimal");
         
         // Convertir en degrés décimaux avant génération
-        if (isDMS(inputField.value)) {
-          inputField.value = convertDMSToDecimal(inputField.value);
-        }
       
         const kmlContent = createKMLContent(type, false);
         if (!kmlContent) return;
