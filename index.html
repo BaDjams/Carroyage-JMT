@@ -126,7 +126,9 @@
       }
     }
   </style>
+  <script src="geopoint.js"></script>
   <script src="openlocationcode.js"></script>
+
   <!-- Inclure jszip.js localement pour un fonctionnement hors ligne -->
   <script src="jszip.js"></script>
     <!-- Inclure le fichier images.js AVANT votre script principal -->
@@ -157,113 +159,7 @@
       }
     }
 
-    function convertCoordinates() {
-        const inputField = document.getElementById("coordinates");
-        let inputValue = inputField.value.trim();
-      
-        if (isDecimal(inputValue)) {
-          inputField.value = convertDecimalToDMS(inputValue);
-        } else if (isDMS(inputValue)) {
-          inputField.value = convertDMSToDecimal(inputValue);
-        } else {
-          alert("Format de coordonnées invalide. Veuillez entrer des coordonnées valides.");
-        }
-      }
-      
-     function isDecimal(value) {
-        return /^-?\d+(\.\d+)?,\s*-?\d+(\.\d+)?$/.test(value);
-      }
-
-      
-      function isDMS(value) {
-        return /^(\d{1,3})°\s*(\d{1,2})'\s*(\d{1,2}(?:\.\d+)?)(?:''|\"?)?\s*([NSEW]),?\s*(\d{1,3})°\s*(\d{1,2})'\s*(\d{1,2}(?:\.\d+)?)(?:''|\"?)?\s*([NSEW])$/i.test(value);
-      }
-
-
-      
-      function convertDecimalToDMS(decimal) {
-        let coords = decimal.split(',').map(coord => parseFloat(coord.trim()));
-        if (coords.length !== 2 || isNaN(coords[0]) || isNaN(coords[1])) return "Format invalide.";
-      
-        return `${toDMS(coords[0], 'NS')}, ${toDMS(coords[1], 'EW')}`;
-      }
-
-
-      
-     function convertDMSToDecimal(dms) {
-          // Étape 1 : Séparer les coordonnées en latitude et longitude
-          const regex = /^([\d°'"\sNSEW.,-]+)[, ]+([\d°'"\sNSEW.,-]+)$/i;
-          let match = dms.match(regex);
-          
-          if (!match) {
-              alert("Format invalide. Veuillez entrer des coordonnées en DMS correctes.");
-              return;
-          }
-      
-          let latDMS = match[1].trim();
-          let lonDMS = match[2].trim();
-      
-          // Étape 2 : Supprimer toutes les virgules et espaces superflues
-          latDMS = latDMS.replace(/[, ]+/g, '');
-          lonDMS = lonDMS.replace(/[, ]+/g, '');
-      
-          // Étape 3 : Séparer chaque bloc en degrés, minutes, secondes
-          function parseDMS(dmsStr) {
-              const dmsRegex = /^(\d{1,3})°(\d{1,2})'(\d{1,2}(?:\.\d+)?)?"?([NSEW])$/i;
-              let dmsMatch = dmsStr.match(dmsRegex);
-              if (!dmsMatch) return null;
-      
-              let degrees = parseFloat(dmsMatch[1]);
-              let minutes = parseFloat(dmsMatch[2]) / 60;
-              let seconds = parseFloat(dmsMatch[3]) / 3600;
-              let direction = dmsMatch[4].toUpperCase();
-      
-              // Étape 4 : Conversion en degrés décimaux
-              let decimal = degrees + minutes + seconds;
-      
-              // Étape 5 : Appliquer le signe négatif si S ou W
-              if (direction === "S" || direction === "W") decimal *= -1;
-      
-              return decimal.toFixed(6);
-          }
-      
-          let latDecimal = parseDMS(latDMS);
-          let lonDecimal = parseDMS(lonDMS);
-      
-          if (latDecimal === null || lonDecimal === null) {
-              alert("Erreur de conversion. Vérifiez le format DMS.");
-              return;
-          }
-      
-          // **Mise à jour du champ input avec la nouvelle valeur**
-          document.getElementById("coordinates").value = `${latDecimal}, ${lonDecimal}`;
-      
-          // **Réactiver le bouton Convertir et mettre à jour le texte**
-          validateInput();
-      }
-
-
-
-
-
-      
-      function toDMS(deg, type) {
-          const absolute = Math.abs(deg);
-          const degrees = Math.floor(absolute);
-          const minutesNotTruncated = (absolute - degrees) * 60;
-          const minutes = Math.floor(minutesNotTruncated);
-          const seconds = ((minutesNotTruncated - minutes) * 60).toFixed(2);
-          
-          // Formater les valeurs en assurant 2 chiffres minimum pour minutes/secondes
-          const formattedMinutes = minutes.toString().padStart(2, '0');
-          const formattedSeconds = seconds.toString().padStart(5, '0');
-        
-          const direction = deg >= 0 ? (type === "NS" ? "N" : "E") : (type === "NS" ? "S" : "W");
-        
-          return `${degrees}° ${formattedMinutes}' ${formattedSeconds}" ${direction}`;
-        }
-
-      function getRequiredImages(points) {
+     function getRequiredImages(points) {
         const requiredImages = {};
       
         // Parcourir les noms des points nécessaires
@@ -283,7 +179,7 @@
     }
 
     function generateKML(type) {
-        const inputField = document.getElementById("coordinates");
+        const inputField = document.getElementById("gpsDecimal");
         
         // Convertir en degrés décimaux avant génération
         if (isDMS(inputField.value)) {
@@ -313,7 +209,7 @@
 
 
     async function generateKMZ(type) {
-        const inputField = document.getElementById("coordinates");
+        const inputField = document.getElementById("gpsDecimal");
       
         // Convertir en degrés décimaux avant génération
         if (isDMS(inputField.value)) {
@@ -347,7 +243,7 @@
     }
 
     function createKMLContent(type, isKMZ) {
-      const coordinatesInput = document.getElementById("coordinates").value;
+      const coordinatesInput = document.getElementById("gpsDecimal").value;
       const lengthInput = document.getElementById("length").value;
       const colorInput = document.getElementById("color").value;
       const transparencyInput = document.getElementById("transparency").value;
@@ -809,26 +705,9 @@
 
       return circlePlacemark;
     }
-function updatePlaceholder() {
-    const type = document.getElementById("coordType").value;
-    const inputField = document.getElementById("coordinates");
-  
-    switch (type) {
-      case "dms":
-        inputField.placeholder = "48°48'12.5\"N, 2°17'40.3\"E";
-        break;
-      case "pluscode":
-        inputField.placeholder = "8FW4VMC5+G6";
-        break;
-      case "address":
-        inputField.placeholder = "Tour Eiffel, Paris";
-        break;
-      default:
-        inputField.placeholder = "48.803322, 2.126005";
-    }
-  }
+
 function validateInput() {
-    const inputField = document.getElementById("coordinates");
+    const inputField = document.getElementById("gpsDecimal");
     const convertButton = document.getElementById("convertButton");
     const inputValue = inputField.value.trim();
 
@@ -848,26 +727,12 @@ function validateInput() {
 }
 
 
-function convertCoordinates() {
-      const inputField = document.getElementById("coordinates");
-      let inputValue = inputField.value.trim();
-  
-      if (isDecimal(inputValue)) {
-          inputField.value = convertDecimalToDMS(inputValue);
-      } else if (isDMS(inputValue)) {
-          inputField.value = convertDMSToDecimal(inputValue);
-      }
-  
-      // **Mise à jour immédiate du bouton après conversion**
-      validateInput();
-  }
-
-function convertCoordinatesToPlusCode() {
-    const inputField = document.getElementById("gpsCoordinates");
+function convertFromDecimal() {
+    const inputField = document.getElementById("gpsDecimal");
     let inputValue = inputField.value.trim();
 
     if (!inputValue) {
-        alert("Veuillez entrer des coordonnées GPS.");
+        alert("Veuillez entrer des coordonnées GPS en décimal.");
         return;
     }
 
@@ -878,11 +743,41 @@ function convertCoordinatesToPlusCode() {
         return;
     }
 
+    // Conversion en DMS
+    let geoPoint = new GeoPoint(coords[1], coords[0]);
+    document.getElementById("gpsDMS").value = `${geoPoint.getLatDeg()} N, ${geoPoint.getLonDeg()} E`;
+
+    // Conversion en Plus Code
     const plusCode = OpenLocationCode.encode(coords[0], coords[1]);
     document.getElementById("plusCode").value = plusCode;
 }
 
-function convertPlusCodeToCoordinates() {
+function convertFromDMS() {
+    const inputField = document.getElementById("gpsDMS");
+    let inputValue = inputField.value.trim();
+
+    if (!inputValue) {
+        alert("Veuillez entrer des coordonnées GPS en DMS.");
+        return;
+    }
+
+    // Convertir en décimal
+    let geoPoint = new GeoPoint(inputValue.split(',')[1].trim(), inputValue.split(',')[0].trim());
+    if (isNaN(geoPoint.getLatDec()) || isNaN(geoPoint.getLonDec())) {
+        alert("Format invalide. Veuillez entrer des coordonnées en DMS correctes.");
+        return;
+    }
+
+    const latDec = geoPoint.getLatDec().toFixed(6);
+    const lonDec = geoPoint.getLonDec().toFixed(6);
+    document.getElementById("gpsDecimal").value = `${latDec}, ${lonDec}`;
+
+    // Conversion en Plus Code
+    const plusCode = OpenLocationCode.encode(latDec, lonDec);
+    document.getElementById("plusCode").value = plusCode;
+}
+
+function convertFromPlusCode() {
     const inputField = document.getElementById("plusCode");
     let plusCode = inputField.value.trim();
 
@@ -900,45 +795,21 @@ function convertPlusCodeToCoordinates() {
     const lat = decoded.latitudeCenter.toFixed(6);
     const lon = decoded.longitudeCenter.toFixed(6);
 
-    document.getElementById("gpsCoordinates").value = `${lat}, ${lon}`;
+    // Remplir les champs correspondants
+    document.getElementById("gpsDecimal").value = `${lat}, ${lon}`;
+
+    let geoPoint = new GeoPoint(lon, lat);
+    document.getElementById("gpsDMS").value = `${geoPoint.getLatDeg()} N, ${geoPoint.getLonDeg()} E`;
 }
 
 
-function convertDMSToDecimal(dms) {
-  const regex = /(\\d+)°\\s*(\\d+)'\\s*(\\d+(?:\\.\\d+)?)\"?\\s*([NSEW])/gi;
-  let result = [];
-  let match;
 
-  while ((match = regex.exec(dms)) !== null) {
-    let degrees = parseFloat(match[1]);
-    let minutes = parseFloat(match[2]) / 60;
-    let seconds = parseFloat(match[3]) / 3600;
-    let direction = match[4];
-    let decimal = degrees + minutes + seconds;
-    if (direction === "S" || direction === "W") decimal *= -1;
-    result.push(decimal);
-  }
-
-  return result.length === 2 ? result.join(", ") : "";
-}
-
-async function convertPlusCodeToDecimal(pluscode) {
-  // Nécessite un appel API pour la conversion réelle
-  alert("Conversion du PlusCode en coordonnées non implémentée.");
-  return "";
-}
-
-async function convertAddressToDecimal(address) {
-  // Nécessite un appel API pour la conversion réelle
-  alert("Conversion d'adresse en coordonnées non implémentée.");
-  return "";
-}
 
 function getKMLFilename(type) {
   const gridNameInput = document.getElementById("gridName").value.trim();
   const filename = gridNameInput || 'Carroyage';
 
-  const coordinatesInput = document.getElementById("coordinates").value;
+  const coordinatesInput = document.getElementById("gpsDecimal").value;
   const [latitude, longitude] = coordinatesInput.split(',').map(coord => parseFloat(coord.trim()).toFixed(6)); // Arrondi à 6 chiffres
 
   const length = document.getElementById("length").value;
@@ -986,24 +857,25 @@ function getKMLFilename(type) {
     <button onclick="window.open('https://earth.google.com/web/', '_blank')">Ouvrir Google Earth</button>
   </div>
 
- <label for="coordinates">Coordonnées :</label>
-  <div class="coord-container">
-    <input type="text" id="coordinates" placeholder="Degrés décimaux ou DMS" oninput="validateInput()" aria-label="Coordonnées" required>
-    <button id="convertButton" onclick="convertCoordinates()" disabled>Convertir</button>
-  </div>
+ <!-- Conversion entre différents formats de coordonnées -->
+<label for="gpsDecimal">Coordonnées GPS (décimal) :</label>
+<div class="coord-container">
+    <input type="text" id="gpsDecimal" placeholder="48.858844, 2.294351" aria-label="Coordonnées GPS en décimal">
+    <button onclick="convertFromDecimal()">Convertir</button>
+</div>
 
-  <!-- Conversion entre coordonnées GPS et Plus Code -->
-  <label for="plusCode">Plus Code :</label>
-  <div class="coord-container">
-      <input type="text" id="plusCode" placeholder="8FW4VMC5+G6" aria-label="Plus Code">
-      <button onclick="convertPlusCodeToCoordinates()">Convertir en coordonnées</button>
-  </div>
-  
-  <label for="gpsCoordinates">Coordonnées GPS :</label>
-  <div class="coord-container">
-      <input type="text" id="gpsCoordinates" placeholder="Latitude, Longitude" aria-label="Coordonnées GPS">
-      <button onclick="convertCoordinatesToPlusCode()">Convertir en Plus Code</button>
-  </div>
+<label for="gpsDMS">Coordonnées GPS (DMS) :</label>
+<div class="coord-container">
+    <input type="text" id="gpsDMS" placeholder="48°51'31.8\"N, 2°17'40.3\"E" aria-label="Coordonnées GPS en DMS">
+    <button onclick="convertFromDMS()">Convertir</button>
+</div>
+
+<label for="plusCode">Plus Code :</label>
+<div class="coord-container">
+    <input type="text" id="plusCode" placeholder="8FW4VMC5+G6" aria-label="Plus Code">
+    <button onclick="convertFromPlusCode()">Convertir</button>
+</div>
+
 
 
   <label for="length">Échelle (en mètres) :</label>
