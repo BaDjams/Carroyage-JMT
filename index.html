@@ -733,6 +733,13 @@ function convertFromDMS() {
         return;
     }
 
+    // Vérification du format (exactement une virgule)
+    const commaCount = (inputValue.match(/,/g) || []).length;
+    if (commaCount !== 1) {
+        alert("Format invalide. Veuillez entrer les coordonnées sous la forme : 48°48'30.7\"N, 2°05'41.2\"E");
+        return;
+    }
+
     // Convertir en décimal
     let geoPoint = new GeoPoint(inputValue.split(',')[1].trim(), inputValue.split(',')[0].trim());
     if (isNaN(geoPoint.getLatDec()) || isNaN(geoPoint.getLonDec())) {
@@ -748,6 +755,7 @@ function convertFromDMS() {
     const plusCode = OpenLocationCode.encode(latDec, lonDec);
     document.getElementById("plusCode").value = plusCode;
 }
+
 
 function convertFromPlusCode() {
     const inputField = document.getElementById("plusCode");
@@ -770,7 +778,7 @@ function convertFromPlusCode() {
     // Remplir les champs correspondants
     document.getElementById("gpsDecimal").value = `${lat}, ${lon}`;
 
-    let geoPoint = new GeoPoint(lon, lat);
+    let geoPoint = new GeoPoint(lat, lon);
     document.getElementById("gpsDMS").value = `${geoPoint.getLatDeg()} N, ${geoPoint.getLonDeg()} E`;
 }
 
@@ -782,32 +790,40 @@ function getKMLFilename(type) {
   const filename = gridNameInput || 'Carroyage';
 
   const coordinatesInput = document.getElementById("gpsDecimal").value;
-  const [latitude, longitude] = coordinatesInput.split(',').map(coord => parseFloat(coord.trim()).toFixed(6)); // Arrondi à 6 chiffres
+  const [latitude, longitude] = coordinatesInput.split(',').map(coord => parseFloat(coord.trim()));
 
   const length = document.getElementById("length").value;
-  const scale = `${length}m`;
   const refPoint = document.getElementById("referencePoint").value;
+  const rowRange = getGridRowRange();
+  const colRange = getGridColRange();
+
+  // Calcul des coordonnées de A1
+  const { startingLat, startingLon } = calculateStartingPoint(latitude, longitude, parseFloat(length), "origin", rowRange.rowStart, rowRange.rowEnd, colRange.colStart, colRange.colEnd);
+
+  const latOrigin = startingLat.toFixed(8);
+  const lonOrigin = startingLon.toFixed(8);
+
+  const scale = `${length}m`;
   const deviation = document.getElementById("deviation").value;
   const angle = `${deviation}°`;
   const gridOption = document.getElementById("gridOption").value;
-  const rowRange = getGridRowRange();
-  const colRange = getGridColRange();
   const gridType = gridOption === "default" 
-                       ? document.getElementById("gridType").value 
-                       : `Custom_${rowRange.rowStart}_${rowRange.rowEnd}_${getColumnLabel(colRange.colStart)}_${getColumnLabel(colRange.colEnd)}`;
+                   ? document.getElementById("gridType").value 
+                   : `Custom_${rowRange.rowStart}_${rowRange.rowEnd}_${getColumnLabel(colRange.colStart)}_${getColumnLabel(colRange.colEnd)}`;
 
-  const coordsString = `${latitude}_${longitude}`; // Ajoutez les coordonnées arrondies dans le nom
+  const coordsString = `origine(A1)=${latOrigin}_${lonOrigin}`;
 
   if (type === 'grid') {
-    return `${filename}_${coordsString}_KML-Grille_${scale}_${refPoint}_${angle}_${gridType}.kml`;
+    return `${filename}_${coordsString}_KML-Grille_${scale}_${angle}_${gridType}.kml`;
   } else if (type === 'points') {
-    return `${filename}_${coordsString}_KML-Points_${scale}_${refPoint}_${angle}_${gridType}.kml`;
+    return `${filename}_${coordsString}_KML-Points_${scale}_${angle}_${gridType}.kml`;
   } else if (type === 'pointsKMZ') {
-    return `${filename}_${coordsString}_KMZ-Points_${scale}_${refPoint}_${angle}_${gridType}.kmz`;
+    return `${filename}_${coordsString}_KMZ-Points_${scale}_${angle}_${gridType}.kmz`;
   } else {
-    return `${filename}_${coordsString}_KMZ_${scale}_${refPoint}_${angle}_${gridType}.kmz`;
+    return `${filename}_${coordsString}_KMZ_${scale}_${angle}_${gridType}.kmz`;
   }
 }
+
 
 
     function downloadFile(content, filename, mimeType) {
