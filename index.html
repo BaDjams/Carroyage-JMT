@@ -211,10 +211,6 @@
     async function generateKMZ(type) {
         const inputField = document.getElementById("gpsDecimal");
       
-        // Convertir en degrés décimaux avant génération
-        if (isDMS(inputField.value)) {
-          inputField.value = convertDMSToDecimal(inputField.value);
-        }
       const kmlDocContent = createKMLContent(type, true);
       if (!kmlDocContent) return;
 
@@ -705,27 +701,6 @@
 
       return circlePlacemark;
     }
-
-function validateInput() {
-    const inputField = document.getElementById("gpsDecimal");
-    const convertButton = document.getElementById("convertButton");
-    const inputValue = inputField.value.trim();
-
-    if (isDecimal(inputValue)) {
-        convertButton.textContent = "Convertir en DMS";
-        convertButton.classList.add("active");
-        convertButton.disabled = false;
-    } else if (isDMS(inputValue)) {
-        convertButton.textContent = "Convertir en décimal";
-        convertButton.classList.add("active");
-        convertButton.disabled = false;
-    } else {
-        convertButton.textContent = "Convertir";
-        convertButton.classList.remove("active");
-        convertButton.disabled = true;
-    }
-}
-
 
 function convertFromDecimal() {
     const inputField = document.getElementById("gpsDecimal");
