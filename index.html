@@ -838,7 +838,6 @@ function generateGeoJSON(type) {
 function createGeoJSONContent(type) {
     const coordinatesInput = document.getElementById("gpsDecimal").value;
     const lengthInput = document.getElementById("length").value;
-    const colorInput = document.getElementById("color").value;
     const deviationInput = document.getElementById("deviation").value;
 
     if (!validateInputs(coordinatesInput, lengthInput)) return null;
@@ -852,93 +851,72 @@ function createGeoJSONContent(type) {
 
     if (!rowRange || !colRange) return null; // Validation échouée
 
-    let { rowStart, rowEnd } = rowRange;
-    let { colStart, colEnd } = colRange;
+    const { rowStart, rowEnd } = rowRange;
+    const { colStart, colEnd } = colRange;
 
-    const { startingLat, startingLon, rowIndices, colIndices } = calculateStartingPoint(latitude, longitude, length, referencePoint, rowStart, rowEnd, colStart, colEnd);
+    const { startingLat, startingLon, rowIndices, colIndices } = calculateStartingPoint(
+        latitude, longitude, length, referencePoint, rowStart, rowEnd, colStart, colEnd
+    );
 
     let features = [];
 
-    for (let rowIndex of rowIndices) {
-        if (rowIndex === 0) continue;
-        for (let colIndex of colIndices) {
-            if (colIndex === 0) continue;
+    // 🟢 **Génération des LIGNES du quadrillage**
+    if (type === 'grid' || type === 'both') {
+        for (let rowIndex = rowStart; rowIndex <= rowEnd; rowIndex++) {
+            const rowLat = startingLat - (rowIndex * length / METERS_PER_DEGREE_LAT);
+            const leftLon = startingLon;
+            const rightLon = startingLon + ((colEnd - colStart) * length) / (METERS_PER_DEGREE_LAT * Math.cos(rowLat * (Math.PI / 180)));
 
-            const colLabel = getColumnLabel(colIndex);
-            const rowLabel = getRowLabel(rowIndex);
+            const rotatedStart = rotateCoordinates(rowLat, leftLon, latitude, longitude, deviationInput);
+            const rotatedEnd = rotateCoordinates(rowLat, rightLon, latitude, longitude, deviationInput);
 
-            const coords = getGridCellCoordinates(rowIndex, colIndex, startingLat, startingLon, length, rowIndices, colIndices, referencePoint);
-            const gridCoords = rotateCoordinates(coords.lat, coords.lon, latitude, longitude, deviationInput);
+            features.push({
+                "type": "Feature",
+                "geometry": {
+                    "type": "LineString",
+                    "coordinates": [[rotatedStart.lon, rotatedStart.lat], [rotatedEnd.lon, rotatedEnd.lat]]
+                },
+                "properties": { "name": `Ligne Horizontale ${rowIndex}` }
+            });
+        }
 
-            // Définition des sommets du polygone
-            const topLeft = [gridCoords.lon, gridCoords.lat];
-            const topRight = [gridCoords.lon + length / (METERS_PER_DEGREE_LAT * Math.cos(gridCoords.lat * (Math.PI / 180))), gridCoords.lat];
-            const bottomRight = [gridCoords.lon + length / (METERS_PER_DEGREE_LAT * Math.cos(gridCoords.lat * (Math.PI / 180))), gridCoords.lat - length / METERS_PER_DEGREE_LAT];
-            const bottomLeft = [gridCoords.lon, gridCoords.lat - length / METERS_PER_DEGREE_LAT];
+        for (let colIndex = colStart; colIndex <= colEnd; colIndex++) {
+            const colLon = startingLon + (colIndex * length) / (METERS_PER_DEGREE_LAT * Math.cos(startingLat * (Math.PI / 180)));
+            const topLat = startingLat;
+            const bottomLat = startingLat - ((rowEnd - rowStart) * length / METERS_PER_DEGREE_LAT);
 
-            if (type === 'grid' || type === 'both') {
-                for (let rowIndex of rowIndices) {
-                    for (let colIndex of colIndices) {
-                        const coords = getGridCellCoordinates(rowIndex, colIndex, startingLat, startingLon, length, rowIndices, colIndices, referencePoint);
-                        const gridCoords = rotateCoordinates(coords.lat, coords.lon, latitude, longitude, deviationInput);
-            
-                        const lonOffset = length / (METERS_PER_DEGREE_LAT * Math.cos(gridCoords.lat * (Math.PI / 180)));
-                        const latOffset = length / METERS_PER_DEGREE_LAT;
-            
-                        // Lignes verticales (croisements)
-                        if (colIndex < colIndices[colIndices.length - 1]) {
-                            features.push({
-                                "type": "Feature",
-                                "geometry": {
-                                    "type": "LineString",
-                                    "coordinates": [
-                                        [gridCoords.lon, gridCoords.lat],
-                                        [gridCoords.lon, gridCoords.lat - latOffset]
-                                    ]
-                                },
-                                "properties": {
-                                    "name": `Col ${colIndex}`
-                                }
-                            });
-                        }
-            
-                        // Lignes horizontales (croisements)
-                        if (rowIndex < rowIndices[rowIndices.length - 1]) {
-                            features.push({
-                                "type": "Feature",
-                                "geometry": {
-                                    "type": "LineString",
-                                    "coordinates": [
-                                        [gridCoords.lon, gridCoords.lat],
-                                        [gridCoords.lon + lonOffset, gridCoords.lat]
-                                    ]
-                                },
-                                "properties": {
-                                    "name": `Row ${rowIndex}`
-                                }
-                            });
-                        }
-                    }
-                }
-            }
+            const rotatedStart = rotateCoordinates(topLat, colLon, latitude, longitude, deviationInput);
+            const rotatedEnd = rotateCoordinates(bottomLat, colLon, latitude, longitude, deviationInput);
 
+            features.push({
+                "type": "Feature",
+                "geometry": {
+                    "type": "LineString",
+                    "coordinates": [[rotatedStart.lon, rotatedStart.lat], [rotatedEnd.lon, rotatedEnd.lat]]
+                },
+                "properties": { "name": `Ligne Verticale ${colIndex}` }
+            });
+        }
+    }
 
+    // 🔵 **Génération des POINTS au centre des cases**
+    if (type === 'points' || type === 'both') {
+        for (let rowIndex = rowStart; rowIndex < rowEnd; rowIndex++) {
+            for (let colIndex = colStart; colIndex < colEnd; colIndex++) {
+                const centerLat = startingLat - ((rowIndex + 0.5) * length / METERS_PER_DEGREE_LAT);
+                const centerLon = startingLon + ((colIndex + 0.5) * length) / (METERS_PER_DEGREE_LAT * Math.cos(startingLat * (Math.PI / 180)));
 
-            if (type === 'points' || type === 'both') {
-                const centerLat = coords.lat - (length / (2 * METERS_PER_DEGREE_LAT));
-                const centerLon = coords.lon + (length / (2 * (METERS_PER_DEGREE_LAT * Math.cos(coords.lat * (Math.PI / 180)))));
-                const pointCoords = rotateCoordinates(centerLat, centerLon, latitude, longitude, deviationInput);
+                const rotatedCenter = rotateCoordinates(centerLat, centerLon, latitude, longitude, deviationInput);
+                const colLabel = getColumnLabel(colIndex);
+                const rowLabel = getRowLabel(rowIndex);
 
                 features.push({
                     "type": "Feature",
                     "geometry": {
                         "type": "Point",
-                        "coordinates": [pointCoords.lon, pointCoords.lat]
+                        "coordinates": [rotatedCenter.lon, rotatedCenter.lat]
                     },
-                    "properties": {
-                        "name": `${colLabel}${rowLabel}`,
-                        "title": `${colLabel}${rowLabel}`
-                    }
+                    "properties": { "name": `${colLabel}${rowLabel}` }
                 });
             }
         }
@@ -949,6 +927,7 @@ function createGeoJSONContent(type) {
         "features": features
     };
 }
+
 
 
 function getGeoJSONFilename(type) {
