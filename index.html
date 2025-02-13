@@ -388,6 +388,7 @@
       }
 
       return { startingLat, startingLon, rowIndices, colIndices };
+      console.log("Résultat de calculateStartingPoint:", calculateStartingPoint(latitude, longitude, length, "origin", rowRange.rowStart, rowRange.rowEnd, colRange.colStart, colRange.colEnd));
     }
 
     function generateIndices(start, end) {
@@ -893,33 +894,38 @@ function getGeoJSONFilename(type) {
     const filename = gridNameInput || 'Carroyage';
 
     const coordinatesInput = document.getElementById("gpsDecimal").value;
-    const [latitude, longitude] = coordinatesInput.split(',').map(coord => parseFloat(coord.trim()).toFixed(8));
+    const [latitude, longitude] = coordinatesInput.split(',').map(coord => parseFloat(coord.trim()));
 
-    const length = document.getElementById("length").value;
-    const refPoint = document.getElementById("referencePoint").value;
-    const deviation = document.getElementById("deviation").value;
-    const gridOption = document.getElementById("gridOption").value;
+    const length = parseFloat(document.getElementById("length").value);
     const rowRange = getGridRowRange();
     const colRange = getGridColRange();
 
-    const { startingLat, startingLon } = calculateStartingPoint(latitude, longitude, parseFloat(length), "origin", rowRange.rowStart, rowRange.rowEnd, colRange.colStart, colRange.colEnd);
+    // Vérification des valeurs de ligne/colonne
+    if (!rowRange || !colRange) {
+        alert("Erreur : Impossible de récupérer les coordonnées de la case A1.");
+        return "Erreur.geojson";
+    }
+
+    const { startingLat, startingLon } = calculateStartingPoint(latitude, longitude, length, "origin", rowRange.rowStart, rowRange.rowEnd, colRange.colStart, colRange.colEnd);
+
+    // Vérification que les valeurs sont bien des nombres
+    if (isNaN(startingLat) || isNaN(startingLon)) {
+        alert("Erreur : Les coordonnées de la case A1 ne sont pas valides.");
+        return "Erreur.geojson";
+    }
+
     const latOrigin = startingLat.toFixed(8);
     const lonOrigin = startingLon.toFixed(8);
 
+    const deviation = document.getElementById("deviation").value;
+    const gridOption = document.getElementById("gridOption").value;
     const gridType = gridOption === "default" 
                      ? document.getElementById("gridType").value 
                      : `Custom_${rowRange.rowStart}_${rowRange.rowEnd}_${getColumnLabel(colRange.colStart)}_${getColumnLabel(colRange.colEnd)}`;
 
-    const coordsString = `${latOrigin}_${lonOrigin}`;
-
-    if (type === 'grid') {
-        return `${filename}_${coordsString}_GeoJSON-Grille_${length}m_${refPoint}_${deviation}°.geojson`;
-    } else if (type === 'points') {
-        return `${filename}_${coordsString}_GeoJSON-Points_${length}m_${refPoint}_${deviation}°.geojson`;
-    } else {
-        return `${filename}_${coordsString}_GeoJSON-Grille_Points_${length}m_${refPoint}_${deviation}°.geojson`;
-    }
+    return `${filename}_${latOrigin}_${lonOrigin}_GeoJSON_${length}m_${deviation}°.geojson`;
 }
+
 
 function getKMLFilename(type) {
   const gridNameInput = document.getElementById("gridName").value.trim();
