@@ -209,7 +209,7 @@
         const kmlContent = createKMLContent(type, false);
         if (!kmlContent) return;
       
-        const filename = getKMLFilename(type);
+        const filename = getKMLFilename(type, "kml");
         downloadFile(kmlContent, filename, 'text/plain');
       }
 
@@ -254,7 +254,7 @@
 
 
       const content = await zip.generateAsync({ type: "blob" });
-      const filename = getKMLFilename(type).replace('.kml', '.kmz');
+      const filename = getKMLFilename(type, "kmz");
       downloadFile(content, filename, 'application/vnd.google-earth.kmz');
     }
 
@@ -308,11 +308,11 @@
           const centerLon = coords.lon + (length / (2 * (METERS_PER_DEGREE_LAT * Math.cos(coords.lat * (Math.PI / 180)))));
           const pointCoords = rotateCoordinates(centerLat, centerLon, latitude, longitude, deviationInput);
 
-          if ((type === 'grid' || type === 'doc') && type !== 'pointsKMZ') {
+          if ((type === 'grid' || type === 'both') && type !== 'points') {
             kmlContent += getGridPlacemark(colLabel, rowLabel, gridCoords.lon, gridCoords.lat, length, kmlColor, deviationInput, referencePoint);
           }
 
-          if ((type === 'points' || type === 'doc' || type === 'pointsKMZ')) {
+          if ((type === 'points' || type === 'both')) {
             if (isKMZ) {
               const iconHref = getIconHref(colLabel, rowLabel);
               kmlContent += getKMZPointPlacemark(colLabel, rowLabel, pointCoords.lon, pointCoords.lat, iconHref, true, iconSize, transparencyHex);
@@ -876,55 +876,52 @@ function createGeoJSONContent(type) {
             const bottomRight = [gridCoords.lon + length / (METERS_PER_DEGREE_LAT * Math.cos(gridCoords.lat * (Math.PI / 180))), gridCoords.lat - length / METERS_PER_DEGREE_LAT];
             const bottomLeft = [gridCoords.lon, gridCoords.lat - length / METERS_PER_DEGREE_LAT];
 
-           if (type === 'grid' || type === 'both') {
-              // Coordonnées des coins de la case
-              const topLeft = [gridCoords.lon, gridCoords.lat];
-              const topRight = [gridCoords.lon + length / (METERS_PER_DEGREE_LAT * Math.cos(gridCoords.lat * (Math.PI / 180))), gridCoords.lat];
-              const bottomRight = [gridCoords.lon + length / (METERS_PER_DEGREE_LAT * Math.cos(gridCoords.lat * (Math.PI / 180))), gridCoords.lat - length / METERS_PER_DEGREE_LAT];
-              const bottomLeft = [gridCoords.lon, gridCoords.lat - length / METERS_PER_DEGREE_LAT];
-          
-              // Ajouter les 4 côtés comme des lignes (et non un polygone fermé)
-              features.push({
-                  "type": "Feature",
-                  "geometry": {
-                      "type": "LineString",
-                      "coordinates": [topLeft, topRight]
-                  },
-                  "properties": {
-                      "name": `Ligne ${colLabel}${rowLabel}`
-                  }
-              });
-              features.push({
-                  "type": "Feature",
-                  "geometry": {
-                      "type": "LineString",
-                      "coordinates": [topRight, bottomRight]
-                  },
-                  "properties": {
-                      "name": `Ligne ${colLabel}${rowLabel}`
-                  }
-              });
-              features.push({
-                  "type": "Feature",
-                  "geometry": {
-                      "type": "LineString",
-                      "coordinates": [bottomRight, bottomLeft]
-                  },
-                  "properties": {
-                      "name": `Ligne ${colLabel}${rowLabel}`
-                  }
-              });
-              features.push({
-                  "type": "Feature",
-                  "geometry": {
-                      "type": "LineString",
-                      "coordinates": [bottomLeft, topLeft]
-                  },
-                  "properties": {
-                      "name": `Ligne ${colLabel}${rowLabel}`
-                  }
-              });
-          }
+            if (type === 'grid' || type === 'both') {
+                for (let rowIndex of rowIndices) {
+                    for (let colIndex of colIndices) {
+                        const coords = getGridCellCoordinates(rowIndex, colIndex, startingLat, startingLon, length, rowIndices, colIndices, referencePoint);
+                        const gridCoords = rotateCoordinates(coords.lat, coords.lon, latitude, longitude, deviationInput);
+            
+                        const lonOffset = length / (METERS_PER_DEGREE_LAT * Math.cos(gridCoords.lat * (Math.PI / 180)));
+                        const latOffset = length / METERS_PER_DEGREE_LAT;
+            
+                        // Lignes verticales (croisements)
+                        if (colIndex < colIndices[colIndices.length - 1]) {
+                            features.push({
+                                "type": "Feature",
+                                "geometry": {
+                                    "type": "LineString",
+                                    "coordinates": [
+                                        [gridCoords.lon, gridCoords.lat],
+                                        [gridCoords.lon, gridCoords.lat - latOffset]
+                                    ]
+                                },
+                                "properties": {
+                                    "name": `Col ${colIndex}`
+                                }
+                            });
+                        }
+            
+                        // Lignes horizontales (croisements)
+                        if (rowIndex < rowIndices[rowIndices.length - 1]) {
+                            features.push({
+                                "type": "Feature",
+                                "geometry": {
+                                    "type": "LineString",
+                                    "coordinates": [
+                                        [gridCoords.lon, gridCoords.lat],
+                                        [gridCoords.lon + lonOffset, gridCoords.lat]
+                                    ]
+                                },
+                                "properties": {
+                                    "name": `Row ${rowIndex}`
+                                }
+                            });
+                        }
+                    }
+                }
+            }
+
 
 
             if (type === 'points' || type === 'both') {
@@ -992,46 +989,32 @@ function getGeoJSONFilename(type) {
 }
 
 
-function getKMLFilename(type) {
-  const gridNameInput = document.getElementById("gridName").value.trim();
-  const filename = gridNameInput || 'Carroyage';
+function getKMLFilename(type, format) {
+    const gridNameInput = document.getElementById("gridName").value.trim();
+    const filename = gridNameInput || 'Carroyage';
 
-  const coordinatesInput = document.getElementById("gpsDecimal").value;
-  const [latitude, longitude] = coordinatesInput.split(',').map(coord => parseFloat(coord.trim()));
+    const coordinatesInput = document.getElementById("gpsDecimal").value;
+    const [latitude, longitude] = coordinatesInput.split(',').map(coord => parseFloat(coord.trim()).toFixed(8));
 
-  const length = document.getElementById("length").value;
-  const refPoint = document.getElementById("referencePoint").value;
-  const rowRange = getGridRowRange();
-  const colRange = getGridColRange();
+    const length = document.getElementById("length").value;
+    const deviation = document.getElementById("deviation").value;
+    const gridOption = document.getElementById("gridOption").value;
+    const rowRange = getGridRowRange();
+    const colRange = getGridColRange();
 
-  // Calcul des coordonnées de A1
-  const { startingLat, startingLon } = calculateStartingPoint(latitude, longitude, parseFloat(length), "origin", rowRange.rowStart, rowRange.rowEnd, colRange.colStart, colRange.colEnd);
+    const { startingLat, startingLon } = calculateStartingPoint(latitude, longitude, parseFloat(length), "origin", rowRange.rowStart, rowRange.rowEnd, colRange.colStart, colRange.colEnd);
+    const latOrigin = startingLat.toFixed(8);
+    const lonOrigin = startingLon.toFixed(8);
 
-  const latOrigin = startingLat.toFixed(8);
-  const lonOrigin = startingLon.toFixed(8);
+    const gridType = gridOption === "default" 
+                     ? document.getElementById("gridType").value 
+                     : `Custom_${rowRange.rowStart}_${rowRange.rowEnd}_${getColumnLabel(colRange.colStart)}_${getColumnLabel(colRange.colEnd)}`;
 
-  const scale = `${length}m`;
-  const deviation = document.getElementById("deviation").value;
-  const angle = `${deviation}°`;
-  const gridOption = document.getElementById("gridOption").value;
-  const gridType = gridOption === "default" 
-                   ? document.getElementById("gridType").value 
-                   : `Custom_${rowRange.rowStart}_${rowRange.rowEnd}_${getColumnLabel(colRange.colStart)}_${getColumnLabel(colRange.colEnd)}`;
+    const coordsString = `${latOrigin}_${lonOrigin}`;
+    const extension = format === "kmz" ? "kmz" : "kml";
 
-  const coordsString = `origine(A1)=${latOrigin}_${lonOrigin}`;
-
-  if (type === 'grid') {
-    return `${filename}_${coordsString}_KML-Grille_${scale}_${angle}_${gridType}.kml`;
-  } else if (type === 'points') {
-    return `${filename}_${coordsString}_KML-Points_${scale}_${angle}_${gridType}.kml`;
-  } else if (type === 'pointsKMZ') {
-    return `${filename}_${coordsString}_KMZ-Points_${scale}_${angle}_${gridType}.kmz`;
-  } else {
-    return `${filename}_${coordsString}_KMZ_${scale}_${angle}_${gridType}.kmz`;
-  }
+    return `${filename}_${coordsString}_${extension}_${length}m_${deviation}°.${extension}`;
 }
-
-
 
     function downloadFile(content, filename, mimeType) {
       const element = document.createElement('a');
