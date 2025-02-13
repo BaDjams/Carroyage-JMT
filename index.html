@@ -853,19 +853,56 @@ function createGeoJSONContent(type) {
             const bottomRight = [gridCoords.lon + length / (METERS_PER_DEGREE_LAT * Math.cos(gridCoords.lat * (Math.PI / 180))), gridCoords.lat - length / METERS_PER_DEGREE_LAT];
             const bottomLeft = [gridCoords.lon, gridCoords.lat - length / METERS_PER_DEGREE_LAT];
 
-            if (type === 'grid' || type === 'both') {
-                features.push({
-                    "type": "Feature",
-                    "geometry": {
-                        "type": "Polygon",
-                        "coordinates": [[topLeft, topRight, bottomRight, bottomLeft, topLeft]] // Boucle fermée
-                    },
-                    "properties": {
-                        "name": `${colLabel}${rowLabel}`,
-                        "color": colorInput
-                    }
-                });
-            }
+           if (type === 'grid' || type === 'both') {
+              // Coordonnées des coins de la case
+              const topLeft = [gridCoords.lon, gridCoords.lat];
+              const topRight = [gridCoords.lon + length / (METERS_PER_DEGREE_LAT * Math.cos(gridCoords.lat * (Math.PI / 180))), gridCoords.lat];
+              const bottomRight = [gridCoords.lon + length / (METERS_PER_DEGREE_LAT * Math.cos(gridCoords.lat * (Math.PI / 180))), gridCoords.lat - length / METERS_PER_DEGREE_LAT];
+              const bottomLeft = [gridCoords.lon, gridCoords.lat - length / METERS_PER_DEGREE_LAT];
+          
+              // Ajouter les 4 côtés comme des lignes (et non un polygone fermé)
+              features.push({
+                  "type": "Feature",
+                  "geometry": {
+                      "type": "LineString",
+                      "coordinates": [topLeft, topRight]
+                  },
+                  "properties": {
+                      "name": `Ligne ${colLabel}${rowLabel}`
+                  }
+              });
+              features.push({
+                  "type": "Feature",
+                  "geometry": {
+                      "type": "LineString",
+                      "coordinates": [topRight, bottomRight]
+                  },
+                  "properties": {
+                      "name": `Ligne ${colLabel}${rowLabel}`
+                  }
+              });
+              features.push({
+                  "type": "Feature",
+                  "geometry": {
+                      "type": "LineString",
+                      "coordinates": [bottomRight, bottomLeft]
+                  },
+                  "properties": {
+                      "name": `Ligne ${colLabel}${rowLabel}`
+                  }
+              });
+              features.push({
+                  "type": "Feature",
+                  "geometry": {
+                      "type": "LineString",
+                      "coordinates": [bottomLeft, topLeft]
+                  },
+                  "properties": {
+                      "name": `Ligne ${colLabel}${rowLabel}`
+                  }
+              });
+          }
+
 
             if (type === 'points' || type === 'both') {
                 const centerLat = coords.lat - (length / (2 * METERS_PER_DEGREE_LAT));
