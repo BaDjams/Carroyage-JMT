@@ -177,6 +177,29 @@
       const valueElement = document.getElementById(valueId);
       valueElement.textContent = slider.value + unit;
     }
+    function generateFile() {
+    const format = document.getElementById("outputFormat").value;
+    const content = document.getElementById("outputContent").value;
+
+    if (!document.getElementById("gpsDecimal").value.trim()) {
+        alert("Veuillez entrer des coordonnées GPS valides avant de générer un fichier.");
+        return;
+    }
+
+    switch (format) {
+        case "kml":
+            generateKML(content);
+            break;
+        case "kmz":
+            generateKMZ(content);
+            break;
+        case "geojson":
+            generateGeoJSON(content);
+            break;
+        default:
+            alert("Format non supporté.");
+    }
+}
 
     function generateKML(type) {
         const inputField = document.getElementById("gpsDecimal");
@@ -1117,14 +1140,22 @@ function getKMLFilename(type) {
   <!-- Le champ pour le fichier ZIP des icônes a été supprimé, car les données sont chargées depuis data_black.js -->
 
   <div class="button-container">
-    <button onclick="generateKML('grid')">Générer KML Grille</button>
-    <button onclick="generateKML('points')">Générer KML Points</button>
-    <button onclick="generateKMZ('pointsKMZ')">Générer KMZ Points</button>
-    <button onclick="generateKMZ('doc')">Générer KMZ Grille + Points</button>
-    <button onclick="generateGeoJSON('grid')">Générer GeoJSON Grille</button>
-    <button onclick="generateGeoJSON('points')">Générer GeoJSON Points</button>
-    <button onclick="generateGeoJSON('both')">Générer GeoJSON Grille + Points</button>
+  <!-- Sélection du format de sortie -->
+    <label for="outputFormat">Format de sortie :</label>
+    <select id="outputFormat">
+        <option value="kml">KML</option>
+        <option value="kmz" selected>KMZ</option>
+        <option value="geojson">GeoJSON</option>
+    </select>
+    
+    <select id="outputContent">
+        <option value="grid">Grille seule</option>
+        <option value="points">Points seuls</option>
+        <option value="both" selected>Grille + Points</option>
+    </select>
 
+    <!-- Bouton unique de génération -->
+    <button onclick="generateFile()">GÉNÉRER</button>
   </div>
 </body>
 </html>
