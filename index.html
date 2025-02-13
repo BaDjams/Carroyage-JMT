@@ -792,17 +792,29 @@ function generateGeoJSON(type) {
     }
 
     const geojsonContent = createGeoJSONContent(type);
-    if (!geojsonContent) return;
+    if (!geojsonContent || geojsonContent.features.length === 0) {
+        alert("Erreur : Impossible de générer le fichier GeoJSON. Vérifiez les paramètres.");
+        return;
+    }
 
     const filename = getGeoJSONFilename(type);
-    downloadFile(JSON.stringify(geojsonContent, null, 2), filename, 'application/json');
+    const blob = new Blob([JSON.stringify(geojsonContent, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+
+    const element = document.createElement("a");
+    element.href = url;
+    element.download = filename;
+    document.body.appendChild(element);
+    element.click();
+    document.body.removeChild(element);
+    URL.revokeObjectURL(url);
 }
+
 
 function createGeoJSONContent(type) {
     const coordinatesInput = document.getElementById("gpsDecimal").value;
     const lengthInput = document.getElementById("length").value;
     const colorInput = document.getElementById("color").value;
-    const gridOption = document.getElementById("gridOption").value;
     const deviationInput = document.getElementById("deviation").value;
 
     if (!validateInputs(coordinatesInput, lengthInput)) return null;
@@ -834,22 +846,18 @@ function createGeoJSONContent(type) {
             const coords = getGridCellCoordinates(rowIndex, colIndex, startingLat, startingLon, length, rowIndices, colIndices, referencePoint);
             const gridCoords = rotateCoordinates(coords.lat, coords.lon, latitude, longitude, deviationInput);
 
-            const centerLat = coords.lat + (length / (2 * METERS_PER_DEGREE_LAT));
-            const centerLon = coords.lon + (length / (2 * (METERS_PER_DEGREE_LAT * Math.cos(coords.lat * (Math.PI / 180)))));
-            const pointCoords = rotateCoordinates(centerLat, centerLon, latitude, longitude, deviationInput);
+            // Définition des sommets du polygone
+            const topLeft = [gridCoords.lon, gridCoords.lat];
+            const topRight = [gridCoords.lon + length / (METERS_PER_DEGREE_LAT * Math.cos(gridCoords.lat * (Math.PI / 180))), gridCoords.lat];
+            const bottomRight = [gridCoords.lon + length / (METERS_PER_DEGREE_LAT * Math.cos(gridCoords.lat * (Math.PI / 180))), gridCoords.lat - length / METERS_PER_DEGREE_LAT];
+            const bottomLeft = [gridCoords.lon, gridCoords.lat - length / METERS_PER_DEGREE_LAT];
 
             if (type === 'grid' || type === 'both') {
                 features.push({
                     "type": "Feature",
                     "geometry": {
                         "type": "Polygon",
-                        "coordinates": [[
-                            [gridCoords.lon, gridCoords.lat],
-                            [gridCoords.lon + length / (METERS_PER_DEGREE_LAT * Math.cos(gridCoords.lat * (Math.PI / 180))), gridCoords.lat],
-                            [gridCoords.lon + length / (METERS_PER_DEGREE_LAT * Math.cos(gridCoords.lat * (Math.PI / 180))), gridCoords.lat - length / METERS_PER_DEGREE_LAT],
-                            [gridCoords.lon, gridCoords.lat - length / METERS_PER_DEGREE_LAT],
-                            [gridCoords.lon, gridCoords.lat]
-                        ]]
+                        "coordinates": [[topLeft, topRight, bottomRight, bottomLeft, topLeft]] // Boucle fermée
                     },
                     "properties": {
                         "name": `${colLabel}${rowLabel}`,
@@ -863,7 +871,7 @@ function createGeoJSONContent(type) {
                     "type": "Feature",
                     "geometry": {
                         "type": "Point",
-                        "coordinates": [pointCoords.lon, pointCoords.lat]
+                        "coordinates": [gridCoords.lon, gridCoords.lat]
                     },
                     "properties": {
                         "name": `${colLabel}${rowLabel}`
@@ -878,6 +886,7 @@ function createGeoJSONContent(type) {
         "features": features
     };
 }
+
 
 function getGeoJSONFilename(type) {
     const gridNameInput = document.getElementById("gridName").value.trim();
