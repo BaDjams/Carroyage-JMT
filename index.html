@@ -868,11 +868,10 @@ function createGeoJSONContent(type) {
             }
 
             if (type === 'points' || type === 'both') {
-                // Correction : placer les points au centre de la case
                 const centerLat = coords.lat - (length / (2 * METERS_PER_DEGREE_LAT));
                 const centerLon = coords.lon + (length / (2 * (METERS_PER_DEGREE_LAT * Math.cos(coords.lat * (Math.PI / 180)))));
                 const pointCoords = rotateCoordinates(centerLat, centerLon, latitude, longitude, deviationInput);
-            
+
                 features.push({
                     "type": "Feature",
                     "geometry": {
@@ -880,7 +879,7 @@ function createGeoJSONContent(type) {
                         "coordinates": [pointCoords.lon, pointCoords.lat]
                     },
                     "properties": {
-                        "name": `${colLabel}${rowLabel}`
+                        "name": `${colLabel}${rowLabel}`,
                         "title": `${colLabel}${rowLabel}`
                     }
                 });
