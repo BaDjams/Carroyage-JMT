@@ -981,7 +981,7 @@
                         downloadFile(outputFile, `${config.gridName}.kml`, 'application/vnd.google-earth.kml+xml');
                         break;
                     case 'KMZ':
-                        // Pour KMZ, on utilisera le fichier d'images correspondant à la couleur sélectionnée
+                        // Pour KMZ, on utilisera les icônes correspondantes à la couleur sélectionnée
                         outputFile = await generateKMZ(config, gridData, colorHex);
                         downloadFile(outputFile, `${config.gridName}.kmz`, 'application/vnd.google-earth.kmz');
                         break;
@@ -1588,11 +1588,21 @@
             return result;
         }
         
+        // Fonction pour convertir base64 en Blob
+        function base64ToBlob(base64, mimeType) {
+            const byteString = atob(base64);
+            const ab = new ArrayBuffer(byteString.length);
+            const ia = new Uint8Array(ab);
+            
+            for (let i = 0; i < byteString.length; i++) {
+                ia[i] = byteString.charCodeAt(i);
+            }
+            
+            return new Blob([ab], { type: mimeType });
+        }
+        
         // Output Format Generators
         function generateKML(config, gridData, colorHex) {
-            // Récupérer le dictionnaire d'images pour les icônes
-            const imageDict = iconDictionaries[colorHex] || {};
-            
             // Set up icon scale
             const pointIconScale = 0.5; // Taille des icônes (à ajuster si nécessaire)
             const labelScale = config.labelSize;
@@ -1607,7 +1617,7 @@
             const displayLng = gridData.a1BottomLeft.coordinates[0].toFixed(8);
             const originLabel = `Origine : ${displayLat}, ${displayLng}`;
             
-            // KML format with improved styling
+            // KML format with improved styling for traditional file references
             let kml = `<?xml version="1.0" encoding="UTF-8"?>
 <kml xmlns="http://www.opengis.net/kml/2.2">
   <Document>
@@ -1622,33 +1632,20 @@
       </LineStyle>
     </Style>`;
             
-            // Ajouter des styles pour chaque point avec son icône intégrée
+            // Ajouter des styles pour chaque point
             if (config.includePoints) {
                 gridData.points.forEach(point => {
-                    const iconBase64 = imageDict[point.name];
                     const styleId = `point_${point.name}_style`;
                     
                     kml += `
-    <Style id="${styleId}">`;
-                    
-                    if (iconBase64) {
-                        kml += `
+    <Style id="${styleId}">
       <IconStyle>
         <scale>${pointIconScale}</scale>
         <Icon>
-          <href>data:image/png;base64,${iconBase64}</href>
+          <href>icons/${point.name}.png</href>
         </Icon>
         <hotSpot x="0.5" y="0" xunits="fraction" yunits="fraction"/>
-      </IconStyle>`;
-                    } else {
-                        // Fallback si pas d'icône trouvée
-                        kml += `
-      <IconStyle>
-        <scale>0</scale>
-      </IconStyle>`;
-                    }
-                    
-                    kml += `
+      </IconStyle>
       <LabelStyle>
         <color>${textColor}</color>
         <colorMode>normal</colorMode>
@@ -1757,10 +1754,6 @@
               <color>${textColor}</color>
               <colorMode>normal</colorMode>
               <scale>${labelScale}</scale>
-              <OutlineStyle>
-                <color>${textOutlineColor}</color>
-                <width>2</width>
-              </OutlineStyle>
             </LabelStyle>
           </Style>
           <Point>
@@ -1797,25 +1790,39 @@
         }
         
         async function generateKMZ(config, gridData, colorHex) {
-            // Generate KML content with embedded images
-            const kmlContent = generateKML(config, gridData, colorHex);
+            // Récupérer les données d'icônes pour cette couleur
+            const iconDict = iconDictionaries[colorHex] || {};
             
             try {
-                // Récupérer les données d'icônes pour cette couleur
-                const imageData = window[`imageBase64Data_${colorHex}`] || [];
-                
-                if (!imageData.length) {
-                    console.warn(`Aucune donnée d'icône trouvée pour ${colorHex}`);
-                }
+                // Generate KML content
+                const kmlContent = generateKML(config, gridData, colorHex);
                 
                 // Create zip archive
                 const zip = new JSZip();
                 
-                // Ajouter le fichier KML
+                // Ajouter le fichier KML principal
                 zip.file("doc.kml", kmlContent);
                 
-                // Ajouter le fichier JS avec les images
-                zip.file(`${colorHex}-images.js`, `const imageBase64Data = ${JSON.stringify(imageData)};`);
+                // Créer le dossier icons
+                const iconsFolder = zip.folder("icons");
+                
+                // Ajouter les icônes comme fichiers PNG individuels
+                if (config.includePoints) {
+                    for (const point of gridData.points) {
+                        const iconBase64 = iconDict[point.name];
+                        if (iconBase64) {
+                            // Convert base64 to blob and add to the icons folder
+                            try {
+                                const iconBlob = base64ToBlob(iconBase64, "image/png");
+                                iconsFolder.file(`${point.name}.png`, iconBlob);
+                            } catch (iconError) {
+                                console.error(`Erreur lors de la conversion de l'icône ${point.name}:`, iconError);
+                            }
+                        } else {
+                            console.warn(`Aucune icône disponible pour ${point.name}`);
+                        }
+                    }
+                }
                 
                 // Generate KMZ file
                 const kmzBlob = await zip.generateAsync({type: "blob"});
@@ -1826,7 +1833,7 @@
                 
                 // Créer un KMZ de secours sans les images
                 const zip = new JSZip();
-                zip.file("doc.kml", kmlContent);
+                zip.file("doc.kml", generateKML(config, gridData, colorHex));
                 zip.file("README.txt", "Erreur lors de l'inclusion des icônes. Le fichier KMZ contient uniquement le KML sans les icônes.");
                 
                 const kmzBlob = await zip.generateAsync({type: "blob"});
