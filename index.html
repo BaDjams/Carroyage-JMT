@@ -10,7 +10,9 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
     
     <!-- Bibliothèque Open Location Code pour la conversion des Plus Codes -->
-    <script src="openlocationcode.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/open-location-code@1.0.4/js/openlocationcode.min.js"></script>
+    <!-- Fallback pour version locale -->
+    <script src="openlocationcode.min.js"></script>
     
     <!-- Chargement direct des fichiers JS d'icônes -->
     <script src="FFFFFF-images.js"></script>
@@ -821,12 +823,13 @@
                 document.getElementById('mercator-coords').value = `${mercatorX.toFixed(2)}, ${mercatorY.toFixed(2)}`;
                 
                 // Try to convert to Plus Code if library is available
-                if (typeof OpenLocationCode !== 'undefined') {
+                if (isPlusCodeLibraryAvailable()) {
                     try {
                         const olc = new OpenLocationCode();
                         const plusCode = olc.encode(lat, lng);
                         document.getElementById('plus-code').value = plusCode;
                     } catch (error) {
+                        console.error("Erreur OpenLocationCode:", error);
                         document.getElementById('plus-code').value = "Erreur de conversion Plus Code";
                     }
                 } else {
@@ -882,12 +885,13 @@
                 document.getElementById('mercator-coords').value = `${mercatorX.toFixed(2)}, ${mercatorY.toFixed(2)}`;
                 
                 // Try to convert to Plus Code if library is available
-                if (typeof OpenLocationCode !== 'undefined') {
+                if (isPlusCodeLibraryAvailable()) {
                     try {
                         const olc = new OpenLocationCode();
                         const plusCode = olc.encode(lat, lng);
                         document.getElementById('plus-code').value = plusCode;
                     } catch (error) {
+                        console.error("Erreur OpenLocationCode:", error);
                         document.getElementById('plus-code').value = "Erreur de conversion Plus Code";
                     }
                 } else {
@@ -931,7 +935,7 @@
             
             try {
                 // Vérifier si la bibliothèque Open Location Code est disponible
-                if (typeof OpenLocationCode === 'undefined') {
+                if (!isPlusCodeLibraryAvailable()) {
                     showError("Bibliothèque Open Location Code non disponible. Utilisez le bouton 'Voir sur Maps'.");
                     return;
                 }
@@ -1051,24 +1055,31 @@
             }
         }
         
-        // Fonctions de conversion Web Mercator (EPSG:3857) vers WGS84 (EPSG:4326)
+        // === Constantes communes pour la projection Web Mercator (EPSG:3857) ===
+        const R = 6378137; // Rayon terrestre en mètres
+        const toRad = deg => deg * Math.PI / 180; // Degrés → radians
+        const toDeg = rad => rad * 180 / Math.PI; // Radians → degrés
+        
+        // === Fonctions de conversion Web Mercator (EPSG:3857) vers WGS84 (EPSG:4326) ===
         function mercatorXToLng(x) {
-            return x / 20037508.34 * 180;
+            return toDeg(x / R);
         }
         
         function mercatorYToLat(y) {
-            const lat = y / 20037508.34 * 180;
-            return 180 / Math.PI * (2 * Math.atan(Math.exp(lat * Math.PI / 180)) - Math.PI / 2);
+            return toDeg(2 * Math.atan(Math.exp(y / R)) - Math.PI / 2);
         }
         
-        // Fonctions de conversion WGS84 vers Web Mercator
+        // === Fonctions de conversion WGS84 vers Web Mercator (EPSG:3857) ===
         function lngToMercatorX(lng) {
-            return lng * 20037508.34 / 180;
+            return R * toRad(lng);
         }
         
         function latToMercatorY(lat) {
-            const latRad = lat * Math.PI / 180;
-            return 20037508.34 / 180 * Math.log(Math.tan((90 + lat) * Math.PI / 360));
+            // Validation des entrées pour éviter la discontinuité polaire
+            if (Math.abs(lat) > 85.0511) {
+                throw new Error(`Latitude ${lat}° trop proche des pôles pour la projection Mercator (limite: ±85.0511°)`);
+            }
+            return R * Math.log(Math.tan(Math.PI / 4 + toRad(lat) / 2));
         }
         
         function decimalToDMS(coord, type) {
@@ -1086,6 +1097,17 @@
             }
             
             return `${degrees}°${minutes}'${seconds}"${direction}`;
+        }
+        
+        // === Fonction utilitaire pour détecter la bibliothèque OpenLocationCode ===
+        function isPlusCodeLibraryAvailable() {
+            try {
+                // Vérifier si OpenLocationCode existe et est utilisable
+                return typeof OpenLocationCode !== 'undefined' && typeof OpenLocationCode === 'function';
+            } catch (error) {
+                console.warn("Erreur lors de la détection de OpenLocationCode:", error);
+                return false;
+            }
         }
         
         // View on Maps function
