@@ -139,3 +139,37 @@ input[type="radio"]:checked+span {
 .hidden {
     display: none;
 }
+
+#update-banner {
+    position: fixed;
+    bottom: 1.5rem; /* 24px */
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: #2563eb; /* bleu */
+    color: white;
+    padding: 1rem; /* 16px */
+    border-radius: 0.5rem; /* 8px */
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    display: flex;
+    align-items: center;
+    gap: 1rem; /* 16px */
+    z-index: 50;
+}
+
+#update-banner.hidden {
+    display: none;
+}
+
+#reload-button {
+    background-color: white;
+    color: #2563eb; /* bleu */
+    font-weight: bold;
+    padding: 0.25rem 0.75rem; /* 4px 12px */
+    border-radius: 0.25rem; /* 4px */
+    border: none;
+    cursor: pointer;
+}
+
+#reload-button:hover {
+    background-color: #eff6ff; /* bleu très clair */
+}
