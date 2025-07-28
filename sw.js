@@ -1,6 +1,6 @@
 // sw.js
 
-const CACHE_NAME = 'grid-generator-v12.1';
+const CACHE_NAME = 'grid-generator-v12.2';
 
 // List all the files your app needs to function offline
 const FILES_TO_CACHE = [
@@ -27,23 +27,49 @@ const FILES_TO_CACHE = [
   'https://cdn.jsdelivr.net/npm/open-location-code@1.0.4/js/openlocationcode.min.js'
 ];
 
-// On install, cache all the app shell files
-self.addEventListener('install', (event) => {
+// -- Installation --
+self.addEventListener('install', event => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      console.log('ServiceWorker: Caching app shell');
-      return cache.addAll(FILES_TO_CACHE);
+    caches.open(CACHE_NAME)
+      .then(cache => {
+        console.log('Cache ouvert pour l\'installation');
+        return cache.addAll(urlsToCache);
+      })
+      .then(() => {
+        // NOUVEAU : Forcer le nouveau Service Worker à s'activer immédiatement
+        return self.skipWaiting();
+      })
+  );
+});
+
+// -- Activation --
+self.addEventListener('activate', event => {
+  const cacheWhitelist = [CACHE_NAME];
+  event.waitUntil(
+    caches.keys().then(cacheNames => {
+      return Promise.all(
+        cacheNames.map(cacheName => {
+          if (cacheWhitelist.indexOf(cacheName) === -1) {
+            // Nettoyer les anciens caches
+            return caches.delete(cacheName);
+          }
+        })
+      );
+    }).then(() => {
+        // NOUVEAU : Prendre le contrôle de toutes les pages immédiatement
+        return self.clients.claim();
     })
   );
 });
 
-// On fetch, serve from cache first
-self.addEventListener('fetch', (event) => {
+
+// -- Fetch (Gestion des requêtes) --
+self.addEventListener('fetch', event => {
   event.respondWith(
-    caches.match(event.request).then((response) => {
-      // If the file is in the cache, return it.
-      // Otherwise, fetch it from the network.
-      return response || fetch(event.request);
-    })
+    caches.match(event.request)
+      .then(response => {
+        // La stratégie est "Cache First" : on sert depuis le cache si possible
+        return response || fetch(event.request);
+      })
   );
 });
