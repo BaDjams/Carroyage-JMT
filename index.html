@@ -422,6 +422,7 @@
             initUI();
             setupEventListeners();
             updateDynamicGridName();
+	    registerServiceWorker(); 
         });
 
         function initUI() {
@@ -505,6 +506,44 @@
                 console.error('Service worker registration failed:', err);
               });
           });
+        }
+	function registerServiceWorker() {
+            if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.register('/sw.js')
+                    .then(registration => {
+                        console.log('SW enregistré:', registration);
+
+                        // Vérifier si un nouveau SW est en attente ou s'il y en a un en cours d'installation
+                        registration.addEventListener('updatefound', () => {
+                            const newWorker = registration.installing;
+                            console.log('Nouvelle version du SW détectée :', newWorker);
+
+                            newWorker.addEventListener('statechange', () => {
+                                // Le nouveau SW a pris le contrôle
+                                if (newWorker.state === 'activated') {
+                                    console.log('Nouveau SW activé. Affichage de la bannière.');
+                                    showUpdateBanner();
+                                }
+                            });
+                        });
+                    })
+                    .catch(error => {
+                        console.log('Échec de l\'enregistrement SW:', error);
+                    });
+            }
+        }
+        
+        // NOUVELLE FONCTION pour afficher la bannière et gérer le clic
+        function showUpdateBanner() {
+            const banner = document.getElementById('update-banner');
+            const reloadButton = document.getElementById('reload-button');
+
+            banner.classList.remove('hidden');
+
+            reloadButton.addEventListener('click', () => {
+                // Recharger la page pour utiliser les nouveaux fichiers du cache
+                window.location.reload();
+            });
         }
     </script>
     <div id="update-banner" class="hidden fixed bottom-4 left-1/2 -translate-x-1/2 bg-blue-600 text-white p-4 rounded-lg shadow-xl flex items-center gap-4 z-50">
