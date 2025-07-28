@@ -581,8 +581,25 @@ function generateGPX(config, gridData) {
 // --- FONCTIONS UTILITAIRES PARTAGÉES ---
 
 function downloadFile(content, fileName, mimeType) {
-    const blob = (content instanceof Blob) ? content : new Blob([content], { type: mimeType });
-    saveAs(blob, fileName);
+    // Si le contenu n'est pas déjà un Blob (ex: KML, GeoJSON), on le crée avec le bon MIME type.
+    let blob = (content instanceof Blob) ? content : new Blob([content], { type: mimeType });
+
+    // FIX SPÉCIFIQUE POUR LES NAVIGATEURS MOBILES
+    // Les navigateurs mobiles détectent que la structure d'un .kmz est un .zip et ajoutent l'extension .zip.
+    // Pour éviter cela, on force le MIME type à "application/octet-stream" pour les fichiers .kmz.
+    // Cela indique au navigateur de traiter le fichier comme un flux binaire générique sans essayer de deviner son type.
+    if (fileName.endsWith('.kmz')) {
+        // La méthode arrayBuffer() est asynchrone, nous devons donc utiliser .then()
+        blob.arrayBuffer().then(buffer => {
+            // On re-crée un Blob à partir des données brutes, mais avec le MIME type générique.
+            const newBlob = new Blob([buffer], { type: 'application/octet-stream' });
+            // On lance le téléchargement avec ce nouveau Blob.
+            saveAs(newBlob, fileName);
+        });
+    } else {
+        // Pour tous les autres types de fichiers, le comportement normal est conservé.
+        saveAs(blob, fileName);
+    }
 }
 
 function showError(message) {
