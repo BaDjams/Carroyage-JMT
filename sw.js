@@ -1,6 +1,6 @@
 // sw.js
 
-const VERSION = '12.14';
+const VERSION = '12.15';
 // On construit le nom du cache à partir de la version
 const CACHE_NAME = `cado-grid-generator-v${VERSION}`; 
 
