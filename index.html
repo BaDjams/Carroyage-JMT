@@ -545,6 +545,37 @@
                 window.location.reload();
             });
         }
+	async function displayAppVersion() {
+          try {
+            // On va chercher le fichier sw.js comme un simple fichier texte
+            const response = await fetch('/sw.js');
+            if (!response.ok) return; // Si le fichier n'est pas trouvé, on ne fait rien
+
+            const swContent = await response.text();
+            
+            // On utilise une expression régulière pour trouver la ligne et capturer le contenu entre les guillemets
+            const versionMatch = swContent.match(/const CACHE_NAME = ['"](.*?)['"]/);
+
+            if (versionMatch && versionMatch[1]) {
+              const fullVersionName = versionMatch[1]; // ex: "cado-utm-generator-v1.3"
+              
+              // On extrait juste la partie qui ressemble à une version (ex: "v1.3")
+              const displayVersionMatch = fullVersionName.match(/v\d+(\.\d+)?(\.\d+)?/);
+              if (displayVersionMatch) {
+                const displayVersion = displayVersionMatch[0]; // ex: "v1.3"
+                
+                // On met à jour le titre de l'onglet et le titre de la page
+                document.title = `Générateur CADO ${displayVersion}`;
+                const titleElement = document.getElementById('app-title');
+                if (titleElement) {
+                  titleElement.textContent = `Générateur de carroyage CADO ${displayVersion}`;
+                }
+              }
+            }
+          } catch (error) {
+            console.error("Impossible de récupérer la version de l'application depuis sw.js:", error);
+          }
+        }
     </script>
     <div id="update-banner" class="hidden fixed bottom-4 left-1/2 -translate-x-1/2 bg-blue-600 text-white p-4 rounded-lg shadow-xl flex items-center gap-4 z-50">
       <p>Une nouvelle version est disponible.</p>
