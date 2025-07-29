@@ -35,7 +35,7 @@
 <body class="p-4 md:p-6">
     <div class="max-w-5xl mx-auto">
         <header class="mb-6 text-center">
-             <h1 id="app-title" class="text-2xl md:text-3xl font-bold mb-4 text-content">Générateur de carroyage CADO</h1>
+             <h1 id="app-title" class="text-2xl md:text-3xl font-bold mb-4 text-content">Générateur de carroyage</h1>
              <div class="flex flex-wrap justify-center gap-2 mb-4">
                  <button id="helpBtn" class="text-2xl px-3 py-1 rounded-full button-outline bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-white">?</button>
                  <a href="https://www.google.com/maps" target="_blank" class="px-3 py-1 button-outline bg-gray-200 hover:bg-gray-300 rounded dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-white text-sm md:text-base">Ouvrir Google Maps</a>
@@ -548,29 +548,42 @@
         }
 	async function displayAppVersion() {
 	  try {
-	    // On fetch le contenu du Service Worker comme un simple fichier texte
-	    const response = await fetch('/sw.js');
-	    if (!response.ok) return;
+	    // On fetch le sw.js EN FORÇANT le navigateur à ne PAS utiliser son cache HTTP.
+	    // C'est la correction clé.
+	    const response = await fetch('/sw.js', { cache: 'no-store' });
+	
+	    if (!response.ok) {
+	        console.error('Impossible de fetcher sw.js, status:', response.status);
+	        return;
+	    }
 	
 	    const swContent = await response.text();
 	    
-	    // On utilise une expression régulière simple et fiable pour trouver la ligne de VERSION
-	    // Elle cherche : const VERSION = '...' ou "..." et capture le contenu entre les quotes.
+	    // L'expression régulière est simple et cherche la ligne exacte
 	    const versionMatch = swContent.match(/const VERSION = ['"](.*?)['"]/);
 	
 	    if (versionMatch && versionMatch[1]) {
-	      const version = versionMatch[1]; // ex: "1.6"
-	      const displayVersion = `v${version}`; // Ajoute le "v" pour l'affichage
+	      const version = versionMatch[1];
+	      const displayVersion = `v${version}`;
 	
-	      // On met à jour le titre de l'onglet et le titre sur la page
+	      // Mise à jour des titres
 	      document.title = `Générateur CADO ${displayVersion}`;
-	      const titleElement = document.getElementById('app-title'); // Assurez-vous que votre h1 a bien cet id
+	      const titleElement = document.getElementById('app-title');
+	      // IMPORTANT : Assurez-vous que votre <h1> a bien l'id="app-title"
 	      if (titleElement) {
 	        titleElement.textContent = `Générateur de carroyage CADO ${displayVersion}`;
+	      } else {
+	        // Fallback si l'id n'est pas sur le h1 mais sur un autre élément, pour ne pas échouer silencieusement
+	        const fallbackTitle = document.querySelector('.text-2xl.font-bold');
+	        if(fallbackTitle) {
+	            fallbackTitle.textContent = `Générateur de carroyage CADO ${displayVersion}`;
+	        }
 	      }
+	    } else {
+	        console.error("La constante VERSION n'a pas été trouvée dans le fichier sw.js");
 	    }
 	  } catch (error) {
-	    console.error("Impossible de récupérer la version depuis sw.js:", error);
+	    console.error("Erreur lors de la récupération de la version depuis sw.js:", error);
 	  }
 	}
     </script>
