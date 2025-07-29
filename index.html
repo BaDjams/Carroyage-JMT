@@ -14,6 +14,7 @@
     <link rel="stylesheet" href="style.css">
 
     <!-- Bibliothèques JS externes -->
+    <script src="version.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/open-location-code@1.0.4/js/openlocationcode.min.js"></script>
@@ -526,25 +527,20 @@
             document.getElementById('generate-utm-button').addEventListener('click', generateUTMGrid);
         }
 
-        async function displayAppVersion() {
-          try {
-            const response = await fetch('/sw.js', { cache: 'no-store' });
-            if (!response.ok) return;
-
-            const swContent = await response.text();
-            const versionMatch = swContent.match(/const VERSION = ['"](.*?)['"]/);
-
-            if (versionMatch && versionMatch[1]) {
-              const version = versionMatch[1];
-              const displayVersion = `v${version}`;
-              document.title = `Générateur CADO ${displayVersion}`;
-              const titleElement = document.getElementById('app-title');
-              if (titleElement) {
-                titleElement.textContent = `Générateur de carroyage CADO ${displayVersion}`;
-              }
+        function displayAppVersion() {
+          // Pas de fetch, pas de regex, pas de complexité.
+          // La variable APP_VERSION est déjà disponible globalement.
+          if (typeof APP_VERSION !== 'undefined') {
+            const displayVersion = `v${APP_VERSION}`;
+        
+            document.title = `Générateur CADO ${displayVersion}`;
+            const titleElement = document.getElementById('app-title');
+            
+            if (titleElement) {
+              titleElement.textContent = `Générateur de carroyage CADO ${displayVersion}`;
             }
-          } catch (error) {
-            console.error("Impossible de récupérer la version depuis sw.js:", error);
+          } else {
+            console.error("La constante APP_VERSION n'a pas été trouvée. Avez-vous inclus version.js ?");
           }
         }
 
