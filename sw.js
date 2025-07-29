@@ -26,10 +26,11 @@ const urlsToCache = [
   'A52A2A-images.js',
   '808080-images.js',
   // You can also cache the CDN files if you want true offline resilience
-  'https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css',
-  'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js',
-  'https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js',
-  'https://cdn.jsdelivr.net/npm/open-location-code@1.0.4/js/openlocationcode.min.js'
+  'tailwind.min.css',
+  'flowbite.min.css',
+  'jszip.min.js',
+  'FileSaver.min.js',
+  'openlocationcode.min.js'
 ];
 
 // -- Installation --
