@@ -1,9 +1,6 @@
 // sw.js
 
-importScripts('version.json');
-
-// On récupère la version
-const VERSION = self.version.version;
+const VERSION = '12.12';
 // On construit le nom du cache à partir de la version
 const CACHE_NAME = `cado-utm-generator-v${VERSION}`; 
 
@@ -12,7 +9,6 @@ const FILES_TO_CACHE = [
   '/',
   'index.html',
   'style.css',
-  'version.json',
   'carroyageUTM.js',
   'carroyageCado.js',
   // IMPORTANT: You must list all your icon data files here
