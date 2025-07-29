@@ -1,6 +1,6 @@
 // sw.js
 
-const CACHE_NAME = 'grid-generator-v12.4';
+const CACHE_NAME = 'grid-generator-v12.4.2';
 
 // List all the files your app needs to function offline
 const FILES_TO_CACHE = [
