@@ -548,42 +548,35 @@
         }
 	async function displayAppVersion() {
 	  try {
-	    // On fetch le sw.js EN FORÇANT le navigateur à ne PAS utiliser son cache HTTP.
-	    // C'est la correction clé.
+	    // On récupère le sw.js en ignorant le cache. C'est fiable.
 	    const response = await fetch('/sw.js', { cache: 'no-store' });
-	
-	    if (!response.ok) {
-	        console.error('Impossible de fetcher sw.js, status:', response.status);
-	        return;
-	    }
+	    if (!response.ok) return;
 	
 	    const swContent = await response.text();
 	    
-	    // L'expression régulière est simple et cherche la ligne exacte
+	    // On cherche la constante VERSION. C'est fiable.
 	    const versionMatch = swContent.match(/const VERSION = ['"](.*?)['"]/);
 	
 	    if (versionMatch && versionMatch[1]) {
 	      const version = versionMatch[1];
 	      const displayVersion = `v${version}`;
 	
-	      // Mise à jour des titres
-	      document.title = `Générateur CADO ${displayVersion}`;
+	      // --- CORRECTION CLÉ ---
+	      // On cible directement l'élément par son ID.
 	      const titleElement = document.getElementById('app-title');
-	      // IMPORTANT : Assurez-vous que votre <h1> a bien l'id="app-title"
+	
+	      // On vérifie si l'élément a bien été trouvé.
 	      if (titleElement) {
+	        // On modifie les deux textes.
+	        document.title = `Générateur CADO ${displayVersion}`;
 	        titleElement.textContent = `Générateur de carroyage CADO ${displayVersion}`;
 	      } else {
-	        // Fallback si l'id n'est pas sur le h1 mais sur un autre élément, pour ne pas échouer silencieusement
-	        const fallbackTitle = document.querySelector('.text-2xl.font-bold');
-	        if(fallbackTitle) {
-	            fallbackTitle.textContent = `Générateur de carroyage CADO ${displayVersion}`;
-	        }
+	        // Si l'élément n'est pas trouvé, on affiche une erreur claire dans la console.
+	        console.error("L'élément avec l'ID 'app-title' n'a pas été trouvé dans le HTML.");
 	      }
-	    } else {
-	        console.error("La constante VERSION n'a pas été trouvée dans le fichier sw.js");
 	    }
 	  } catch (error) {
-	    console.error("Erreur lors de la récupération de la version depuis sw.js:", error);
+	    console.error("Erreur lors de la récupération de la version:", error);
 	  }
 	}
     </script>
