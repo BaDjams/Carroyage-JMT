@@ -71,6 +71,22 @@ const WGS84_to_UTM = (function() {
     return { fromLatLon, toLatLon };
 })();
 
+/**
+ * CORRECTION : Fonction de parsing robuste pour les coordonnées.
+ * Extrait deux nombres d'une chaîne, insensible aux espaces et aux virgules multiples.
+ * @param {string} str La chaîne de coordonnées à analyser.
+ * @returns {Array<number>} Un tableau de deux nombres [latitude, longitude].
+ */
+function parseCoordinates(str) {
+    if (!str) return [NaN, NaN];
+    // Remplace les virgules par des points pour la cohérence, puis extrait les nombres.
+    const cleanedStr = str.replace(/,/g, '.');
+    const numbers = cleanedStr.match(/-?\d+(\.\d+)?/g);
+    if (!numbers || numbers.length < 2) return [NaN, NaN];
+    return [parseFloat(numbers[0]), parseFloat(numbers[1])];
+}
+
+
 async function generateUTMGrid() {
     const loadingIndicator = document.getElementById('loading-indicator');
     document.getElementById('loading-message').textContent = "Génération de la grille UTM en cours...";
@@ -84,10 +100,13 @@ async function generateUTMGrid() {
         const color = document.getElementById('utm-grid-color').value;
         const opacity = (100 - parseInt(document.getElementById('utm-transparency').value)) / 100;
 
-        if (!nwCoordStr || !seCoordStr) throw new Error("Veuillez entrer les coordonnées Nord-Ouest et Sud-Est.");
-        const [nwLat, nwLon] = nwCoordStr.split(',').map(c => parseFloat(c.trim()));
-        const [seLat, seLon] = seCoordStr.split(',').map(c => parseFloat(c.trim()));
-        if (isNaN(nwLat) || isNaN(nwLon) || isNaN(seLat) || isNaN(seLon)) throw new Error("Format de coordonnées invalide.");
+        // Utilisation de la nouvelle fonction de parsing robuste
+        const [nwLat, nwLon] = parseCoordinates(nwCoordStr);
+        const [seLat, seLon] = parseCoordinates(seCoordStr);
+
+        if (isNaN(nwLat) || isNaN(nwLon) || isNaN(seLat) || isNaN(seLon)) {
+            throw new Error("Coordonnées invalides. Assurez-vous d'entrer une latitude et une longitude valides dans chaque champ.");
+        }
 
         const startZone = WGS84_to_UTM.fromLatLon(nwLat, nwLon).zoneNumber;
         const endZone = WGS84_to_UTM.fromLatLon(seLat, seLon).zoneNumber;
@@ -128,8 +147,6 @@ async function generateUTMGrid() {
 }
 
 function calculateGridForZoneStrip(nwLat, nwLon, seLat, seLon, zoneToUse) {
-    const zoneLetter = WGS84_to_UTM.fromLatLon(nwLat, nwLon).zoneLetter;
-    
     const utm_nw = WGS84_to_UTM.fromLatLon(nwLat, nwLon, zoneToUse);
     const utm_ne = WGS84_to_UTM.fromLatLon(nwLat, seLon, zoneToUse);
     const utm_sw = WGS84_to_UTM.fromLatLon(seLat, nwLon, zoneToUse);
@@ -147,18 +164,21 @@ function calculateGridForZoneStrip(nwLat, nwLon, seLat, seLon, zoneToUse) {
         const linePoints = [];
         for (let i = 0; i <= segments; i++) {
             const currentNorthing = minNorthing + (i / segments) * (maxNorthing - minNorthing);
-            const wgsPoint = WGS84_to_UTM.toLatLon(e, currentNorthing, zoneToUse, zoneLetter);
+            const wgsPoint = WGS84_to_UTM.toLatLon(e, currentNorthing, zoneToUse, WGS84_to_UTM.getUTMZoneLetter(seLat));
             const tolerance = 1e-9;
             if (wgsPoint.longitude >= (nwLon - tolerance) && wgsPoint.longitude <= (seLon + tolerance)) {
                 linePoints.push([wgsPoint.longitude, wgsPoint.latitude, 0]);
             }
         }
         if (linePoints.length > 1) {
+             const midLat = (linePoints[0][1] + linePoints[linePoints.length - 1][1]) / 2;
+             const zoneLetter = WGS84_to_UTM.getUTMZoneLetter(midLat);
              eastingLines.push({ name: `E ${Math.round(e / 1000)}`, coordinates: linePoints, zone: `${zoneToUse}${zoneLetter}` });
         }
         if (Math.round(e) % labelSpacing === 0) {
             for (let n = Math.ceil(minNorthing / labelSpacing) * labelSpacing; n <= maxNorthing; n += labelSpacing) {
-                const labelPointWGS = WGS84_to_UTM.toLatLon(e, n, zoneToUse, zoneLetter);
+                const labelPointWGS = WGS84_to_UTM.toLatLon(e, n, zoneToUse, WGS84_to_UTM.getUTMZoneLetter(seLat));
+                const zoneLetter = WGS84_to_UTM.getUTMZoneLetter(labelPointWGS.latitude);
                  if (labelPointWGS.longitude >= nwLon && labelPointWGS.longitude <= seLon) {
                     intermediateLabels.push({ name: `${zoneToUse}${zoneLetter} ${Math.round(e / 1000)} ${Math.round(n / 1000)}`, coordinates: [labelPointWGS.longitude, labelPointWGS.latitude, 0] });
                 }
@@ -168,7 +188,7 @@ function calculateGridForZoneStrip(nwLat, nwLon, seLat, seLon, zoneToUse) {
 
     for (let n = Math.ceil(minNorthing / gridSpacing) * gridSpacing; n <= maxNorthing; n += gridSpacing) {
         const linePoints = [];
-        const tempLatForBounds = WGS84_to_UTM.toLatLon(minEasting, n, zoneToUse, zoneLetter).latitude;
+        const tempLatForBounds = WGS84_to_UTM.toLatLon(minEasting, n, zoneToUse, WGS84_to_UTM.getUTMZoneLetter(seLat)).latitude;
         const utmLeft = WGS84_to_UTM.fromLatLon(tempLatForBounds, nwLon, zoneToUse);
         const utmRight = WGS84_to_UTM.fromLatLon(tempLatForBounds, seLon, zoneToUse);
         const startEasting = utmLeft.easting;
@@ -176,17 +196,20 @@ function calculateGridForZoneStrip(nwLat, nwLon, seLat, seLon, zoneToUse) {
 
         for (let i = 0; i <= segments; i++) {
             const currentEasting = startEasting + (i / segments) * (endEasting - startEasting);
-            const wgsPoint = WGS84_to_UTM.toLatLon(currentEasting, n, zoneToUse, zoneLetter);
+            const wgsPoint = WGS84_to_UTM.toLatLon(currentEasting, n, zoneToUse, WGS84_to_UTM.getUTMZoneLetter(tempLatForBounds));
             linePoints.push([wgsPoint.longitude, wgsPoint.latitude, 0]);
         }
         
         if (linePoints.length > 1) {
+            const midLat = linePoints[Math.floor(linePoints.length / 2)][1];
+            const zoneLetter = WGS84_to_UTM.getUTMZoneLetter(midLat);
             northingLines.push({ name: `N ${Math.round(n / 1000)}`, coordinates: linePoints, zone: `${zoneToUse}${zoneLetter}` });
         }
         
         if (Math.round(n) % labelSpacing === 0) {
             for (let e = Math.ceil(startEasting / labelSpacing) * labelSpacing; e <= endEasting; e += labelSpacing) {
-                const labelPointWGS = WGS84_to_UTM.toLatLon(e, n, zoneToUse, zoneLetter);
+                const labelPointWGS = WGS84_to_UTM.toLatLon(e, n, zoneToUse, WGS84_to_UTM.getUTMZoneLetter(tempLatForBounds));
+                const zoneLetter = WGS84_to_UTM.getUTMZoneLetter(labelPointWGS.latitude);
                 if (labelPointWGS.longitude >= nwLon && labelPointWGS.longitude <= seLon) {
                     intermediateLabels.push({ name: `${zoneToUse}${zoneLetter} ${Math.round(e / 1000)} ${Math.round(n / 1000)}`, coordinates: [labelPointWGS.longitude, labelPointWGS.latitude, 0] });
                 }
@@ -209,18 +232,24 @@ function createUTM_KML(eastingLines, northingLines, boundaryLines, intermediateL
     
     const linesByZone = {};
     [...eastingLines, ...northingLines].forEach(line => {
-        if (!linesByZone[line.zone]) linesByZone[line.zone] = { eastings: [], northings: [] };
+        const zoneKey = line.zone; // La clé contient maintenant la bonne lettre (ex: "31U", "31T")
+        if (!linesByZone[zoneKey]) {
+            linesByZone[zoneKey] = { eastings: [], northings: [] };
+        }
         if (line.name.startsWith('E')) {
-            linesByZone[line.zone].eastings.push(line);
+            linesByZone[zoneKey].eastings.push(line);
         } else {
-            linesByZone[line.zone].northings.push(line);
+            linesByZone[zoneKey].northings.push(line);
         }
     });
 
-    for (const zone in linesByZone) {
-        kml += `<Folder><name>Zone ${zone}</name>`;
-        kml += `<Folder><name>Lignes Easting</name>${linesByZone[zone].eastings.map(line => createKMLPlacemarkForLine(line, '#utmLineStyle', '#utmLabelStyle')).join('')}</Folder>`;
-        kml += `<Folder><name>Lignes Northing</name>${linesByZone[zone].northings.map(line => createKMLPlacemarkForLine(line, '#utmLineStyle', '#utmLabelStyle')).join('')}</Folder>`;
+    // Trier les noms de zone pour un affichage logique (ex: 31U avant 31T)
+    const sortedZoneKeys = Object.keys(linesByZone).sort().reverse();
+
+    for (const zoneKey of sortedZoneKeys) {
+        kml += `<Folder><name>Zone ${zoneKey}</name>`;
+        kml += `<Folder><name>Lignes Easting</name>${linesByZone[zoneKey].eastings.map(line => createKMLPlacemarkForLine(line, '#utmLineStyle', '#utmLabelStyle')).join('')}</Folder>`;
+        kml += `<Folder><name>Lignes Northing</name>${linesByZone[zoneKey].northings.map(line => createKMLPlacemarkForLine(line, '#utmLineStyle', '#utmLabelStyle')).join('')}</Folder>`;
         kml += `</Folder>`;
     }
 
@@ -247,7 +276,6 @@ function createUTM_KML(eastingLines, northingLines, boundaryLines, intermediateL
 
 function createKMLPlacemarkForLine(line, lineStyleUrl, labelStyleUrl) {
     const coordinateString = line.coordinates.map(c => c.join(',')).join(' ');
-    // **CORRECTION** : S'assurer que les points de début/fin sont bien formatés
     const startPoint = line.coordinates[0].join(','); 
     const endPoint = line.coordinates[line.coordinates.length - 1].join(',');
     
@@ -261,7 +289,6 @@ function createKMLPlacemarkForLine(line, lineStyleUrl, labelStyleUrl) {
         </LineString>
       </Placemark>`;
       
-    // Ajouter les étiquettes de début et de fin
     placemark += `
       <Placemark>
         <name>${line.name}</name>
