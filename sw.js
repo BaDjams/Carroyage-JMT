@@ -1,12 +1,18 @@
 // sw.js
 
-const CACHE_NAME = 'grid-generator-v12.10';
+importScripts('version.json');
+
+// On récupère la version
+const VERSION = self.version.version;
+// On construit le nom du cache à partir de la version
+const CACHE_NAME = `cado-utm-generator-v${VERSION}`; 
 
 // List all the files your app needs to function offline
 const FILES_TO_CACHE = [
   '/',
   'index.html',
   'style.css',
+  'version.json',
   'carroyageUTM.js',
   'carroyageCado.js',
   // IMPORTANT: You must list all your icon data files here
