@@ -225,36 +225,39 @@ async function generateGrid() {
         document.getElementById("full-grid-name").textContent = config.gridName;
         
         const fileFormat = config.outputFormat;
-        let fileBlob, fileName, mimeType;
+        let fileBlob, fileName; // mimeType n'est plus nécessaire ici
 
         switch (fileFormat) {
             case "KML":
+                fileBlob = new Blob([generateKML(config, gridData)], { type: "application/vnd.google-earth.kml+xml" });
+                fileName = `${config.gridName}.kml`;
+                break;
             case "KMZ":
+                // --- CORRECTION APPLIQUÉE ICI ---
                 const kmlContent = generateKML(config, gridData);
-                if (fileFormat === "KMZ") {
-                    fileBlob = await generateKMZ(config, gridData, kmlContent);
-                    fileName = `${config.gridName}.kmz`;
-                    mimeType = "application/vnd.google-earth.kmz";
-                } else {
-                    fileBlob = new Blob([kmlContent], { type: "application/vnd.google-earth.kml+xml" });
-                    fileName = `${config.gridName}.kml`;
-                    mimeType = "application/vnd.google-earth.kml+xml";
-                }
+                // 1. generateKMZ retourne un Blob générique de JSZip
+                const genericKmzBlob = await generateKMZ(config, gridData, kmlContent);
+                // 2. On le transforme en buffer pour en extraire les données brutes.
+                const buffer = await genericKmzBlob.arrayBuffer();
+                // 3. On crée le Blob final avec le MIME type OFFICIEL.
+                fileBlob = new Blob([buffer], { type: 'application/vnd.google-earth.kmz' });
+                fileName = `${config.gridName}.kmz`;
                 break;
             case "GeoJSON":
                 fileBlob = new Blob([generateGeoJSON(config, gridData)], { type: "application/geo+json" });
                 fileName = `${config.gridName}.geojson`;
-                mimeType = "application/geo+json";
                 break;
             case "GPX":
                 fileBlob = new Blob([generateGPX(config, gridData)], { type: "application/gpx+xml" });
                 fileName = `${config.gridName}.gpx`;
-                mimeType = "application/gpx+xml";
                 break;
             default:
                 throw new Error("Format de sortie non supporté.");
         }
-        downloadFile(fileBlob, fileName, mimeType);
+        
+        // L'appel à downloadFile est maintenant plus simple.
+        downloadFile(fileBlob, fileName);
+
     } catch (error) {
         console.error("Error generating CADO grid:", error);
         showError(error.message);
@@ -580,24 +583,17 @@ function generateGPX(config, gridData) {
         
 // --- FONCTIONS UTILITAIRES PARTAGÉES ---
 
-function downloadFile(content, fileName, mimeType) {
-    // Si le contenu n'est pas déjà un Blob (ex: KML, GeoJSON), on le crée avec le bon MIME type.
-    let blob = (content instanceof Blob) ? content : new Blob([content], { type: mimeType });
-
-    // FIX SPÉCIFIQUE POUR LES NAVIGATEURS MOBILES
-    // Les navigateurs mobiles détectent que la structure d'un .kmz est un .zip et ajoutent l'extension .zip.
-    // Pour éviter cela, on force le MIME type à "application/octet-stream" pour les fichiers .kmz.
-    // Cela indique au navigateur de traiter le fichier comme un flux binaire générique sans essayer de deviner son type.
+function downloadFile(blob, fileName) {
     if (fileName.endsWith('.kmz')) {
-        // La méthode arrayBuffer() est asynchrone, nous devons donc utiliser .then()
-        blob.arrayBuffer().then(buffer => {
-            // On re-crée un Blob à partir des données brutes, mais avec le MIME type générique.
-            const newBlob = new Blob([buffer], { type: 'application/octet-stream' });
-            // On lance le téléchargement avec ce nouveau Blob.
-            saveAs(newBlob, fileName);
-        });
+        // Pour les fichiers KMZ, on applique l'astuce de "l'enveloppe de Blob"
+        // pour éviter le bug de la double extension .zip sur Android.
+        // L'enveloppe externe utilise le même MIME type officiel que le blob interne.
+        console.log("Fichier KMZ détecté. Application du fix pour compatibilité universelle.");
+        
+        const blobWrapper = new Blob([blob], { type: blob.type });
+        saveAs(blobWrapper, fileName);
     } else {
-        // Pour tous les autres types de fichiers, le comportement normal est conservé.
+        // Pour tous les autres types de fichiers, le comportement standard est suffisant.
         saveAs(blob, fileName);
     }
 }
