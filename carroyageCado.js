@@ -584,18 +584,32 @@ function generateGPX(config, gridData) {
 // --- FONCTIONS UTILITAIRES PARTAGÉES ---
 
 function downloadFile(blob, fileName) {
-    if (fileName.endsWith('.kmz')) {
-        // Pour les fichiers KMZ, on applique l'astuce de "l'enveloppe de Blob"
-        // pour éviter le bug de la double extension .zip sur Android.
-        // L'enveloppe externe utilise le même MIME type officiel que le blob interne.
-        console.log("Fichier KMZ détecté. Application du fix pour compatibilité universelle.");
-        
-        const blobWrapper = new Blob([blob], { type: blob.type });
-        saveAs(blobWrapper, fileName);
-    } else {
-        // Pour tous les autres types de fichiers, le comportement standard est suffisant.
-        saveAs(blob, fileName);
-    }
+    // Cette technique utilise la création d'un lien invisible et la simulation d'un clic.
+    // C'est la méthode la plus fiable pour contrôler le nom du fichier de téléchargement
+    // sans manipuler le Blob, ce qui évite toute corruption de données.
+    // Elle résout le problème de la double extension sur Android de la manière la plus propre.
+
+    // 1. Crée une URL temporaire pointant vers notre Blob en mémoire.
+    const url = window.URL.createObjectURL(blob);
+
+    // 2. Crée un élément de lien (<a>) invisible.
+    const a = document.createElement('a');
+    a.style.display = 'none';
+    a.href = url;
+
+    // 3. L'attribut 'download' est la clé : il force le navigateur à télécharger le fichier
+    //    sous ce nom, au lieu d'essayer de naviguer vers l'URL.
+    a.download = fileName;
+
+    // 4. Ajoute le lien au corps de la page.
+    document.body.appendChild(a);
+
+    // 5. Simule un clic sur le lien pour lancer le téléchargement.
+    a.click();
+
+    // 6. Nettoie en révoquant l'URL temporaire et en supprimant le lien.
+    window.URL.revokeObjectURL(url);
+    document.body.removeChild(a);
 }
 
 function showError(message) {
