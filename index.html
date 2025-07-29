@@ -12,14 +12,13 @@
     
     <!-- Votre feuille de style locale -->
     <link rel="stylesheet" href="style.css">
-    <link rel="manifest" href="manifest.json">
 
     <!-- Bibliothèques JS externes -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/open-location-code@1.0.4/js/openlocationcode.min.js"></script>
     
-    <!-- Scripts d'icônes (à placer dans le même dossier que index.html) -->
+    <!-- Scripts d'icônes -->
     <script src="FFFFFF-images.js"></script>
     <script src="000000-images.js"></script>
     <script src="FF0000-images.js"></script>
@@ -35,7 +34,7 @@
 <body class="p-4 md:p-6">
     <div class="max-w-5xl mx-auto">
         <header class="mb-6 text-center">
-             <h1 id="app-title" class="text-2xl md:text-3xl font-bold mb-4 text-content">Générateur de carroyage</h1>
+             <h1 id="app-title" class="text-2xl md:text-3xl font-bold mb-4 text-content">Générateur de carroyage CADO</h1>
              <div class="flex flex-wrap justify-center gap-2 mb-4">
                  <button id="helpBtn" class="text-2xl px-3 py-1 rounded-full button-outline bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-white">?</button>
                  <a href="https://www.google.com/maps" target="_blank" class="px-3 py-1 button-outline bg-gray-200 hover:bg-gray-300 rounded dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-white text-sm md:text-base">Ouvrir Google Maps</a>
@@ -45,13 +44,13 @@
         </header>
 
         <main class="space-y-6">
-            <!-- Contenu HTML du générateur CADO -->
+            <!-- CADO Grid Generator -->
             <div class="card bg-white shadow-md rounded-lg p-4 md:p-6 dark:bg-gray-800 dark:border dark:border-gray-700">
                 <section class="mb-6">
                     <h3 class="text-lg font-semibold mb-3 text-content">Coordonnées (Point de référence CADO)</h3>
                     <div class="space-y-4">
                         <div class="flex flex-col md:flex-row md:items-center space-y-2 md:space-y-0">
-                            <label class="md:w-1/3 text-sm md:text-base text-content">Coordonnées GPS (décimal) :</label>
+                            <label for="decimal-coords" class="md:w-1/3 text-sm md:text-base text-content">Coordonnées GPS (décimal) :</label>
                             <div class="md:w-2/3 flex space-x-2">
                                 <input type="text" id="decimal-coords" class="input-field w-full px-3 py-2 border rounded shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white text-base" placeholder="Lat, Long (ex: 48.8566, 2.3522)">
                                 <button id="convert-from-decimal" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-sm md:text-base">Convertir</button>
@@ -59,7 +58,7 @@
                             </div>
                         </div>
                         <div class="flex flex-col md:flex-row md:items-center space-y-2 md:space-y-0">
-                            <label class="md:w-1/3 text-sm md:text-base text-content">Coordonnées GPS (DMS) :</label>
+                            <label for="dms-coords" class="md:w-1/3 text-sm md:text-base text-content">Coordonnées GPS (DMS) :</label>
                             <div class="md:w-2/3 flex space-x-2">
                                 <input type="text" id="dms-coords" class="input-field w-full px-3 py-2 border rounded shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white text-base" placeholder="ex: 48°51'23.7''N 2°21'07.9''E">
                                 <button id="convert-from-dms" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-sm md:text-base">Convertir</button>
@@ -67,7 +66,7 @@
                             </div>
                         </div>
                         <div class="flex flex-col md:flex-row md:items-center space-y-2 md:space-y-0" hidden>
-                            <label class="md:w-1/3 text-sm md:text-base text-content" hidden>Plus Code :</label>
+                            <label for="plus-code" class="md:w-1/3 text-sm md:text-base text-content" hidden>Plus Code :</label>
                             <div class="md:w-2/3 flex space-x-2" hidden>
                                 <input type="text" id="plus-code" class="input-field w-full px-3 py-2 border rounded shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white text-base" placeholder="ex: 8FW4V75V+ ou EW47+QV Paris" hidden>
                                 <button id="convert-from-plus" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-sm md:text-base" hidden>Convertir</button>
@@ -75,30 +74,30 @@
                             </div>
                         </div>
                         <div class="flex flex-col md:flex-row md:items-center space-y-2 md:space-y-0">
-                            <label class="md:w-1/3 text-sm md:text-base text-content">Coordonnées MERCATOR :</label>
+                            <label for="mercator-coords" class="md:w-1/3 text-sm md:text-base text-content">Coordonnées MERCATOR :</label>
                             <div class="md:w-2/3 flex space-x-2">
                                 <input type="text" id="mercator-coords" class="input-field w-full px-3 py-2 border rounded shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white text-base" placeholder="ex: 263726.05, 6250958.43">
                                 <button id="convert-from-mercator" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-sm md:text-base">Convertir</button>
                                 <button id="view-on-maps-mercator" class="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-sm md:text-base">Voir sur Maps</button>
                             </div>
                         </div>
-						 <div class="flex flex-col md:flex-row md:items-center space-y-2 md:space-y-0">
-                            <label class="md:w-1/3 text-sm md:text-base text-content">Coordonnées UTM :</label>
+                        <div class="flex flex-col md:flex-row md:items-center space-y-2 md:space-y-0">
+                            <label for="utm-coords" class="md:w-1/3 text-sm md:text-base text-content">Coordonnées UTM :</label>
                             <div class="md:w-2/3 flex space-x-2">
-                                <input type="text" id="utm-coords" class="input-field w-full px-3 py-2 border rounded shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white text-base" placeholder="ex: 31 U 448252 5411943">
+                                <input type="text" id="utm-coords" class="input-field w-full px-3 py-2 border rounded shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white text-base" placeholder="Zone Lettre Easting Northing (ex: 31 U 448252 5411943)">
                                 <button id="convert-from-utm" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-sm md:text-base">Convertir</button>
                                 <button id="view-on-maps-utm" class="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-sm md:text-base">Voir sur Maps</button>
                             </div>
                         </div>
                     </div>
                 </section>
-                <!-- ... Le reste de votre contenu HTML pour CADO ... -->
-                 <section class="mb-6">
+
+                <section class="mb-6">
                     <h3 class="text-lg font-semibold mb-3 text-content">Configuration du carroyage CADO</h3>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div class="space-y-3">
                             <div class="flex flex-col space-y-1">
-                                <label class="text-sm md:text-base text-content">Échelle (en mètres) :</label>
+                                <label for="scale" class="text-sm md:text-base text-content">Échelle (en mètres) :</label>
                                 <input type="number" id="scale" class="input-field px-3 py-2 border rounded shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white text-base grid-parameter" value="20">
                             </div>
                             
@@ -121,7 +120,7 @@
                             </div>
                             
                             <div class="flex flex-col space-y-1">
-                                <label class="text-sm md:text-base text-content">Transparence :</label>
+                                <label for="transparency" class="text-sm md:text-base text-content">Transparence :</label>
                                 <div class="flex space-x-2 items-center">
                                     <input type="range" id="transparency" class="w-full grid-parameter" min="0" max="100" value="20">
                                     <span id="transparency-value" class="text-sm text-content">20%</span>
@@ -130,17 +129,17 @@
                             
                             <div class="flex space-x-4">
                                 <div class="flex-1 flex flex-col space-y-1">
-                                    <label class="text-sm md:text-base text-content">Taille du texte :</label>
+                                    <label for="label-size" class="text-sm md:text-base text-content">Taille du texte :</label>
                                     <input type="number" id="label-size" class="input-field px-3 py-2 border rounded shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white text-base grid-parameter" value="1.2" min="0.5" max="3" step="0.1">
                                 </div>
                                 <div class="flex-1 flex flex-col space-y-1">
-                                    <label class="text-sm md:text-base text-content">Taille des icônes :</label>
+                                    <label for="icon-size" class="text-sm md:text-base text-content">Taille des icônes :</label>
                                     <input type="number" id="icon-size" class="input-field px-3 py-2 border rounded shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white text-base grid-parameter" value="2" min="0.5" max="5" step="0.1">
                                 </div>
                             </div>
                             
                             <div class="flex flex-col space-y-1">
-                                <label class="text-sm md:text-base text-content">Nom du carroyage :</label>
+                                <label for="grid-name-base" class="text-sm md:text-base text-content">Nom du carroyage :</label>
                                 <input type="text" id="grid-name-base" class="input-field px-3 py-2 border rounded shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white text-base grid-parameter" value="CADO Grid">
                                 <input type="hidden" id="grid-name" value="CADO Grid">
                                 <div id="full-grid-name" class="text-sm text-secondary mt-1 overflow-auto max-h-20 border-l-2 border-blue-500 pl-2 italic">CADO Grid_20m_center_Z14_white</div>
@@ -211,33 +210,33 @@
                             <div id="custom-grid-options" class="hidden space-y-3">
                                 <div class="grid grid-cols-2 gap-2">
                                     <div class="flex flex-col space-y-1">
-                                        <label class="text-sm text-content">Début des lignes (nombres) :</label>
+                                        <label for="start-row" class="text-sm text-content">Début des lignes (nombres) :</label>
                                         <input type="number" id="start-row" class="input-field px-3 py-2 border rounded shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white text-base grid-parameter" value="1">
                                     </div>
                                     <div class="flex flex-col space-y-1">
-                                        <label class="text-sm text-content">Fin des lignes (nombres) :</label>
+                                        <label for="end-row" class="text-sm text-content">Fin des lignes (nombres) :</label>
                                         <input type="number" id="end-row" class="input-field px-3 py-2 border rounded shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white text-base grid-parameter" value="26">
                                     </div>
                                     <div class="flex flex-col space-y-1">
-                                        <label class="text-sm text-content">Début des colonnes (lettres) :</label>
+                                        <label for="start-col" class="text-sm text-content">Début des colonnes (lettres) :</label>
                                         <input type="text" id="start-col" class="input-field px-3 py-2 border rounded shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white text-base grid-parameter" value="A">
                                     </div>
                                     <div class="flex flex-col space-y-1">
-                                        <label class="text-sm text-content">Fin des colonnes (lettres) :</label>
+                                        <label for="end-col" class="text-sm text-content">Fin des colonnes (lettres) :</label>
                                         <input type="text" id="end-col" class="input-field px-3 py-2 border rounded shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white text-base grid-parameter" value="Z">
                                     </div>
                                 </div>
                                 <p class="text-xs text-secondary">
                                     * Pour une grille personnalisée :<br>
-                                         - Les lignes peuvent aller de -26 à 52.<br>
-                                         - Les colonnes doivent être comprises entre -Z et AZ.<br>
-                                         - Il n'y a pas de ligne/colonne 0.
+                                        - Les lignes peuvent aller de -26 à 52.<br>
+                                        - Les colonnes doivent être comprises entre -Z et AZ.<br>
+                                        - Il n'y a pas de ligne/colonne 0.
                                 </p>
                             </div>
                             
                             <div class="flex flex-col space-y-1">
                                 <div class="flex items-center justify-between">
-                                    <label class="text-sm md:text-base text-content">Déviation (en degrés) :</label>
+                                    <label for="deviation" class="text-sm md:text-base text-content">Déviation (en degrés) :</label>
                                     <button id="reset-deviation" class="px-2 py-1 text-xs bg-gray-200 hover:bg-gray-300 rounded dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-white reset-btn">Réinitialiser</button>
                                 </div>
                                 <div class="flex space-x-2 items-center">
@@ -255,70 +254,94 @@
                         <div class="space-y-2">
                             <h4 class="font-medium text-content">Format du fichier :</h4>
                             <div class="flex flex-wrap gap-2">
-                                <label class="inline-flex items-center"><input type="radio" name="file-format" value="KML" class="custom-radio"><span class="px-3 py-1 border border-default rounded cursor-pointer text-sm button-outline w-24 text-center">KML</span></label>
-                                <label class="inline-flex items-center"><input type="radio" name="file-format" value="KMZ" class="custom-radio" checked><span class="px-3 py-1 border border-default rounded cursor-pointer text-sm button-outline w-24 text-center">KMZ</span></label>
-                                <label class="inline-flex items-center"><input type="radio" name="file-format" value="GeoJSON" class="custom-radio"><span class="px-3 py-1 border border-default rounded cursor-pointer text-sm button-outline w-24 text-center">GeoJSON</span></label>
-                                <label class="inline-flex items-center"><input type="radio" name="file-format" value="GPX" class="custom-radio"><span class="px-3 py-1 border border-default rounded cursor-pointer text-sm button-outline w-24 text-center">GPX (OSMAND)</span></label>
+                                <label class="inline-flex items-center">
+                                    <input type="radio" name="file-format" value="KML" class="custom-radio">
+                                    <span class="px-3 py-1 border border-default rounded cursor-pointer text-sm button-outline w-24 text-center">KML</span>
+                                </label>
+                                <label class="inline-flex items-center">
+                                    <input type="radio" name="file-format" value="KMZ" class="custom-radio" checked>
+                                    <span class="px-3 py-1 border border-default rounded cursor-pointer text-sm button-outline w-24 text-center">KMZ</span>
+                                </label>
+                                <label class="inline-flex items-center">
+                                    <input type="radio" name="file-format" value="GeoJSON" class="custom-radio">
+                                    <span class="px-3 py-1 border border-default rounded cursor-pointer text-sm button-outline w-24 text-center">GeoJSON</span>
+                                </label>
+                                <label class="inline-flex items-center">
+                                    <input type="radio" name="file-format" value="GPX" class="custom-radio">
+                                    <span class="px-3 py-1 border border-default rounded cursor-pointer text-sm button-outline w-24 text-center">GPX (OSMAND)</span>
+                                </label>
                             </div>
                         </div>
+                        
                         <div class="space-y-2">
                             <h4 class="font-medium text-content">Contenu :</h4>
                             <div class="flex flex-wrap gap-2">
-                                <label class="inline-flex items-center"><input type="radio" name="content-type" value="grid-only" class="custom-radio"><span class="px-3 py-1 border border-default rounded cursor-pointer text-sm button-outline w-28 text-center">Grille seule</span></label>
-                                <label class="inline-flex items-center"><input type="radio" name="content-type" value="points-only" class="custom-radio"><span class="px-3 py-1 border border-default rounded cursor-pointer text-sm button-outline w-28 text-center">Points seuls</span></label>
-                                <label class="inline-flex items-center"><input type="radio" name="content-type" value="grid-points" class="custom-radio" checked><span class="px-3 py-1 border border-default rounded cursor-pointer text-sm button-outline w-28 text-center">Grille + Points</span></label>
+                                <label class="inline-flex items-center">
+                                    <input type="radio" name="content-type" value="grid-only" class="custom-radio">
+                                    <span class="px-3 py-1 border border-default rounded cursor-pointer text-sm button-outline w-28 text-center">Grille seule</span>
+                                </label>
+                                <label class="inline-flex items-center">
+                                    <input type="radio" name="content-type" value="points-only" class="custom-radio">
+                                    <span class="px-3 py-1 border border-default rounded cursor-pointer text-sm button-outline w-28 text-center">Points seuls</span>
+                                </label>
+                                <label class="inline-flex items-center">
+                                    <input type="radio" name="content-type" value="grid-points" class="custom-radio" checked>
+                                    <span class="px-3 py-1 border border-default rounded cursor-pointer text-sm button-outline w-28 text-center">Grille + Points</span>
+                                </label>
                             </div>
                         </div>
                     </div>
                 </section>
+
                 <section class="flex justify-center">
                     <button id="generate-button" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg text-lg font-semibold shadow-lg transform transition duration-200 hover:scale-105">GÉNÉRER CARROYAGE CADO</button>
                 </section>
             </div>
-
-            <!-- Contenu HTML du générateur UTM -->
+            
+            <!-- UTM Grid Generator -->
             <div class="card bg-white shadow-md rounded-lg p-4 md:p-6 dark:bg-gray-800 dark:border dark:border-gray-700">
                 <section class="mb-6">
                     <h3 class="text-lg font-semibold mb-3 text-content">Générateur de Grille UTM (1km)</h3>
                     <div class="space-y-4">
                         <div class="flex flex-col md:flex-row md:items-center space-y-2 md:space-y-0">
-                            <label class="md:w-1/3 text-sm md:text-base text-content">Coordonnée Nord-Ouest (NO) :</label>
+                            <label for="utm-nw-coords" class="md:w-1/3 text-sm md:text-base text-content">Coordonnée Nord-Ouest (NO) :</label>
                             <input type="text" id="utm-nw-coords" class="input-field md:w-2/3 w-full px-3 py-2 border rounded shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white text-base" placeholder="Lat, Long (ex: 49.0, 2.0)">
                         </div>
                         <div class="flex flex-col md:flex-row md:items-center space-y-2 md:space-y-0">
-                            <label class="md:w-1/3 text-sm md:text-base text-content">Coordonnée Sud-Est (SE) :</label>
+                            <label for="utm-se-coords" class="md:w-1/3 text-sm md:text-base text-content">Coordonnée Sud-Est (SE) :</label>
                             <input type="text" id="utm-se-coords" class="input-field md:w-2/3 w-full px-3 py-2 border rounded shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white text-base" placeholder="Lat, Long (ex: 48.5, 2.5)">
                         </div>
                     </div>
                 </section>
+                
                 <section class="mb-6">
                     <h3 class="text-lg font-semibold mb-3 text-content">Configuration de la grille UTM</h3>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div class="space-y-3">
                             <div class="flex flex-col space-y-1">
-                                <label class="text-sm md:text-base text-content">Nom du fichier :</label>
+                                <label for="utm-grid-name" class="text-sm md:text-base text-content">Nom du fichier :</label>
                                 <input type="text" id="utm-grid-name" class="input-field px-3 py-2 border rounded shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white text-base" value="Grille_UTM_1km">
                             </div>
                             <div class="flex flex-col space-y-1">
                                 <label class="text-sm md:text-base text-content">Couleur des lignes :</label>
                                 <div class="flex flex-wrap gap-2" id="utm-color-options">
-                                     <div class="color-option" data-color="#FFFFFF" style="background-color: #FFFFFF; border: 1px solid #ccc;"></div>
-                                     <div class="color-option" data-color="#000000" style="background-color: #000000;"></div>
-                                     <div class="color-option selected" data-color="#FF0000" style="background-color: #FF0000;"></div>
-                                     <div class="color-option" data-color="#FFA500" style="background-color: #FFA500;"></div>
-                                     <div class="color-option" data-color="#FFFF00" style="background-color: #FFFF00;"></div>
-                                     <div class="color-option" data-color="#008000" style="background-color: #008000;"></div>
-                                     <div class="color-option" data-color="#0000FF" style="background-color: #0000FF;"></div>
-                                     <div class="color-option" data-color="#800080" style="background-color: #800080;"></div>
-                                     <div class="color-option" data-color="#A52A2A" style="background-color: #A52A2A;"></div>
-                                     <div class="color-option" data-color="#808080" style="background-color: #808080;"></div>
+                                    <div class="color-option" data-color="#FFFFFF" style="background-color: #FFFFFF; border: 1px solid #ccc;"></div>
+                                    <div class="color-option" data-color="#000000" style="background-color: #000000;"></div>
+                                    <div class="color-option selected" data-color="#FF0000" style="background-color: #FF0000;"></div>
+                                    <div class="color-option" data-color="#FFA500" style="background-color: #FFA500;"></div>
+                                    <div class="color-option" data-color="#FFFF00" style="background-color: #FFFF00;"></div>
+                                    <div class="color-option" data-color="#008000" style="background-color: #008000;"></div>
+                                    <div class="color-option" data-color="#0000FF" style="background-color: #0000FF;"></div>
+                                    <div class="color-option" data-color="#800080" style="background-color: #800080;"></div>
+                                    <div class="color-option" data-color="#A52A2A" style="background-color: #A52A2A;"></div>
+                                    <div class="color-option" data-color="#808080" style="background-color: #808080;"></div>
                                 </div>
                                 <input type="hidden" id="utm-grid-color" value="#FF0000">
                             </div>
                         </div>
                          <div class="space-y-3">
                              <div class="flex flex-col space-y-1">
-                                <label class="text-sm md:text-base text-content">Transparence des lignes :</label>
+                                <label for="utm-transparency" class="text-sm md:text-base text-content">Transparence des lignes :</label>
                                 <div class="flex space-x-2 items-center">
                                     <input type="range" id="utm-transparency" class="w-full" min="0" max="100" value="30">
                                     <span id="utm-transparency-value" class="text-sm text-content">30%</span>
@@ -327,6 +350,7 @@
                         </div>
                     </div>
                 </section>
+                
                 <section class="flex justify-center">
                     <button id="generate-utm-button" class="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg text-lg font-semibold shadow-lg transform transition duration-200 hover:scale-105">GÉNÉRER GRILLE UTM</button>
                 </section>
@@ -337,11 +361,11 @@
                 <p id="loading-message" class="text-sm text-secondary">Génération en cours...</p>
             </div>
             
-            <div id="error-message" class="hidden mt-4 p-3 bg-red-100 text-red-700 rounded-lg text-center dark:bg-red-900 dark:text-red-300"></div>
+            <div id="error-message" class="hidden mt-4 p-3 bg-red-100 text-red-700 rounded-lg text-center dark:bg-red-900 dark:text-red-300">
+            </div>
         </main>
         
-        <!-- Fenêtre modale d'aide -->
-                <!-- Help Modal -->
+        <!-- Help Modal -->
         <div id="help-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
             <div class="card bg-white dark:bg-gray-800 rounded-lg shadow-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6">
                 <div class="flex justify-between items-center mb-4">
@@ -403,12 +427,19 @@
             </div>
         </div>
     </div>
-
-    <!-- Scripts locaux de l'application -->
-   <script src="carroyageUTM.js"></script>
+    
+    <!-- Bannière de mise à jour -->
+    <div id="update-banner" class="hidden fixed bottom-4 left-1/2 -translate-x-1/2 bg-blue-600 text-white p-4 rounded-lg shadow-xl flex items-center gap-4 z-50">
+      <p>Une nouvelle version est disponible.</p>
+      <button id="reload-button" class="bg-white text-blue-600 font-bold py-1 px-3 rounded hover:bg-blue-100">
+        Actualiser
+      </button>
+    </div>
+    
+    <!-- Scripts -->
+    <script src="carroyageUTM.js"></script>
     <script src="carroyageCado.js"></script>
 
- <!-- Script principal pour l'initialisation de l'interface -->
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
@@ -421,9 +452,8 @@
             initIconDictionaries();
             initUI();
             setupEventListeners();
-            updateDynamicGridName();
-	    registerServiceWorker();
-	    displayAppVersion();
+            displayAppVersion(); // Affiche la version au chargement
+            registerServiceWorker(); 
         });
 
         function initUI() {
@@ -469,19 +499,17 @@
                 el.addEventListener(eventType, updateDynamicGridName);
             });
 
-            // Boutons de conversion
             document.getElementById('convert-from-decimal').addEventListener('click', convertFromDecimal);
             document.getElementById('convert-from-dms').addEventListener('click', convertFromDMS);
             document.getElementById('convert-from-plus').addEventListener('click', convertFromPlusCode);
             document.getElementById('convert-from-mercator').addEventListener('click', convertFromMercator);
-            document.getElementById('convert-from-utm').addEventListener('click', convertFromUTM); // Ajout du listener
+            document.getElementById('convert-from-utm').addEventListener('click', convertFromUTM); 
             
-            // Boutons "Voir sur Maps"
             document.getElementById('view-on-maps-decimal').addEventListener('click', () => viewOnMaps('decimal'));
             document.getElementById('view-on-maps-dms').addEventListener('click', () => viewOnMaps('dms'));
             document.getElementById('view-on-maps-plus').addEventListener('click', () => viewOnMaps('plus'));
             document.getElementById('view-on-maps-mercator').addEventListener('click', () => viewOnMaps('mercator'));
-            document.getElementById('view-on-maps-utm').addEventListener('click', () => viewOnMaps('utm')); // Ajout du listener
+            document.getElementById('view-on-maps-utm').addEventListener('click', () => viewOnMaps('utm')); 
 
             document.getElementById('reset-deviation').addEventListener('click', () => {
                 document.getElementById('deviation').value = 0;
@@ -497,30 +525,38 @@
             document.getElementById('generate-button').addEventListener('click', generateGrid);
             document.getElementById('generate-utm-button').addEventListener('click', generateUTMGrid);
         }
-	if ('serviceWorker' in navigator) {
-          window.addEventListener('load', () => {
-            navigator.serviceWorker.register('/sw.js')
-              .then((reg) => {
-                console.log('Service worker registered.', reg);
-              })
-              .catch((err) => {
-                console.error('Service worker registration failed:', err);
-              });
-          });
+
+        async function displayAppVersion() {
+          try {
+            const response = await fetch('/sw.js', { cache: 'no-store' });
+            if (!response.ok) return;
+
+            const swContent = await response.text();
+            const versionMatch = swContent.match(/const VERSION = ['"](.*?)['"]/);
+
+            if (versionMatch && versionMatch[1]) {
+              const version = versionMatch[1];
+              const displayVersion = `v${version}`;
+              document.title = `Générateur CADO ${displayVersion}`;
+              const titleElement = document.getElementById('app-title');
+              if (titleElement) {
+                titleElement.textContent = `Générateur de carroyage CADO ${displayVersion}`;
+              }
+            }
+          } catch (error) {
+            console.error("Impossible de récupérer la version depuis sw.js:", error);
+          }
         }
-	function registerServiceWorker() {
+
+        function registerServiceWorker() {
             if ('serviceWorker' in navigator) {
                 navigator.serviceWorker.register('/sw.js')
                     .then(registration => {
                         console.log('SW enregistré:', registration);
-
-                        // Vérifier si un nouveau SW est en attente ou s'il y en a un en cours d'installation
                         registration.addEventListener('updatefound', () => {
                             const newWorker = registration.installing;
                             console.log('Nouvelle version du SW détectée :', newWorker);
-
                             newWorker.addEventListener('statechange', () => {
-                                // Le nouveau SW a pris le contrôle
                                 if (newWorker.state === 'activated') {
                                     console.log('Nouveau SW activé. Affichage de la bannière.');
                                     showUpdateBanner();
@@ -534,57 +570,17 @@
             }
         }
         
-        // NOUVELLE FONCTION pour afficher la bannière et gérer le clic
         function showUpdateBanner() {
             const banner = document.getElementById('update-banner');
             const reloadButton = document.getElementById('reload-button');
-
-            banner.classList.remove('hidden');
-
-            reloadButton.addEventListener('click', () => {
-                // Recharger la page pour utiliser les nouveaux fichiers du cache
-                window.location.reload();
-            });
+            if (banner) banner.classList.remove('hidden');
+            if (reloadButton) {
+                reloadButton.addEventListener('click', () => {
+                    window.location.reload();
+                });
+            }
         }
-	async function displayAppVersion() {
-	  try {
-	    // On récupère le sw.js en ignorant le cache. C'est fiable.
-	    const response = await fetch('/sw.js', { cache: 'no-store' });
-	    if (!response.ok) return;
-	
-	    const swContent = await response.text();
-	    
-	    // On cherche la constante VERSION. C'est fiable.
-	    const versionMatch = swContent.match(/const VERSION = ['"](.*?)['"]/);
-	
-	    if (versionMatch && versionMatch[1]) {
-	      const version = versionMatch[1];
-	      const displayVersion = `v${version}`;
-	
-	      // --- CORRECTION CLÉ ---
-	      // On cible directement l'élément par son ID.
-	      const titleElement = document.getElementById('app-title');
-	
-	      // On vérifie si l'élément a bien été trouvé.
-	      if (titleElement) {
-	        // On modifie les deux textes.
-	        document.title = `Générateur CADO ${displayVersion}`;
-	        titleElement.textContent = `Générateur de carroyage CADO ${displayVersion}`;
-	      } else {
-	        // Si l'élément n'est pas trouvé, on affiche une erreur claire dans la console.
-	        console.error("L'élément avec l'ID 'app-title' n'a pas été trouvé dans le HTML.");
-	      }
-	    }
-	  } catch (error) {
-	    console.error("Erreur lors de la récupération de la version:", error);
-	  }
-	}
     </script>
-    <div id="update-banner" class="hidden fixed bottom-4 left-1/2 -translate-x-1/2 bg-blue-600 text-white p-4 rounded-lg shadow-xl flex items-center gap-4 z-50">
-      <p>Une nouvelle version est disponible.</p>
-      <button id="reload-button" class="bg-white text-blue-600 font-bold py-1 px-3 rounded hover:bg-blue-100">
-        Actualiser
-      </button>
-    </div>
 </body>
+
 </html>
