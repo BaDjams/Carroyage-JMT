@@ -116,11 +116,10 @@ async function generateUTMGrid() {
         const kmlContent = createUTM_KML(allEastingLines, allNorthingLines, allBoundaryLines, allIntermediateLabels, { gridName, lineColor: color, lineOpacity: opacity });
         const zip = new JSZip();
         zip.file("doc.kml", kmlContent);
-         // 1. On génère les données brutes (buffer) du fichier zip.
+        
         const buffer = await zip.generateAsync({ type: "arraybuffer" });
-        // 2. On crée un nouveau Blob à partir de ces données avec le MIME type OFFICIEL et CORRECT.
         const kmzBlobWithMime = new Blob([buffer], { type: 'application/vnd.google-earth.kmz' });
-        // 3. On appelle downloadFile avec ce Blob correctement typé.
+        
         downloadFile(kmzBlobWithMime, `${gridName}.kmz`);
 
     } catch (error) {
@@ -147,7 +146,6 @@ function calculateGridForZoneStrip(nwLat, nwLon, seLat, seLon, zoneToUse) {
     const gridSpacing = 1000, labelSpacing = 5000;
     const eastingLines = [], northingLines = [], intermediateLabels = [];
 
-    // --- Génération des lignes verticales (Easting constant) ---
     for (let e = Math.ceil(minEasting / gridSpacing) * gridSpacing; e <= maxEasting; e += gridSpacing) {
         const linePoints = [];
         const segments = 20;
@@ -160,11 +158,7 @@ function calculateGridForZoneStrip(nwLat, nwLon, seLat, seLon, zoneToUse) {
             }
         }
         if (linePoints.length > 1) {
-             eastingLines.push({
-                name: `E ${Math.round(e / 1000)}`,
-                coordinates: linePoints,
-                zone: `${zoneToUse}${zoneLetter}`
-            });
+             eastingLines.push({ name: `E ${Math.round(e / 1000)}`, coordinates: linePoints, zone: `${zoneToUse}${zoneLetter}` });
         }
         if (Math.round(e) % labelSpacing === 0) {
             for (let n = Math.ceil(minNorthing / labelSpacing) * labelSpacing; n <= maxNorthing; n += labelSpacing) {
@@ -176,19 +170,15 @@ function calculateGridForZoneStrip(nwLat, nwLon, seLat, seLon, zoneToUse) {
         }
     }
 
-    // --- Génération des lignes horizontales (Northing constant) ---
     for (let n = Math.ceil(minNorthing / gridSpacing) * gridSpacing; n <= maxNorthing; n += gridSpacing) {
         const linePoints = [];
         const segments = 20;
-        
-        // Déterminer les limites Est et Ouest de la ligne à cette coordonnée de Northing
         const tempLatForBounds = WGS84_to_UTM.toLatLon(minEasting, n, zoneToUse, zoneLetter).latitude;
         const utmLeft = WGS84_to_UTM.fromLatLon(tempLatForBounds, nwLon, zoneToUse);
         const utmRight = WGS84_to_UTM.fromLatLon(tempLatForBounds, seLon, zoneToUse);
         const startEasting = utmLeft.easting;
         const endEasting = utmRight.easting;
 
-        // **CORRECTION: Construire la ligne horizontale avec plusieurs segments**
         for (let i = 0; i <= segments; i++) {
             const currentEasting = startEasting + (i / segments) * (endEasting - startEasting);
             const wgsPoint = WGS84_to_UTM.toLatLon(currentEasting, n, zoneToUse, zoneLetter);
@@ -196,14 +186,9 @@ function calculateGridForZoneStrip(nwLat, nwLon, seLat, seLon, zoneToUse) {
         }
         
         if (linePoints.length > 1) {
-            northingLines.push({
-                name: `N ${Math.round(n / 1000)}`,
-                coordinates: linePoints,
-                zone: `${zoneToUse}${zoneLetter}`
-            });
+            northingLines.push({ name: `N ${Math.round(n / 1000)}`, coordinates: linePoints, zone: `${zoneToUse}${zoneLetter}` });
         }
         
-        // La logique des étiquettes est maintenant alignée avec la ligne elle-même
         if (Math.round(n) % labelSpacing === 0) {
             for (let e = Math.ceil(startEasting / labelSpacing) * labelSpacing; e <= endEasting; e += labelSpacing) {
                 const labelPointWGS = WGS84_to_UTM.toLatLon(e, n, zoneToUse, zoneLetter);
@@ -218,17 +203,20 @@ function calculateGridForZoneStrip(nwLat, nwLon, seLat, seLon, zoneToUse) {
 
 function createUTM_KML(eastingLines, northingLines, boundaryLines, intermediateLabels, config) {
     const kmlColor = rgbToKmlColor(config.lineColor, config.lineOpacity);
-    let kml = `<?xml version="1.0" encoding="UTF-8"?><kml xmlns="http://www.opengis.net/kml/2.2"><Document><name>${config.gridName}</name>
-    <Style id="utmLineStyle"><LineStyle><color>${kmlColor}</color><width>2</width></LineStyle><PolyStyle><fill>0</fill></PolyStyle></Style>
-    <Style id="utmLabelStyle"><IconStyle><scale>0</scale></IconStyle><LabelStyle><scale>0.7</scale></LabelStyle></Style>
-    <Style id="utmIntermediateLabelStyle"><IconStyle><scale>0</scale></IconStyle><LabelStyle><scale>0.6</scale></LabelStyle></Style>
-    <Style id="boundaryLineStyle"><LineStyle><color>ff0000ff</color><width>4</width></LineStyle></Style>`;
+    let kml = `<?xml version="1.0" encoding="UTF-8"?><kml xmlns="http://www.opengis.net/kml/2.2"><Document><name>${config.gridName}</name>`;
+    kml += `<Style id="utmLineStyle"><LineStyle><color>${kmlColor}</color><width>2</width></LineStyle><PolyStyle><fill>0</fill></PolyStyle></Style>`;
+    kml += `<Style id="utmLabelStyle"><IconStyle><scale>0</scale></IconStyle><LabelStyle><scale>0.7</scale></LabelStyle></Style>`;
+    kml += `<Style id="utmIntermediateLabelStyle"><IconStyle><scale>0</scale></IconStyle><LabelStyle><scale>0.6</scale></LabelStyle></Style>`;
+    kml += `<Style id="boundaryLineStyle"><LineStyle><color>ff0000ff</color><width>4</width></LineStyle></Style>`;
     
     const linesByZone = {};
     [...eastingLines, ...northingLines].forEach(line => {
         if (!linesByZone[line.zone]) linesByZone[line.zone] = { eastings: [], northings: [] };
-        if (line.name.startsWith('E')) linesByZone[line.zone].eastings.push(line);
-        else linesByZone[line.zone].northings.push(line);
+        if (line.name.startsWith('E')) {
+            linesByZone[line.zone].eastings.push(line);
+        } else {
+            linesByZone[line.zone].northings.push(line);
+        }
     });
 
     for (const zone in linesByZone) {
@@ -249,6 +237,7 @@ function createUTM_KML(eastingLines, northingLines, boundaryLines, intermediateL
 
 function createKMLPlacemarkForLine(line, lineStyleUrl, labelStyleUrl) {
     const coordinateString = line.coordinates.map(c => c.join(',')).join(' ');
+    // **LA CORRECTION EST ICI**
     const startPoint = line.coordinates[0].join(',');
     const endPoint = line.coordinates[line.coordinates.length - 1].join(',');
     
