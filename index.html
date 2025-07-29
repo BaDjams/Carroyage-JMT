@@ -548,21 +548,29 @@
         }
 	async function displayAppVersion() {
 	  try {
-	    const response = await fetch('/version.json');
+	    // On fetch le contenu du Service Worker comme un simple fichier texte
+	    const response = await fetch('/sw.js');
 	    if (!response.ok) return;
 	
-	    const versionInfo = await response.json();
-	    const displayVersion = `v${versionInfo.version}`; // On ajoute le "v" ici
+	    const swContent = await response.text();
+	    
+	    // On utilise une expression régulière simple et fiable pour trouver la ligne de VERSION
+	    // Elle cherche : const VERSION = '...' ou "..." et capture le contenu entre les quotes.
+	    const versionMatch = swContent.match(/const VERSION = ['"](.*?)['"]/);
 	
-	    if (displayVersion) {
+	    if (versionMatch && versionMatch[1]) {
+	      const version = versionMatch[1]; // ex: "1.6"
+	      const displayVersion = `v${version}`; // Ajoute le "v" pour l'affichage
+	
+	      // On met à jour le titre de l'onglet et le titre sur la page
 	      document.title = `Générateur CADO ${displayVersion}`;
-	      const titleElement = document.getElementById('app-title');
+	      const titleElement = document.getElementById('app-title'); // Assurez-vous que votre h1 a bien cet id
 	      if (titleElement) {
 	        titleElement.textContent = `Générateur de carroyage CADO ${displayVersion}`;
 	      }
 	    }
 	  } catch (error) {
-	    console.error("Impossible de récupérer la version depuis version.json:", error);
+	    console.error("Impossible de récupérer la version depuis sw.js:", error);
 	  }
 	}
     </script>
