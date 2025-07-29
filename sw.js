@@ -2,7 +2,7 @@
 
 const VERSION = '12.12';
 // On construit le nom du cache à partir de la version
-const CACHE_NAME = `cado-utm-generator-v${VERSION}`; 
+const CACHE_NAME = `cado-grid-generator-v${VERSION}`; 
 
 // List all the files your app needs to function offline
 const FILES_TO_CACHE = [
