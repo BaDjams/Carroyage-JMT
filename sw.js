@@ -1,17 +1,20 @@
 // sw.js
 
-const VERSION = '12.15';
-// On construit le nom du cache à partir de la version
-const CACHE_NAME = `cado-grid-generator-v${VERSION}`; 
+// On importe notre fichier de version. C'est la première chose qu'il fait.
+importScripts('version.js');
 
-// List all the files your app needs to function offline
-const FILES_TO_CACHE = [
+// La constante VERSION est maintenant disponible grâce à l'import.
+const VERSION = APP_VERSION; 
+// Le nom du cache est construit à partir de cette variable.
+const CACHE_NAME = `cado-utm-generator-v${VERSION}`;
+
+const urlsToCache = [
   '/',
   'index.html',
   'style.css',
   'carroyageUTM.js',
   'carroyageCado.js',
-  // IMPORTANT: You must list all your icon data files here
+  'version.js', // IMPORTANT : On ajoute le fichier de version au cache !
   'FFFFFF-images.js',
   '000000-images.js',
   'FF0000-images.js',
