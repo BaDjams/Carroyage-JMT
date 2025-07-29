@@ -116,8 +116,12 @@ async function generateUTMGrid() {
         const kmlContent = createUTM_KML(allEastingLines, allNorthingLines, allBoundaryLines, allIntermediateLabels, { gridName, lineColor: color, lineOpacity: opacity });
         const zip = new JSZip();
         zip.file("doc.kml", kmlContent);
-        const kmzBlob = await zip.generateAsync({ type: "blob" });
-        downloadFile(kmzBlob, `${gridName}.kmz`, 'application/vnd.google-earth.kmz');
+         // 1. On génère les données brutes (buffer) du fichier zip.
+        const buffer = await zip.generateAsync({ type: "arraybuffer" });
+        // 2. On crée un nouveau Blob à partir de ces données avec le MIME type OFFICIEL et CORRECT.
+        const kmzBlobWithMime = new Blob([buffer], { type: 'application/vnd.google-earth.kmz' });
+        // 3. On appelle downloadFile avec ce Blob correctement typé.
+        downloadFile(kmzBlobWithMime, `${gridName}.kmz`);
 
     } catch (error) {
         console.error("Error generating UTM grid:", error);
