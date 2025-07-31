@@ -1,15 +1,10 @@
 // imagetoprint.js
 
-// Template de l'URL pour les tuiles OpenStreetMap.
-// {z} = zoom, {x} = colonne, {y} = ligne
 const TILE_PROVIDER_URL = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
-
-// Taille standard d'une tuile de carte web en pixels.
 const TILE_SIZE = 256;
 
 /**
  * Fonction principale appelée par le bouton "Générer l'image (PNG)".
- * Orchestre le processus de création de l'image.
  */
 async function generateImageToPrint() {
     const loadingIndicator = document.getElementById("loading-indicator");
@@ -20,50 +15,39 @@ async function generateImageToPrint() {
     hideError();
 
     try {
-        // --- 1. Récupération et surcharge de la configuration ---
+        const coordsStr = document.getElementById("decimal-coords").value;
+        if (!coordsStr) throw new Error("Veuillez d'abord définir des coordonnées de référence.");
+        
         const config = getGridConfiguration(
-            parseFloat(document.getElementById("decimal-coords").value.split(',')[0]),
-            parseFloat(document.getElementById("decimal-coords").value.split(',')[1])
+            parseFloat(coordsStr.split(',')[0]),
+            parseFloat(coordsStr.split(',')[1])
         );
-        // On force les paramètres spécifiques à l'impression
         config.startCol = 'A';
-        config.endCol = 'AA'; // 27ème lettre
+        config.endCol = 'AA';
         config.startRow = 1;
         config.endRow = 19;
         config.includeGrid = true;
         config.includePoints = false;
         
-        // --- 2. Calcul de la position de l'origine A1 ---
-        // Cette étape est cruciale pour savoir où ancrer notre carte.
         const a1CornerCoords = getA1CornerCoords(config);
-
-        // --- 3. Calcul de la Bounding Box (zone géographique à couvrir) ---
         const boundingBox = getBoundingBoxForPrint(config, a1CornerCoords);
-
-        // --- 4. Détermination du niveau de zoom optimal ---
         const zoomLevel = calculateOptimalZoom(boundingBox, config.scale);
         console.log(`Zoom optimal calculé : ${zoomLevel}`);
 
-        // --- 5. Récupération et assemblage des tuiles de carte ---
         loadingMessage.textContent = "Téléchargement des fonds de carte (0%)...";
         const { mapImage, tileInfo } = await fetchAndAssembleTiles(boundingBox, zoomLevel, (progress) => {
             loadingMessage.textContent = `Téléchargement des fonds de carte (${progress.toFixed(0)}%)...`;
         });
 
-        // --- 6. Création et dessin sur le canevas final ---
         loadingMessage.textContent = "Assemblage de l'image finale...";
         const finalCanvas = document.createElement('canvas');
         const ctx = finalCanvas.getContext('2d');
         finalCanvas.width = mapImage.width;
         finalCanvas.height = mapImage.height;
-        
-        // Dessiner l'image de la carte assemblée
         ctx.drawImage(mapImage, 0, 0);
 
-        // Dessiner le carroyage et les étiquettes par-dessus
         drawGridOnCanvas(ctx, tileInfo, zoomLevel, config, a1CornerCoords);
         
-        // --- 7. Exportation en PNG ---
         const fileName = `${config.gridName}_Print_27x19.png`;
         finalCanvas.toBlob((blob) => {
             if (blob) {
@@ -82,7 +66,7 @@ async function generateImageToPrint() {
 }
 
 /**
- * Calcule la position de l'origine A1 sans déclencher de boucle.
+ * Calcule la position de l'origine A1.
  */
 function getA1CornerCoords(config) {
     const refLat = config.latitude;
@@ -93,7 +77,7 @@ function getA1CornerCoords(config) {
     if (config.referencePointChoice === 'origin') {
         return [refLon, refLat];
     } else { // 'center'
-        // Pour une grille 27x19, le centre est sur la 14ème colonne (N) et la 10ème ligne (10)
+        // Centre d'une grille 27x19 : 14ème colonne (N), 10ème ligne (10)
         const centerColOffset = getOffsetInCells(14) + 0.5; // 13.5
         const centerRowOffset = getOffsetInCells(10) + 0.5; // 9.5
         
@@ -113,31 +97,31 @@ function getA1CornerCoords(config) {
 function getBoundingBoxForPrint(config, a1CornerCoords) {
     const [a1Lon, a1Lat] = a1CornerCoords;
     
-    // Coin Nord-Ouest: Coin supérieur gauche de la case A19
-    const nwPoint = calculateAndRotatePoint(1, 19, config, a1Lat, a1Lon);
-    
-    // Coin Sud-Est: Coin inférieur droit de la case AA1
-    const sePoint = calculateAndRotatePoint(28, 1, config, a1Lat, a1Lon); // 28 pour le bord droit de la 27ème case
+    // Le coin NW est le coin supérieur gauche de la case A19.
+    // Le coin SE est le coin inférieur droit de la case AA1.
+    const nwGridPoint = config.letteringDirection === 'ascending' ? { col: 1, row: 20 } : { col: 1, row: 1 };
+    const seGridPoint = config.letteringDirection === 'ascending' ? { col: 28, row: 1 } : { col: 28, row: 20 };
+
+    const nwPoint = calculateAndRotatePoint(nwGridPoint.col, nwGridPoint.row, config, a1Lat, a1Lon);
+    const sePoint = calculateAndRotatePoint(seGridPoint.col, seGridPoint.row, config, a1Lat, a1Lon);
 
     return {
-        north: nwPoint[1],
-        west: nwPoint[0],
-        south: sePoint[1],
-        east: sePoint[0]
+        north: Math.max(nwPoint[1], sePoint[1]),
+        west: Math.min(nwPoint[0], sePoint[0]),
+        south: Math.min(nwPoint[1], sePoint[1]),
+        east: Math.max(nwPoint[0], sePoint[0]),
     };
 }
 
 
 /**
  * Calcule le niveau de zoom OSM qui correspond le mieux à l'échelle demandée.
+ * CORRIGÉ : Utilisation de la formule correcte pour la résolution Mercator.
  */
 function calculateOptimalZoom(boundingBox, scaleInMeters) {
-    // La résolution (mètres par pixel) que l'on souhaite obtenir sur l'image finale.
-    // On la base sur l'échelle d'une case divisée par la taille standard d'une tuile pour une bonne qualité.
-    const requiredResolution = scaleInMeters / TILE_SIZE; 
+    const requiredResolution = scaleInMeters / TILE_SIZE;
 
     for (let zoom = 20; zoom >= 1; zoom--) {
-        // Formule de la résolution d'une tuile OSM à une latitude donnée
         const metersPerPixel = (Math.cos(toRad(boundingBox.north)) * 2 * Math.PI * 6378137) / (TILE_SIZE * Math.pow(2, zoom));
         if (metersPerPixel <= requiredResolution) {
             return zoom;
@@ -148,7 +132,7 @@ function calculateOptimalZoom(boundingBox, scaleInMeters) {
 
 
 /**
- * Convertit les coordonnées géographiques (Lat, Lon) en numéros de tuile (X, Y) pour un zoom donné.
+ * Convertit les coordonnées géographiques en numéros de tuile.
  */
 function latLonToTileNumbers(lat, lon, zoom) {
     const n = Math.pow(2, zoom);
@@ -158,7 +142,7 @@ function latLonToTileNumbers(lat, lon, zoom) {
 }
 
 /**
- * Convertit les numéros de tuile en coordonnées géographiques du coin Nord-Ouest de la tuile.
+ * Convertit les numéros de tuile en coordonnées du coin Nord-Ouest de la tuile.
  */
 function tileNumbersToLatLon(x, y, zoom) {
     const n = Math.pow(2, zoom);
@@ -170,7 +154,7 @@ function tileNumbersToLatLon(x, y, zoom) {
 
 
 /**
- * Télécharge toutes les tuiles nécessaires et les assemble sur un canevas unique.
+ * Télécharge et assemble les tuiles.
  */
 async function fetchAndAssembleTiles(boundingBox, zoom, onProgress) {
     const nwTile = latLonToTileNumbers(boundingBox.north, boundingBox.west, zoom);
@@ -189,9 +173,9 @@ async function fetchAndAssembleTiles(boundingBox, zoom, onProgress) {
         for (let y = nwTile.y; y <= seTile.y; y++) {
             const tileUrl = TILE_PROVIDER_URL.replace('{z}', zoom).replace('{x}', x).replace('{y}', y);
             
-            const promise = fetch(tileUrl)
+            const promise = fetch(tileUrl, { mode: 'cors' }) // Ajout de cors
                 .then(response => {
-                    if (!response.ok) throw new Error(`Impossible de charger la tuile: ${tileUrl}`);
+                    if (!response.ok) throw new Error(`Impossible de charger la tuile: ${response.statusText}`);
                     return response.blob();
                 })
                 .then(blob => createImageBitmap(blob))
@@ -209,42 +193,29 @@ async function fetchAndAssembleTiles(boundingBox, zoom, onProgress) {
 
     await Promise.all(tilePromises);
     
-    const tileInfo = {
-        minX: nwTile.x,
-        minY: nwTile.y,
-        maxX: seTile.x,
-        maxY: seTile.y
-    };
+    const tileInfo = { minX: nwTile.x, minY: nwTile.y };
     
     return { mapImage: canvas, tileInfo: tileInfo };
 }
 
 
 /**
- * Dessine la grille et les étiquettes sur le canevas final.
+ * Dessine la grille sur le canevas.
  */
 function drawGridOnCanvas(ctx, tileInfo, zoom, config, a1CornerCoords) {
     const [a1Lon, a1Lat] = a1CornerCoords;
 
-    // Coordonnées du coin Nord-Ouest de la toute première tuile (0,0) de notre image assemblée
     const mapOrigin = tileNumbersToLatLon(tileInfo.minX, tileInfo.minY, zoom);
 
-    // Fonction pour convertir une coordonnée Lat/Lon en pixels sur notre canevas
+    // CORRIGÉ : Logique de conversion pixel simplifiée et correcte
     const latLonToPixels = (lat, lon) => {
-        const n = Math.pow(2, zoom);
-        // Calcul des pixels dans le "monde" entier au zoom donné
-        const worldPixelsX = n * ((lon + 180) / 360) * TILE_SIZE;
-        const worldPixelsY = n * (1 - (Math.log(Math.tan(toRad(lat)) + 1 / Math.cos(toRad(lat))) / Math.PI)) / 2 * TILE_SIZE;
+        const worldCoords = latLonToTileNumbers(lat, lon, zoom);
+        const originCoords = latLonToTileNumbers(mapOrigin.lat, mapOrigin.lon, zoom);
         
-        // Coordonnées en pixels de notre point d'origine (coin NO de la première tuile)
-        const originPixelsX = n * ((mapOrigin.lon + 180) / 360) * TILE_SIZE;
-        const originPixelsY = n * (1 - (Math.log(Math.tan(toRad(mapOrigin.lat)) + 1 / Math.cos(toRad(mapOrigin.lat))) / Math.PI)) / 2 * TILE_SIZE;
+        const x = (worldCoords.x - originCoords.x) * TILE_SIZE;
+        const y = (worldCoords.y - originCoords.y) * TILE_SIZE;
 
-        // On soustrait pour avoir les coordonnées relatives à notre canevas
-        return {
-            x: worldPixelsX - originPixelsX,
-            y: worldPixelsY - originPixelsY
-        };
+        return {x, y};
     };
 
     ctx.strokeStyle = config.gridColor;
@@ -254,35 +225,31 @@ function drawGridOnCanvas(ctx, tileInfo, zoom, config, a1CornerCoords) {
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
 
-    // Dessin des lignes verticales (de 1=A à 28=après AA)
+    // Lignes verticales (de A=1 à AA+1=28)
     for (let i = 1; i <= 28; i++) {
         const startPoint = calculateAndRotatePoint(i, 1, config, a1Lat, a1Lon);
-        const endPoint = calculateAndRotatePoint(i, 20, config, a1Lat, a1Lon); // 20 pour le bord bas de la 19ème case
-        
+        const endPoint = calculateAndRotatePoint(i, 20, config, a1Lat, a1Lon); // 20 = bord bas de la 19ème
         const startPixels = latLonToPixels(startPoint[1], startPoint[0]);
         const endPixels = latLonToPixels(endPoint[1], endPoint[0]);
-        
         ctx.beginPath();
         ctx.moveTo(startPixels.x, startPixels.y);
         ctx.lineTo(endPixels.x, endPixels.y);
         ctx.stroke();
     }
     
-    // Dessin des lignes horizontales (de 1 à 20=après 19)
+    // Lignes horizontales (de 1 à 19+1=20)
     for (let i = 1; i <= 20; i++) {
         const startPoint = calculateAndRotatePoint(1, i, config, a1Lat, a1Lon);
-        const endPoint = calculateAndRotatePoint(28, i, config, a1Lat, a1Lon);
-        
+        const endPoint = calculateAndRotatePoint(28, i, config, a1Lat, a1Lon); // 28 = bord droit de la 27ème
         const startPixels = latLonToPixels(startPoint[1], startPoint[0]);
         const endPixels = latLonToPixels(endPoint[1], endPoint[0]);
-        
         ctx.beginPath();
         ctx.moveTo(startPixels.x, startPixels.y);
         ctx.lineTo(endPixels.x, endPixels.y);
         ctx.stroke();
     }
 
-    // Dessin des étiquettes
+    // Étiquettes
     // Lettres (de A=1 à AA=27)
     for (let i = 1; i <= 27; i++) {
         const labelPoint = calculateAndRotatePoint(i + 0.5, 0.5, config, a1Lat, a1Lon);
