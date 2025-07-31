@@ -288,6 +288,7 @@ function getGridConfiguration(lat, lon) {
         switch (gridType) {
             case 'Z26': startRow = 1; endRow = 26; startCol = 'A'; endCol = 'Z'; break;
             case 'Z14': startRow = 1; endRow = 14; startCol = 'A'; endCol = 'Z'; break;
+            case 'Z18': startRow = 1; endRow = 18; startCol = 'A'; endCol = 'Z'; break;
             case 'Q9':  startRow = 1; endRow = 9;  startCol = 'A'; endCol = 'Q'; break;
             default:    startRow = 1; endRow = 14; startCol = 'A'; endCol = 'Z';
         }
