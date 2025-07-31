@@ -34,13 +34,16 @@ async function generateImageToPrint() {
         console.log(`Zoom optimal calculé : ${zoomLevel}`);
 
         loadingMessage.textContent = "Téléchargement des fonds de carte (0%)...";
-        const { finalCanvas, canvasInfo } = await createFinalCanvasWithTiles(boundingBox, zoomLevel, (progress) => {
+        const { mapImage: workingCanvas, tileInfo } = await fetchAndAssembleTiles(boundingBox, zoomLevel, (progress) => {
             loadingMessage.textContent = `Téléchargement des fonds de carte (${progress.toFixed(0)}%)...`;
         });
 
         loadingMessage.textContent = "Dessin du carroyage...";
-        const finalCtx = finalCanvas.getContext('2d');
-        drawGridAndElements(finalCtx, canvasInfo, zoomLevel, config, a1CornerCoords);
+        const workingCtx = workingCanvas.getContext('2d');
+        drawGridAndElements(workingCtx, tileInfo, zoomLevel, config, a1CornerCoords);
+
+        loadingMessage.textContent = "Finalisation de l'image...";
+        const finalCanvas = cropFinalImage(workingCanvas, tileInfo, zoomLevel, config, a1CornerCoords);
         
         const fileName = `${config.gridName}_Print_26x18.png`;
         finalCanvas.toBlob((blob) => {
@@ -69,8 +72,8 @@ function getA1CornerCoordsForPrint(config) {
     if (config.referencePointChoice === 'origin') {
         return [refLon, refLat];
     } else { // 'center'
-        const centerColOffset = getOffsetInCells(14);
-        const centerRowOffset = getOffsetInCells(10);
+        const centerColOffset = (getOffsetInCells(13) + getOffsetInCells(14)) / 2;
+        const centerRowOffset = (getOffsetInCells(9) + getOffsetInCells(10)) / 2;
         const xOffsetMeters = centerColOffset * config.scale;
         const yOffsetMeters = centerRowOffset * config.scale;
         const a1Lon = refLon - metersToLonDegrees(xOffsetMeters, refLat);
@@ -80,8 +83,7 @@ function getA1CornerCoordsForPrint(config) {
 }
 
 /**
- * Calcule la Bounding Box pour la zone à afficher (grille + marges).
- * BUG 1 CORRIGÉ : La marge est maintenant d'une demi-case.
+ * Calcule la Bounding Box pour inclure la grille ET les marges suffisantes.
  */
 function getBoundingBoxForPrint(config, a1CornerCoords) {
     const [a1Lon, a1Lat] = a1CornerCoords;
@@ -129,31 +131,30 @@ function latLonToTileNumbers(lat, lon, zoom) {
     };
 }
 
-/**
- * Crée le canevas final et y assemble les tuiles.
- */
-async function createFinalCanvasWithTiles(boundingBox, zoom, onProgress) {
-    const nwPixel = latLonToWorldPixels(boundingBox.north, boundingBox.west, zoom);
-    const sePixel = latLonToWorldPixels(boundingBox.south, boundingBox.east, zoom);
-    const canvasWidth = Math.abs(sePixel.x - nwPixel.x);
-    const canvasHeight = Math.abs(sePixel.y - nwPixel.y);
-    
-    const finalCanvas = document.createElement('canvas');
-    finalCanvas.width = canvasWidth;
-    finalCanvas.height = canvasHeight;
-    const ctx = finalCanvas.getContext('2d');
+function tileNumbersToLatLon(x, y, zoom) {
+    const n = Math.pow(2, zoom);
+    const lon = x / n * 360 - 180;
+    const latRad = Math.atan(Math.sinh(Math.PI * (1 - 2 * y / n)));
+    const lat = toDeg(latRad);
+    return { lat, lon };
+}
 
+/**
+ * Télécharge et assemble les tuiles.
+ */
+async function fetchAndAssembleTiles(boundingBox, zoom, onProgress) {
     const nwTile = latLonToTileNumbers(boundingBox.north, boundingBox.west, zoom);
     const seTile = latLonToTileNumbers(boundingBox.south, boundingBox.east, zoom);
-
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    canvas.width = (seTile.x - nwTile.x + 1) * TILE_SIZE;
+    canvas.height = (seTile.y - nwTile.y + 1) * TILE_SIZE;
+    const tilePromises = [];
     const totalTiles = (seTile.x - nwTile.x + 1) * (seTile.y - nwTile.y + 1);
     if (totalTiles <= 0 || totalTiles > 1000) {
-        throw new Error(`Nombre de tuiles à télécharger invalide ou trop élevé (${totalTiles}).`);
+        throw new Error(`Nombre de tuiles à télécharger invalide ou trop élevé (${totalTiles}). Vérifiez l'échelle ou les coordonnées.`);
     }
-
     let downloadedCount = 0;
-    const tilePromises = [];
-
     for (let x = nwTile.x; x <= seTile.x; x++) {
         for (let y = nwTile.y; y <= seTile.y; y++) {
             const tileUrl = TILE_PROVIDER_URL.replace('{z}', zoom).replace('{x}', x).replace('{y}', y);
@@ -161,29 +162,63 @@ async function createFinalCanvasWithTiles(boundingBox, zoom, onProgress) {
                 const img = new Image();
                 img.crossOrigin = "Anonymous";
                 img.onload = () => {
-                    const tileX = (x * TILE_SIZE) - nwPixel.x;
-                    const tileY = (y * TILE_SIZE) - nwPixel.y;
-                    ctx.drawImage(img, tileX, tileY);
+                    const canvasX = (x - nwTile.x) * TILE_SIZE;
+                    const canvasY = (y - nwTile.y) * TILE_SIZE;
+                    ctx.drawImage(img, canvasX, canvasY);
                     downloadedCount++;
                     onProgress((downloadedCount / totalTiles) * 100);
                     resolve();
                 };
-                img.onerror = () => reject(new Error(`Impossible de charger la tuile: ${tileUrl}`));
+                img.onerror = () => { reject(new Error(`Impossible de charger la tuile: ${tileUrl}`)); };
                 img.src = tileUrl;
             });
             tilePromises.push(promise);
         }
     }
-
     await Promise.all(tilePromises);
+    const tileInfo = { minX: nwTile.x, minY: nwTile.y };
+    return { mapImage: canvas, tileInfo: tileInfo };
+}
+
+/**
+ * Rogne le canevas de travail pour ne garder que la zone d'intérêt.
+ */
+function cropFinalImage(workingCanvas, tileInfo, zoom, config, a1CornerCoords) {
+    const [a1Lon, a1Lat] = a1CornerCoords;
+    const originWorldPixels = { x: tileInfo.minX * TILE_SIZE, y: tileInfo.minY * TILE_SIZE };
+    const latLonToPixels = (lat, lon) => {
+        const worldPixels = latLonToWorldPixels(lat, lon, zoom);
+        return {
+            x: worldPixels.x - originWorldPixels.x,
+            y: worldPixels.y - originWorldPixels.y
+        };
+    };
+
+    const cropStartPoint = calculateAndRotatePoint(-0.5, -0.5, config, a1Lat, a1Lon);
+    const cropEndPoint = calculateAndRotatePoint(27.5, 19.5, config, a1Lat, a1Lon);
+
+    const startPixels = latLonToPixels(cropStartPoint[1], cropStartPoint[0]);
+    const endPixels = latLonToPixels(cropEndPoint[1], cropEndPoint[0]);
     
-    const canvasInfo = { north: boundingBox.north, west: boundingBox.west };
-    return { finalCanvas, canvasInfo };
+    const cropX = Math.min(startPixels.x, endPixels.x);
+    const cropY = Math.min(startPixels.y, endPixels.y);
+    const cropWidth = Math.abs(endPixels.x - startPixels.x);
+    const cropHeight = Math.abs(endPixels.y - startPixels.y);
+
+    const finalCanvas = document.createElement('canvas');
+    finalCanvas.width = cropWidth;
+    finalCanvas.height = cropHeight;
+    const finalCtx = finalCanvas.getContext('2d');
+    
+    finalCtx.drawImage(workingCanvas, cropX, cropY, cropWidth, cropHeight, 0, 0, cropWidth, cropHeight);
+    
+    const cropInfo = { north: Math.max(cropStartPoint[1], cropEndPoint[1]), west: Math.min(cropStartPoint[0], cropEndPoint[0]) };
+    return { finalCanvas, cropInfo };
 }
 
 
 /**
- * Dessine la grille et tous les éléments sur le canevas final.
+ * Dessine la grille et tous les éléments sur un canevas donné.
  */
 function drawGridAndElements(ctx, canvasInfo, zoom, config, a1CornerCoords) {
     const [a1Lon, a1Lat] = a1CornerCoords;
@@ -200,8 +235,7 @@ function drawGridAndElements(ctx, canvasInfo, zoom, config, a1CornerCoords) {
     ctx.strokeStyle = config.gridColor;
     ctx.lineWidth = 2;
     ctx.fillStyle = config.gridColor;
-    // BUG 2 CORRIGÉ : Augmentation de la taille de la police
-    ctx.font = 'bold 30px Arial'; 
+    ctx.font = 'bold 30px Arial';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
 
@@ -331,34 +365,29 @@ function drawCompass(ctx, latLonToPixels, config, a1CornerCoords) {
 function drawSubdivisionKey(ctx, latLonToPixels, config, a1CornerCoords) {
     const [a1Lon, a1Lat] = a1CornerCoords;
 
-    // Utilisation de points centrés dans la "case" 0,0 pour le positionnement
-    const centerPoint = calculateAndRotatePoint(0.5, 0.5, config, a1Lat, a1Lon);
-    const center = latLonToPixels(centerPoint[1], centerPoint[0]);
-    
-    // On calcule la taille d'une demi-case en pixels
-    const p1 = latLonToPixels(calculateAndRotatePoint(0, 0, config, a1Lat, a1Lon)[1], calculateAndRotatePoint(0, 0, config, a1Lat, a1Lon)[0]);
-    const p2 = latLonToPixels(calculateAndRotatePoint(1, 1, config, a1Lat, a1Lon)[1], calculateAndRotatePoint(1, 1, config, a1Lat, a1Lon)[0]);
-    const caseWidth = Math.abs(p2.x - p1.x);
-    const caseHeight = Math.abs(p2.y - p1.y);
-    const halfWidth = caseWidth / 2;
-    const halfHeight = caseHeight / 2;
-    
-    const topLeftX = center.x - halfWidth;
-    const topLeftY = center.y - halfHeight;
+    const topLeft = latLonToPixels(calculateAndRotatePoint(0, 1, config, a1Lat, a1Lon)[1], calculateAndRotatePoint(0, 1, config, a1Lat, a1Lon)[0]);
+    const topRight = latLonToPixels(calculateAndRotatePoint(1, 1, config, a1Lat, a1Lon)[1], calculateAndRotatePoint(1, 1, config, a1Lat, a1Lon)[0]);
+    const bottomLeft = latLonToPixels(calculateAndRotatePoint(0, 0, config, a1Lat, a1Lon)[1], calculateAndRotatePoint(0, 0, config, a1Lat, a1Lon)[0]);
+
+    const midX = (topLeft.x + topRight.x) / 2;
+    const midY = (topLeft.y + bottomLeft.y) / 2;
+
+    const halfWidth = Math.abs(topRight.x - topLeft.x) / 2;
+    const halfHeight = Math.abs(bottomLeft.y - topLeft.y) / 2;
 
     ctx.strokeStyle = 'black';
     ctx.lineWidth = 1;
-    ctx.strokeRect(topLeftX, topLeftY, caseWidth, caseHeight);
+    ctx.strokeRect(topLeft.x, topLeft.y, halfWidth * 2, halfHeight * 2);
 
     ctx.fillStyle = '#FFFF00'; // Jaune
-    ctx.fillRect(topLeftX, topLeftY, halfWidth, halfHeight);
+    ctx.fillRect(topLeft.x, topLeft.y, halfWidth, halfHeight);
 
     ctx.fillStyle = '#0000FF'; // Bleu
-    ctx.fillRect(topLeftX + halfWidth, topLeftY, halfWidth, halfHeight);
+    ctx.fillRect(midX, topLeft.y, halfWidth, halfHeight);
 
     ctx.fillStyle = '#008000'; // Vert
-    ctx.fillRect(topLeftX, topLeftY + halfHeight, halfWidth, halfHeight);
+    ctx.fillRect(topLeft.x, midY, halfWidth, halfHeight);
 
     ctx.fillStyle = '#FF0000'; // Rouge
-    ctx.fillRect(topLeftX + halfWidth, topLeftY + halfHeight, halfWidth, halfHeight);
+    ctx.fillRect(midX, midY, halfWidth, halfHeight);
 }
