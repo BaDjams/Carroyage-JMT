@@ -43,10 +43,16 @@ async function generateImageToPrint() {
         drawGridAndElements(workingCtx, tileInfo, zoomLevel, config, a1CornerCoords);
 
         loadingMessage.textContent = "Finalisation de l'image...";
-        const finalCanvas = cropFinalImage(workingCanvas, tileInfo, zoomLevel, config, a1CornerCoords);
+        // --- CORRECTION DU BUG ---
+        // On déstructure correctement l'objet retourné par la fonction pour que
+        // `finalCanvas` soit bien l'élément <canvas> et non l'objet {}.
+        const { finalCanvas, cropInfo } = cropFinalImage(workingCanvas, tileInfo, zoomLevel, config, a1CornerCoords);
         
+        const finalCtx = finalCanvas.getContext('2d');
+        drawGridAndElements(finalCtx, cropInfo, zoomLevel, config, a1CornerCoords);
+
         const fileName = `${config.gridName}_Print_26x18.png`;
-        finalCanvas.toBlob((blob) => {
+        finalCanvas.toBlob((blob) => { // Cet appel ne plantera plus.
             if (blob) {
                 downloadFile(blob, fileName, 'image/png');
             } else { showError("Erreur lors de la création du fichier PNG."); }
@@ -82,9 +88,9 @@ function getA1CornerCoordsForPrint(config) {
     }
 }
 
+
 /**
  * Calcule la Bounding Box pour inclure la grille ET les marges suffisantes pour le rognage.
- * BUG 1 CORRIGÉ : La zone à télécharger correspond maintenant à la zone de rognage finale.
  */
 function getBoundingBoxForPrint(config, a1CornerCoords) {
     const [a1Lon, a1Lat] = a1CornerCoords;
@@ -280,7 +286,7 @@ function drawGridAndElements(ctx, canvasInfo, zoom, config, a1CornerCoords) {
     
     drawCartouche(ctx, latLonToPixels, config, a1CornerCoords);
     drawCompass(ctx, latLonToPixels, config, a1CornerCoords);
-    drawSubdivisionKey(ctx, latLonToPixels, config, a1CornerCoords); // BUG 2 CORRIGÉ : Appel de la fonction
+    drawSubdivisionKey(ctx, latLonToPixels, config, a1CornerCoords);
 }
 
 /**
