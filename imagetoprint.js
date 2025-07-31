@@ -33,22 +33,15 @@ async function generateImageToPrint() {
         
         console.log(`Zoom optimal calculé : ${zoomLevel}`);
 
-        // Étape 1 : Créer le canevas de travail avec le fond de carte
         loadingMessage.textContent = "Téléchargement des fonds de carte (0%)...";
-        const { mapImage: workingCanvas, tileInfo } = await fetchAndAssembleTiles(boundingBox, zoomLevel, (progress) => {
+        const { finalCanvas, canvasInfo } = await createFinalCanvas(boundingBox, zoomLevel, (progress) => {
             loadingMessage.textContent = `Téléchargement des fonds de carte (${progress.toFixed(0)}%)...`;
         });
 
-        // Étape 2 : Dessiner TOUS les éléments sur le canevas de travail
         loadingMessage.textContent = "Dessin du carroyage...";
-        const workingCtx = workingCanvas.getContext('2d');
-        drawGridAndElements(workingCtx, tileInfo, zoomLevel, config, a1CornerCoords);
-
-        // Étape 3 : Rogner le canevas de travail déjà décoré
-        loadingMessage.textContent = "Finalisation de l'image...";
-        const finalCanvas = cropFinalImage(workingCanvas, tileInfo, zoomLevel, config, a1CornerCoords);
+        const finalCtx = finalCanvas.getContext('2d');
+        drawGridAndElements(finalCtx, canvasInfo, zoomLevel, config, a1CornerCoords);
         
-        // Étape 4 : Exporter l'image finale
         const fileName = `${config.gridName}_Print_26x18.png`;
         finalCanvas.toBlob((blob) => {
             if (blob) {
@@ -87,8 +80,7 @@ function getA1CornerCoordsForPrint(config) {
 }
 
 /**
- * Calcule la Bounding Box pour inclure la grille ET les marges suffisantes.
- * BUG 1 CORRIGÉ : La zone à télécharger est maintenant assez grande pour les marges.
+ * Calcule la Bounding Box pour la zone à afficher (grille + marges).
  */
 function getBoundingBoxForPrint(config, a1CornerCoords) {
     const [a1Lon, a1Lat] = a1CornerCoords;
@@ -136,30 +128,32 @@ function latLonToTileNumbers(lat, lon, zoom) {
     };
 }
 
-function tileNumbersToLatLon(x, y, zoom) {
-    const n = Math.pow(2, zoom);
-    const lon = x / n * 360 - 180;
-    const latRad = Math.atan(Math.sinh(Math.PI * (1 - 2 * y / n)));
-    const lat = toDeg(latRad);
-    return { lat, lon };
-}
-
 /**
- * Télécharge et assemble les tuiles.
+ * Crée le canevas final et y assemble les tuiles.
  */
-async function fetchAndAssembleTiles(boundingBox, zoom, onProgress) {
+async function createFinalCanvas(boundingBox, zoom, onProgress) {
     const nwTile = latLonToTileNumbers(boundingBox.north, boundingBox.west, zoom);
     const seTile = latLonToTileNumbers(boundingBox.south, boundingBox.east, zoom);
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
-    canvas.width = (seTile.x - nwTile.x + 1) * TILE_SIZE;
-    canvas.height = (seTile.y - nwTile.y + 1) * TILE_SIZE;
-    const tilePromises = [];
+
+    // Calculer les dimensions exactes en pixels de la Bounding Box
+    const nwPixel = latLonToWorldPixels(boundingBox.north, boundingBox.west, zoom);
+    const sePixel = latLonToWorldPixels(boundingBox.south, boundingBox.east, zoom);
+    const canvasWidth = sePixel.x - nwPixel.x;
+    const canvasHeight = sePixel.y - nwPixel.y;
+    
+    const finalCanvas = document.createElement('canvas');
+    finalCanvas.width = canvasWidth;
+    finalCanvas.height = canvasHeight;
+    const ctx = finalCanvas.getContext('2d');
+
     const totalTiles = (seTile.x - nwTile.x + 1) * (seTile.y - nwTile.y + 1);
     if (totalTiles <= 0 || totalTiles > 1000) {
-        throw new Error(`Nombre de tuiles à télécharger invalide ou trop élevé (${totalTiles}). Vérifiez l'échelle ou les coordonnées.`);
+        throw new Error(`Nombre de tuiles à télécharger invalide ou trop élevé (${totalTiles}).`);
     }
+
     let downloadedCount = 0;
+    const tilePromises = [];
+
     for (let x = nwTile.x; x <= seTile.x; x++) {
         for (let y = nwTile.y; y <= seTile.y; y++) {
             const tileUrl = TILE_PROVIDER_URL.replace('{z}', zoom).replace('{x}', x).replace('{y}', y);
@@ -167,69 +161,33 @@ async function fetchAndAssembleTiles(boundingBox, zoom, onProgress) {
                 const img = new Image();
                 img.crossOrigin = "Anonymous";
                 img.onload = () => {
-                    const canvasX = (x - nwTile.x) * TILE_SIZE;
-                    const canvasY = (y - nwTile.y) * TILE_SIZE;
+                    const canvasX = (x * TILE_SIZE) - nwPixel.x;
+                    const canvasY = (y * TILE_SIZE) - nwPixel.y;
                     ctx.drawImage(img, canvasX, canvasY);
                     downloadedCount++;
                     onProgress((downloadedCount / totalTiles) * 100);
                     resolve();
                 };
-                img.onerror = () => { reject(new Error(`Impossible de charger la tuile: ${tileUrl}`)); };
+                img.onerror = () => reject(new Error(`Impossible de charger la tuile: ${tileUrl}`));
                 img.src = tileUrl;
             });
             tilePromises.push(promise);
         }
     }
+
     await Promise.all(tilePromises);
-    const tileInfo = { minX: nwTile.x, minY: nwTile.y };
-    return { mapImage: canvas, tileInfo: tileInfo };
+    
+    // canvasInfo contient les coordonnées géo du coin supérieur gauche du canevas final
+    const canvasInfo = { north: boundingBox.north, west: boundingBox.west };
+    return { finalCanvas, canvasInfo };
 }
 
 /**
- * Rogne le canevas de travail déjà décoré.
- */
-function cropFinalImage(workingCanvas, tileInfo, zoom, config, a1CornerCoords) {
-    const [a1Lon, a1Lat] = a1CornerCoords;
-    const originWorldPixels = { x: tileInfo.minX * TILE_SIZE, y: tileInfo.minY * TILE_SIZE };
-    const latLonToPixels = (lat, lon) => {
-        const worldPixels = latLonToWorldPixels(lat, lon, zoom);
-        return {
-            x: worldPixels.x - originWorldPixels.x,
-            y: worldPixels.y - originWorldPixels.y
-        };
-    };
-
-    const cropStartPoint = calculateAndRotatePoint(-0.5, -0.5, config, a1Lat, a1Lon);
-    const cropEndPoint = calculateAndRotatePoint(27.5, 19.5, config, a1Lat, a1Lon);
-
-    const startPixels = latLonToPixels(cropStartPoint[1], cropStartPoint[0]);
-    const endPixels = latLonToPixels(cropEndPoint[1], cropEndPoint[0]);
-    
-    const cropX = Math.min(startPixels.x, endPixels.x);
-    const cropY = Math.min(startPixels.y, endPixels.y);
-    const cropWidth = Math.abs(endPixels.x - startPixels.x);
-    const cropHeight = Math.abs(endPixels.y - startPixels.y);
-
-    const finalCanvas = document.createElement('canvas');
-    finalCanvas.width = cropWidth;
-    finalCanvas.height = cropHeight;
-    const finalCtx = finalCanvas.getContext('2d');
-    
-    finalCtx.drawImage(workingCanvas, cropX, cropY, cropWidth, cropHeight, 0, 0, cropWidth, cropHeight);
-    
-    return finalCanvas;
-}
-
-
-/**
- * Dessine la grille et tous les éléments sur le canevas de travail (non rogné).
+ * Dessine la grille et tous les éléments sur le canevas final.
  */
 function drawGridAndElements(ctx, canvasInfo, zoom, config, a1CornerCoords) {
     const [a1Lon, a1Lat] = a1CornerCoords;
-    const originWorldPixels = {
-        x: 'minX' in canvasInfo ? canvasInfo.minX * TILE_SIZE : latLonToWorldPixels(canvasInfo.north, canvasInfo.west, zoom).x,
-        y: 'minY' in canvasInfo ? canvasInfo.minY * TILE_SIZE : latLonToWorldPixels(canvasInfo.north, canvasInfo.west, zoom).y
-    };
+    const originWorldPixels = latLonToWorldPixels(canvasInfo.north, canvasInfo.west, zoom);
 
     const latLonToPixels = (lat, lon) => {
         const worldPixels = latLonToWorldPixels(lat, lon, zoom);
