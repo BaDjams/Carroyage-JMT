@@ -2,6 +2,7 @@
 
 const TILE_PROVIDER_URL = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
 const TILE_SIZE = 256;
+const EARTH_RADIUS = 6378137;
 
 /**
  * Fonction principale appelée par le bouton "Générer l'image (PNG)".
@@ -92,47 +93,63 @@ function getA1CornerCoords(config) {
 
 /**
  * Calcule les coordonnées géographiques des 4 coins de la grille 27x19.
- * CORRIGÉ : Logique robuste qui gère toutes les orientations.
  */
 function getBoundingBoxForPrint(config, a1CornerCoords) {
     const [a1Lon, a1Lat] = a1CornerCoords;
-    
-    // Définir les 4 coins de la grille en termes de colonnes/lignes
     const corners = [
-        { col: 1, row: 1 },    // Coin bas-gauche en ascendant
-        { col: 28, row: 1 },   // Coin bas-droit en ascendant
-        { col: 1, row: 20 },   // Coin haut-gauche en ascendant
-        { col: 28, row: 20 }   // Coin haut-droit en ascendant
+        { col: 1, row: 1 }, { col: 28, row: 1 },
+        { col: 1, row: 20 }, { col: 28, row: 20 }
     ];
-
-    // Convertir ces 4 coins en coordonnées géographiques
     const geoCorners = corners.map(corner => {
         const point = calculateAndRotatePoint(corner.col, corner.row, config, a1Lat, a1Lon);
         return { lon: point[0], lat: point[1] };
     });
-
-    // Trouver les valeurs min/max pour définir le rectangle englobant
     const north = Math.max(...geoCorners.map(c => c.lat));
     const south = Math.min(...geoCorners.map(c => c.lat));
     const east = Math.max(...geoCorners.map(c => c.lon));
     const west = Math.min(...geoCorners.map(c => c.lon));
-    
     return { north, south, east, west };
 }
 
 
 /**
  * Calcule le niveau de zoom OSM qui correspond le mieux à l'échelle demandée.
+ * BUG 5 CORRIGÉ : Utilisation de la formule standard de la résolution Mercator.
  */
 function calculateOptimalZoom(boundingBox, scaleInMeters) {
-    const requiredResolution = scaleInMeters / TILE_SIZE;
+    // Largeur de la zone en mètres
+    const gridWidthInMeters = 27 * scaleInMeters;
+
     for (let zoom = 20; zoom >= 1; zoom--) {
-        const metersPerPixel = (Math.cos(toRad(boundingBox.north)) * 2 * Math.PI * 6378137) / (TILE_SIZE * Math.pow(2, zoom));
-        if (metersPerPixel <= requiredResolution) {
-            return zoom;
+        // Calcule combien de pixels la largeur de la grille occuperait à ce niveau de zoom
+        const nw = latLonToWorldPixels(boundingBox.north, boundingBox.west, zoom);
+        const ne = latLonToWorldPixels(boundingBox.north, boundingBox.east, zoom);
+        const widthInPixels = ne.x - nw.x;
+
+        // Calcule la résolution en mètres/pixel pour ce zoom
+        const currentResolution = gridWidthInMeters / widthInPixels;
+        
+        // On cherche le zoom qui donne une résolution juste suffisante
+        // On garde une marge, on veut que la résolution de la carte soit meilleure (plus petite) que celle demandée
+        if (currentResolution > (scaleInMeters / TILE_SIZE)) {
+             return zoom;
         }
     }
     return 1;
+}
+
+/**
+ * Convertit Lat/Lon en coordonnées "monde" en pixels à un zoom donné.
+ */
+function latLonToWorldPixels(lat, lon, zoom) {
+    const siny = Math.sin(toRad(lat));
+    const y = 0.5 - Math.log((1 + siny) / (1 - siny)) / (4 * Math.PI);
+    const x = (lon + 180) / 360;
+    const mapSize = TILE_SIZE * Math.pow(2, zoom);
+    return {
+        x: x * mapSize,
+        y: y * mapSize
+    };
 }
 
 
@@ -140,10 +157,11 @@ function calculateOptimalZoom(boundingBox, scaleInMeters) {
  * Convertit les coordonnées géographiques en numéros de tuile.
  */
 function latLonToTileNumbers(lat, lon, zoom) {
-    const n = Math.pow(2, zoom);
-    const xtile = Math.floor(n * ((lon + 180) / 360));
-    const ytile = Math.floor(n * (1 - (Math.log(Math.tan(toRad(lat)) + 1 / Math.cos(toRad(lat))) / Math.PI)) / 2);
-    return { x: xtile, y: ytile };
+    const worldPixels = latLonToWorldPixels(lat, lon, zoom);
+    return {
+        x: Math.floor(worldPixels.x / TILE_SIZE),
+        y: Math.floor(worldPixels.y / TILE_SIZE)
+    };
 }
 
 /**
@@ -205,19 +223,18 @@ async function fetchAndAssembleTiles(boundingBox, zoom, onProgress) {
 function drawGridOnCanvas(ctx, tileInfo, zoom, config, a1CornerCoords) {
     const [a1Lon, a1Lat] = a1CornerCoords;
 
-    const mapOrigin = tileNumbersToLatLon(tileInfo.minX, tileInfo.minY, zoom);
-
+    // Coordonnées en pixels "monde" du coin de la première tuile
+    const originWorldPixels = {
+        x: tileInfo.minX * TILE_SIZE,
+        y: tileInfo.minY * TILE_SIZE,
+    };
+    
+    // BUG 5 CORRIGÉ : Fonction de conversion fiable
     const latLonToPixels = (lat, lon) => {
-        const n = Math.pow(2, zoom);
-        const worldPixelsX = (lon + 180) / 360 * n * TILE_SIZE;
-        const worldPixelsY = (1 - Math.log(Math.tan(toRad(lat)) + 1 / Math.cos(toRad(lat))) / Math.PI) / 2 * n * TILE_SIZE;
-
-        const originPixelsX = (mapOrigin.lon + 180) / 360 * n * TILE_SIZE;
-        const originPixelsY = (1 - Math.log(Math.tan(toRad(mapOrigin.lat)) + 1 / Math.cos(toRad(mapOrigin.lat))) / Math.PI) / 2 * n * TILE_SIZE;
-        
+        const worldPixels = latLonToWorldPixels(lat, lon, zoom);
         return {
-            x: worldPixelsX - originPixelsX,
-            y: worldPixelsY - originPixelsY
+            x: worldPixels.x - originWorldPixels.x,
+            y: worldPixels.y - originWorldPixels.y
         };
     };
 
