@@ -65,7 +65,6 @@ async function generateImageToPrint() {
 
 /**
  * Calcule la position de l'origine A1 spécifiquement pour la grille d'impression.
- * BUG 2 CORRIGÉ : Le calcul du centre se base sur l'intersection M/N et 9/10.
  */
 function getA1CornerCoordsForPrint(config) {
     const refLat = config.latitude;
@@ -76,12 +75,10 @@ function getA1CornerCoordsForPrint(config) {
     if (config.referencePointChoice === 'origin') {
         return [refLon, refLat];
     } else { // 'center'
-        const centerColOffset = getOffsetInCells(14); // Ligne entre M(13) et N(14)
-        const centerRowOffset = getOffsetInCells(10); // Ligne entre 9 et 10
-        
+        const centerColOffset = getOffsetInCells(14);
+        const centerRowOffset = getOffsetInCells(10);
         const xOffsetMeters = centerColOffset * config.scale;
         const yOffsetMeters = centerRowOffset * config.scale;
-        
         const a1Lon = refLon - metersToLonDegrees(xOffsetMeters, refLat);
         const a1Lat = refLat - metersToLatDegrees(yOffsetMeters, refLat);
         return [a1Lon, a1Lat];
@@ -188,7 +185,7 @@ async function fetchAndAssembleTiles(boundingBox, zoom, onProgress) {
 
 /**
  * Rogne le canevas de travail pour ne garder que la zone d'intérêt.
- * BUG 1 CORRIGÉ : Augmentation de la marge de rognage pour les coordonnées.
+ * BUG 1 CORRIGÉ : La zone de rognage est étendue pour inclure les coordonnées.
  */
 function cropFinalImage(workingCanvas, tileInfo, zoom, config, a1CornerCoords) {
     const [a1Lon, a1Lat] = a1CornerCoords;
@@ -201,7 +198,7 @@ function cropFinalImage(workingCanvas, tileInfo, zoom, config, a1CornerCoords) {
         };
     };
 
-    const cropStartPoint = calculateAndRotatePoint(0, 0, config, a1Lat, a1Lon);
+    const cropStartPoint = calculateAndRotatePoint(-0.5, -0.5, config, a1Lat, a1Lon);
     const cropEndPoint = calculateAndRotatePoint(27.5, 19.5, config, a1Lat, a1Lon);
 
     const startPixels = latLonToPixels(cropStartPoint[1], cropStartPoint[0]);
@@ -286,11 +283,11 @@ function drawGridAndElements(ctx, canvasInfo, zoom, config, a1CornerCoords) {
     
     drawCartouche(ctx, latLonToPixels, config, a1CornerCoords);
     drawCompass(ctx, latLonToPixels, config, a1CornerCoords);
+    drawSubdivisionKey(ctx, latLonToPixels, config, a1CornerCoords); // NOUVEL APPEL
 }
 
 /**
  * Dessine le cartouche d'information.
- * BUG 4 CORRIGÉ : Cartouche redimensionné à 3x1 cases.
  */
 function drawCartouche(ctx, latLonToPixels, config, a1CornerCoords) {
     const [a1Lon, a1Lat] = a1CornerCoords;
@@ -364,4 +361,41 @@ function drawCompass(ctx, latLonToPixels, config, a1CornerCoords) {
     ctx.textAlign = 'center';
     ctx.textBaseline = 'bottom';
     ctx.fillText('N', N_point.x, N_point.y - 2);
+}
+
+/**
+ * NOUVEAU : Dessine la clé de subdivision en 4 couleurs.
+ */
+function drawSubdivisionKey(ctx, latLonToPixels, config, a1CornerCoords) {
+    const [a1Lon, a1Lat] = a1CornerCoords;
+
+    // Calculer les points de la "case" 0,0 en pixels
+    const topLeft = latLonToPixels(calculateAndRotatePoint(0, 1, config, a1Lat, a1Lon)[1], calculateAndRotatePoint(0, 1, config, a1Lat, a1Lon)[0]);
+    const topRight = latLonToPixels(calculateAndRotatePoint(1, 1, config, a1Lat, a1Lon)[1], calculateAndRotatePoint(1, 1, config, a1Lat, a1Lon)[0]);
+    const bottomLeft = latLonToPixels(calculateAndRotatePoint(0, 0, config, a1Lat, a1Lon)[1], calculateAndRotatePoint(0, 0, config, a1Lat, a1Lon)[0]);
+    const bottomRight = latLonToPixels(calculateAndRotatePoint(1, 0, config, a1Lat, a1Lon)[1], calculateAndRotatePoint(1, 0, config, a1Lat, a1Lon)[0]);
+
+    const midX = (topLeft.x + topRight.x) / 2;
+    const midY = (topLeft.y + bottomLeft.y) / 2;
+
+    const halfWidth = (topRight.x - topLeft.x) / 2;
+    const halfHeight = (bottomLeft.y - topLeft.y) / 2;
+
+    // Dessiner la bordure extérieure
+    ctx.strokeStyle = 'black';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(topLeft.x, topLeft.y, halfWidth * 2, halfHeight * 2);
+
+    // Remplir les 4 carrés
+    ctx.fillStyle = '#FFFF00'; // Jaune
+    ctx.fillRect(topLeft.x, topLeft.y, halfWidth, halfHeight);
+
+    ctx.fillStyle = '#0000FF'; // Bleu
+    ctx.fillRect(midX, topLeft.y, halfWidth, halfHeight);
+
+    ctx.fillStyle = '#008000'; // Vert
+    ctx.fillRect(topLeft.x, midY, halfWidth, halfHeight);
+
+    ctx.fillStyle = '#FF0000'; // Rouge
+    ctx.fillRect(midX, midY, halfWidth, halfHeight);
 }
