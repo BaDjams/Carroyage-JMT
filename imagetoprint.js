@@ -86,7 +86,8 @@ function getA1CornerCoordsForPrint(config) {
 }
 
 /**
- * Calcule la Bounding Box pour inclure la grille 26x18 ET les marges pour les étiquettes.
+ * Calcule la Bounding Box pour inclure la grille ET les marges suffisantes pour le rognage.
+ * BUG 1 CORRIGÉ : La zone à télécharger correspond maintenant à la zone de rognage finale.
  */
 function getBoundingBoxForPrint(config, a1CornerCoords) {
     const [a1Lon, a1Lat] = a1CornerCoords;
@@ -185,7 +186,6 @@ async function fetchAndAssembleTiles(boundingBox, zoom, onProgress) {
 
 /**
  * Rogne le canevas de travail pour ne garder que la zone d'intérêt.
- * BUG 1 CORRIGÉ : La zone de rognage est étendue pour inclure les coordonnées avec une marge.
  */
 function cropFinalImage(workingCanvas, tileInfo, zoom, config, a1CornerCoords) {
     const [a1Lon, a1Lat] = a1CornerCoords;
