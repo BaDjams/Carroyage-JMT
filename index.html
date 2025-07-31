@@ -535,7 +535,7 @@ function setupEventListeners() {
                     // Condition 2: Centré ET utilisant la grille Z-18 spécifique
                     else if (refPoint === 'center') {
                         const isGridOptionDefault = gridOption === 'default';
-                        const isGridTypePrintable = document.querySelector('input[name="grid-type"]:checked').value === 'Z-18';
+                        const isGridTypePrintable = document.querySelector('input[name="grid-type"]:checked').value === 'Z18';
                         if (isGridOptionDefault && isGridTypePrintable) {
                             isPrintableSetup = true;
                         }
