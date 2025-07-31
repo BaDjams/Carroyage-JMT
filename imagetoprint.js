@@ -91,8 +91,8 @@ function getA1CornerCoordsForPrint(config) {
 function getBoundingBoxForPrint(config, a1CornerCoords) {
     const [a1Lon, a1Lat] = a1CornerCoords;
     const corners = [
-        { col: 0, row: 0 }, { col: 27, row: 0 },
-        { col: 0, row: 19 }, { col: 27, row: 19 }
+        { col: -0.5, row: -0.5 }, { col: 27.5, row: -0.5 },
+        { col: -0.5, row: 19.5 }, { col: 27.5, row: 19.5 }
     ];
     const geoCorners = corners.map(corner => {
         const point = calculateAndRotatePoint(corner.col, corner.row, config, a1Lat, a1Lon);
@@ -185,7 +185,7 @@ async function fetchAndAssembleTiles(boundingBox, zoom, onProgress) {
 
 /**
  * Rogne le canevas de travail pour ne garder que la zone d'intérêt.
- * BUG 1 CORRIGÉ : La zone de rognage est étendue pour inclure les coordonnées.
+ * BUG 1 CORRIGÉ : La zone de rognage est étendue pour inclure les coordonnées avec une marge.
  */
 function cropFinalImage(workingCanvas, tileInfo, zoom, config, a1CornerCoords) {
     const [a1Lon, a1Lat] = a1CornerCoords;
@@ -283,7 +283,7 @@ function drawGridAndElements(ctx, canvasInfo, zoom, config, a1CornerCoords) {
     
     drawCartouche(ctx, latLonToPixels, config, a1CornerCoords);
     drawCompass(ctx, latLonToPixels, config, a1CornerCoords);
-    drawSubdivisionKey(ctx, latLonToPixels, config, a1CornerCoords); // NOUVEL APPEL
+    drawSubdivisionKey(ctx, latLonToPixels, config, a1CornerCoords); // BUG 2 CORRIGÉ : Appel de la fonction
 }
 
 /**
@@ -364,16 +364,14 @@ function drawCompass(ctx, latLonToPixels, config, a1CornerCoords) {
 }
 
 /**
- * NOUVEAU : Dessine la clé de subdivision en 4 couleurs.
+ * Dessine la clé de subdivision en 4 couleurs.
  */
 function drawSubdivisionKey(ctx, latLonToPixels, config, a1CornerCoords) {
     const [a1Lon, a1Lat] = a1CornerCoords;
 
-    // Calculer les points de la "case" 0,0 en pixels
     const topLeft = latLonToPixels(calculateAndRotatePoint(0, 1, config, a1Lat, a1Lon)[1], calculateAndRotatePoint(0, 1, config, a1Lat, a1Lon)[0]);
     const topRight = latLonToPixels(calculateAndRotatePoint(1, 1, config, a1Lat, a1Lon)[1], calculateAndRotatePoint(1, 1, config, a1Lat, a1Lon)[0]);
     const bottomLeft = latLonToPixels(calculateAndRotatePoint(0, 0, config, a1Lat, a1Lon)[1], calculateAndRotatePoint(0, 0, config, a1Lat, a1Lon)[0]);
-    const bottomRight = latLonToPixels(calculateAndRotatePoint(1, 0, config, a1Lat, a1Lon)[1], calculateAndRotatePoint(1, 0, config, a1Lat, a1Lon)[0]);
 
     const midX = (topLeft.x + topRight.x) / 2;
     const midY = (topLeft.y + bottomLeft.y) / 2;
@@ -381,12 +379,10 @@ function drawSubdivisionKey(ctx, latLonToPixels, config, a1CornerCoords) {
     const halfWidth = (topRight.x - topLeft.x) / 2;
     const halfHeight = (bottomLeft.y - topLeft.y) / 2;
 
-    // Dessiner la bordure extérieure
     ctx.strokeStyle = 'black';
     ctx.lineWidth = 1;
     ctx.strokeRect(topLeft.x, topLeft.y, halfWidth * 2, halfHeight * 2);
 
-    // Remplir les 4 carrés
     ctx.fillStyle = '#FFFF00'; // Jaune
     ctx.fillRect(topLeft.x, topLeft.y, halfWidth, halfHeight);
 
