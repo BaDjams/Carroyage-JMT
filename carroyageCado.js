@@ -209,7 +209,8 @@ function updateDynamicGridName() {
 
 async function generateGrid() {
     const loadingIndicator = document.getElementById("loading-indicator");
-    document.getElementById("loading-message").textContent = "Génération du carroyage CADO en cours...";
+    const loadingMessage = document.getElementById("loading-message");
+    loadingMessage.textContent = "Génération du carroyage CADO en cours...";
     loadingIndicator.classList.remove("hidden");
     hideError();
 
@@ -219,45 +220,49 @@ async function generateGrid() {
         const [lat, lon] = decimalCoords.split(",").map(c => parseFloat(c.trim()));
         if (isNaN(lat) || isNaN(lon)) throw new Error("Coordonnées décimales invalides.");
 
+        // --- CORRECTION BUG 1 : Mise à jour du nom AVANT tout ---
+        updateDynamicGridName();
+        
         const config = getGridConfiguration(lat, lon);
         const gridData = calculateGridData(config);
 
+        // Ajout de l'origine au nom du fichier final
+        const originCoords = gridData.originPointPlacemark.coordinates;
+        const originString = `_origine=${originCoords[1].toFixed(6)},${originCoords[0].toFixed(6)}`;
+        config.gridName += originString;
         document.getElementById("full-grid-name").textContent = config.gridName;
-        
+
         const fileFormat = config.outputFormat;
-        let fileBlob, fileName; // mimeType n'est plus nécessaire ici
+        let fileBlob, fileName, mimeType;
 
         switch (fileFormat) {
             case "KML":
-                fileBlob = new Blob([generateKML(config, gridData)], { type: "application/vnd.google-earth.kml+xml" });
-                fileName = `${config.gridName}.kml`;
-                break;
             case "KMZ":
-                // --- CORRECTION APPLIQUÉE ICI ---
                 const kmlContent = generateKML(config, gridData);
-                // 1. generateKMZ retourne un Blob générique de JSZip
-                const genericKmzBlob = await generateKMZ(config, gridData, kmlContent);
-                // 2. On le transforme en buffer pour en extraire les données brutes.
-                const buffer = await genericKmzBlob.arrayBuffer();
-                // 3. On crée le Blob final avec le MIME type OFFICIEL.
-                fileBlob = new Blob([buffer], { type: 'application/vnd.google-earth.kmz' });
-                fileName = `${config.gridName}.kmz`;
+                if (fileFormat === "KMZ") {
+                    fileBlob = await generateKMZ(config, gridData, kmlContent);
+                    fileName = `${config.gridName}.kmz`;
+                    mimeType = "application/vnd.google-earth.kmz";
+                } else {
+                    fileBlob = new Blob([kmlContent], { type: "application/vnd.google-earth.kml+xml" });
+                    fileName = `${config.gridName}.kml`;
+                    mimeType = "application/vnd.google-earth.kml+xml";
+                }
                 break;
             case "GeoJSON":
                 fileBlob = new Blob([generateGeoJSON(config, gridData)], { type: "application/geo+json" });
                 fileName = `${config.gridName}.geojson`;
+                mimeType = "application/geo+json";
                 break;
             case "GPX":
                 fileBlob = new Blob([generateGPX(config, gridData)], { type: "application/gpx+xml" });
                 fileName = `${config.gridName}.gpx`;
+                mimeType = "application/gpx+xml";
                 break;
             default:
                 throw new Error("Format de sortie non supporté.");
         }
-        
-        // L'appel à downloadFile est maintenant plus simple.
-        downloadFile(fileBlob, fileName);
-
+        downloadFile(fileBlob, fileName, mimeType);
     } catch (error) {
         console.error("Error generating CADO grid:", error);
         showError(error.message);
