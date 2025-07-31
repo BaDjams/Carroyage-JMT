@@ -2,7 +2,6 @@
 
 const TILE_PROVIDER_URL = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
 const TILE_SIZE = 256;
-const EARTH_RADIUS = 6378137;
 
 /**
  * Fonction principale appelée par le bouton "Générer l'image (PNG)".
@@ -114,23 +113,14 @@ function getBoundingBoxForPrint(config, a1CornerCoords) {
 
 /**
  * Calcule le niveau de zoom OSM qui correspond le mieux à l'échelle demandée.
- * BUG 5 CORRIGÉ : Utilisation de la formule standard de la résolution Mercator.
  */
 function calculateOptimalZoom(boundingBox, scaleInMeters) {
-    // Largeur de la zone en mètres
     const gridWidthInMeters = 27 * scaleInMeters;
-
     for (let zoom = 20; zoom >= 1; zoom--) {
-        // Calcule combien de pixels la largeur de la grille occuperait à ce niveau de zoom
         const nw = latLonToWorldPixels(boundingBox.north, boundingBox.west, zoom);
         const ne = latLonToWorldPixels(boundingBox.north, boundingBox.east, zoom);
         const widthInPixels = ne.x - nw.x;
-
-        // Calcule la résolution en mètres/pixel pour ce zoom
         const currentResolution = gridWidthInMeters / widthInPixels;
-        
-        // On cherche le zoom qui donne une résolution juste suffisante
-        // On garde une marge, on veut que la résolution de la carte soit meilleure (plus petite) que celle demandée
         if (currentResolution > (scaleInMeters / TILE_SIZE)) {
              return zoom;
         }
@@ -178,6 +168,7 @@ function tileNumbersToLatLon(x, y, zoom) {
 
 /**
  * Télécharge et assemble les tuiles.
+ * CORRECTION : Utilisation de new Image() au lieu de fetch() pour une meilleure gestion du CORS.
  */
 async function fetchAndAssembleTiles(boundingBox, zoom, onProgress) {
     const nwTile = latLonToTileNumbers(boundingBox.north, boundingBox.west, zoom);
@@ -195,23 +186,30 @@ async function fetchAndAssembleTiles(boundingBox, zoom, onProgress) {
     for (let x = nwTile.x; x <= seTile.x; x++) {
         for (let y = nwTile.y; y <= seTile.y; y++) {
             const tileUrl = TILE_PROVIDER_URL.replace('{z}', zoom).replace('{x}', x).replace('{y}', y);
-            const promise = fetch(tileUrl)
-                .then(response => {
-                    if (!response.ok) throw new Error(`Impossible de charger la tuile: ${response.statusText}`);
-                    return response.blob();
-                })
-                .then(blob => createImageBitmap(blob))
-                .then(imageBitmap => {
+            
+            const promise = new Promise((resolve, reject) => {
+                const img = new Image();
+                img.crossOrigin = "Anonymous"; // Essentiel pour le CORS
+                img.onload = () => {
                     const canvasX = (x - nwTile.x) * TILE_SIZE;
                     const canvasY = (y - nwTile.y) * TILE_SIZE;
-                    ctx.drawImage(imageBitmap, canvasX, canvasY);
+                    ctx.drawImage(img, canvasX, canvasY);
+                    
                     downloadedCount++;
                     onProgress((downloadedCount / totalTiles) * 100);
-                });
+                    resolve();
+                };
+                img.onerror = () => {
+                    reject(new Error(`Impossible de charger la tuile: ${tileUrl}`));
+                };
+                img.src = tileUrl;
+            });
             tilePromises.push(promise);
         }
     }
+
     await Promise.all(tilePromises);
+    
     const tileInfo = { minX: nwTile.x, minY: nwTile.y };
     return { mapImage: canvas, tileInfo: tileInfo };
 }
@@ -222,16 +220,11 @@ async function fetchAndAssembleTiles(boundingBox, zoom, onProgress) {
  */
 function drawGridOnCanvas(ctx, tileInfo, zoom, config, a1CornerCoords) {
     const [a1Lon, a1Lat] = a1CornerCoords;
+    const mapOrigin = tileNumbersToLatLon(tileInfo.minX, tileInfo.minY, zoom);
 
-    // Coordonnées en pixels "monde" du coin de la première tuile
-    const originWorldPixels = {
-        x: tileInfo.minX * TILE_SIZE,
-        y: tileInfo.minY * TILE_SIZE,
-    };
-    
-    // BUG 5 CORRIGÉ : Fonction de conversion fiable
     const latLonToPixels = (lat, lon) => {
         const worldPixels = latLonToWorldPixels(lat, lon, zoom);
+        const originWorldPixels = latLonToWorldPixels(mapOrigin.lat, mapOrigin.lon, zoom);
         return {
             x: worldPixels.x - originWorldPixels.x,
             y: worldPixels.y - originWorldPixels.y
