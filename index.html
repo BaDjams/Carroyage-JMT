@@ -294,8 +294,9 @@
                     </div>
                 </section>
 
-                <section class="flex justify-center">
+                <section class="flex justify-center gap-4">
                     <button id="generate-button" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg text-lg font-semibold shadow-lg transform transition duration-200 hover:scale-105">GÉNÉRER CARROYAGE CADO</button>
+                    <button id="generate-image-button" class="bg-gray-600 hover:bg-gray-700 text-white px-6 py-3 rounded-lg text-lg font-semibold shadow-lg transform transition duration-200 hover:scale-105 disabled:bg-gray-400 disabled:cursor-not-allowed">Générer l'image (PNG)</button>
                 </section>
             </div>
             
@@ -440,6 +441,7 @@
     <!-- Scripts -->
     <script src="carroyageUTM.js"></script>
     <script src="carroyageCado.js"></script>
+    <script src="imagetoprint.js"></script>
 
     <script>
         document.addEventListener('DOMContentLoaded', function() {
@@ -525,6 +527,17 @@
             
             document.getElementById('generate-button').addEventListener('click', generateGrid);
             document.getElementById('generate-utm-button').addEventListener('click', generateUTMGrid);
+            const deviationInput = document.getElementById('deviation');
+            const generateImageButton = document.getElementById('generate-image-button');
+
+            // Listener pour griser le bouton si la déviation n'est pas à zéro
+            deviationInput.addEventListener('input', () => {
+                const isDeviationZero = parseInt(deviationInput.value, 10) === 0;
+                generateImageButton.disabled = !isDeviationZero;
+            });
+            
+            // Lancer la génération de l'image au clic
+            generateImageButton.addEventListener('click', generateImageToPrint);
         }
 
         function displayAppVersion() {
