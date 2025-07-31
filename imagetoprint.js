@@ -33,21 +33,22 @@ async function generateImageToPrint() {
         
         console.log(`Zoom optimal calculé : ${zoomLevel}`);
 
+        // Étape 1 : Créer le canevas de travail avec le fond de carte
         loadingMessage.textContent = "Téléchargement des fonds de carte (0%)...";
         const { mapImage: workingCanvas, tileInfo } = await fetchAndAssembleTiles(boundingBox, zoomLevel, (progress) => {
             loadingMessage.textContent = `Téléchargement des fonds de carte (${progress.toFixed(0)}%)...`;
         });
 
+        // Étape 2 : Dessiner TOUS les éléments sur le canevas de travail
         loadingMessage.textContent = "Dessin du carroyage...";
         const workingCtx = workingCanvas.getContext('2d');
         drawGridAndElements(workingCtx, tileInfo, zoomLevel, config, a1CornerCoords);
 
+        // Étape 3 : Rogner le canevas de travail déjà décoré
         loadingMessage.textContent = "Finalisation de l'image...";
-        const { finalCanvas, cropInfo } = cropFinalImage(workingCanvas, tileInfo, zoomLevel, config, a1CornerCoords);
+        const finalCanvas = cropFinalImage(workingCanvas, tileInfo, zoomLevel, config, a1CornerCoords);
         
-        const finalCtx = finalCanvas.getContext('2d');
-        drawGridAndElements(finalCtx, cropInfo, zoomLevel, config, a1CornerCoords);
-
+        // Étape 4 : Exporter l'image finale
         const fileName = `${config.gridName}_Print_26x18.png`;
         finalCanvas.toBlob((blob) => {
             if (blob) {
@@ -64,7 +65,7 @@ async function generateImageToPrint() {
 }
 
 /**
- * Calcule la position de l'origine A1 spécifiquement pour la grille d'impression.
+ * Calcule la position de l'origine A1.
  */
 function getA1CornerCoordsForPrint(config) {
     const refLat = config.latitude;
@@ -86,8 +87,8 @@ function getA1CornerCoordsForPrint(config) {
 }
 
 /**
- * Calcule la Bounding Box pour inclure la grille ET les marges suffisantes pour le rognage.
- * BUG 1 CORRIGÉ : La zone à télécharger correspond maintenant à la zone de rognage finale étendue.
+ * Calcule la Bounding Box pour inclure la grille ET les marges suffisantes.
+ * BUG 1 CORRIGÉ : La zone à télécharger est maintenant assez grande pour les marges.
  */
 function getBoundingBoxForPrint(config, a1CornerCoords) {
     const [a1Lon, a1Lat] = a1CornerCoords;
@@ -185,7 +186,7 @@ async function fetchAndAssembleTiles(boundingBox, zoom, onProgress) {
 }
 
 /**
- * Rogne le canevas de travail pour ne garder que la zone d'intérêt.
+ * Rogne le canevas de travail déjà décoré.
  */
 function cropFinalImage(workingCanvas, tileInfo, zoom, config, a1CornerCoords) {
     const [a1Lon, a1Lat] = a1CornerCoords;
@@ -216,17 +217,19 @@ function cropFinalImage(workingCanvas, tileInfo, zoom, config, a1CornerCoords) {
     
     finalCtx.drawImage(workingCanvas, cropX, cropY, cropWidth, cropHeight, 0, 0, cropWidth, cropHeight);
     
-    const cropInfo = { north: Math.max(cropStartPoint[1], cropEndPoint[1]), west: Math.min(cropStartPoint[0], cropEndPoint[0]) };
-    return { finalCanvas, cropInfo };
+    return finalCanvas;
 }
 
 
 /**
- * Dessine la grille et tous les éléments sur un canevas donné.
+ * Dessine la grille et tous les éléments sur le canevas de travail (non rogné).
  */
 function drawGridAndElements(ctx, canvasInfo, zoom, config, a1CornerCoords) {
     const [a1Lon, a1Lat] = a1CornerCoords;
-    const originWorldPixels = latLonToWorldPixels(canvasInfo.north, canvasInfo.west, zoom);
+    const originWorldPixels = {
+        x: 'minX' in canvasInfo ? canvasInfo.minX * TILE_SIZE : latLonToWorldPixels(canvasInfo.north, canvasInfo.west, zoom).x,
+        y: 'minY' in canvasInfo ? canvasInfo.minY * TILE_SIZE : latLonToWorldPixels(canvasInfo.north, canvasInfo.west, zoom).y
+    };
 
     const latLonToPixels = (lat, lon) => {
         const worldPixels = latLonToWorldPixels(lat, lon, zoom);
