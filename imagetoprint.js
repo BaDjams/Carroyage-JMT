@@ -43,16 +43,13 @@ async function generateImageToPrint() {
         drawGridAndElements(workingCtx, tileInfo, zoomLevel, config, a1CornerCoords);
 
         loadingMessage.textContent = "Finalisation de l'image...";
-        // --- CORRECTION DU BUG ---
-        // On déstructure correctement l'objet retourné par la fonction
         const { finalCanvas, cropInfo } = cropFinalImage(workingCanvas, tileInfo, zoomLevel, config, a1CornerCoords);
         
-        // Redessiner les éléments sur l'image rognée pour garantir leur présence
         const finalCtx = finalCanvas.getContext('2d');
-        drawGridAndElements(finalCtx, cropInfo, zoomLevel, config, a1CornerCoords, true);
-        
+        drawGridAndElements(finalCtx, cropInfo, zoomLevel, config, a1CornerCoords);
+
         const fileName = `${config.gridName}_Print_26x18.png`;
-        finalCanvas.toBlob((blob) => { // Maintenant, finalCanvas est bien un élément <canvas>
+        finalCanvas.toBlob((blob) => {
             if (blob) {
                 downloadFile(blob, fileName, 'image/png');
             } else { showError("Erreur lors de la création du fichier PNG."); }
@@ -88,7 +85,6 @@ function getA1CornerCoordsForPrint(config) {
     }
 }
 
-
 /**
  * Calcule la Bounding Box pour inclure la grille 26x18 ET les marges pour les étiquettes.
  */
@@ -109,18 +105,18 @@ function getBoundingBoxForPrint(config, a1CornerCoords) {
     return { north, south, east, west };
 }
 
-
 /**
  * Calcule le niveau de zoom OSM optimal.
  */
 function calculateOptimalZoom(boundingBox) {
     const lonDiff = Math.abs(boundingBox.east - boundingBox.west);
     if (lonDiff === 0) return MAX_ZOOM;
-    const targetWidthInPixels = 1500;
+    const targetWidthInPixels = 3500;
     const zoomApproximation = Math.log2(360 * targetWidthInPixels / (lonDiff * TILE_SIZE));
     return Math.min(Math.floor(zoomApproximation), MAX_ZOOM);
 }
 
+// --- FONCTIONS UTILITAIRES DE PROJECTION (COMPLÈTES) ---
 function latLonToWorldPixels(lat, lon, zoom) {
     const siny = Math.sin(toRad(lat));
     const yClamped = Math.max(Math.min(siny, 0.9999), -0.9999);
@@ -146,6 +142,9 @@ function tileNumbersToLatLon(x, y, zoom) {
     return { lat, lon };
 }
 
+/**
+ * Télécharge et assemble les tuiles.
+ */
 async function fetchAndAssembleTiles(boundingBox, zoom, onProgress) {
     const nwTile = latLonToTileNumbers(boundingBox.north, boundingBox.west, zoom);
     const seTile = latLonToTileNumbers(boundingBox.south, boundingBox.east, zoom);
@@ -155,7 +154,7 @@ async function fetchAndAssembleTiles(boundingBox, zoom, onProgress) {
     canvas.height = (seTile.y - nwTile.y + 1) * TILE_SIZE;
     const tilePromises = [];
     const totalTiles = (seTile.x - nwTile.x + 1) * (seTile.y - nwTile.y + 1);
-    if (totalTiles <= 0 || totalTiles > 400) {
+    if (totalTiles <= 0 || totalTiles > 1000) {
         throw new Error(`Nombre de tuiles à télécharger invalide ou trop élevé (${totalTiles}). Vérifiez l'échelle ou les coordonnées.`);
     }
     let downloadedCount = 0;
@@ -198,7 +197,7 @@ function cropFinalImage(workingCanvas, tileInfo, zoom, config, a1CornerCoords) {
         };
     };
 
-    const cropStartPoint = calculateAndRotatePoint(0.5, 0.5, config, a1Lat, a1Lon);
+    const cropStartPoint = calculateAndRotatePoint(0, 0, config, a1Lat, a1Lon);
     const cropEndPoint = calculateAndRotatePoint(27.5, 19.5, config, a1Lat, a1Lon);
 
     const startPixels = latLonToPixels(cropStartPoint[1], cropStartPoint[0]);
@@ -216,7 +215,6 @@ function cropFinalImage(workingCanvas, tileInfo, zoom, config, a1CornerCoords) {
     
     finalCtx.drawImage(workingCanvas, cropX, cropY, cropWidth, cropHeight, 0, 0, cropWidth, cropHeight);
     
-    // Le cropInfo contient les coordonnées géographiques du nouveau point (0,0) du canevas rogné
     const cropInfo = { north: Math.max(cropStartPoint[1], cropEndPoint[1]), west: Math.min(cropStartPoint[0], cropEndPoint[0]) };
 
     return { finalCanvas, cropInfo };
@@ -293,7 +291,7 @@ function drawCartouche(ctx, latLonToPixels, config, a1CornerCoords) {
     const [a1Lon, a1Lat] = a1CornerCoords;
     
     const topLeft = latLonToPixels(calculateAndRotatePoint(1.1, 18.9, config, a1Lat, a1Lon)[1], calculateAndRotatePoint(1.1, 18.9, config, a1Lat, a1Lon)[0]);
-    const bottomRight = latLonToPixels(calculateAndRotatePoint(4.5, 17.5, config, a1Lat, a1Lon)[1], calculateAndRotatePoint(4.5, 17.5, config, a1Lat, a1Lon)[0]);
+    const bottomRight = latLonToPixels(calculateAndRotatePoint(6.5, 17.5, config, a1Lat, a1Lon)[1], calculateAndRotatePoint(6.5, 17.5, config, a1Lat, a1Lon)[0]);
     const width = bottomRight.x - topLeft.x;
     const height = bottomRight.y - topLeft.y;
 
