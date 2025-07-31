@@ -43,11 +43,8 @@ async function generateImageToPrint() {
         drawGridAndElements(workingCtx, tileInfo, zoomLevel, config, a1CornerCoords);
 
         loadingMessage.textContent = "Finalisation de l'image...";
-        const { finalCanvas, cropInfo } = cropFinalImage(workingCanvas, tileInfo, zoomLevel, config, a1CornerCoords);
+        const finalCanvas = cropFinalImage(workingCanvas, tileInfo, zoomLevel, config, a1CornerCoords);
         
-        const finalCtx = finalCanvas.getContext('2d');
-        drawGridAndElements(finalCtx, cropInfo, zoomLevel, config, a1CornerCoords);
-
         const fileName = `${config.gridName}_Print_26x18.png`;
         finalCanvas.toBlob((blob) => {
             if (blob) {
