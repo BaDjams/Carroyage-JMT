@@ -32,6 +32,8 @@ async function generateImageToPrint() {
         const a1CornerCoords = getA1CornerCoords(config);
         const boundingBox = getBoundingBoxForPrint(config, a1CornerCoords);
         const zoomLevel = calculateOptimalZoom(boundingBox, config.scale);
+        
+        console.log(`Zone géographique (Bounding Box): N:${boundingBox.north}, S:${boundingBox.south}, E:${boundingBox.east}, W:${boundingBox.west}`);
         console.log(`Zoom optimal calculé : ${zoomLevel}`);
 
         loadingMessage.textContent = "Téléchargement des fonds de carte (0%)...";
@@ -77,13 +79,10 @@ function getA1CornerCoords(config) {
     if (config.referencePointChoice === 'origin') {
         return [refLon, refLat];
     } else { // 'center'
-        // Centre d'une grille 27x19 : 14ème colonne (N), 10ème ligne (10)
         const centerColOffset = getOffsetInCells(14) + 0.5; // 13.5
         const centerRowOffset = getOffsetInCells(10) + 0.5; // 9.5
-        
         const xOffsetMeters = centerColOffset * config.scale;
         const yOffsetMeters = centerRowOffset * config.scale;
-
         const a1Lon = refLon - metersToLonDegrees(xOffsetMeters, refLat);
         const a1Lat = refLat - metersToLatDegrees(yOffsetMeters, refLat);
         return [a1Lon, a1Lat];
@@ -93,34 +92,40 @@ function getA1CornerCoords(config) {
 
 /**
  * Calcule les coordonnées géographiques des 4 coins de la grille 27x19.
+ * CORRIGÉ : Logique robuste qui gère toutes les orientations.
  */
 function getBoundingBoxForPrint(config, a1CornerCoords) {
     const [a1Lon, a1Lat] = a1CornerCoords;
     
-    // Le coin NW est le coin supérieur gauche de la case A19.
-    // Le coin SE est le coin inférieur droit de la case AA1.
-    const nwGridPoint = config.letteringDirection === 'ascending' ? { col: 1, row: 20 } : { col: 1, row: 1 };
-    const seGridPoint = config.letteringDirection === 'ascending' ? { col: 28, row: 1 } : { col: 28, row: 20 };
+    // Définir les 4 coins de la grille en termes de colonnes/lignes
+    const corners = [
+        { col: 1, row: 1 },    // Coin bas-gauche en ascendant
+        { col: 28, row: 1 },   // Coin bas-droit en ascendant
+        { col: 1, row: 20 },   // Coin haut-gauche en ascendant
+        { col: 28, row: 20 }   // Coin haut-droit en ascendant
+    ];
 
-    const nwPoint = calculateAndRotatePoint(nwGridPoint.col, nwGridPoint.row, config, a1Lat, a1Lon);
-    const sePoint = calculateAndRotatePoint(seGridPoint.col, seGridPoint.row, config, a1Lat, a1Lon);
+    // Convertir ces 4 coins en coordonnées géographiques
+    const geoCorners = corners.map(corner => {
+        const point = calculateAndRotatePoint(corner.col, corner.row, config, a1Lat, a1Lon);
+        return { lon: point[0], lat: point[1] };
+    });
 
-    return {
-        north: Math.max(nwPoint[1], sePoint[1]),
-        west: Math.min(nwPoint[0], sePoint[0]),
-        south: Math.min(nwPoint[1], sePoint[1]),
-        east: Math.max(nwPoint[0], sePoint[0]),
-    };
+    // Trouver les valeurs min/max pour définir le rectangle englobant
+    const north = Math.max(...geoCorners.map(c => c.lat));
+    const south = Math.min(...geoCorners.map(c => c.lat));
+    const east = Math.max(...geoCorners.map(c => c.lon));
+    const west = Math.min(...geoCorners.map(c => c.lon));
+    
+    return { north, south, east, west };
 }
 
 
 /**
  * Calcule le niveau de zoom OSM qui correspond le mieux à l'échelle demandée.
- * CORRIGÉ : Utilisation de la formule correcte pour la résolution Mercator.
  */
 function calculateOptimalZoom(boundingBox, scaleInMeters) {
     const requiredResolution = scaleInMeters / TILE_SIZE;
-
     for (let zoom = 20; zoom >= 1; zoom--) {
         const metersPerPixel = (Math.cos(toRad(boundingBox.north)) * 2 * Math.PI * 6378137) / (TILE_SIZE * Math.pow(2, zoom));
         if (metersPerPixel <= requiredResolution) {
@@ -172,8 +177,7 @@ async function fetchAndAssembleTiles(boundingBox, zoom, onProgress) {
     for (let x = nwTile.x; x <= seTile.x; x++) {
         for (let y = nwTile.y; y <= seTile.y; y++) {
             const tileUrl = TILE_PROVIDER_URL.replace('{z}', zoom).replace('{x}', x).replace('{y}', y);
-            
-            const promise = fetch(tileUrl, { mode: 'cors' }) // Ajout de cors
+            const promise = fetch(tileUrl)
                 .then(response => {
                     if (!response.ok) throw new Error(`Impossible de charger la tuile: ${response.statusText}`);
                     return response.blob();
@@ -183,18 +187,14 @@ async function fetchAndAssembleTiles(boundingBox, zoom, onProgress) {
                     const canvasX = (x - nwTile.x) * TILE_SIZE;
                     const canvasY = (y - nwTile.y) * TILE_SIZE;
                     ctx.drawImage(imageBitmap, canvasX, canvasY);
-                    
                     downloadedCount++;
                     onProgress((downloadedCount / totalTiles) * 100);
                 });
             tilePromises.push(promise);
         }
     }
-
     await Promise.all(tilePromises);
-    
     const tileInfo = { minX: nwTile.x, minY: nwTile.y };
-    
     return { mapImage: canvas, tileInfo: tileInfo };
 }
 
@@ -207,15 +207,18 @@ function drawGridOnCanvas(ctx, tileInfo, zoom, config, a1CornerCoords) {
 
     const mapOrigin = tileNumbersToLatLon(tileInfo.minX, tileInfo.minY, zoom);
 
-    // CORRIGÉ : Logique de conversion pixel simplifiée et correcte
     const latLonToPixels = (lat, lon) => {
-        const worldCoords = latLonToTileNumbers(lat, lon, zoom);
-        const originCoords = latLonToTileNumbers(mapOrigin.lat, mapOrigin.lon, zoom);
-        
-        const x = (worldCoords.x - originCoords.x) * TILE_SIZE;
-        const y = (worldCoords.y - originCoords.y) * TILE_SIZE;
+        const n = Math.pow(2, zoom);
+        const worldPixelsX = (lon + 180) / 360 * n * TILE_SIZE;
+        const worldPixelsY = (1 - Math.log(Math.tan(toRad(lat)) + 1 / Math.cos(toRad(lat))) / Math.PI) / 2 * n * TILE_SIZE;
 
-        return {x, y};
+        const originPixelsX = (mapOrigin.lon + 180) / 360 * n * TILE_SIZE;
+        const originPixelsY = (1 - Math.log(Math.tan(toRad(mapOrigin.lat)) + 1 / Math.cos(toRad(mapOrigin.lat))) / Math.PI) / 2 * n * TILE_SIZE;
+        
+        return {
+            x: worldPixelsX - originPixelsX,
+            y: worldPixelsY - originPixelsY
+        };
     };
 
     ctx.strokeStyle = config.gridColor;
@@ -228,7 +231,7 @@ function drawGridOnCanvas(ctx, tileInfo, zoom, config, a1CornerCoords) {
     // Lignes verticales (de A=1 à AA+1=28)
     for (let i = 1; i <= 28; i++) {
         const startPoint = calculateAndRotatePoint(i, 1, config, a1Lat, a1Lon);
-        const endPoint = calculateAndRotatePoint(i, 20, config, a1Lat, a1Lon); // 20 = bord bas de la 19ème
+        const endPoint = calculateAndRotatePoint(i, 20, config, a1Lat, a1Lon);
         const startPixels = latLonToPixels(startPoint[1], startPoint[0]);
         const endPixels = latLonToPixels(endPoint[1], endPoint[0]);
         ctx.beginPath();
@@ -240,7 +243,7 @@ function drawGridOnCanvas(ctx, tileInfo, zoom, config, a1CornerCoords) {
     // Lignes horizontales (de 1 à 19+1=20)
     for (let i = 1; i <= 20; i++) {
         const startPoint = calculateAndRotatePoint(1, i, config, a1Lat, a1Lon);
-        const endPoint = calculateAndRotatePoint(28, i, config, a1Lat, a1Lon); // 28 = bord droit de la 27ème
+        const endPoint = calculateAndRotatePoint(28, i, config, a1Lat, a1Lon);
         const startPixels = latLonToPixels(startPoint[1], startPoint[0]);
         const endPixels = latLonToPixels(endPoint[1], endPoint[0]);
         ctx.beginPath();
