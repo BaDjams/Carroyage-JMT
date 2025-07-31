@@ -497,13 +497,9 @@
         }
 
         function setupEventListeners() {
+            // ... (les listeners de transparence et utm-transparency restent les mêmes) ...
             document.getElementById('transparency').addEventListener('input', e => { document.getElementById('transparency-value').textContent = `${e.target.value}%`; });
             document.getElementById('utm-transparency').addEventListener('input', e => { document.getElementById('utm-transparency-value').textContent = `${e.target.value}%`; });
-            
-            document.querySelectorAll('.grid-parameter').forEach(el => {
-                const eventType = (el.type === 'range' || el.type === 'number' || el.type === 'text') ? 'input' : 'change';
-                el.addEventListener(eventType, updateDynamicGridName);
-            });
 
             // ... (les listeners de conversion et viewOnMaps restent les mêmes) ...
             document.getElementById('convert-from-decimal').addEventListener('click', convertFromDecimal);
@@ -511,29 +507,29 @@
             document.getElementById('convert-from-plus').addEventListener('click', convertFromPlusCode);
             document.getElementById('convert-from-mercator').addEventListener('click', convertFromMercator);
             document.getElementById('convert-from-utm').addEventListener('click', convertFromUTM);
-            
             document.getElementById('view-on-maps-decimal').addEventListener('click', () => viewOnMaps('decimal'));
             document.getElementById('view-on-maps-dms').addEventListener('click', () => viewOnMaps('dms'));
             document.getElementById('view-on-maps-plus').addEventListener('click', () => viewOnMaps('plus'));
             document.getElementById('view-on-maps-mercator').addEventListener('click', () => viewOnMaps('mercator'));
             document.getElementById('view-on-maps-utm').addEventListener('click', () => viewOnMaps('utm'));
 
-
-            // --- CORRECTIONS BUGS 2, 3 & 4 ---
+            // --- NOUVELLE LOGIQUE DE GESTION DU BOUTON IMAGE ---
             const deviationInput = document.getElementById('deviation');
             const deviationValueSpan = document.getElementById('deviation-value');
             const generateImageButton = document.getElementById('generate-image-button');
             const resetButton = document.getElementById('reset-deviation');
+            const gridOptionRadios = document.querySelectorAll('input[name="grid-option"]');
+            const gridTypeRadios = document.querySelectorAll('input[name="grid-type"]');
 
-            const updateDeviationUI = () => {
-                const deviation = parseInt(deviationInput.value, 10);
-                // BUG 4 CORRIGÉ : Mettre à jour l'affichage du score
-                deviationValueSpan.textContent = `${deviation}°`;
+            const updateImageButtonState = () => {
+                const isDeviationZero = parseInt(deviationInput.value, 10) === 0;
+                const isGridOptionDefault = document.querySelector('input[name="grid-option"]:checked').value === 'default';
+                const isGridTypePrintable = document.querySelector('input[name="grid-type"]:checked').value === 'Z-18';
                 
-                const isEnabled = deviation === 0;
+                const isEnabled = isDeviationZero && isGridOptionDefault && isGridTypePrintable;
+                
                 generateImageButton.disabled = !isEnabled;
 
-                // BUG 3 CORRIGÉ : Gérer les classes CSS manuellement pour le style
                 if (isEnabled) {
                     generateImageButton.classList.remove('bg-gray-400', 'cursor-not-allowed');
                     generateImageButton.classList.add('bg-gray-600', 'hover:bg-gray-700');
@@ -542,20 +538,33 @@
                     generateImageButton.classList.remove('bg-gray-600', 'hover:bg-gray-700');
                 }
             };
+            
+            // Mettre à jour le nom du fichier et l'état du bouton
+            document.querySelectorAll('.grid-parameter').forEach(el => {
+                const eventType = (el.type === 'range' || el.type === 'number' || el.type === 'text') ? 'input' : 'change';
+                el.addEventListener(eventType, () => {
+                    updateDynamicGridName();
+                    updateImageButtonState();
+                });
+            });
 
-            deviationInput.addEventListener('input', updateDeviationUI);
+            deviationInput.addEventListener('input', () => {
+                deviationValueSpan.textContent = `${deviationInput.value}°`;
+                // L'appel est déjà géré par '.grid-parameter'
+            });
             
             resetButton.addEventListener('click', () => {
                 deviationInput.value = 0;
+                deviationValueSpan.textContent = "0°";
                 updateDynamicGridName();
-                updateDeviationUI(); // Mettre à jour l'UI après le reset
+                updateImageButtonState();
             });
-            
+
             // Lancer la génération de l'image au clic
             generateImageButton.addEventListener('click', generateImageToPrint);
 
             // Mettre à jour l'état initial au chargement
-            updateDeviationUI();
+            updateImageButtonState();
             
             // ... (le reste des listeners) ...
             const helpModal = document.getElementById('help-modal');
