@@ -313,7 +313,11 @@ function getGridConfiguration(lat, lon) {
 }
 
 
-const getOffsetInCells = (n) => (n > 0 ? n - 1 : n);
+const getOffsetInCells = (n) => {
+    if (n > 0) return n - 1;
+    if (n <= 0) return n; // Pour -1, -2 etc., le décalage est direct. Pour 0, c'est -1 case.
+    return 0;
+};
 const getNextIndex = (n) => (n === -1 ? 1 : n + 1);
 
 function calculateGridData(config) {
