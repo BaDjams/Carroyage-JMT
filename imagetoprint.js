@@ -34,7 +34,7 @@ async function generateImageToPrint() {
         console.log(`Zoom optimal calculé : ${zoomLevel}`);
 
         loadingMessage.textContent = "Téléchargement des fonds de carte (0%)...";
-        const { finalCanvas, canvasInfo } = await createFinalCanvas(boundingBox, zoomLevel, (progress) => {
+        const { finalCanvas, canvasInfo } = await createFinalCanvasWithTiles(boundingBox, zoomLevel, (progress) => {
             loadingMessage.textContent = `Téléchargement des fonds de carte (${progress.toFixed(0)}%)...`;
         });
 
@@ -81,12 +81,13 @@ function getA1CornerCoordsForPrint(config) {
 
 /**
  * Calcule la Bounding Box pour la zone à afficher (grille + marges).
+ * BUG 1 CORRIGÉ : La marge est maintenant d'une demi-case.
  */
 function getBoundingBoxForPrint(config, a1CornerCoords) {
     const [a1Lon, a1Lat] = a1CornerCoords;
     const corners = [
-        { col: -1.5, row: -1.5 }, { col: 27.5, row: -1.5 },
-        { col: -1.5, row: 19.5 }, { col: 27.5, row: 19.5 }
+        { col: -0.5, row: -0.5 }, { col: 27.5, row: -0.5 },
+        { col: -0.5, row: 19.5 }, { col: 27.5, row: 19.5 }
     ];
     const geoCorners = corners.map(corner => {
         const point = calculateAndRotatePoint(corner.col, corner.row, config, a1Lat, a1Lon);
@@ -131,20 +132,19 @@ function latLonToTileNumbers(lat, lon, zoom) {
 /**
  * Crée le canevas final et y assemble les tuiles.
  */
-async function createFinalCanvas(boundingBox, zoom, onProgress) {
-    const nwTile = latLonToTileNumbers(boundingBox.north, boundingBox.west, zoom);
-    const seTile = latLonToTileNumbers(boundingBox.south, boundingBox.east, zoom);
-
-    // Calculer les dimensions exactes en pixels de la Bounding Box
+async function createFinalCanvasWithTiles(boundingBox, zoom, onProgress) {
     const nwPixel = latLonToWorldPixels(boundingBox.north, boundingBox.west, zoom);
     const sePixel = latLonToWorldPixels(boundingBox.south, boundingBox.east, zoom);
-    const canvasWidth = sePixel.x - nwPixel.x;
-    const canvasHeight = sePixel.y - nwPixel.y;
+    const canvasWidth = Math.abs(sePixel.x - nwPixel.x);
+    const canvasHeight = Math.abs(sePixel.y - nwPixel.y);
     
     const finalCanvas = document.createElement('canvas');
     finalCanvas.width = canvasWidth;
     finalCanvas.height = canvasHeight;
     const ctx = finalCanvas.getContext('2d');
+
+    const nwTile = latLonToTileNumbers(boundingBox.north, boundingBox.west, zoom);
+    const seTile = latLonToTileNumbers(boundingBox.south, boundingBox.east, zoom);
 
     const totalTiles = (seTile.x - nwTile.x + 1) * (seTile.y - nwTile.y + 1);
     if (totalTiles <= 0 || totalTiles > 1000) {
@@ -161,9 +161,9 @@ async function createFinalCanvas(boundingBox, zoom, onProgress) {
                 const img = new Image();
                 img.crossOrigin = "Anonymous";
                 img.onload = () => {
-                    const canvasX = (x * TILE_SIZE) - nwPixel.x;
-                    const canvasY = (y * TILE_SIZE) - nwPixel.y;
-                    ctx.drawImage(img, canvasX, canvasY);
+                    const tileX = (x * TILE_SIZE) - nwPixel.x;
+                    const tileY = (y * TILE_SIZE) - nwPixel.y;
+                    ctx.drawImage(img, tileX, tileY);
                     downloadedCount++;
                     onProgress((downloadedCount / totalTiles) * 100);
                     resolve();
@@ -177,10 +177,10 @@ async function createFinalCanvas(boundingBox, zoom, onProgress) {
 
     await Promise.all(tilePromises);
     
-    // canvasInfo contient les coordonnées géo du coin supérieur gauche du canevas final
     const canvasInfo = { north: boundingBox.north, west: boundingBox.west };
     return { finalCanvas, canvasInfo };
 }
+
 
 /**
  * Dessine la grille et tous les éléments sur le canevas final.
@@ -200,7 +200,8 @@ function drawGridAndElements(ctx, canvasInfo, zoom, config, a1CornerCoords) {
     ctx.strokeStyle = config.gridColor;
     ctx.lineWidth = 2;
     ctx.fillStyle = config.gridColor;
-    ctx.font = 'bold 20px Arial';
+    // BUG 2 CORRIGÉ : Augmentation de la taille de la police
+    ctx.font = 'bold 30px Arial'; 
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
 
@@ -330,29 +331,34 @@ function drawCompass(ctx, latLonToPixels, config, a1CornerCoords) {
 function drawSubdivisionKey(ctx, latLonToPixels, config, a1CornerCoords) {
     const [a1Lon, a1Lat] = a1CornerCoords;
 
-    const topLeft = latLonToPixels(calculateAndRotatePoint(0, 1, config, a1Lat, a1Lon)[1], calculateAndRotatePoint(0, 1, config, a1Lat, a1Lon)[0]);
-    const topRight = latLonToPixels(calculateAndRotatePoint(1, 1, config, a1Lat, a1Lon)[1], calculateAndRotatePoint(1, 1, config, a1Lat, a1Lon)[0]);
-    const bottomLeft = latLonToPixels(calculateAndRotatePoint(0, 0, config, a1Lat, a1Lon)[1], calculateAndRotatePoint(0, 0, config, a1Lat, a1Lon)[0]);
-
-    const midX = (topLeft.x + topRight.x) / 2;
-    const midY = (topLeft.y + bottomLeft.y) / 2;
-
-    const halfWidth = (topRight.x - topLeft.x) / 2;
-    const halfHeight = (bottomLeft.y - topLeft.y) / 2;
+    // Utilisation de points centrés dans la "case" 0,0 pour le positionnement
+    const centerPoint = calculateAndRotatePoint(0.5, 0.5, config, a1Lat, a1Lon);
+    const center = latLonToPixels(centerPoint[1], centerPoint[0]);
+    
+    // On calcule la taille d'une demi-case en pixels
+    const p1 = latLonToPixels(calculateAndRotatePoint(0, 0, config, a1Lat, a1Lon)[1], calculateAndRotatePoint(0, 0, config, a1Lat, a1Lon)[0]);
+    const p2 = latLonToPixels(calculateAndRotatePoint(1, 1, config, a1Lat, a1Lon)[1], calculateAndRotatePoint(1, 1, config, a1Lat, a1Lon)[0]);
+    const caseWidth = Math.abs(p2.x - p1.x);
+    const caseHeight = Math.abs(p2.y - p1.y);
+    const halfWidth = caseWidth / 2;
+    const halfHeight = caseHeight / 2;
+    
+    const topLeftX = center.x - halfWidth;
+    const topLeftY = center.y - halfHeight;
 
     ctx.strokeStyle = 'black';
     ctx.lineWidth = 1;
-    ctx.strokeRect(topLeft.x, topLeft.y, halfWidth * 2, halfHeight * 2);
+    ctx.strokeRect(topLeftX, topLeftY, caseWidth, caseHeight);
 
     ctx.fillStyle = '#FFFF00'; // Jaune
-    ctx.fillRect(topLeft.x, topLeft.y, halfWidth, halfHeight);
+    ctx.fillRect(topLeftX, topLeftY, halfWidth, halfHeight);
 
     ctx.fillStyle = '#0000FF'; // Bleu
-    ctx.fillRect(midX, topLeft.y, halfWidth, halfHeight);
+    ctx.fillRect(topLeftX + halfWidth, topLeftY, halfWidth, halfHeight);
 
     ctx.fillStyle = '#008000'; // Vert
-    ctx.fillRect(topLeft.x, midY, halfWidth, halfHeight);
+    ctx.fillRect(topLeftX, topLeftY + halfHeight, halfWidth, halfHeight);
 
     ctx.fillStyle = '#FF0000'; // Rouge
-    ctx.fillRect(midX, midY, halfWidth, halfHeight);
+    ctx.fillRect(topLeftX + halfWidth, topLeftY + halfHeight, halfWidth, halfHeight);
 }
