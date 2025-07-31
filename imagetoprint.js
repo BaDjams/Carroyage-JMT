@@ -2,6 +2,7 @@
 
 const TILE_PROVIDER_URL = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
 const TILE_SIZE = 256;
+const MAX_ZOOM = 19; // Plafond pour éviter de demander des tuiles qui n'existent pas.
 
 /**
  * Fonction principale appelée par le bouton "Générer l'image (PNG)".
@@ -79,8 +80,8 @@ function getA1CornerCoords(config) {
     if (config.referencePointChoice === 'origin') {
         return [refLon, refLat];
     } else { // 'center'
-        const centerColOffset = getOffsetInCells(14) + 0.5; // 13.5
-        const centerRowOffset = getOffsetInCells(10) + 0.5; // 9.5
+        const centerColOffset = getOffsetInCells(14) + 0.5;
+        const centerRowOffset = getOffsetInCells(10) + 0.5;
         const xOffsetMeters = centerColOffset * config.scale;
         const yOffsetMeters = centerRowOffset * config.scale;
         const a1Lon = refLon - metersToLonDegrees(xOffsetMeters, refLat);
@@ -113,27 +114,48 @@ function getBoundingBoxForPrint(config, a1CornerCoords) {
 
 /**
  * Calcule le niveau de zoom OSM qui correspond le mieux à l'échelle demandée.
+ * BUG CORRIGÉ : Utilisation de la formule standard et ajout d'un plafond.
  */
 function calculateOptimalZoom(boundingBox, scaleInMeters) {
     const gridWidthInMeters = 27 * scaleInMeters;
-    for (let zoom = 20; zoom >= 1; zoom--) {
-        const nw = latLonToWorldPixels(boundingBox.north, boundingBox.west, zoom);
-        const ne = latLonToWorldPixels(boundingBox.north, boundingBox.east, zoom);
-        const widthInPixels = ne.x - nw.x;
-        const currentResolution = gridWidthInMeters / widthInPixels;
-        if (currentResolution > (scaleInMeters / TILE_SIZE)) {
-             return zoom;
+
+    for (let zoom = MAX_ZOOM; zoom >= 1; zoom--) {
+        // Calculer la largeur de la Bounding Box en pixels à ce niveau de zoom
+        const westPixels = lonToWorldPixels(boundingBox.west, zoom);
+        const eastPixels = lonToWorldPixels(boundingBox.east, zoom);
+        const widthInPixels = Math.abs(eastPixels.x - westPixels.x);
+
+        // Si la largeur en pixels est nulle ou non définie, on ne peut pas calculer, on passe au zoom inférieur
+        if (!widthInPixels) {
+            continue;
+        }
+
+        // Calcule la résolution actuelle de la carte (mètres par pixel)
+        const currentMapResolution = gridWidthInMeters / widthInPixels;
+
+        // On cherche le premier niveau de zoom où la résolution de la carte est meilleure (plus petite) que l'échelle demandée.
+        // Cela garantit que les détails seront suffisants.
+        if (currentMapResolution < scaleInMeters) {
+            return zoom;
         }
     }
     return 1;
 }
 
 /**
- * Convertit Lat/Lon en coordonnées "monde" en pixels à un zoom donné.
+ * Fonctions de conversion géographiques standards pour la projection Mercator (utilisée par OSM).
  */
+function lonToWorldPixels(lon, zoom) {
+    const x = (lon + 180) / 360;
+    const mapSize = TILE_SIZE * Math.pow(2, zoom);
+    return { x: x * mapSize };
+}
+
 function latLonToWorldPixels(lat, lon, zoom) {
     const siny = Math.sin(toRad(lat));
-    const y = 0.5 - Math.log((1 + siny) / (1 - siny)) / (4 * Math.PI);
+    // Clamping pour éviter les valeurs infinies près des pôles
+    const yClamped = Math.max(Math.min(siny, 0.9999), -0.9999);
+    const y = 0.5 - Math.log((1 + yClamped) / (1 - yClamped)) / (4 * Math.PI);
     const x = (lon + 180) / 360;
     const mapSize = TILE_SIZE * Math.pow(2, zoom);
     return {
@@ -142,10 +164,6 @@ function latLonToWorldPixels(lat, lon, zoom) {
     };
 }
 
-
-/**
- * Convertit les coordonnées géographiques en numéros de tuile.
- */
 function latLonToTileNumbers(lat, lon, zoom) {
     const worldPixels = latLonToWorldPixels(lat, lon, zoom);
     return {
@@ -154,21 +172,17 @@ function latLonToTileNumbers(lat, lon, zoom) {
     };
 }
 
-/**
- * Convertit les numéros de tuile en coordonnées du coin Nord-Ouest de la tuile.
- */
 function tileNumbersToLatLon(x, y, zoom) {
     const n = Math.pow(2, zoom);
     const lon = x / n * 360 - 180;
     const latRad = Math.atan(Math.sinh(Math.PI * (1 - 2 * y / n)));
     const lat = toDeg(latRad);
-    return { lat: lat, lon: lon };
+    return { lat, lon };
 }
 
 
 /**
- * Télécharge et assemble les tuiles.
- * CORRECTION : Utilisation de new Image() au lieu de fetch() pour une meilleure gestion du CORS.
+ * Télécharge et assemble les tuiles en utilisant la méthode new Image() pour éviter les problèmes de CORS.
  */
 async function fetchAndAssembleTiles(boundingBox, zoom, onProgress) {
     const nwTile = latLonToTileNumbers(boundingBox.north, boundingBox.west, zoom);
@@ -181,20 +195,21 @@ async function fetchAndAssembleTiles(boundingBox, zoom, onProgress) {
 
     const tilePromises = [];
     const totalTiles = (seTile.x - nwTile.x + 1) * (seTile.y - nwTile.y + 1);
+    if (totalTiles === 0 || totalTiles > 400) { // Sécurité pour éviter de télécharger des milliers de tuiles
+        throw new Error(`Nombre de tuiles à télécharger trop élevé (${totalTiles}). Vérifiez l'échelle ou les coordonnées.`);
+    }
     let downloadedCount = 0;
 
     for (let x = nwTile.x; x <= seTile.x; x++) {
         for (let y = nwTile.y; y <= seTile.y; y++) {
             const tileUrl = TILE_PROVIDER_URL.replace('{z}', zoom).replace('{x}', x).replace('{y}', y);
-            
             const promise = new Promise((resolve, reject) => {
                 const img = new Image();
-                img.crossOrigin = "Anonymous"; // Essentiel pour le CORS
+                img.crossOrigin = "Anonymous";
                 img.onload = () => {
                     const canvasX = (x - nwTile.x) * TILE_SIZE;
                     const canvasY = (y - nwTile.y) * TILE_SIZE;
                     ctx.drawImage(img, canvasX, canvasY);
-                    
                     downloadedCount++;
                     onProgress((downloadedCount / totalTiles) * 100);
                     resolve();
@@ -209,22 +224,23 @@ async function fetchAndAssembleTiles(boundingBox, zoom, onProgress) {
     }
 
     await Promise.all(tilePromises);
-    
     const tileInfo = { minX: nwTile.x, minY: nwTile.y };
     return { mapImage: canvas, tileInfo: tileInfo };
 }
 
 
 /**
- * Dessine la grille sur le canevas.
+ * Dessine la grille et les étiquettes sur le canevas final.
  */
 function drawGridOnCanvas(ctx, tileInfo, zoom, config, a1CornerCoords) {
     const [a1Lon, a1Lat] = a1CornerCoords;
-    const mapOrigin = tileNumbersToLatLon(tileInfo.minX, tileInfo.minY, zoom);
+    const originWorldPixels = {
+        x: tileInfo.minX * TILE_SIZE,
+        y: tileInfo.minY * TILE_SIZE,
+    };
 
     const latLonToPixels = (lat, lon) => {
         const worldPixels = latLonToWorldPixels(lat, lon, zoom);
-        const originWorldPixels = latLonToWorldPixels(mapOrigin.lat, mapOrigin.lon, zoom);
         return {
             x: worldPixels.x - originWorldPixels.x,
             y: worldPixels.y - originWorldPixels.y
@@ -238,7 +254,7 @@ function drawGridOnCanvas(ctx, tileInfo, zoom, config, a1CornerCoords) {
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
 
-    // Lignes verticales (de A=1 à AA+1=28)
+    // Lignes verticales
     for (let i = 1; i <= 28; i++) {
         const startPoint = calculateAndRotatePoint(i, 1, config, a1Lat, a1Lon);
         const endPoint = calculateAndRotatePoint(i, 20, config, a1Lat, a1Lon);
@@ -250,7 +266,7 @@ function drawGridOnCanvas(ctx, tileInfo, zoom, config, a1CornerCoords) {
         ctx.stroke();
     }
     
-    // Lignes horizontales (de 1 à 19+1=20)
+    // Lignes horizontales
     for (let i = 1; i <= 20; i++) {
         const startPoint = calculateAndRotatePoint(1, i, config, a1Lat, a1Lon);
         const endPoint = calculateAndRotatePoint(28, i, config, a1Lat, a1Lon);
@@ -262,15 +278,14 @@ function drawGridOnCanvas(ctx, tileInfo, zoom, config, a1CornerCoords) {
         ctx.stroke();
     }
 
-    // Étiquettes
-    // Lettres (de A=1 à AA=27)
+    // Étiquettes Lettres
     for (let i = 1; i <= 27; i++) {
         const labelPoint = calculateAndRotatePoint(i + 0.5, 0.5, config, a1Lat, a1Lon);
         const labelPixels = latLonToPixels(labelPoint[1], labelPoint[0]);
         ctx.fillText(numberToLetter(i), labelPixels.x, labelPixels.y);
     }
     
-    // Chiffres (de 1 à 19)
+    // Étiquettes Chiffres
     for (let i = 1; i <= 19; i++) {
         const labelPoint = calculateAndRotatePoint(0.5, i + 0.5, config, a1Lat, a1Lon);
         const labelPixels = latLonToPixels(labelPoint[1], labelPoint[0]);
