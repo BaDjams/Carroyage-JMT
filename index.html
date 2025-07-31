@@ -496,7 +496,7 @@
             });
         }
 
-        function setupEventListeners() {
+function setupEventListeners() {
             // ... (les listeners de transparence et utm-transparency restent les mêmes) ...
             document.getElementById('transparency').addEventListener('input', e => { document.getElementById('transparency-value').textContent = `${e.target.value}%`; });
             document.getElementById('utm-transparency').addEventListener('input', e => { document.getElementById('utm-transparency-value').textContent = `${e.target.value}%`; });
@@ -513,24 +513,38 @@
             document.getElementById('view-on-maps-mercator').addEventListener('click', () => viewOnMaps('mercator'));
             document.getElementById('view-on-maps-utm').addEventListener('click', () => viewOnMaps('utm'));
 
-            // --- NOUVELLE LOGIQUE DE GESTION DU BOUTON IMAGE ---
+            // --- NOUVELLE LOGIQUE DE GESTION DU BOUTON IMAGE (MISE À JOUR) ---
             const deviationInput = document.getElementById('deviation');
             const deviationValueSpan = document.getElementById('deviation-value');
             const generateImageButton = document.getElementById('generate-image-button');
             const resetButton = document.getElementById('reset-deviation');
-            const gridOptionRadios = document.querySelectorAll('input[name="grid-option"]');
-            const gridTypeRadios = document.querySelectorAll('input[name="grid-type"]');
-
+            
             const updateImageButtonState = () => {
                 const isDeviationZero = parseInt(deviationInput.value, 10) === 0;
-                const isGridOptionDefault = document.querySelector('input[name="grid-option"]:checked').value === 'default';
-                const isGridTypePrintable = document.querySelector('input[name="grid-type"]:checked').value === 'Z-18';
                 
-                const isEnabled = isDeviationZero && isGridOptionDefault && isGridTypePrintable;
+                const gridOption = document.querySelector('input[name="grid-option"]:checked').value;
+                const refPoint = document.querySelector('input[name="reference-point"]:checked').value;
                 
-                generateImageButton.disabled = !isEnabled;
+                let isPrintableSetup = false;
+                
+                if (isDeviationZero) {
+                    // Condition 1: Ancré sur l'origine A1 (n'importe quelle grille est alors valide)
+                    if (refPoint === 'origin') {
+                        isPrintableSetup = true;
+                    }
+                    // Condition 2: Centré ET utilisant la grille Z-18 spécifique
+                    else if (refPoint === 'center') {
+                        const isGridOptionDefault = gridOption === 'default';
+                        const isGridTypePrintable = document.querySelector('input[name="grid-type"]:checked').value === 'Z-18';
+                        if (isGridOptionDefault && isGridTypePrintable) {
+                            isPrintableSetup = true;
+                        }
+                    }
+                }
+                
+                generateImageButton.disabled = !isPrintableSetup;
 
-                if (isEnabled) {
+                if (isPrintableSetup) {
                     generateImageButton.classList.remove('bg-gray-400', 'cursor-not-allowed');
                     generateImageButton.classList.add('bg-gray-600', 'hover:bg-gray-700');
                 } else {
@@ -539,7 +553,7 @@
                 }
             };
             
-            // Mettre à jour le nom du fichier et l'état du bouton
+            // Mettre à jour le nom du fichier et l'état du bouton sur n'importe quel changement de paramètre
             document.querySelectorAll('.grid-parameter').forEach(el => {
                 const eventType = (el.type === 'range' || el.type === 'number' || el.type === 'text') ? 'input' : 'change';
                 el.addEventListener(eventType, () => {
@@ -550,7 +564,6 @@
 
             deviationInput.addEventListener('input', () => {
                 deviationValueSpan.textContent = `${deviationInput.value}°`;
-                // L'appel est déjà géré par '.grid-parameter'
             });
             
             resetButton.addEventListener('click', () => {
@@ -560,7 +573,6 @@
                 updateImageButtonState();
             });
 
-            // Lancer la génération de l'image au clic
             generateImageButton.addEventListener('click', generateImageToPrint);
 
             // Mettre à jour l'état initial au chargement
