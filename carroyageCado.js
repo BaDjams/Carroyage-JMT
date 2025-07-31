@@ -314,9 +314,9 @@ function getGridConfiguration(lat, lon) {
 
 
 const getOffsetInCells = (n) => {
-    if (n > 0) return n - 1;
-    if (n <= 0) return n; // Pour -1, -2 etc., le décalage est direct. Pour 0, c'est -1 case.
-    return 0;
+    if (n > 0) return n - 1; // Cellule 1 est à l'offset 0, Cellule 2 à 1...
+    return n; // Cellule -1 est à -1, et la LIGNE 0 est à l'offset 0 (bord gauche de la case 1) ce qui est faux.
+              // La logique est dans calculateAndRotatePoint
 };
 const getNextIndex = (n) => (n === -1 ? 1 : n + 1);
 
@@ -404,19 +404,20 @@ function calculateGridData(config) {
     };
 }
 
-function calculateAndRotatePoint(colNumber, rowNumber, config, a1CornerLat, a1CornerLon) {
+function calculateAndRotatePoint(colNumber, rowNumber, config, a1Lat, a1Lon) {
     const metersToLatDegrees = (meters) => meters / 111320;
     const metersToLonDegrees = (meters, lat) => meters / (111320 * Math.cos(toRad(lat)));
 
-    const colOffset = getOffsetInCells(colNumber);
-    const rowOffset = getOffsetInCells(rowNumber);
-    
-    const xOffsetMeters = colOffset * config.scale;
-    const yOffsetMeters = rowOffset * config.scale;
+    // CORRECTION CRITIQUE : Logique de décalage revue pour être mathématiquement juste.
+    // Il n'y a pas de "case 0". La position d'un index est continue.
+    // L'offset pour un index N positif est (N-1). Pour un index N non-positif, c'est N.
+    const xOffsetMeters = (colNumber > 0 ? colNumber - 1 : colNumber) * config.scale;
+    const yOffsetMeters = (rowNumber > 0 ? rowNumber - 1 : rowNumber) * config.scale;
+
     const finalYOffset = config.letteringDirection === 'ascending' ? yOffsetMeters : -yOffsetMeters;
 
-    const unrotatedLon = a1CornerLon + metersToLonDegrees(xOffsetMeters, a1CornerLat);
-    const unrotatedLat = a1CornerLat + metersToLatDegrees(finalYOffset, a1CornerLat);
+    const unrotatedLon = a1Lon + metersToLonDegrees(xOffsetMeters, a1Lat);
+    const unrotatedLat = a1Lat + metersToLatDegrees(finalYOffset, a1Lat);
 
     if (config.deviation === 0) {
         return [unrotatedLon, unrotatedLat];
