@@ -65,6 +65,7 @@ async function generateImageToPrint() {
 
 /**
  * Calcule la position de l'origine A1 spécifiquement pour la grille d'impression.
+ * BUG 2 CORRIGÉ : Le calcul du centre se base sur l'intersection M/N et 9/10.
  */
 function getA1CornerCoordsForPrint(config) {
     const refLat = config.latitude;
@@ -75,10 +76,12 @@ function getA1CornerCoordsForPrint(config) {
     if (config.referencePointChoice === 'origin') {
         return [refLon, refLat];
     } else { // 'center'
-        const centerColOffset = getOffsetInCells(13) + 0.5;
-        const centerRowOffset = getOffsetInCells(9) + 0.5;
+        const centerColOffset = getOffsetInCells(14); // Ligne entre M(13) et N(14)
+        const centerRowOffset = getOffsetInCells(10); // Ligne entre 9 et 10
+        
         const xOffsetMeters = centerColOffset * config.scale;
         const yOffsetMeters = centerRowOffset * config.scale;
+        
         const a1Lon = refLon - metersToLonDegrees(xOffsetMeters, refLat);
         const a1Lat = refLat - metersToLatDegrees(yOffsetMeters, refLat);
         return [a1Lon, a1Lat];
@@ -116,7 +119,7 @@ function calculateOptimalZoom(boundingBox) {
     return Math.min(Math.floor(zoomApproximation), MAX_ZOOM);
 }
 
-// --- FONCTIONS UTILITAIRES DE PROJECTION (COMPLÈTES) ---
+// --- Fonctions utilitaires de projection ---
 function latLonToWorldPixels(lat, lon, zoom) {
     const siny = Math.sin(toRad(lat));
     const yClamped = Math.max(Math.min(siny, 0.9999), -0.9999);
@@ -185,6 +188,7 @@ async function fetchAndAssembleTiles(boundingBox, zoom, onProgress) {
 
 /**
  * Rogne le canevas de travail pour ne garder que la zone d'intérêt.
+ * BUG 1 CORRIGÉ : Augmentation de la marge de rognage pour les coordonnées.
  */
 function cropFinalImage(workingCanvas, tileInfo, zoom, config, a1CornerCoords) {
     const [a1Lon, a1Lat] = a1CornerCoords;
@@ -216,9 +220,9 @@ function cropFinalImage(workingCanvas, tileInfo, zoom, config, a1CornerCoords) {
     finalCtx.drawImage(workingCanvas, cropX, cropY, cropWidth, cropHeight, 0, 0, cropWidth, cropHeight);
     
     const cropInfo = { north: Math.max(cropStartPoint[1], cropEndPoint[1]), west: Math.min(cropStartPoint[0], cropEndPoint[0]) };
-
     return { finalCanvas, cropInfo };
 }
+
 
 /**
  * Dessine la grille et tous les éléments sur un canevas donné.
@@ -286,12 +290,13 @@ function drawGridAndElements(ctx, canvasInfo, zoom, config, a1CornerCoords) {
 
 /**
  * Dessine le cartouche d'information.
+ * BUG 4 CORRIGÉ : Cartouche redimensionné à 3x1 cases.
  */
 function drawCartouche(ctx, latLonToPixels, config, a1CornerCoords) {
     const [a1Lon, a1Lat] = a1CornerCoords;
     
     const topLeft = latLonToPixels(calculateAndRotatePoint(1.1, 18.9, config, a1Lat, a1Lon)[1], calculateAndRotatePoint(1.1, 18.9, config, a1Lat, a1Lon)[0]);
-    const bottomRight = latLonToPixels(calculateAndRotatePoint(6.5, 17.5, config, a1Lat, a1Lon)[1], calculateAndRotatePoint(6.5, 17.5, config, a1Lat, a1Lon)[0]);
+    const bottomRight = latLonToPixels(calculateAndRotatePoint(4.1, 17.9, config, a1Lat, a1Lon)[1], calculateAndRotatePoint(4.1, 17.9, config, a1Lat, a1Lon)[0]);
     const width = bottomRight.x - topLeft.x;
     const height = bottomRight.y - topLeft.y;
 
