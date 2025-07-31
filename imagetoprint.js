@@ -33,24 +33,26 @@ async function generateImageToPrint() {
         
         console.log(`Zoom optimal calculé : ${zoomLevel}`);
 
-        // Étape 1 : Créer le canevas de travail avec le fond de carte
         loadingMessage.textContent = "Téléchargement des fonds de carte (0%)...";
         const { mapImage: workingCanvas, tileInfo } = await fetchAndAssembleTiles(boundingBox, zoomLevel, (progress) => {
             loadingMessage.textContent = `Téléchargement des fonds de carte (${progress.toFixed(0)}%)...`;
         });
 
-        // Étape 2 : Dessiner TOUS les éléments (grille, cartouche, etc.) sur le canevas de travail
         loadingMessage.textContent = "Dessin du carroyage...";
         const workingCtx = workingCanvas.getContext('2d');
         drawGridAndElements(workingCtx, tileInfo, zoomLevel, config, a1CornerCoords);
 
-        // Étape 3 : Rogner le canevas de travail décoré pour obtenir l'image finale
         loadingMessage.textContent = "Finalisation de l'image...";
-        const finalCanvas = cropFinalImage(workingCanvas, tileInfo, zoomLevel, config, a1CornerCoords);
+        // --- CORRECTION DU BUG ---
+        // On déstructure correctement l'objet retourné par la fonction
+        const { finalCanvas, cropInfo } = cropFinalImage(workingCanvas, tileInfo, zoomLevel, config, a1CornerCoords);
         
-        // Étape 4 : Exporter l'image finale
+        // Redessiner les éléments sur l'image rognée pour garantir leur présence
+        const finalCtx = finalCanvas.getContext('2d');
+        drawGridAndElements(finalCtx, cropInfo, zoomLevel, config, a1CornerCoords, true);
+        
         const fileName = `${config.gridName}_Print_26x18.png`;
-        finalCanvas.toBlob((blob) => {
+        finalCanvas.toBlob((blob) => { // Maintenant, finalCanvas est bien un élément <canvas>
             if (blob) {
                 downloadFile(blob, fileName, 'image/png');
             } else { showError("Erreur lors de la création du fichier PNG."); }
@@ -86,6 +88,7 @@ function getA1CornerCoordsForPrint(config) {
     }
 }
 
+
 /**
  * Calcule la Bounding Box pour inclure la grille 26x18 ET les marges pour les étiquettes.
  */
@@ -106,6 +109,7 @@ function getBoundingBoxForPrint(config, a1CornerCoords) {
     return { north, south, east, west };
 }
 
+
 /**
  * Calcule le niveau de zoom OSM optimal.
  */
@@ -117,7 +121,6 @@ function calculateOptimalZoom(boundingBox) {
     return Math.min(Math.floor(zoomApproximation), MAX_ZOOM);
 }
 
-// --- Fonctions utilitaires de projection ---
 function latLonToWorldPixels(lat, lon, zoom) {
     const siny = Math.sin(toRad(lat));
     const yClamped = Math.max(Math.min(siny, 0.9999), -0.9999);
@@ -143,9 +146,6 @@ function tileNumbersToLatLon(x, y, zoom) {
     return { lat, lon };
 }
 
-/**
- * Télécharge et assemble les tuiles.
- */
 async function fetchAndAssembleTiles(boundingBox, zoom, onProgress) {
     const nwTile = latLonToTileNumbers(boundingBox.north, boundingBox.west, zoom);
     const seTile = latLonToTileNumbers(boundingBox.south, boundingBox.east, zoom);
@@ -185,11 +185,49 @@ async function fetchAndAssembleTiles(boundingBox, zoom, onProgress) {
 }
 
 /**
- * Dessine la grille et tous les éléments sur le canevas de travail (non rogné).
+ * Rogne le canevas de travail pour ne garder que la zone d'intérêt.
  */
-function drawGridAndElements(ctx, tileInfo, zoom, config, a1CornerCoords) {
+function cropFinalImage(workingCanvas, tileInfo, zoom, config, a1CornerCoords) {
     const [a1Lon, a1Lat] = a1CornerCoords;
     const originWorldPixels = { x: tileInfo.minX * TILE_SIZE, y: tileInfo.minY * TILE_SIZE };
+    const latLonToPixels = (lat, lon) => {
+        const worldPixels = latLonToWorldPixels(lat, lon, zoom);
+        return {
+            x: worldPixels.x - originWorldPixels.x,
+            y: worldPixels.y - originWorldPixels.y
+        };
+    };
+
+    const cropStartPoint = calculateAndRotatePoint(0.5, 0.5, config, a1Lat, a1Lon);
+    const cropEndPoint = calculateAndRotatePoint(27.5, 19.5, config, a1Lat, a1Lon);
+
+    const startPixels = latLonToPixels(cropStartPoint[1], cropStartPoint[0]);
+    const endPixels = latLonToPixels(cropEndPoint[1], cropEndPoint[0]);
+    
+    const cropX = Math.min(startPixels.x, endPixels.x);
+    const cropY = Math.min(startPixels.y, endPixels.y);
+    const cropWidth = Math.abs(endPixels.x - startPixels.x);
+    const cropHeight = Math.abs(endPixels.y - startPixels.y);
+
+    const finalCanvas = document.createElement('canvas');
+    finalCanvas.width = cropWidth;
+    finalCanvas.height = cropHeight;
+    const finalCtx = finalCanvas.getContext('2d');
+    
+    finalCtx.drawImage(workingCanvas, cropX, cropY, cropWidth, cropHeight, 0, 0, cropWidth, cropHeight);
+    
+    // Le cropInfo contient les coordonnées géographiques du nouveau point (0,0) du canevas rogné
+    const cropInfo = { north: Math.max(cropStartPoint[1], cropEndPoint[1]), west: Math.min(cropStartPoint[0], cropEndPoint[0]) };
+
+    return { finalCanvas, cropInfo };
+}
+
+/**
+ * Dessine la grille et tous les éléments sur un canevas donné.
+ */
+function drawGridAndElements(ctx, canvasInfo, zoom, config, a1CornerCoords) {
+    const [a1Lon, a1Lat] = a1CornerCoords;
+    const originWorldPixels = latLonToWorldPixels(canvasInfo.north, canvasInfo.west, zoom);
 
     const latLonToPixels = (lat, lon) => {
         const worldPixels = latLonToWorldPixels(lat, lon, zoom);
@@ -323,40 +361,4 @@ function drawCompass(ctx, latLonToPixels, config, a1CornerCoords) {
     ctx.textAlign = 'center';
     ctx.textBaseline = 'bottom';
     ctx.fillText('N', N_point.x, N_point.y - 2);
-}
-
-/**
- * Rogne le canevas de travail décoré pour ne garder que la zone d'intérêt.
- */
-function cropFinalImage(workingCanvas, tileInfo, zoom, config, a1CornerCoords) {
-    const [a1Lon, a1Lat] = a1CornerCoords;
-    const originWorldPixels = { x: tileInfo.minX * TILE_SIZE, y: tileInfo.minY * TILE_SIZE };
-    const latLonToPixels = (lat, lon) => {
-        const worldPixels = latLonToWorldPixels(lat, lon, zoom);
-        return {
-            x: worldPixels.x - originWorldPixels.x,
-            y: worldPixels.y - originWorldPixels.y
-        };
-    };
-
-    const cropStartPoint = calculateAndRotatePoint(0.5, 0.5, config, a1Lat, a1Lon);
-    const cropEndPoint = calculateAndRotatePoint(27.5, 19.5, config, a1Lat, a1Lon);
-
-    const startPixels = latLonToPixels(cropStartPoint[1], cropStartPoint[0]);
-    const endPixels = latLonToPixels(cropEndPoint[1], cropEndPoint[0]);
-    
-    // En projection Mercator, le Y croit vers le Sud.
-    const cropX = Math.min(startPixels.x, endPixels.x);
-    const cropY = Math.min(startPixels.y, endPixels.y);
-    const cropWidth = Math.abs(endPixels.x - startPixels.x);
-    const cropHeight = Math.abs(endPixels.y - startPixels.y);
-
-    const finalCanvas = document.createElement('canvas');
-    finalCanvas.width = cropWidth;
-    finalCanvas.height = cropHeight;
-    const finalCtx = finalCanvas.getContext('2d');
-    
-    finalCtx.drawImage(workingCanvas, cropX, cropY, cropWidth, cropHeight, 0, 0, cropWidth, cropHeight);
-    
-    return { finalCanvas, cropInfo: { north: cropStartPoint[1], west: cropStartPoint[0] } };
 }
