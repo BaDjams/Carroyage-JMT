@@ -501,6 +501,7 @@
                 el.addEventListener(eventType, updateDynamicGridName);
             });
 
+            // ... (les listeners de conversion et viewOnMaps restent les mêmes) ...
             document.getElementById('convert-from-decimal').addEventListener('click', convertFromDecimal);
             document.getElementById('convert-from-dms').addEventListener('click', convertFromDMS);
             document.getElementById('convert-from-plus').addEventListener('click', convertFromPlusCode);
@@ -513,15 +514,46 @@
             document.getElementById('view-on-maps-mercator').addEventListener('click', () => viewOnMaps('mercator'));
             document.getElementById('view-on-maps-utm').addEventListener('click', () => viewOnMaps('utm'));
 
-            document.getElementById('reset-deviation').addEventListener('click', () => {
-                const deviationInput = document.getElementById('deviation');
-                deviationInput.value = 0;
-                document.getElementById('deviation-value').textContent = "0°";
-                updateDynamicGridName();
-                // Forcer la mise à jour de l'état du bouton image
-                document.getElementById('generate-image-button').disabled = false;
-            });
 
+            // --- CORRECTIONS BUGS 2, 3 & 4 ---
+            const deviationInput = document.getElementById('deviation');
+            const deviationValueSpan = document.getElementById('deviation-value');
+            const generateImageButton = document.getElementById('generate-image-button');
+            const resetButton = document.getElementById('reset-deviation');
+
+            const updateDeviationUI = () => {
+                const deviation = parseInt(deviationInput.value, 10);
+                // BUG 4 CORRIGÉ : Mettre à jour l'affichage du score
+                deviationValueSpan.textContent = `${deviation}°`;
+                
+                const isEnabled = deviation === 0;
+                generateImageButton.disabled = !isEnabled;
+
+                // BUG 3 CORRIGÉ : Gérer les classes CSS manuellement pour le style
+                if (isEnabled) {
+                    generateImageButton.classList.remove('bg-gray-400', 'cursor-not-allowed');
+                    generateImageButton.classList.add('bg-gray-600', 'hover:bg-gray-700');
+                } else {
+                    generateImageButton.classList.add('bg-gray-400', 'cursor-not-allowed');
+                    generateImageButton.classList.remove('bg-gray-600', 'hover:bg-gray-700');
+                }
+            };
+
+            deviationInput.addEventListener('input', updateDeviationUI);
+            
+            resetButton.addEventListener('click', () => {
+                deviationInput.value = 0;
+                updateDynamicGridName();
+                updateDeviationUI(); // Mettre à jour l'UI après le reset
+            });
+            
+            // Lancer la génération de l'image au clic
+            generateImageButton.addEventListener('click', generateImageToPrint);
+
+            // Mettre à jour l'état initial au chargement
+            updateDeviationUI();
+            
+            // ... (le reste des listeners) ...
             const helpModal = document.getElementById('help-modal');
             document.getElementById('helpBtn').addEventListener('click', () => helpModal.classList.remove('hidden'));
             document.getElementById('close-help').addEventListener('click', () => helpModal.classList.add('hidden'));
@@ -529,21 +561,8 @@
             
             document.getElementById('generate-button').addEventListener('click', generateGrid);
             document.getElementById('generate-utm-button').addEventListener('click', generateUTMGrid);
-            
-            // --- CORRECTION BUG 2 ---
-            const deviationInput = document.getElementById('deviation');
-            const generateImageButton = document.getElementById('generate-image-button');
-
-            // Mettre à jour l'état du bouton à chaque changement
-            deviationInput.addEventListener('input', () => {
-                generateImageButton.disabled = parseInt(deviationInput.value, 10) !== 0;
-            });
-            
-            // Définir l'état initial du bouton au chargement de la page
-            generateImageButton.disabled = parseInt(deviationInput.value, 10) !== 0;
-            
-            generateImageButton.addEventListener('click', generateImageToPrint);
         }
+        
         function displayAppVersion() {
           // Pas de fetch, pas de regex, pas de complexité.
           // La variable APP_VERSION est déjà disponible globalement.
