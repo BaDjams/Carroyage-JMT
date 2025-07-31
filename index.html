@@ -494,7 +494,6 @@
 
         function setupEventListeners() {
             document.getElementById('transparency').addEventListener('input', e => { document.getElementById('transparency-value').textContent = `${e.target.value}%`; });
-            document.getElementById('deviation').addEventListener('input', e => { document.getElementById('deviation-value').textContent = `${e.target.value}°`; updateDynamicGridName(); });
             document.getElementById('utm-transparency').addEventListener('input', e => { document.getElementById('utm-transparency-value').textContent = `${e.target.value}%`; });
             
             document.querySelectorAll('.grid-parameter').forEach(el => {
@@ -506,18 +505,21 @@
             document.getElementById('convert-from-dms').addEventListener('click', convertFromDMS);
             document.getElementById('convert-from-plus').addEventListener('click', convertFromPlusCode);
             document.getElementById('convert-from-mercator').addEventListener('click', convertFromMercator);
-            document.getElementById('convert-from-utm').addEventListener('click', convertFromUTM); 
+            document.getElementById('convert-from-utm').addEventListener('click', convertFromUTM);
             
             document.getElementById('view-on-maps-decimal').addEventListener('click', () => viewOnMaps('decimal'));
             document.getElementById('view-on-maps-dms').addEventListener('click', () => viewOnMaps('dms'));
             document.getElementById('view-on-maps-plus').addEventListener('click', () => viewOnMaps('plus'));
             document.getElementById('view-on-maps-mercator').addEventListener('click', () => viewOnMaps('mercator'));
-            document.getElementById('view-on-maps-utm').addEventListener('click', () => viewOnMaps('utm')); 
+            document.getElementById('view-on-maps-utm').addEventListener('click', () => viewOnMaps('utm'));
 
             document.getElementById('reset-deviation').addEventListener('click', () => {
-                document.getElementById('deviation').value = 0;
+                const deviationInput = document.getElementById('deviation');
+                deviationInput.value = 0;
                 document.getElementById('deviation-value').textContent = "0°";
                 updateDynamicGridName();
+                // Forcer la mise à jour de l'état du bouton image
+                document.getElementById('generate-image-button').disabled = false;
             });
 
             const helpModal = document.getElementById('help-modal');
@@ -527,19 +529,21 @@
             
             document.getElementById('generate-button').addEventListener('click', generateGrid);
             document.getElementById('generate-utm-button').addEventListener('click', generateUTMGrid);
+            
+            // --- CORRECTION BUG 2 ---
             const deviationInput = document.getElementById('deviation');
             const generateImageButton = document.getElementById('generate-image-button');
 
-            // Listener pour griser le bouton si la déviation n'est pas à zéro
+            // Mettre à jour l'état du bouton à chaque changement
             deviationInput.addEventListener('input', () => {
-                const isDeviationZero = parseInt(deviationInput.value, 10) === 0;
-                generateImageButton.disabled = !isDeviationZero;
+                generateImageButton.disabled = parseInt(deviationInput.value, 10) !== 0;
             });
             
-            // Lancer la génération de l'image au clic
+            // Définir l'état initial du bouton au chargement de la page
+            generateImageButton.disabled = parseInt(deviationInput.value, 10) !== 0;
+            
             generateImageButton.addEventListener('click', generateImageToPrint);
         }
-
         function displayAppVersion() {
           // Pas de fetch, pas de regex, pas de complexité.
           // La variable APP_VERSION est déjà disponible globalement.
