@@ -20,7 +20,6 @@ async function generateImageToPrint() {
         
         const tileProviderUrl = document.getElementById('map-tile-provider').value;
 
-        // La configuration est maintenant lue directement, sans hardcoder les dimensions.
         const config = getGridConfiguration(
             parseFloat(coordsStr.split(',')[0]),
             parseFloat(coordsStr.split(',')[1])
@@ -70,7 +69,6 @@ function getA1CornerCoordsForPrint(config) {
     if (config.referencePointChoice === 'origin') {
         return [refLon, refLat];
     } else { // 'center'
-        // Calcul dynamique du centre de la grille sélectionnée.
         const numCols = letterToNumber(config.endCol) - letterToNumber(config.startCol) + 1;
         const numRows = config.endRow - config.startRow + 1;
         
@@ -97,7 +95,6 @@ function getBoundingBoxForPrint(config, a1CornerCoords) {
     const margeGauche = 0.5;
     const margeDroite = 0.5;
 
-    // Les limites du contenu sont maintenant basées sur la config.
     const contentBounds = {
         minCol: 0.5,
         maxCol: letterToNumber(config.endCol) + 1,
@@ -286,16 +283,17 @@ function drawGridAndElements(ctx, canvasInfo, zoom, config, a1CornerCoords) {
 function drawCartouche(ctx, latLonToPixels, config, a1CornerCoords) {
     const [a1Lon, a1Lat] = a1CornerCoords;
     
-    const endRowNum = config.endRow;
-    const geo_tl = calculateAndRotatePoint(1.1, endRowNum - 0.1, config, a1Lat, a1Lon);
-    const geo_br = calculateAndRotatePoint(4.5, endRowNum - 1.5, config, a1Lat, a1Lon);
+    // CORRECTION 1: Positionnement en haut à gauche de la grille.
+    const geo_tl = calculateAndRotatePoint(1.1, 1.1, config, a1Lat, a1Lon);
+    const geo_br = calculateAndRotatePoint(4.5, 2.5, config, a1Lat, a1Lon);
     
     const topLeft = latLonToPixels(geo_tl[1], geo_tl[0]);
     const bottomRight = latLonToPixels(geo_br[1], geo_br[0]);
     const width = bottomRight.x - topLeft.x;
     const height = bottomRight.y - topLeft.y;
 
-    const FONT_SIZE_RATIO = 0.22;
+    // CORRECTION 2: Ratio de la police diminué.
+    const FONT_SIZE_RATIO = 0.18; 
     let fontSize = Math.floor(height * FONT_SIZE_RATIO);
     fontSize = Math.max(12, Math.min(fontSize, 30));
 
@@ -335,9 +333,9 @@ function drawCartouche(ctx, latLonToPixels, config, a1CornerCoords) {
 function drawCompass(ctx, latLonToPixels, config, a1CornerCoords) {
     const [a1Lon, a1Lat] = a1CornerCoords;
     
+    // CORRECTION 1: Positionnement en haut à droite.
     const endColNum = letterToNumber(config.endCol);
-    const endRowNum = config.endRow;
-    const centerPoint = calculateAndRotatePoint(endColNum - 0.5, endRowNum - 0.5, config, a1Lat, a1Lon);
+    const centerPoint = calculateAndRotatePoint(endColNum - 0.5, 1.5, config, a1Lat, a1Lon);
     const center = latLonToPixels(centerPoint[1], centerPoint[0]);
     
     const arrowLengthInMeters = config.scale * 0.4;
@@ -394,28 +392,23 @@ function drawSubdivisionKey(ctx, latLonToPixels, config, a1CornerCoords) {
     const px_br = latLonToPixels(geo_br[1], geo_br[0]);
     const px_center = latLonToPixels(geo_center[1], geo_center[0]);
     
-    ctx.save();
-    ctx.globalAlpha = 0.7;
-
-    const quad_tl = { p1: px_tl, p2: {x: px_center.x, y: px_tl.y}, p3: px_center, p4: {x: px_tl.x, y: px_center.y} };
-    const quad_tr = { p1: {x: px_center.x, y: px_tr.y}, p2: px_tr, p3: {x: px_tr.x, y: px_center.y}, p4: px_center };
-    const quad_bl = { p1: {x: px_bl.x, y: px_center.y}, p2: px_center, p3: {x: px_center.x, y: px_bl.y}, p4: px_bl };
-    const quad_br = { p1: px_center, p2: {x: px_br.x, y: px_center.y}, p3: px_br, p4: {x: px_center.x, y: px_br.y} };
-
-    ctx.fillStyle = '#FFFF00'; // Jaune
-    ctx.beginPath(); ctx.moveTo(quad_tl.p1.x, quad_tl.p1.y); ctx.lineTo(quad_tl.p2.x, quad_tl.p2.y); ctx.lineTo(quad_tl.p3.x, quad_tl.p3.y); ctx.lineTo(quad_tl.p4.x, quad_tl.p4.y); ctx.closePath(); ctx.fill();
+    // CORRECTION 3: Utilisation de fillStyle avec 'rgba' pour garantir la transparence.
+    const opacity = '0.7';
     
-    ctx.fillStyle = '#0000FF'; // Bleu
-    ctx.beginPath(); ctx.moveTo(quad_tr.p1.x, quad_tr.p1.y); ctx.lineTo(quad_tr.p2.x, quad_tr.p2.y); ctx.lineTo(quad_tr.p3.x, quad_tr.p3.y); ctx.lineTo(quad_tr.p4.x, quad_tr.p4.y); ctx.closePath(); ctx.fill();
+    // Dessiner les 4 petits carrés (quadrilatères)
+    ctx.fillStyle = `rgba(255, 255, 0, ${opacity})`; // Jaune
+    ctx.beginPath(); ctx.moveTo(px_tl.x, px_tl.y); ctx.lineTo(px_center.x, px_tl.y); ctx.lineTo(px_center.x, px_center.y); ctx.lineTo(px_tl.x, px_center.y); ctx.closePath(); ctx.fill();
     
-    ctx.fillStyle = '#008000'; // Vert
-    ctx.beginPath(); ctx.moveTo(quad_bl.p1.x, quad_bl.p1.y); ctx.lineTo(quad_bl.p2.x, quad_bl.p2.y); ctx.lineTo(quad_bl.p3.x, quad_bl.p3.y); ctx.lineTo(quad_bl.p4.x, quad_bl.p4.y); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = `rgba(0, 0, 255, ${opacity})`; // Bleu
+    ctx.beginPath(); ctx.moveTo(px_center.x, px_tr.y); ctx.lineTo(px_tr.x, px_tr.y); ctx.lineTo(px_tr.x, px_center.y); ctx.lineTo(px_center.x, px_center.y); ctx.closePath(); ctx.fill();
     
-    ctx.fillStyle = '#FF0000'; // Rouge
-    ctx.beginPath(); ctx.moveTo(quad_br.p1.x, quad_br.p1.y); ctx.lineTo(quad_br.p2.x, quad_br.p2.y); ctx.lineTo(quad_br.p3.x, quad_br.p3.y); ctx.lineTo(quad_br.p4.x, quad_br.p4.y); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = `rgba(0, 128, 0, ${opacity})`; // Vert
+    ctx.beginPath(); ctx.moveTo(px_bl.x, px_center.y); ctx.lineTo(px_center.x, px_center.y); ctx.lineTo(px_center.x, px_bl.y); ctx.lineTo(px_bl.x, px_bl.y); ctx.closePath(); ctx.fill();
+    
+    ctx.fillStyle = `rgba(255, 0, 0, ${opacity})`; // Rouge
+    ctx.beginPath(); ctx.moveTo(px_center.x, px_center.y); ctx.lineTo(px_br.x, px_center.y); ctx.lineTo(px_br.x, px_br.y); ctx.lineTo(px_center.x, px_br.y); ctx.closePath(); ctx.fill();
 
-    ctx.restore();
-
+    // Redessiner le contour complet
     ctx.strokeStyle = 'black';
     ctx.lineWidth = 1;
     ctx.beginPath();
