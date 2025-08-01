@@ -4,7 +4,7 @@ const TILE_SIZE = 256;
 const MAX_ZOOM = 19;
 
 /**
- * NOUVEAU: Fonction de conversion des coordonnées de tuile (x, y, z) en QuadKey pour Bing Maps.
+ * Fonction de conversion des coordonnées de tuile (x, y, z) en QuadKey pour Bing Maps.
  * @param {number} x Coordonnée X de la tuile.
  * @param {number} y Coordonnée Y de la tuile.
  * @param {number} zoom Niveau de zoom.
@@ -214,12 +214,13 @@ async function createFinalCanvasWithTiles(boundingBox, zoom, tileProviderUrl, on
         for (let y = nwTile.y; y <= seTile.y; y++) {
             let tileUrl;
             
-            // MODIFIÉ: Ajout d'une condition pour gérer les URL de type QuadKey.
             if (tileProviderUrl.includes('{q}')) {
-                const quadKey = coordsToQuadKey(x, y, zoom);
-                const subdomain = (x + y) % 4; // Répartit la charge sur les serveurs t0, t1, t2, t3
+                // LA CORRECTION CLÉ EST ICI : Inversion de l'axe Y pour Bing.
+                const invertedY = (Math.pow(2, zoom) - 1) - y;
+                const quadKey = coordsToQuadKey(x, invertedY, zoom);
+                const subdomain = (x + y) % 4;
                 tileUrl = tileProviderUrl.replace('{q}', quadKey).replace('{s}', subdomain);
-            } else { // Logique existante pour les URL standard
+            } else {
                 tileUrl = tileProviderUrl.replace('{z}', zoom);
                 if (tileUrl.includes('{y}/{x}')) {
                     tileUrl = tileUrl.replace('{y}', y).replace('{x}', x);
