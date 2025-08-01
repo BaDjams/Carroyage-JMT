@@ -236,12 +236,14 @@ function drawGridAndElements(ctx, canvasInfo, zoom, config, a1CornerCoords) {
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
 
+    const startColNum = letterToNumber(config.startCol);
     const endColNum = letterToNumber(config.endCol);
+    const startRowNum = config.startRow;
     const endRowNum = config.endRow;
 
     // Lignes verticales
-    for (let i = 1; i <= endColNum + 1; i++) {
-        const startPoint = calculateAndRotatePoint(i, 1, config, a1Lat, a1Lon);
+    for (let i = startColNum; i <= endColNum + 1; i++) {
+        const startPoint = calculateAndRotatePoint(i, startRowNum, config, a1Lat, a1Lon);
         const endPoint = calculateAndRotatePoint(i, endRowNum + 1, config, a1Lat, a1Lon);
         const startPixels = latLonToPixels(startPoint[1], startPoint[0]);
         const endPixels = latLonToPixels(endPoint[1], endPoint[0]);
@@ -249,8 +251,8 @@ function drawGridAndElements(ctx, canvasInfo, zoom, config, a1CornerCoords) {
     }
     
     // Lignes horizontales
-    for (let i = 1; i <= endRowNum + 1; i++) {
-        const startPoint = calculateAndRotatePoint(1, i, config, a1Lat, a1Lon);
+    for (let i = startRowNum; i <= endRowNum + 1; i++) {
+        const startPoint = calculateAndRotatePoint(startColNum, i, config, a1Lat, a1Lon);
         const endPoint = calculateAndRotatePoint(endColNum + 1, i, config, a1Lat, a1Lon);
         const startPixels = latLonToPixels(startPoint[1], startPoint[0]);
         const endPixels = latLonToPixels(endPoint[1], endPoint[0]);
@@ -258,15 +260,15 @@ function drawGridAndElements(ctx, canvasInfo, zoom, config, a1CornerCoords) {
     }
 
     // Étiquettes Lettres
-    for (let i = 1; i <= endColNum; i++) {
-        const labelPoint = calculateAndRotatePoint(i + 0.5, 0.5, config, a1Lat, a1Lon);
+    for (let i = startColNum; i <= endColNum; i++) {
+        const labelPoint = calculateAndRotatePoint(i + 0.5, startRowNum - 0.5, config, a1Lat, a1Lon);
         const labelPixels = latLonToPixels(labelPoint[1], labelPoint[0]);
         ctx.fillText(numberToLetter(i), labelPixels.x, labelPixels.y);
     }
     
     // Étiquettes Chiffres
-    for (let i = 1; i <= endRowNum; i++) {
-        const labelPoint = calculateAndRotatePoint(0.5, i + 0.5, config, a1Lat, a1Lon);
+    for (let i = startRowNum; i <= endRowNum; i++) {
+        const labelPoint = calculateAndRotatePoint(startColNum - 0.5, i + 0.5, config, a1Lat, a1Lon);
         const labelPixels = latLonToPixels(labelPoint[1], labelPoint[0]);
         ctx.fillText(i.toString(), labelPixels.x, labelPixels.y);
     }
@@ -283,16 +285,17 @@ function drawGridAndElements(ctx, canvasInfo, zoom, config, a1CornerCoords) {
 function drawCartouche(ctx, latLonToPixels, config, a1CornerCoords) {
     const [a1Lon, a1Lat] = a1CornerCoords;
     
-    // CORRECTION 1: Positionnement en haut à gauche de la grille.
-    const geo_tl = calculateAndRotatePoint(1.1, 1.1, config, a1Lat, a1Lon);
-    const geo_br = calculateAndRotatePoint(4.5, 2.5, config, a1Lat, a1Lon);
+    // CORRECTION 1: Positionnement dynamique en haut à gauche de la grille visible.
+    const startColNum = letterToNumber(config.startCol);
+    const endRowNum = config.endRow;
+    const geo_tl = calculateAndRotatePoint(startColNum + 0.1, endRowNum + 0.9, config, a1Lat, a1Lon);
+    const geo_br = calculateAndRotatePoint(startColNum + 3.5, endRowNum - 0.5, config, a1Lat, a1Lon);
     
     const topLeft = latLonToPixels(geo_tl[1], geo_tl[0]);
     const bottomRight = latLonToPixels(geo_br[1], geo_br[0]);
     const width = bottomRight.x - topLeft.x;
     const height = bottomRight.y - topLeft.y;
 
-    // CORRECTION 2: Ratio de la police diminué.
     const FONT_SIZE_RATIO = 0.18; 
     let fontSize = Math.floor(height * FONT_SIZE_RATIO);
     fontSize = Math.max(12, Math.min(fontSize, 30));
@@ -333,17 +336,19 @@ function drawCartouche(ctx, latLonToPixels, config, a1CornerCoords) {
 function drawCompass(ctx, latLonToPixels, config, a1CornerCoords) {
     const [a1Lon, a1Lat] = a1CornerCoords;
     
-    // CORRECTION 1: Positionnement en haut à droite.
+    // CORRECTION 1: Positionnement dynamique en haut à droite.
     const endColNum = letterToNumber(config.endCol);
-    const centerPoint = calculateAndRotatePoint(endColNum - 0.5, 1.5, config, a1Lat, a1Lon);
+    const endRowNum = config.endRow;
+    const centerPoint = calculateAndRotatePoint(endColNum + 0.5, endRowNum + 0.5, config, a1Lat, a1Lon);
     const center = latLonToPixels(centerPoint[1], centerPoint[0]);
     
-    const arrowLengthInMeters = config.scale * 0.4;
+    // CORRECTION 3: La flèche est plus petite pour rester dans le cercle.
+    const arrowLengthInMeters = config.scale * 0.35; 
     const northGeoPoint = { lat: centerPoint[1] + (arrowLengthInMeters / 111320), lon: centerPoint[0] };
     const northPixel = latLonToPixels(northGeoPoint.lat, northGeoPoint.lon);
 
     const arrowLengthInPixels = Math.abs(center.y - northPixel.y);
-    const radius = arrowLengthInPixels * 0.9;
+    const radius = arrowLengthInPixels * 1.2;
 
     ctx.beginPath();
     ctx.arc(center.x, center.y, radius, 0, 2 * Math.PI, false);
@@ -353,7 +358,7 @@ function drawCompass(ctx, latLonToPixels, config, a1CornerCoords) {
     const N_point = { x: center.x, y: center.y - arrowLengthInPixels };
 
     ctx.beginPath();
-    ctx.moveTo(center.x, center.y + (arrowLengthInPixels * 0.2));
+    ctx.moveTo(center.x, center.y + (arrowLengthInPixels * 0.3)); // Point de départ plus bas
     ctx.lineTo(N_point.x, N_point.y);
     ctx.strokeStyle = 'red';
     ctx.lineWidth = 3;
@@ -371,7 +376,8 @@ function drawCompass(ctx, latLonToPixels, config, a1CornerCoords) {
     ctx.font = 'bold 18px Arial';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'bottom';
-    ctx.fillText('N', N_point.x, N_point.y - 2);
+    // CORRECTION 3: Texte "N" légèrement abaissé.
+    ctx.fillText('N', N_point.x, N_point.y + 2); 
 }
 
 /**
@@ -380,11 +386,15 @@ function drawCompass(ctx, latLonToPixels, config, a1CornerCoords) {
 function drawSubdivisionKey(ctx, latLonToPixels, config, a1CornerCoords) {
     const [a1Lon, a1Lat] = a1CornerCoords;
 
-    const geo_bl = calculateAndRotatePoint(1, 1, config, a1Lat, a1Lon);
-    const geo_br = calculateAndRotatePoint(2, 1, config, a1Lat, a1Lon);
-    const geo_tl = calculateAndRotatePoint(1, 2, config, a1Lat, a1Lon);
-    const geo_tr = calculateAndRotatePoint(2, 2, config, a1Lat, a1Lon);
-    const geo_center = calculateAndRotatePoint(1.5, 1.5, config, a1Lat, a1Lon);
+    // CORRECTION 1: Positionnement dynamique sur la case en bas à gauche.
+    const startColNum = letterToNumber(config.startCol);
+    const startRowNum = config.startRow;
+
+    const geo_bl = calculateAndRotatePoint(startColNum, startRowNum, config, a1Lat, a1Lon);
+    const geo_br = calculateAndRotatePoint(startColNum + 1, startRowNum, config, a1Lat, a1Lon);
+    const geo_tl = calculateAndRotatePoint(startColNum, startRowNum + 1, config, a1Lat, a1Lon);
+    const geo_tr = calculateAndRotatePoint(startColNum + 1, startRowNum + 1, config, a1Lat, a1Lon);
+    const geo_center = calculateAndRotatePoint(startColNum + 0.5, startRowNum + 0.5, config, a1Lat, a1Lon);
 
     const px_tl = latLonToPixels(geo_tl[1], geo_tl[0]);
     const px_tr = latLonToPixels(geo_tr[1], geo_tr[0]);
@@ -392,10 +402,8 @@ function drawSubdivisionKey(ctx, latLonToPixels, config, a1CornerCoords) {
     const px_br = latLonToPixels(geo_br[1], geo_br[0]);
     const px_center = latLonToPixels(geo_center[1], geo_center[0]);
     
-    // CORRECTION 3: Utilisation de fillStyle avec 'rgba' pour garantir la transparence.
     const opacity = '0.7';
     
-    // Dessiner les 4 petits carrés (quadrilatères)
     ctx.fillStyle = `rgba(255, 255, 0, ${opacity})`; // Jaune
     ctx.beginPath(); ctx.moveTo(px_tl.x, px_tl.y); ctx.lineTo(px_center.x, px_tl.y); ctx.lineTo(px_center.x, px_center.y); ctx.lineTo(px_tl.x, px_center.y); ctx.closePath(); ctx.fill();
     
@@ -408,7 +416,6 @@ function drawSubdivisionKey(ctx, latLonToPixels, config, a1CornerCoords) {
     ctx.fillStyle = `rgba(255, 0, 0, ${opacity})`; // Rouge
     ctx.beginPath(); ctx.moveTo(px_center.x, px_center.y); ctx.lineTo(px_br.x, px_center.y); ctx.lineTo(px_br.x, px_br.y); ctx.lineTo(px_center.x, px_br.y); ctx.closePath(); ctx.fill();
 
-    // Redessiner le contour complet
     ctx.strokeStyle = 'black';
     ctx.lineWidth = 1;
     ctx.beginPath();
