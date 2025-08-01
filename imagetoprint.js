@@ -95,11 +95,16 @@ function getBoundingBoxForPrint(config, a1CornerCoords) {
     const margeGauche = 0.5;
     const margeDroite = 0.5;
 
+    const startColNum = letterToNumber(config.startCol);
+    const endColNum = letterToNumber(config.endCol);
+    const startRowNum = config.startRow;
+    const endRowNum = config.endRow;
+
     const contentBounds = {
-        minCol: 0.5,
-        maxCol: letterToNumber(config.endCol) + 1,
-        minRow: 0.5,
-        maxRow: config.endRow + 1
+        minCol: startColNum - 0.5,
+        maxCol: endColNum + 1,
+        minRow: startRowNum - 0.5,
+        maxRow: endRowNum + 1
     };
 
     const contentCorners = [
@@ -285,32 +290,41 @@ function drawGridAndElements(ctx, canvasInfo, zoom, config, a1CornerCoords) {
 function drawCartouche(ctx, latLonToPixels, config, a1CornerCoords) {
     const [a1Lon, a1Lat] = a1CornerCoords;
     
-    // CORRECTION 1: Positionnement dynamique en haut à gauche de la grille visible.
     const startColNum = letterToNumber(config.startCol);
     const endRowNum = config.endRow;
+
+    // Positionnement dynamique en haut à gauche de la grille visible.
     const geo_tl = calculateAndRotatePoint(startColNum + 0.1, endRowNum + 0.9, config, a1Lat, a1Lon);
     const geo_br = calculateAndRotatePoint(startColNum + 3.5, endRowNum - 0.5, config, a1Lat, a1Lon);
     
     const topLeft = latLonToPixels(geo_tl[1], geo_tl[0]);
     const bottomRight = latLonToPixels(geo_br[1], geo_br[0]);
     const width = bottomRight.x - topLeft.x;
-    const height = bottomRight.y - topLeft.y;
+    const cartouchePixelHeight = bottomRight.y - topLeft.y;
 
-    const FONT_SIZE_RATIO = 0.18; 
-    let fontSize = Math.floor(height * FONT_SIZE_RATIO);
-    fontSize = Math.max(12, Math.min(fontSize, 30));
+    // --- LOGIQUE DE POLICE DYNAMIQUE ---
+    // On veut 4 lignes dans le cartouche (3 pleines, 1 vide).
+    const availableHeightPerLine = cartouchePixelHeight / 4;
+    const FONT_SIZE_RATIO_OF_LINE_HEIGHT = 0.75; // La police occupe 75% de la hauteur de sa ligne.
+    let fontSize = Math.floor(availableHeightPerLine * FONT_SIZE_RATIO_OF_LINE_HEIGHT);
 
-    ctx.font = `${fontSize}px Arial`;
-    const lineSpacing = fontSize * 1.3;
-    const padding = fontSize * 0.4;
+    // Brider la taille pour éviter des valeurs extrêmes.
+    fontSize = Math.max(10, Math.min(fontSize, 28));
 
+    // L'espacement entre les lignes est la hauteur totale disponible par ligne.
+    const lineSpacing = availableHeightPerLine;
+    // Le padding est une petite fraction de cette hauteur.
+    const padding = availableHeightPerLine * 0.15;
+
+    // --- DESSIN DU CARTOUCHE ---
     ctx.fillStyle = 'white';
-    ctx.fillRect(topLeft.x, topLeft.y, width, height);
+    ctx.fillRect(topLeft.x, topLeft.y, width, cartouchePixelHeight);
     ctx.strokeStyle = 'black';
     ctx.lineWidth = 1;
-    ctx.strokeRect(topLeft.x, topLeft.y, width, height);
-
+    ctx.strokeRect(topLeft.x, topLeft.y, width, cartouchePixelHeight);
+    
     ctx.fillStyle = 'black';
+    ctx.font = `${fontSize}px Arial`;
     ctx.textAlign = 'left';
     ctx.textBaseline = 'top';
     
@@ -336,13 +350,11 @@ function drawCartouche(ctx, latLonToPixels, config, a1CornerCoords) {
 function drawCompass(ctx, latLonToPixels, config, a1CornerCoords) {
     const [a1Lon, a1Lat] = a1CornerCoords;
     
-    // CORRECTION 1: Positionnement dynamique en haut à droite.
     const endColNum = letterToNumber(config.endCol);
     const endRowNum = config.endRow;
     const centerPoint = calculateAndRotatePoint(endColNum + 0.5, endRowNum + 0.5, config, a1Lat, a1Lon);
     const center = latLonToPixels(centerPoint[1], centerPoint[0]);
     
-    // CORRECTION 3: La flèche est plus petite pour rester dans le cercle.
     const arrowLengthInMeters = config.scale * 0.35; 
     const northGeoPoint = { lat: centerPoint[1] + (arrowLengthInMeters / 111320), lon: centerPoint[0] };
     const northPixel = latLonToPixels(northGeoPoint.lat, northGeoPoint.lon);
@@ -358,7 +370,7 @@ function drawCompass(ctx, latLonToPixels, config, a1CornerCoords) {
     const N_point = { x: center.x, y: center.y - arrowLengthInPixels };
 
     ctx.beginPath();
-    ctx.moveTo(center.x, center.y + (arrowLengthInPixels * 0.3)); // Point de départ plus bas
+    ctx.moveTo(center.x, center.y + (arrowLengthInPixels * 0.3));
     ctx.lineTo(N_point.x, N_point.y);
     ctx.strokeStyle = 'red';
     ctx.lineWidth = 3;
@@ -376,7 +388,6 @@ function drawCompass(ctx, latLonToPixels, config, a1CornerCoords) {
     ctx.font = 'bold 18px Arial';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'bottom';
-    // CORRECTION 3: Texte "N" légèrement abaissé.
     ctx.fillText('N', N_point.x, N_point.y + 2); 
 }
 
@@ -386,7 +397,6 @@ function drawCompass(ctx, latLonToPixels, config, a1CornerCoords) {
 function drawSubdivisionKey(ctx, latLonToPixels, config, a1CornerCoords) {
     const [a1Lon, a1Lat] = a1CornerCoords;
 
-    // CORRECTION 1: Positionnement dynamique sur la case en bas à gauche.
     const startColNum = letterToNumber(config.startCol);
     const startRowNum = config.startRow;
 
@@ -404,16 +414,16 @@ function drawSubdivisionKey(ctx, latLonToPixels, config, a1CornerCoords) {
     
     const opacity = '0.7';
     
-    ctx.fillStyle = `rgba(255, 255, 0, ${opacity})`; // Jaune
+    ctx.fillStyle = `rgba(255, 255, 0, ${opacity})`;
     ctx.beginPath(); ctx.moveTo(px_tl.x, px_tl.y); ctx.lineTo(px_center.x, px_tl.y); ctx.lineTo(px_center.x, px_center.y); ctx.lineTo(px_tl.x, px_center.y); ctx.closePath(); ctx.fill();
     
-    ctx.fillStyle = `rgba(0, 0, 255, ${opacity})`; // Bleu
+    ctx.fillStyle = `rgba(0, 0, 255, ${opacity})`;
     ctx.beginPath(); ctx.moveTo(px_center.x, px_tr.y); ctx.lineTo(px_tr.x, px_tr.y); ctx.lineTo(px_tr.x, px_center.y); ctx.lineTo(px_center.x, px_center.y); ctx.closePath(); ctx.fill();
     
-    ctx.fillStyle = `rgba(0, 128, 0, ${opacity})`; // Vert
+    ctx.fillStyle = `rgba(0, 128, 0, ${opacity})`;
     ctx.beginPath(); ctx.moveTo(px_bl.x, px_center.y); ctx.lineTo(px_center.x, px_center.y); ctx.lineTo(px_center.x, px_bl.y); ctx.lineTo(px_bl.x, px_bl.y); ctx.closePath(); ctx.fill();
     
-    ctx.fillStyle = `rgba(255, 0, 0, ${opacity})`; // Rouge
+    ctx.fillStyle = `rgba(255, 0, 0, ${opacity})`;
     ctx.beginPath(); ctx.moveTo(px_center.x, px_center.y); ctx.lineTo(px_br.x, px_center.y); ctx.lineTo(px_br.x, px_br.y); ctx.lineTo(px_center.x, px_br.y); ctx.closePath(); ctx.fill();
 
     ctx.strokeStyle = 'black';
