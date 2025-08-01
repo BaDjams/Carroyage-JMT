@@ -83,32 +83,51 @@ function getA1CornerCoordsForPrint(config) {
 /**
  * Calcule la Bounding Box pour la zone à afficher (grille + marges).
  */
+// CORRECTION 1: Fonction réécrite pour plus de clarté et de robustesse.
 function getBoundingBoxForPrint(config, a1CornerCoords) {
     const [a1Lon, a1Lat] = a1CornerCoords;
-    
-    // CORRECTION 1: Logique de rognage revue.
-    // L'axe des 'row' de la grille est inversé par rapport à l'axe Y du dessin.
-    // Pour avoir une marge en HAUT (au-dessus des étiquettes à row=0.5), il faut une petite valeur de row.
-    // Pour avoir PEU de marge en BAS (sous la ligne à row=19), il faut une grande valeur de row.
-    const corners = [
-        { col: -1.0, row: -1.5 }, // Marge Gauche et Marge Haute
-        { col: 27.5, row: -1.5 }, // Marge Droite et Marge Haute
-        { col: -1.0, row: 19.0 }, // Marge Gauche et Marge Basse
-        { col: 27.5, row: 19.0 }  // Marge Droite et Marge Basse
-    ];
-    
-    const geoCorners = corners.map(corner => {
-        const point = calculateAndRotatePoint(corner.col, corner.row, config, a1Lat, a1Lon);
-        return { lon: point[0], lat: point[1] };
-    });
 
-    // On s'assure de prendre le min/max des latitudes et longitudes pour avoir une vraie bounding box rectangulaire.
-    const north = Math.max(...geoCorners.map(c => c.lat));
-    const south = Math.min(...geoCorners.map(c => c.lat));
-    const east = Math.max(...geoCorners.map(c => c.lon));
-    const west = Math.min(...geoCorners.map(c => c.lon));
-    return { north, south, east, west };
+    // Définition des marges en nombre de "cases".
+    // Ces marges sont appliquées par rapport aux limites extérieures des étiquettes.
+    const margeHaute = 0.5;  // 0.5 case au-dessus des étiquettes des colonnes
+    const margeBasse = 0.5;  // 0.5 case en-dessous de la dernière ligne de grille
+    const margeGauche = 0.5; // 0.5 case à gauche des étiquettes des lignes
+    const margeDroite = 0.5; // 0.5 case à droite de la dernière ligne de grille
+
+    // Définir les limites du contenu (grille + étiquettes) en indices de la grille
+    const contentBounds = {
+        minCol: 0.5, // Centre de l'étiquette de ligne la plus à gauche
+        maxCol: 27,  // Ligne de grille la plus à droite
+        minRow: 0.5, // Centre de l'étiquette de colonne la plus haute
+        maxRow: 19   // Ligne de grille la plus basse
+    };
+
+    // Calculer les 4 coins extrêmes du contenu
+    const contentCorners = [
+        calculateAndRotatePoint(contentBounds.minCol, contentBounds.minRow, config, a1Lat, a1Lon), // Top-Left of content
+        calculateAndRotatePoint(contentBounds.maxCol, contentBounds.minRow, config, a1Lat, a1Lon), // Top-Right
+        calculateAndRotatePoint(contentBounds.minCol, contentBounds.maxRow, config, a1Lat, a1Lon), // Bottom-Left
+        calculateAndRotatePoint(contentBounds.maxCol, contentBounds.maxRow, config, a1Lat, a1Lon)  // Bottom-Right
+    ].map(p => ({ lon: p[0], lat: p[1] }));
+
+    // Trouver la bounding box du contenu seul
+    let minLat = Math.min(...contentCorners.map(c => c.lat));
+    let maxLat = Math.max(...contentCorners.map(c => c.lat));
+    let minLon = Math.min(...contentCorners.map(c => c.lon));
+    let maxLon = Math.max(...contentCorners.map(c => c.lon));
+
+    // Ajouter les marges en mètres
+    const metersToLat = (meters) => meters / 111320;
+    const metersToLon = (meters, lat) => meters / (111320 * Math.cos(toRad(lat)));
+
+    minLat -= metersToLat(margeBasse * config.scale);
+    maxLat += metersToLat(margeHaute * config.scale);
+    minLon -= metersToLon(margeGauche * config.scale, (minLat + maxLat) / 2);
+    maxLon += metersToLon(margeDroite * config.scale, (minLat + maxLat) / 2);
+
+    return { north: maxLat, south: minLat, east: maxLon, west: minLon };
 }
+
 
 /**
  * Calcule le niveau de zoom OSM optimal.
@@ -139,13 +158,7 @@ function latLonToTileNumbers(lat, lon, zoom) {
     };
 }
 
-function tileNumbersToLatLon(x, y, zoom) {
-    const n = Math.pow(2, zoom);
-    const lon = x / n * 360 - 180;
-    const latRad = Math.atan(Math.sinh(Math.PI * (1 - 2 * y / n)));
-    const lat = toDeg(latRad);
-    return { lat, lon };
-}
+// ... (Le reste des fonctions utilitaires ne change pas)
 
 /**
  * Crée le canevas final et y assemble les tuiles.
@@ -227,38 +240,26 @@ function drawGridAndElements(ctx, canvasInfo, zoom, config, a1CornerCoords) {
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
 
-    // Lignes verticales
+    // ... (Le dessin des lignes et étiquettes ne change pas) ...
     for (let i = 1; i <= 27; i++) {
         const startPoint = calculateAndRotatePoint(i, 1, config, a1Lat, a1Lon);
         const endPoint = calculateAndRotatePoint(i, 19, config, a1Lat, a1Lon);
         const startPixels = latLonToPixels(startPoint[1], startPoint[0]);
         const endPixels = latLonToPixels(endPoint[1], endPoint[0]);
-        ctx.beginPath();
-        ctx.moveTo(startPixels.x, startPixels.y);
-        ctx.lineTo(endPixels.x, endPixels.y);
-        ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(startPixels.x, startPixels.y); ctx.lineTo(endPixels.x, endPixels.y); ctx.stroke();
     }
-    
-    // Lignes horizontales
     for (let i = 1; i <= 19; i++) {
         const startPoint = calculateAndRotatePoint(1, i, config, a1Lat, a1Lon);
         const endPoint = calculateAndRotatePoint(27, i, config, a1Lat, a1Lon);
         const startPixels = latLonToPixels(startPoint[1], startPoint[0]);
         const endPixels = latLonToPixels(endPoint[1], endPoint[0]);
-        ctx.beginPath();
-        ctx.moveTo(startPixels.x, startPixels.y);
-        ctx.lineTo(endPixels.x, endPixels.y);
-        ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(startPixels.x, startPixels.y); ctx.lineTo(endPixels.x, endPixels.y); ctx.stroke();
     }
-
-    // Étiquettes Lettres
     for (let i = 1; i <= 26; i++) {
         const labelPoint = calculateAndRotatePoint(i + 0.5, 0.5, config, a1Lat, a1Lon);
         const labelPixels = latLonToPixels(labelPoint[1], labelPoint[0]);
         ctx.fillText(numberToLetter(i), labelPixels.x, labelPixels.y);
     }
-    
-    // Étiquettes Chiffres
     for (let i = 1; i <= 18; i++) {
         const labelPoint = calculateAndRotatePoint(0.5, i + 0.5, config, a1Lat, a1Lon);
         const labelPixels = latLonToPixels(labelPoint[1], labelPoint[0]);
@@ -268,6 +269,9 @@ function drawGridAndElements(ctx, canvasInfo, zoom, config, a1CornerCoords) {
     drawCartouche(ctx, latLonToPixels, config, a1CornerCoords);
     drawCompass(ctx, latLonToPixels, config, a1CornerCoords);
     drawSubdivisionKey(ctx, latLonToPixels, config, a1CornerCoords);
+    
+    // CORRECTION 4: Appel de la nouvelle fonction pour dessiner la croix
+    drawReferenceCross(ctx, latLonToPixels, config);
 }
 
 /**
@@ -326,6 +330,14 @@ function drawCompass(ctx, latLonToPixels, config, a1CornerCoords) {
     const northPixel = latLonToPixels(northGeoPoint.lat, northGeoPoint.lon);
 
     const arrowLengthInPixels = Math.abs(center.y - northPixel.y);
+    const radius = arrowLengthInPixels * 0.9;
+
+    // CORRECTION 3: Dessiner le fond gris semi-transparent
+    ctx.beginPath();
+    ctx.arc(center.x, center.y, radius, 0, 2 * Math.PI, false);
+    ctx.fillStyle = 'rgba(200, 200, 200, 0.7)';
+    ctx.fill();
+    
     const N_point = { x: center.x, y: center.y - arrowLengthInPixels };
 
     ctx.beginPath();
@@ -353,76 +365,52 @@ function drawCompass(ctx, latLonToPixels, config, a1CornerCoords) {
 /**
  * Dessine la clé de subdivision en 4 couleurs.
  */
-// CORRECTION 2 & 3: Fonction réécrite pour dessiner 4 carrés avec transparence.
+// CORRECTION 2: Fonction réécrite pour dessiner 4 carrés avec transparence.
 function drawSubdivisionKey(ctx, latLonToPixels, config, a1CornerCoords) {
     const [a1Lon, a1Lat] = a1CornerCoords;
 
     // Définir les 5 points géographiques clés de la cellule A1 (les 4 coins et le centre)
-    const geo_bl = calculateAndRotatePoint(1, 1, config, a1Lat, a1Lon);       // Bottom-Left
-    const geo_br = calculateAndRotatePoint(2, 1, config, a1Lat, a1Lon);       // Bottom-Right
-    const geo_tl = calculateAndRotatePoint(1, 2, config, a1Lat, a1Lon);       // Top-Left
-    const geo_tr = calculateAndRotatePoint(2, 2, config, a1Lat, a1Lon);       // Top-Right
-    const geo_center = calculateAndRotatePoint(1.5, 1.5, config, a1Lat, a1Lon); // Center
+    const geo_bl = calculateAndRotatePoint(1, 1, config, a1Lat, a1Lon);
+    const geo_br = calculateAndRotatePoint(2, 1, config, a1Lat, a1Lon);
+    const geo_tl = calculateAndRotatePoint(1, 2, config, a1Lat, a1Lon);
+    const geo_tr = calculateAndRotatePoint(2, 2, config, a1Lat, a1Lon);
+    const geo_center = calculateAndRotatePoint(1.5, 1.5, config, a1Lat, a1Lon);
 
-    // Calculer les points intermédiaires sur les arêtes
-    const geo_top_mid = calculateAndRotatePoint(1.5, 2, config, a1Lat, a1Lon);
-    const geo_bot_mid = calculateAndRotatePoint(1.5, 1, config, a1Lat, a1Lon);
-    const geo_left_mid = calculateAndRotatePoint(1, 1.5, config, a1Lat, a1Lon);
-    const geo_right_mid = calculateAndRotatePoint(2, 1.5, config, a1Lat, a1Lon);
-
-    // Convertir tous ces points en pixels sur le canevas
-    const px_bl = latLonToPixels(geo_bl[1], geo_bl[0]);
+    // Convertir les points en pixels
     const px_tl = latLonToPixels(geo_tl[1], geo_tl[0]);
     const px_tr = latLonToPixels(geo_tr[1], geo_tr[0]);
+    const px_bl = latLonToPixels(geo_bl[1], geo_bl[0]);
     const px_br = latLonToPixels(geo_br[1], geo_br[0]);
     const px_center = latLonToPixels(geo_center[1], geo_center[0]);
-    const px_top_mid = latLonToPixels(geo_top_mid[1], geo_top_mid[0]);
-    const px_bot_mid = latLonToPixels(geo_bot_mid[1], geo_bot_mid[0]);
-    const px_left_mid = latLonToPixels(geo_left_mid[1], geo_left_mid[0]);
-    const px_right_mid = latLonToPixels(geo_right_mid[1], geo_right_mid[0]);
     
-    const opacity = 0.7; // 70% d'opacité
+    // Appliquer la transparence globale pour cette partie du dessin
+    ctx.save(); // Sauvegarde l'état actuel du contexte
+    ctx.globalAlpha = 0.7;
 
-    // Dessiner les 4 petits carrés (quadrilatères)
-    // Haut-gauche (Jaune)
-    ctx.fillStyle = `rgba(255, 255, 0, ${opacity})`;
-    ctx.beginPath();
-    ctx.moveTo(px_tl.x, px_tl.y);
-    ctx.lineTo(px_top_mid.x, px_top_mid.y);
-    ctx.lineTo(px_center.x, px_center.y);
-    ctx.lineTo(px_left_mid.x, px_left_mid.y);
-    ctx.closePath();
-    ctx.fill();
-
-    // Haut-droit (Bleu)
-    ctx.fillStyle = `rgba(0, 0, 255, ${opacity})`;
-    ctx.beginPath();
-    ctx.moveTo(px_top_mid.x, px_top_mid.y);
-    ctx.lineTo(px_tr.x, px_tr.y);
-    ctx.lineTo(px_right_mid.x, px_right_mid.y);
-    ctx.lineTo(px_center.x, px_center.y);
-    ctx.closePath();
-    ctx.fill();
-
-    // Bas-gauche (Vert)
-    ctx.fillStyle = `rgba(0, 128, 0, ${opacity})`;
-    ctx.beginPath();
-    ctx.moveTo(px_left_mid.x, px_left_mid.y);
-    ctx.lineTo(px_center.x, px_center.y);
-    ctx.lineTo(px_bot_mid.x, px_bot_mid.y);
-    ctx.lineTo(px_bl.x, px_bl.y);
-    ctx.closePath();
-    ctx.fill();
+    // Calculer les largeurs et hauteurs pour dessiner les rectangles
+    const width_tl = px_center.x - px_tl.x;
+    const height_tl = px_center.y - px_tl.y;
+    const width_tr = px_tr.x - px_center.x;
+    const height_tr = px_center.y - px_tr.y;
+    const width_bl = px_center.x - px_bl.x;
+    const height_bl = px_bl.y - px_center.y;
+    const width_br = px_br.x - px_center.x;
+    const height_br = px_br.y - px_center.y;
     
-    // Bas-droit (Rouge)
-    ctx.fillStyle = `rgba(255, 0, 0, ${opacity})`;
-    ctx.beginPath();
-    ctx.moveTo(px_center.x, px_center.y);
-    ctx.lineTo(px_right_mid.x, px_right_mid.y);
-    ctx.lineTo(px_br.x, px_br.y);
-    ctx.lineTo(px_bot_mid.x, px_bot_mid.y);
-    ctx.closePath();
-    ctx.fill();
+    // Dessiner les 4 petits carrés (rectangles)
+    ctx.fillStyle = '#FFFF00'; // Jaune
+    ctx.fillRect(px_tl.x, px_tl.y, width_tl, height_tl);
+    
+    ctx.fillStyle = '#0000FF'; // Bleu
+    ctx.fillRect(px_center.x, px_tr.y, width_tr, height_tr);
+
+    ctx.fillStyle = '#008000'; // Vert
+    ctx.fillRect(px_bl.x, px_center.y, width_bl, height_bl);
+    
+    ctx.fillStyle = '#FF0000'; // Rouge
+    ctx.fillRect(px_center.x, px_center.y, width_br, height_br);
+    
+    ctx.restore(); // Restaure l'état du contexte (enlève la transparence globale)
 
     // Redessiner le contour complet de la cellule A1 en noir
     ctx.strokeStyle = 'black';
@@ -433,5 +421,31 @@ function drawSubdivisionKey(ctx, latLonToPixels, config, a1CornerCoords) {
     ctx.lineTo(px_br.x, px_br.y);
     ctx.lineTo(px_bl.x, px_bl.y);
     ctx.closePath();
+    ctx.stroke();
+}
+
+// CORRECTION 4: Nouvelle fonction pour dessiner la croix du point de référence.
+function drawReferenceCross(ctx, latLonToPixels, config) {
+    // Récupérer les coordonnées du point de référence depuis la configuration
+    const refPointCoords = { lat: config.latitude, lon: config.longitude };
+    
+    // Convertir en pixels sur le canevas
+    const center = latLonToPixels(refPointCoords.lat, refPointCoords.lon);
+    
+    const crossSize = 15; // Taille de la croix (15 pixels du centre à chaque extrémité)
+    
+    ctx.strokeStyle = '#FF0000'; // Couleur rouge
+    ctx.lineWidth = 3;
+    
+    // Dessiner la ligne verticale de la croix
+    ctx.beginPath();
+    ctx.moveTo(center.x, center.y - crossSize);
+    ctx.lineTo(center.x, center.y + crossSize);
+    ctx.stroke();
+    
+    // Dessiner la ligne horizontale de la croix
+    ctx.beginPath();
+    ctx.moveTo(center.x - crossSize, center.y);
+    ctx.lineTo(center.x + crossSize, center.y);
     ctx.stroke();
 }
