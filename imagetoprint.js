@@ -5,17 +5,12 @@ const MAX_ZOOM = 19;
 
 /**
  * Fonction de conversion des coordonnées de tuile (x, y, z) en QuadKey pour Bing Maps.
- * @param {number} x Coordonnée X de la tuile.
- * @param {number} y Coordonnée Y de la tuile.
- * @param {number} zoom Niveau de zoom.
- * @returns {string} La chaîne de caractères QuadKey.
  */
 function coordsToQuadKey(x, y, zoom) {
     let quadKey = '';
     for (let i = zoom; i > 0; i--) {
         let digit = 0;
         const mask = 1 << (i - 1);
-        // CORRECTION DE L'ALGORITHME : Le bit de Y vaut 2, celui de X vaut 1.
         if ((y & mask) !== 0) {
             digit += 2;
         }
@@ -216,8 +211,6 @@ async function createFinalCanvasWithTiles(boundingBox, zoom, tileProviderUrl, on
             let tileUrl;
             
             if (tileProviderUrl.includes('{q}')) {
-                // L'inversion de Y n'est plus nécessaire ici car la formule QuadKey est correcte.
-                // Le système de tuiles (0,0) en haut à gauche est cohérent avec la projection Mercator.
                 const quadKey = coordsToQuadKey(x, y, zoom);
                 const subdomain = (x + y) % 4;
                 tileUrl = tileProviderUrl.replace('{q}', quadKey).replace('{s}', subdomain);
@@ -320,39 +313,44 @@ function drawGridAndElements(ctx, canvasInfo, zoom, config, a1CornerCoords) {
 }
 
 /**
- * Dessine le cartouche d'information avec une police de taille dynamique.
+ * Dessine le cartouche d'information avec une taille et une police robustes.
  */
+// CORRECTION 1: Nouvelle logique de dimensionnement du cartouche.
 function drawCartouche(ctx, latLonToPixels, config, a1CornerCoords) {
     const [a1Lon, a1Lat] = a1CornerCoords;
-    
     const startColNum = letterToNumber(config.startCol);
     const endRowNum = config.endRow;
 
-    const geo_tl = calculateAndRotatePoint(startColNum + 0.1, endRowNum + 0.9, config, a1Lat, a1Lon);
-    const geo_br = calculateAndRotatePoint(startColNum + 4.1, endRowNum - 0.5, config, a1Lat, a1Lon);
+    // --- Calculer la "distance" en pixels ---
+    const geo_A1_center = calculateAndRotatePoint(startColNum + 0.5, endRowNum - 0.5, config, a1Lat, a1Lon);
+    const geo_B1_center = calculateAndRotatePoint(startColNum + 1.5, endRowNum - 0.5, config, a1Lat, a1Lon);
+    const px_A1_center = latLonToPixels(geo_A1_center[1], geo_A1_center[0]);
+    const px_B1_center = latLonToPixels(geo_B1_center[1], geo_B1_center[0]);
+    const distanceInPixels = Math.hypot(px_B1_center.x - px_A1_center.x, px_B1_center.y - px_A1_center.y);
+
+    // --- Définir la taille et la police ---
+    const cartoucheWidth = distanceInPixels * 4;
+    const FONT_SIZE_PX = 20; // Taille de police de base en pixels. Ajustable.
+    const PADDING_RATIO = 0.5; // Padding = 50% de la taille de la police.
+    const LINE_SPACING_RATIO = 1.3; // Interligne = 130% de la taille de la police.
     
+    const padding = FONT_SIZE_PX * PADDING_RATIO;
+    const lineSpacing = FONT_SIZE_PX * LINE_SPACING_RATIO;
+    const cartoucheHeight = (lineSpacing * 3) + (padding * 2);
+
+    // --- Positionner le cartouche ---
+    const geo_tl = calculateAndRotatePoint(startColNum + 0.1, endRowNum + 0.9, config, a1Lat, a1Lon);
     const topLeft = latLonToPixels(geo_tl[1], geo_tl[0]);
-    const bottomRight = latLonToPixels(geo_br[1], geo_br[0]);
-    const width = bottomRight.x - topLeft.x;
-    const cartouchePixelHeight = bottomRight.y - topLeft.y;
-
-    const availableHeightPerLine = cartouchePixelHeight / 4;
-    const FONT_SIZE_RATIO_OF_LINE_HEIGHT = 0.75;
-    let fontSize = Math.floor(availableHeightPerLine * FONT_SIZE_RATIO_OF_LINE_HEIGHT);
-
-    fontSize = Math.max(10, Math.min(fontSize, 28));
-
-    const lineSpacing = availableHeightPerLine;
-    const padding = availableHeightPerLine * 0.15;
-
+    
+    // --- Dessiner le cartouche ---
     ctx.fillStyle = 'white';
-    ctx.fillRect(topLeft.x, topLeft.y, width, cartouchePixelHeight);
+    ctx.fillRect(topLeft.x, topLeft.y, cartoucheWidth, cartoucheHeight);
     ctx.strokeStyle = 'black';
     ctx.lineWidth = 1;
-    ctx.strokeRect(topLeft.x, topLeft.y, width, cartouchePixelHeight);
+    ctx.strokeRect(topLeft.x, topLeft.y, cartoucheWidth, cartoucheHeight);
     
     ctx.fillStyle = 'black';
-    ctx.font = `${fontSize}px Arial`;
+    ctx.font = `${FONT_SIZE_PX}px Arial`;
     ctx.textAlign = 'left';
     ctx.textBaseline = 'top';
     
@@ -371,6 +369,7 @@ function drawCartouche(ctx, latLonToPixels, config, a1CornerCoords) {
     const scaleText = `Échelle: 1 case = ${config.scale}m`;
     ctx.fillText(scaleText, topLeft.x + padding, textY);
 }
+
 
 /**
  * Dessine la boussole de manière dynamique.
