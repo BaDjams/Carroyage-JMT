@@ -286,11 +286,13 @@ function getGridConfiguration(lat, lon) {
     if (gridOption === 'default') {
         const gridType = document.querySelector('input[name="grid-type"]:checked').value;
         switch (gridType) {
+            // MODIFICATION: Ajout du cas Q12
+            case 'Q12': startRow = 1; endRow = 12; startCol = 'A'; endCol = 'Q'; break;
             case 'Z26': startRow = 1; endRow = 26; startCol = 'A'; endCol = 'Z'; break;
             case 'Z14': startRow = 1; endRow = 14; startCol = 'A'; endCol = 'Z'; break;
             case 'Z18': startRow = 1; endRow = 18; startCol = 'A'; endCol = 'Z'; break;
             case 'Q9':  startRow = 1; endRow = 9;  startCol = 'A'; endCol = 'Q'; break;
-            default:    startRow = 1; endRow = 14; startCol = 'A'; endCol = 'Z';
+            default:    startRow = 1; endRow = 12; startCol = 'A'; endCol = 'Q'; // Défaut sur Q12
         }
     } else {
         startRow = parseInt(document.getElementById('start-row').value);
