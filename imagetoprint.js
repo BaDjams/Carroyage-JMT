@@ -20,19 +20,19 @@ async function generateImageToPrint() {
         
         const tileProviderUrl = document.getElementById('map-tile-provider').value;
 
+        // La configuration est maintenant lue directement, sans hardcoder les dimensions.
         const config = getGridConfiguration(
             parseFloat(coordsStr.split(',')[0]),
             parseFloat(coordsStr.split(',')[1])
         );
-        config.startCol = 'A'; config.endCol = 'Z';
-        config.startRow = 1; config.endRow = 18;
-        config.includeGrid = true; config.includePoints = false;
+        config.includeGrid = true;
+        config.includePoints = false;
         
         const a1CornerCoords = getA1CornerCoordsForPrint(config);
         const boundingBox = getBoundingBoxForPrint(config, a1CornerCoords);
         const zoomLevel = calculateOptimalZoom(boundingBox);
         
-        console.log(`Zoom optimal calculé : ${zoomLevel}`);
+        console.log(`Zoom optimal calculé pour grille ${config.endCol}${config.endRow}: ${zoomLevel}`);
 
         loadingMessage.textContent = "Téléchargement des fonds de carte (0%)...";
         const { finalCanvas, canvasInfo } = await createFinalCanvasWithTiles(boundingBox, zoomLevel, tileProviderUrl, (progress) => {
@@ -43,7 +43,7 @@ async function generateImageToPrint() {
         const finalCtx = finalCanvas.getContext('2d');
         drawGridAndElements(finalCtx, canvasInfo, zoomLevel, config, a1CornerCoords);
         
-        const fileName = `${config.gridName}_Print_26x18.png`;
+        const fileName = `${config.gridName}_Print.png`;
         finalCanvas.toBlob((blob) => {
             if (blob) {
                 downloadFile(blob, fileName, 'image/png');
@@ -59,7 +59,7 @@ async function generateImageToPrint() {
 }
 
 /**
- * Calcule la position de l'origine A1.
+ * Calcule la position de l'origine A1 de manière dynamique.
  */
 function getA1CornerCoordsForPrint(config) {
     const refLat = config.latitude;
@@ -70,10 +70,16 @@ function getA1CornerCoordsForPrint(config) {
     if (config.referencePointChoice === 'origin') {
         return [refLon, refLat];
     } else { // 'center'
-        const centerColOffset = getOffsetInCells(14);
-        const centerRowOffset = getOffsetInCells(10);
+        // Calcul dynamique du centre de la grille sélectionnée.
+        const numCols = letterToNumber(config.endCol) - letterToNumber(config.startCol) + 1;
+        const numRows = config.endRow - config.startRow + 1;
+        
+        const centerColOffset = (numCols / 2);
+        const centerRowOffset = (numRows / 2);
+
         const xOffsetMeters = centerColOffset * config.scale;
         const yOffsetMeters = centerRowOffset * config.scale;
+        
         const a1Lon = refLon - metersToLonDegrees(xOffsetMeters, refLat);
         const a1Lat = refLat - metersToLatDegrees(yOffsetMeters, refLat);
         return [a1Lon, a1Lat];
@@ -81,49 +87,44 @@ function getA1CornerCoordsForPrint(config) {
 }
 
 /**
- * Calcule la Bounding Box pour la zone à afficher (grille + marges).
+ * Calcule la Bounding Box de manière dynamique pour la zone à afficher.
  */
-// CORRECTION 1: Fonction réécrite pour plus de clarté et de robustesse.
 function getBoundingBoxForPrint(config, a1CornerCoords) {
     const [a1Lon, a1Lat] = a1CornerCoords;
 
-    // Définition des marges en nombre de "cases".
-    // Ces marges sont appliquées par rapport aux limites extérieures des étiquettes.
-    const margeHaute = 0.5;  // 0.5 case au-dessus des étiquettes des colonnes
-    const margeBasse = 0.5;  // 0.5 case en-dessous de la dernière ligne de grille
-    const margeGauche = 0.5; // 0.5 case à gauche des étiquettes des lignes
-    const margeDroite = 0.5; // 0.5 case à droite de la dernière ligne de grille
+    const margeHaute = 0.5;
+    const margeBasse = 0.5;
+    const margeGauche = 0.5;
+    const margeDroite = 0.5;
 
-    // Définir les limites du contenu (grille + étiquettes) en indices de la grille
+    // Les limites du contenu sont maintenant basées sur la config.
     const contentBounds = {
-        minCol: 0.5, // Centre de l'étiquette de ligne la plus à gauche
-        maxCol: 27,  // Ligne de grille la plus à droite
-        minRow: 0.5, // Centre de l'étiquette de colonne la plus haute
-        maxRow: 19   // Ligne de grille la plus basse
+        minCol: 0.5,
+        maxCol: letterToNumber(config.endCol) + 1,
+        minRow: 0.5,
+        maxRow: config.endRow + 1
     };
 
-    // Calculer les 4 coins extrêmes du contenu
     const contentCorners = [
-        calculateAndRotatePoint(contentBounds.minCol, contentBounds.minRow, config, a1Lat, a1Lon), // Top-Left of content
-        calculateAndRotatePoint(contentBounds.maxCol, contentBounds.minRow, config, a1Lat, a1Lon), // Top-Right
-        calculateAndRotatePoint(contentBounds.minCol, contentBounds.maxRow, config, a1Lat, a1Lon), // Bottom-Left
-        calculateAndRotatePoint(contentBounds.maxCol, contentBounds.maxRow, config, a1Lat, a1Lon)  // Bottom-Right
+        calculateAndRotatePoint(contentBounds.minCol, contentBounds.minRow, config, a1Lat, a1Lon),
+        calculateAndRotatePoint(contentBounds.maxCol, contentBounds.minRow, config, a1Lat, a1Lon),
+        calculateAndRotatePoint(contentBounds.minCol, contentBounds.maxRow, config, a1Lat, a1Lon),
+        calculateAndRotatePoint(contentBounds.maxCol, contentBounds.maxRow, config, a1Lat, a1Lon)
     ].map(p => ({ lon: p[0], lat: p[1] }));
 
-    // Trouver la bounding box du contenu seul
     let minLat = Math.min(...contentCorners.map(c => c.lat));
     let maxLat = Math.max(...contentCorners.map(c => c.lat));
     let minLon = Math.min(...contentCorners.map(c => c.lon));
     let maxLon = Math.max(...contentCorners.map(c => c.lon));
 
-    // Ajouter les marges en mètres
     const metersToLat = (meters) => meters / 111320;
     const metersToLon = (meters, lat) => meters / (111320 * Math.cos(toRad(lat)));
+    const avgLat = (minLat + maxLat) / 2;
 
     minLat -= metersToLat(margeBasse * config.scale);
     maxLat += metersToLat(margeHaute * config.scale);
-    minLon -= metersToLon(margeGauche * config.scale, (minLat + maxLat) / 2);
-    maxLon += metersToLon(margeDroite * config.scale, (minLat + maxLat) / 2);
+    minLon -= metersToLon(margeGauche * config.scale, avgLat);
+    maxLon += metersToLon(margeDroite * config.scale, avgLat);
 
     return { north: maxLat, south: minLat, east: maxLon, west: minLon };
 }
@@ -157,8 +158,6 @@ function latLonToTileNumbers(lat, lon, zoom) {
         y: Math.floor(worldPixels.y / TILE_SIZE)
     };
 }
-
-// ... (Le reste des fonctions utilitaires ne change pas)
 
 /**
  * Crée le canevas final et y assemble les tuiles.
@@ -240,27 +239,36 @@ function drawGridAndElements(ctx, canvasInfo, zoom, config, a1CornerCoords) {
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
 
-    // ... (Le dessin des lignes et étiquettes ne change pas) ...
-    for (let i = 1; i <= 27; i++) {
+    const endColNum = letterToNumber(config.endCol);
+    const endRowNum = config.endRow;
+
+    // Lignes verticales
+    for (let i = 1; i <= endColNum + 1; i++) {
         const startPoint = calculateAndRotatePoint(i, 1, config, a1Lat, a1Lon);
-        const endPoint = calculateAndRotatePoint(i, 19, config, a1Lat, a1Lon);
+        const endPoint = calculateAndRotatePoint(i, endRowNum + 1, config, a1Lat, a1Lon);
         const startPixels = latLonToPixels(startPoint[1], startPoint[0]);
         const endPixels = latLonToPixels(endPoint[1], endPoint[0]);
         ctx.beginPath(); ctx.moveTo(startPixels.x, startPixels.y); ctx.lineTo(endPixels.x, endPixels.y); ctx.stroke();
     }
-    for (let i = 1; i <= 19; i++) {
+    
+    // Lignes horizontales
+    for (let i = 1; i <= endRowNum + 1; i++) {
         const startPoint = calculateAndRotatePoint(1, i, config, a1Lat, a1Lon);
-        const endPoint = calculateAndRotatePoint(27, i, config, a1Lat, a1Lon);
+        const endPoint = calculateAndRotatePoint(endColNum + 1, i, config, a1Lat, a1Lon);
         const startPixels = latLonToPixels(startPoint[1], startPoint[0]);
         const endPixels = latLonToPixels(endPoint[1], endPoint[0]);
         ctx.beginPath(); ctx.moveTo(startPixels.x, startPixels.y); ctx.lineTo(endPixels.x, endPixels.y); ctx.stroke();
     }
-    for (let i = 1; i <= 26; i++) {
+
+    // Étiquettes Lettres
+    for (let i = 1; i <= endColNum; i++) {
         const labelPoint = calculateAndRotatePoint(i + 0.5, 0.5, config, a1Lat, a1Lon);
         const labelPixels = latLonToPixels(labelPoint[1], labelPoint[0]);
         ctx.fillText(numberToLetter(i), labelPixels.x, labelPixels.y);
     }
-    for (let i = 1; i <= 18; i++) {
+    
+    // Étiquettes Chiffres
+    for (let i = 1; i <= endRowNum; i++) {
         const labelPoint = calculateAndRotatePoint(0.5, i + 0.5, config, a1Lat, a1Lon);
         const labelPixels = latLonToPixels(labelPoint[1], labelPoint[0]);
         ctx.fillText(i.toString(), labelPixels.x, labelPixels.y);
@@ -269,24 +277,31 @@ function drawGridAndElements(ctx, canvasInfo, zoom, config, a1CornerCoords) {
     drawCartouche(ctx, latLonToPixels, config, a1CornerCoords);
     drawCompass(ctx, latLonToPixels, config, a1CornerCoords);
     drawSubdivisionKey(ctx, latLonToPixels, config, a1CornerCoords);
-    
-    // CORRECTION 4: Appel de la nouvelle fonction pour dessiner la croix
     drawReferenceCross(ctx, latLonToPixels, config);
 }
 
 /**
- * Dessine le cartouche d'information.
+ * Dessine le cartouche d'information avec une police de taille dynamique.
  */
 function drawCartouche(ctx, latLonToPixels, config, a1CornerCoords) {
     const [a1Lon, a1Lat] = a1CornerCoords;
     
-    const geo_tl = calculateAndRotatePoint(1.1, 18.9, config, a1Lat, a1Lon);
-    const geo_br = calculateAndRotatePoint(4.5, 17.5, config, a1Lat, a1Lon);
+    const endRowNum = config.endRow;
+    const geo_tl = calculateAndRotatePoint(1.1, endRowNum - 0.1, config, a1Lat, a1Lon);
+    const geo_br = calculateAndRotatePoint(4.5, endRowNum - 1.5, config, a1Lat, a1Lon);
     
     const topLeft = latLonToPixels(geo_tl[1], geo_tl[0]);
     const bottomRight = latLonToPixels(geo_br[1], geo_br[0]);
     const width = bottomRight.x - topLeft.x;
     const height = bottomRight.y - topLeft.y;
+
+    const FONT_SIZE_RATIO = 0.22;
+    let fontSize = Math.floor(height * FONT_SIZE_RATIO);
+    fontSize = Math.max(12, Math.min(fontSize, 30));
+
+    ctx.font = `${fontSize}px Arial`;
+    const lineSpacing = fontSize * 1.3;
+    const padding = fontSize * 0.4;
 
     ctx.fillStyle = 'white';
     ctx.fillRect(topLeft.x, topLeft.y, width, height);
@@ -295,34 +310,34 @@ function drawCartouche(ctx, latLonToPixels, config, a1CornerCoords) {
     ctx.strokeRect(topLeft.x, topLeft.y, width, height);
 
     ctx.fillStyle = 'black';
-    ctx.font = '22px Arial';
     ctx.textAlign = 'left';
     ctx.textBaseline = 'top';
     
-    let textY = topLeft.y + 8;
-    const lineSpacing = 28;
+    let textY = topLeft.y + padding;
 
     if (config.referencePointChoice === 'center') {
         const refText = `Pt. Réf: ${config.latitude.toFixed(5)}, ${config.longitude.toFixed(5)}`;
-        ctx.fillText(refText, topLeft.x + 8, textY);
+        ctx.fillText(refText, topLeft.x + padding, textY);
         textY += lineSpacing;
     }
 
     const originText = `Origine A1: ${a1Lat.toFixed(5)}, ${a1Lon.toFixed(5)}`;
-    ctx.fillText(originText, topLeft.x + 8, textY);
+    ctx.fillText(originText, topLeft.x + padding, textY);
     textY += lineSpacing;
     
     const scaleText = `Échelle: 1 case = ${config.scale}m`;
-    ctx.fillText(scaleText, topLeft.x + 8, textY);
+    ctx.fillText(scaleText, topLeft.x + padding, textY);
 }
 
 /**
- * Dessine la boussole.
+ * Dessine la boussole de manière dynamique.
  */
 function drawCompass(ctx, latLonToPixels, config, a1CornerCoords) {
     const [a1Lon, a1Lat] = a1CornerCoords;
-
-    const centerPoint = calculateAndRotatePoint(26.5, 18.5, config, a1Lat, a1Lon);
+    
+    const endColNum = letterToNumber(config.endCol);
+    const endRowNum = config.endRow;
+    const centerPoint = calculateAndRotatePoint(endColNum - 0.5, endRowNum - 0.5, config, a1Lat, a1Lon);
     const center = latLonToPixels(centerPoint[1], centerPoint[0]);
     
     const arrowLengthInMeters = config.scale * 0.4;
@@ -332,7 +347,6 @@ function drawCompass(ctx, latLonToPixels, config, a1CornerCoords) {
     const arrowLengthInPixels = Math.abs(center.y - northPixel.y);
     const radius = arrowLengthInPixels * 0.9;
 
-    // CORRECTION 3: Dessiner le fond gris semi-transparent
     ctx.beginPath();
     ctx.arc(center.x, center.y, radius, 0, 2 * Math.PI, false);
     ctx.fillStyle = 'rgba(200, 200, 200, 0.7)';
@@ -365,85 +379,67 @@ function drawCompass(ctx, latLonToPixels, config, a1CornerCoords) {
 /**
  * Dessine la clé de subdivision en 4 couleurs.
  */
-// CORRECTION 2: Fonction réécrite pour dessiner 4 carrés avec transparence.
 function drawSubdivisionKey(ctx, latLonToPixels, config, a1CornerCoords) {
     const [a1Lon, a1Lat] = a1CornerCoords;
 
-    // Définir les 5 points géographiques clés de la cellule A1 (les 4 coins et le centre)
     const geo_bl = calculateAndRotatePoint(1, 1, config, a1Lat, a1Lon);
     const geo_br = calculateAndRotatePoint(2, 1, config, a1Lat, a1Lon);
     const geo_tl = calculateAndRotatePoint(1, 2, config, a1Lat, a1Lon);
     const geo_tr = calculateAndRotatePoint(2, 2, config, a1Lat, a1Lon);
     const geo_center = calculateAndRotatePoint(1.5, 1.5, config, a1Lat, a1Lon);
 
-    // Convertir les points en pixels
     const px_tl = latLonToPixels(geo_tl[1], geo_tl[0]);
     const px_tr = latLonToPixels(geo_tr[1], geo_tr[0]);
     const px_bl = latLonToPixels(geo_bl[1], geo_bl[0]);
     const px_br = latLonToPixels(geo_br[1], geo_br[0]);
     const px_center = latLonToPixels(geo_center[1], geo_center[0]);
     
-    // Appliquer la transparence globale pour cette partie du dessin
-    ctx.save(); // Sauvegarde l'état actuel du contexte
+    ctx.save();
     ctx.globalAlpha = 0.7;
 
-    // Calculer les largeurs et hauteurs pour dessiner les rectangles
-    const width_tl = px_center.x - px_tl.x;
-    const height_tl = px_center.y - px_tl.y;
-    const width_tr = px_tr.x - px_center.x;
-    const height_tr = px_center.y - px_tr.y;
-    const width_bl = px_center.x - px_bl.x;
-    const height_bl = px_bl.y - px_center.y;
-    const width_br = px_br.x - px_center.x;
-    const height_br = px_br.y - px_center.y;
-    
-    // Dessiner les 4 petits carrés (rectangles)
+    const quad_tl = { p1: px_tl, p2: {x: px_center.x, y: px_tl.y}, p3: px_center, p4: {x: px_tl.x, y: px_center.y} };
+    const quad_tr = { p1: {x: px_center.x, y: px_tr.y}, p2: px_tr, p3: {x: px_tr.x, y: px_center.y}, p4: px_center };
+    const quad_bl = { p1: {x: px_bl.x, y: px_center.y}, p2: px_center, p3: {x: px_center.x, y: px_bl.y}, p4: px_bl };
+    const quad_br = { p1: px_center, p2: {x: px_br.x, y: px_center.y}, p3: px_br, p4: {x: px_center.x, y: px_br.y} };
+
     ctx.fillStyle = '#FFFF00'; // Jaune
-    ctx.fillRect(px_tl.x, px_tl.y, width_tl, height_tl);
+    ctx.beginPath(); ctx.moveTo(quad_tl.p1.x, quad_tl.p1.y); ctx.lineTo(quad_tl.p2.x, quad_tl.p2.y); ctx.lineTo(quad_tl.p3.x, quad_tl.p3.y); ctx.lineTo(quad_tl.p4.x, quad_tl.p4.y); ctx.closePath(); ctx.fill();
     
     ctx.fillStyle = '#0000FF'; // Bleu
-    ctx.fillRect(px_center.x, px_tr.y, width_tr, height_tr);
-
+    ctx.beginPath(); ctx.moveTo(quad_tr.p1.x, quad_tr.p1.y); ctx.lineTo(quad_tr.p2.x, quad_tr.p2.y); ctx.lineTo(quad_tr.p3.x, quad_tr.p3.y); ctx.lineTo(quad_tr.p4.x, quad_tr.p4.y); ctx.closePath(); ctx.fill();
+    
     ctx.fillStyle = '#008000'; // Vert
-    ctx.fillRect(px_bl.x, px_center.y, width_bl, height_bl);
+    ctx.beginPath(); ctx.moveTo(quad_bl.p1.x, quad_bl.p1.y); ctx.lineTo(quad_bl.p2.x, quad_bl.p2.y); ctx.lineTo(quad_bl.p3.x, quad_bl.p3.y); ctx.lineTo(quad_bl.p4.x, quad_bl.p4.y); ctx.closePath(); ctx.fill();
     
     ctx.fillStyle = '#FF0000'; // Rouge
-    ctx.fillRect(px_center.x, px_center.y, width_br, height_br);
-    
-    ctx.restore(); // Restaure l'état du contexte (enlève la transparence globale)
+    ctx.beginPath(); ctx.moveTo(quad_br.p1.x, quad_br.p1.y); ctx.lineTo(quad_br.p2.x, quad_br.p2.y); ctx.lineTo(quad_br.p3.x, quad_br.p3.y); ctx.lineTo(quad_br.p4.x, quad_br.p4.y); ctx.closePath(); ctx.fill();
 
-    // Redessiner le contour complet de la cellule A1 en noir
+    ctx.restore();
+
     ctx.strokeStyle = 'black';
     ctx.lineWidth = 1;
     ctx.beginPath();
-    ctx.moveTo(px_tl.x, px_tl.y);
-    ctx.lineTo(px_tr.x, px_tr.y);
-    ctx.lineTo(px_br.x, px_br.y);
-    ctx.lineTo(px_bl.x, px_bl.y);
-    ctx.closePath();
+    ctx.moveTo(px_tl.x, px_tl.y); ctx.lineTo(px_tr.x, px_tr.y); ctx.lineTo(px_br.x, px_br.y); ctx.lineTo(px_bl.x, px_bl.y); ctx.closePath();
     ctx.stroke();
 }
 
-// CORRECTION 4: Nouvelle fonction pour dessiner la croix du point de référence.
+/**
+ * Dessine la croix du point de référence de l'utilisateur.
+ */
 function drawReferenceCross(ctx, latLonToPixels, config) {
-    // Récupérer les coordonnées du point de référence depuis la configuration
     const refPointCoords = { lat: config.latitude, lon: config.longitude };
-    
-    // Convertir en pixels sur le canevas
     const center = latLonToPixels(refPointCoords.lat, refPointCoords.lon);
     
-    const crossSize = 15; // Taille de la croix (15 pixels du centre à chaque extrémité)
+    const crossSize = 15;
     
-    ctx.strokeStyle = '#FF0000'; // Couleur rouge
+    ctx.strokeStyle = '#FF0000';
     ctx.lineWidth = 3;
     
-    // Dessiner la ligne verticale de la croix
     ctx.beginPath();
     ctx.moveTo(center.x, center.y - crossSize);
     ctx.lineTo(center.x, center.y + crossSize);
     ctx.stroke();
     
-    // Dessiner la ligne horizontale de la croix
     ctx.beginPath();
     ctx.moveTo(center.x - crossSize, center.y);
     ctx.lineTo(center.x + crossSize, center.y);
