@@ -143,7 +143,7 @@
                                 <label for="grid-name-base" class="text-sm md:text-base text-content">Nom du carroyage :</label>
                                 <input type="text" id="grid-name-base" class="input-field px-3 py-2 border rounded shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white text-base grid-parameter" value="CADO Grid">
                                 <input type="hidden" id="grid-name" value="CADO Grid">
-                                <div id="full-grid-name" class="text-sm text-secondary mt-1 overflow-auto max-h-20 border-l-2 border-blue-500 pl-2 italic">CADO Grid_20m_center_Z14_white</div>
+                                <div id="full-grid-name" class="text-sm text-secondary mt-1 overflow-auto max-h-20 border-l-2 border-blue-500 pl-2 italic">CADO Grid_20m_center_Q12_white</div>
                             </div>
                         </div>
                         
@@ -197,19 +197,19 @@
                                         <input type="radio" name="grid-type" value="Q12" class="custom-radio grid-parameter" checked>
                                         <span class="px-3 py-1 border border-default rounded cursor-pointer text-sm button-outline">Q12 (17x12 - Imprimable)</span>
                                     </label>
-                                      <label class="inline-flex items-center">
+                                    <label class="inline-flex items-center">
                                         <input type="radio" name="grid-type" value="Z18" class="custom-radio grid-parameter">
-                                        <span class="px-3 py-1 border border-default rounded cursor-pointer text-sm button-outline">Z18 (26x18 - Imprimable)</span>
+                                        <span class="px-3 py-1 border border-default rounded cursor-pointer text-sm button-outline">Z18 (26x18)</span>
+                                    </label>
+                                     <label class="inline-flex items-center">
+                                        <input type="radio" name="grid-type" value="Z14" class="custom-radio grid-parameter">
+                                        <span class="px-3 py-1 border border-default rounded cursor-pointer text-sm button-outline">Z14 (26x14)</span>
                                     </label>
                                     <label class="inline-flex items-center">
                                         <input type="radio" name="grid-type" value="Z26" class="custom-radio grid-parameter">
                                         <span class="px-3 py-1 border border-default rounded cursor-pointer text-sm button-outline">Z26 (26x26)</span>
                                     </label>
-                                    <label class="inline-flex items-center">
-                                        <input type="radio" name="grid-type" value="Z14" class="custom-radio grid-parameter">
-                                        <span class="px-3 py-1 border border-default rounded cursor-pointer text-sm button-outline">Z14 (26x14)</span>
-                                    </label>
-                                    <label class="inline-flex items-center">
+                                    <label class="inline-flex items-center" hidden>
                                         <input type="radio" name="grid-type" value="Q9" class="custom-radio grid-parameter">
                                         <span class="px-3 py-1 border border-default rounded cursor-pointer text-sm button-outline">Q9 (17x9)</span>
                                     </label>
@@ -305,7 +305,6 @@
                 <section class="flex flex-wrap justify-center items-center gap-4">
                     <button id="generate-button" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg text-lg font-semibold shadow-lg transform transition duration-200 hover:scale-105">GÉNÉRER CARROYAGE CADO</button>
                     
-                    <!-- MODIFICATION 3 & 4: Ajout du conteneur pour le bouton image et le sélecteur de fond de carte -->
                     <div class="flex items-center gap-2">
                         <button id="generate-image-button" class="bg-gray-600 hover:bg-gray-700 text-white px-6 py-3 rounded-lg text-lg font-semibold shadow-lg transform transition duration-200 hover:scale-105 disabled:bg-gray-400 disabled:cursor-not-allowed">Générer l'image (PNG)</button>
                         <div class="flex flex-col">
@@ -474,7 +473,7 @@
             initIconDictionaries();
             initUI();
             setupEventListeners();
-            displayAppVersion(); // Affiche la version au chargement
+            displayAppVersion(); 
             registerServiceWorker(); 
         });
 
@@ -511,29 +510,28 @@
             });
         }
 
-function setupEventListeners() {
-            // ... (les listeners de transparence et utm-transparency restent les mêmes) ...
+        function setupEventListeners() {
             document.getElementById('transparency').addEventListener('input', e => { document.getElementById('transparency-value').textContent = `${e.target.value}%`; });
             document.getElementById('utm-transparency').addEventListener('input', e => { document.getElementById('utm-transparency-value').textContent = `${e.target.value}%`; });
 
-            // ... (les listeners de conversion et viewOnMaps restent les mêmes) ...
             document.getElementById('convert-from-decimal').addEventListener('click', convertFromDecimal);
             document.getElementById('convert-from-dms').addEventListener('click', convertFromDMS);
             document.getElementById('convert-from-plus').addEventListener('click', convertFromPlusCode);
             document.getElementById('convert-from-mercator').addEventListener('click', convertFromMercator);
             document.getElementById('convert-from-utm').addEventListener('click', convertFromUTM);
+            
             document.getElementById('view-on-maps-decimal').addEventListener('click', () => viewOnMaps('decimal'));
             document.getElementById('view-on-maps-dms').addEventListener('click', () => viewOnMaps('dms'));
             document.getElementById('view-on-maps-plus').addEventListener('click', () => viewOnMaps('plus'));
             document.getElementById('view-on-maps-mercator').addEventListener('click', () => viewOnMaps('mercator'));
             document.getElementById('view-on-maps-utm').addEventListener('click', () => viewOnMaps('utm'));
 
-            // --- NOUVELLE LOGIQUE DE GESTION DU BOUTON IMAGE (MISE À JOUR) ---
             const deviationInput = document.getElementById('deviation');
             const deviationValueSpan = document.getElementById('deviation-value');
             const generateImageButton = document.getElementById('generate-image-button');
             const resetButton = document.getElementById('reset-deviation');
             
+            // CORRECTION 4: Mise à jour de la logique d'activation du bouton.
             const updateImageButtonState = () => {
                 const isDeviationZero = parseInt(deviationInput.value, 10) === 0;
                 
@@ -543,15 +541,15 @@ function setupEventListeners() {
                 let isPrintableSetup = false;
                 
                 if (isDeviationZero) {
-                    // Condition 1: Ancré sur l'origine A1 (n'importe quelle grille est alors valide)
                     if (refPoint === 'origin') {
                         isPrintableSetup = true;
                     }
-                    // Condition 2: Centré ET utilisant la grille Z-18 spécifique
                     else if (refPoint === 'center') {
                         const isGridOptionDefault = gridOption === 'default';
-                        const isGridTypePrintable = document.querySelector('input[name="grid-type"]:checked').value === 'Z18';
-                        if (isGridOptionDefault && isGridTypePrintable) {
+                        // La génération d'image est valide si le type de grille est Z18 ou Q12.
+                        const printableGridTypes = ['Z18', 'Q12'];
+                        const selectedGridType = document.querySelector('input[name="grid-type"]:checked').value;
+                        if (isGridOptionDefault && printableGridTypes.includes(selectedGridType)) {
                             isPrintableSetup = true;
                         }
                     }
@@ -568,7 +566,6 @@ function setupEventListeners() {
                 }
             };
             
-            // Mettre à jour le nom du fichier et l'état du bouton sur n'importe quel changement de paramètre
             document.querySelectorAll('.grid-parameter').forEach(el => {
                 const eventType = (el.type === 'range' || el.type === 'number' || el.type === 'text') ? 'input' : 'change';
                 el.addEventListener(eventType, () => {
@@ -590,10 +587,8 @@ function setupEventListeners() {
 
             generateImageButton.addEventListener('click', generateImageToPrint);
 
-            // Mettre à jour l'état initial au chargement
             updateImageButtonState();
             
-            // ... (le reste des listeners) ...
             const helpModal = document.getElementById('help-modal');
             document.getElementById('helpBtn').addEventListener('click', () => helpModal.classList.remove('hidden'));
             document.getElementById('close-help').addEventListener('click', () => helpModal.classList.add('hidden'));
@@ -604,14 +599,10 @@ function setupEventListeners() {
         }
         
         function displayAppVersion() {
-          // Pas de fetch, pas de regex, pas de complexité.
-          // La variable APP_VERSION est déjà disponible globalement.
           if (typeof APP_VERSION !== 'undefined') {
             const displayVersion = `v${APP_VERSION}`;
-        
             document.title = `Générateur CADO ${displayVersion}`;
             const titleElement = document.getElementById('app-title');
-            
             if (titleElement) {
               titleElement.textContent = `Générateur de carroyage CADO ${displayVersion}`;
             }
