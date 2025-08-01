@@ -298,9 +298,20 @@
                     </div>
                 </section>
 
-                <section class="flex justify-center gap-4">
+                <section class="flex flex-wrap justify-center items-center gap-4">
                     <button id="generate-button" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg text-lg font-semibold shadow-lg transform transition duration-200 hover:scale-105">GÉNÉRER CARROYAGE CADO</button>
-                    <button id="generate-image-button" class="bg-gray-600 hover:bg-gray-700 text-white px-6 py-3 rounded-lg text-lg font-semibold shadow-lg transform transition duration-200 hover:scale-105 disabled:bg-gray-400 disabled:cursor-not-allowed">Générer l'image (PNG)</button>
+                    
+                    <!-- MODIFICATION 3 & 4: Ajout du conteneur pour le bouton image et le sélecteur de fond de carte -->
+                    <div class="flex items-center gap-2">
+                        <button id="generate-image-button" class="bg-gray-600 hover:bg-gray-700 text-white px-6 py-3 rounded-lg text-lg font-semibold shadow-lg transform transition duration-200 hover:scale-105 disabled:bg-gray-400 disabled:cursor-not-allowed">Générer l'image (PNG)</button>
+                        <div class="flex flex-col">
+                            <label for="map-tile-provider" class="text-xs text-center text-content mb-1">Fond</label>
+                            <select id="map-tile-provider" class="input-field px-2 py-1 border rounded shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white text-sm">
+                                <option value="https://tile.openstreetmap.org/{z}/{x}/{y}.png">OSM Standard</option>
+                                <option value="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}">Satellite (Esri)</option>
+                            </select>
+                        </div>
+                    </div>
                 </section>
             </div>
             
