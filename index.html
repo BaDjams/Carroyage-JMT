@@ -388,7 +388,7 @@
         
         <!-- Help Modal -->
         <div id="help-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
-            <div class="card bg-white dark:bg-gray-800 rounded-lg shadow-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6">
+            <div class="card bg-white dark:bg-gray-800 rounded-lg shadow-lg max-w-2xl w-full max-h-[80vh] overflow-y-auto p-6">
                 <div class="flex justify-between items-center mb-4">
                     <h3 class="text-xl font-semibold text-content">Aide - Convertisseurs & Générateurs de Carroyage</h3>
                     <button id="close-help" class="text-gray-400 hover:text-gray-500 dark:text-gray-300 dark:hover:text-gray-200">
@@ -397,54 +397,7 @@
                         </svg>
                     </button>
                 </div>
-                <div class="prose dark:prose-invert max-w-none text-content space-y-4">
-                    
-                    <h4 class="text-content border-b pb-1 font-semibold">Convertisseurs de Coordonnées</h4>
-                    <p>
-                        Cette section vous permet de convertir un point géographique entre plusieurs systèmes de coordonnées.
-                    </p>
-                    <ul class="list-disc pl-5 space-y-1">
-                        <li>Entrez une coordonnée dans l'un des champs : GPS (Décimal ou DMS), Mercator ou UTM.</li>
-                        <li>Cliquez sur le bouton <strong>"Convertir"</strong> correspondant.</li>
-                        <li>Tous les autres champs seront automatiquement mis à jour.</li>
-                        <li>Le format UTM attendu est : <code>Zone Lettre Easting Northing</code> (ex: <code>31 U 448252 5411943</code>).</li>
-                        <li>Le bouton "Voir sur Maps" ouvre Google Maps à l'emplacement correspondant.</li>
-                    </ul>
-
-                    <h4 class="text-content border-b pb-1 font-semibold">Générateur de Carroyage CADO</h4>
-                    <p>
-                        Génère un carroyage personnalisé (A1, B2, etc.) basé sur un point de référence. La compréhension des deux points suivants est essentielle :
-                    </p>
-                    <ul class="list-disc pl-5 space-y-2">
-                        <li><strong>Point de Référence :</strong> Les coordonnées que vous entrez. C'est le <strong>pivot</strong> autour duquel la grille tourne (quand vous appliquez une déviation). Un cercle jaune est dessiné autour de ce point dans le fichier final.</li>
-                        <li><strong>Point d'Origine (A1) :</strong> Le coin de la case A1, qui sert d'<strong>ancre</strong> pour positionner toute la grille. Un repère jaune est placé à cet endroit.</li>
-                    </ul>
-                    <p><strong>Comment le Point de Référence est-il utilisé ?</strong></p>
-                    <ul class="list-disc pl-5 space-y-1">
-                        <li>Si vous choisissez <strong>"Origine (A1)"</strong>, vos coordonnées de référence définissent directement l'emplacement du coin de la case A1.</li>
-                        <li>Si vous choisissez <strong>"Milieu du carroyage"</strong>, vos coordonnées de référence définissent le centre géométrique exact de la zone que vous demandez (ex: le centre de la zone G5 à M20). L'outil calcule alors où se trouve le Point d'Origine A1 par rapport à ce centre.</li>
-                    </ul>
-
-                    <h4 class="text-content border-b pb-1 font-semibold">Générateur de Grille UTM</h4>
-                    <p>
-                        Génère les lignes de la grille UTM officielle (précision 1km) pour une zone rectangulaire.
-                    </p>
-                     <p><strong>Fonctionnalités clés :</strong></p>
-                    <ul class="list-disc pl-5 space-y-1">
-                        <li><strong>Multi-zone :</strong> Gère automatiquement la traversée de plusieurs zones UTM.</li>
-                        <li><strong>Lignes Précises :</strong> Les lignes sont "tessellées" pour suivre la courbure de la Terre, garantissant une grande précision visuelle dans Google Earth.</li>
-                        <li><strong>Respect des Limites :</strong> Les lignes s'arrêtent proprement aux frontières des zones, sans déborder.</li>
-                        <li><strong>Étiquettes Alignées :</strong> Des étiquettes (tous les 5km) sont placées directement <em>sur</em> les lignes de grille pour un repérage clair et sans décalage.</li>
-                    </ul>
-
-                    <h4 class="text-content border-b pb-1 font-semibold">Formats de Fichiers</h4>
-                     <ul class="list-disc pl-5 space-y-1">
-                        <li><strong>KMZ :</strong> Format compressé pour Google Earth. Idéal pour le carroyage CADO avec icônes intégrées et pour la grille UTM.</li>
-                        <li><strong>KML :</strong> Format standard pour Google Earth et Google Maps (sans icônes intégrées).</li>
-                        <li><strong>GeoJSON :</strong> Format universel pour les systèmes d'information géographique (SIG).</li>
-                        <li><strong>GPX :</strong> Format pour les appareils GPS et les applications de randonnée comme OsmAnd.</li>
-                    </ul>
-                </div>
+                <div id="help-content-container" class="prose dark:prose-invert max-w-none text-content space-y-4"></div>
             </div>
         </div>
     </div>
@@ -458,6 +411,7 @@
     </div>
     
     <!-- Scripts -->
+    <script src="helpContent.js"></script>
     <script src="carroyageUTM.js"></script>
     <script src="carroyageCado.js"></script>
     <script src="imagetoprint.js"></script>
@@ -472,6 +426,7 @@
             });
             
             initIconDictionaries();
+            document.getElementById('help-content-container').innerHTML = HELP_CONTENT_HTML;
             initUI();
             setupEventListeners();
             displayAppVersion(); 
