@@ -388,8 +388,8 @@
         
         <!-- Help Modal -->
         <div id="help-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
-            <div class="card bg-white dark:bg-gray-800 rounded-lg shadow-lg max-w-2xl w-full max-h-[80vh] overflow-y-auto p-6">
-                <div class="flex justify-between items-center mb-4">
+            <div class="card bg-white dark:bg-gray-800 rounded-lg shadow-lg max-w-2xl w-full max-h-[80vh] p-6 flex flex-col">
+                <div class="flex-shrink-0 flex justify-between items-center mb-4">
                     <h3 class="text-xl font-semibold text-content">Aide - Convertisseurs & Générateurs de Carroyage</h3>
                     <button id="close-help" class="text-gray-400 hover:text-gray-500 dark:text-gray-300 dark:hover:text-gray-200">
                         <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
@@ -397,7 +397,8 @@
                         </svg>
                     </button>
                 </div>
-                <div id="help-content-container" class="prose dark:prose-invert max-w-none text-content space-y-4"></div>
+                <!-- Le contenu scrollable est dans ce conteneur -->
+                <div id="help-content-container" class="prose dark:prose-invert max-w-none text-content space-y-4 flex-1 overflow-y-auto"></div>
             </div>
         </div>
     </div>
