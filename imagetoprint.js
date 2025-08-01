@@ -15,11 +15,12 @@ function coordsToQuadKey(x, y, zoom) {
     for (let i = zoom; i > 0; i--) {
         let digit = 0;
         const mask = 1 << (i - 1);
+        // CORRECTION DE L'ALGORITHME : Le bit de Y vaut 2, celui de X vaut 1.
         if ((y & mask) !== 0) {
-            digit += 1;
+            digit += 2;
         }
         if ((x & mask) !== 0) {
-            digit += 2;
+            digit += 1;
         }
         quadKey += digit.toString();
     }
@@ -215,9 +216,9 @@ async function createFinalCanvasWithTiles(boundingBox, zoom, tileProviderUrl, on
             let tileUrl;
             
             if (tileProviderUrl.includes('{q}')) {
-                // LA CORRECTION CLÉ EST ICI : Inversion de l'axe Y pour Bing.
-                const invertedY = (Math.pow(2, zoom) - 1) - y;
-                const quadKey = coordsToQuadKey(x, invertedY, zoom);
+                // L'inversion de Y n'est plus nécessaire ici car la formule QuadKey est correcte.
+                // Le système de tuiles (0,0) en haut à gauche est cohérent avec la projection Mercator.
+                const quadKey = coordsToQuadKey(x, y, zoom);
                 const subdomain = (x + y) % 4;
                 tileUrl = tileProviderUrl.replace('{q}', quadKey).replace('{s}', subdomain);
             } else {
@@ -328,7 +329,7 @@ function drawCartouche(ctx, latLonToPixels, config, a1CornerCoords) {
     const endRowNum = config.endRow;
 
     const geo_tl = calculateAndRotatePoint(startColNum + 0.1, endRowNum + 0.9, config, a1Lat, a1Lon);
-    const geo_br = calculateAndRotatePoint(startColNum + 3.5, endRowNum - 0.5, config, a1Lat, a1Lon);
+    const geo_br = calculateAndRotatePoint(startColNum + 4.1, endRowNum - 0.5, config, a1Lat, a1Lon);
     
     const topLeft = latLonToPixels(geo_tl[1], geo_tl[0]);
     const bottomRight = latLonToPixels(geo_br[1], geo_br[0]);
