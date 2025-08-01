@@ -40,10 +40,13 @@ async function generateImageToPrint() {
         
         const tileProviderUrl = document.getElementById('map-tile-provider').value;
 
+        // On récupère le nom de base avant qu'il ne soit modifié pour l'export KMZ.
+        const gridNameBase = document.getElementById('grid-name-base').value || 'CADO Grid';
         const config = getGridConfiguration(
             parseFloat(coordsStr.split(',')[0]),
             parseFloat(coordsStr.split(',')[1])
         );
+        config.gridNameBase = gridNameBase; // Ajout du nom de base à la config pour le cartouche.
         config.includeGrid = true;
         config.includePoints = false;
         
@@ -62,7 +65,10 @@ async function generateImageToPrint() {
         const finalCtx = finalCanvas.getContext('2d');
         drawGridAndElements(finalCtx, canvasInfo, zoomLevel, config, a1CornerCoords);
         
-        const fileName = `${config.gridName}_Print.png`;
+        const originString = `_origine=${a1CornerCoords[1].toFixed(6)},${a1CornerCoords[0].toFixed(6)}`;
+        const finalGridName = config.gridName + originString;
+        const fileName = `${finalGridName}.png`;
+
         finalCanvas.toBlob((blob) => {
             if (blob) {
                 downloadFile(blob, fileName, 'image/png');
@@ -248,23 +254,16 @@ async function createFinalCanvasWithTiles(boundingBox, zoom, tileProviderUrl, on
 }
 
 /**
- * NOUVEAU: Fonction d'assistance pour dessiner du texte avec un contour.
- * @param {CanvasRenderingContext2D} ctx Le contexte du canevas.
- * @param {string} text Le texte à dessiner.
- * @param {number} x Coordonnée X du centre du texte.
- * @param {number} y Coordonnée Y du centre du texte.
- * @param {object} config L'objet de configuration de la grille.
+ * Fonction d'assistance pour dessiner du texte avec un contour.
  */
 function drawLabelWithOutline(ctx, text, x, y, config) {
     const darkColorsForWhiteOutline = ['black', 'red', 'blue', 'green', 'violet', 'brown'];
     const outlineColor = darkColorsForWhiteOutline.includes(config.colorName) ? 'white' : 'black';
 
-    // Dessiner le contour
     ctx.strokeStyle = outlineColor;
-    ctx.lineWidth = 3; // Épaisseur du contour
+    ctx.lineWidth = 3;
     ctx.strokeText(text, x, y);
 
-    // Dessiner le remplissage par-dessus
     ctx.fillStyle = config.gridColor;
     ctx.fillText(text, x, y);
 }
@@ -310,7 +309,6 @@ function drawGridAndElements(ctx, canvasInfo, zoom, config, a1CornerCoords) {
         ctx.beginPath(); ctx.moveTo(startPixels.x, startPixels.y); ctx.lineTo(endPixels.x, endPixels.y); ctx.stroke();
     }
 
-    // Préparer le style pour les étiquettes
     ctx.font = 'bold 30px Arial';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
@@ -343,14 +341,12 @@ function drawCartouche(ctx, latLonToPixels, config, a1CornerCoords) {
     const startColNum = letterToNumber(config.startCol);
     const endRowNum = config.endRow;
 
-    // --- Calculer la "distance" en pixels ---
     const geo_A1_center = calculateAndRotatePoint(startColNum + 0.5, endRowNum - 0.5, config, a1Lat, a1Lon);
     const geo_B1_center = calculateAndRotatePoint(startColNum + 1.5, endRowNum - 0.5, config, a1Lat, a1Lon);
     const px_A1_center = latLonToPixels(geo_A1_center[1], geo_A1_center[0]);
     const px_B1_center = latLonToPixels(geo_B1_center[1], geo_B1_center[0]);
     const distanceInPixels = Math.hypot(px_B1_center.x - px_A1_center.x, px_B1_center.y - px_A1_center.y);
 
-    // --- Définir la taille et la police ---
     const cartoucheWidth = distanceInPixels * 4;
     const FONT_SIZE_PX = 20;
     const PADDING_RATIO = 0.5;
@@ -358,13 +354,12 @@ function drawCartouche(ctx, latLonToPixels, config, a1CornerCoords) {
     
     const padding = FONT_SIZE_PX * PADDING_RATIO;
     const lineSpacing = FONT_SIZE_PX * LINE_SPACING_RATIO;
-    const cartoucheHeight = (lineSpacing * 3) + (padding * 2);
+    // CORRECTION: Hauteur calculée pour 4 lignes de texte.
+    const cartoucheHeight = (lineSpacing * 4) + (padding * 2);
 
-    // --- Positionner le cartouche ---
     const geo_tl = calculateAndRotatePoint(startColNum + 0.1, endRowNum + 0.9, config, a1Lat, a1Lon);
     const topLeft = latLonToPixels(geo_tl[1], geo_tl[0]);
     
-    // --- Dessiner le cartouche ---
     ctx.fillStyle = 'white';
     ctx.fillRect(topLeft.x, topLeft.y, cartoucheWidth, cartoucheHeight);
     ctx.strokeStyle = 'black';
@@ -374,20 +369,42 @@ function drawCartouche(ctx, latLonToPixels, config, a1CornerCoords) {
     ctx.fillStyle = 'black';
     ctx.font = `${FONT_SIZE_PX}px Arial`;
     ctx.textAlign = 'left';
-    ctx.textBaseline = 'top';
+    ctx.textBaseline = 'middle'; // Aligner le texte verticalement au milieu de sa ligne
     
-    let textY = topLeft.y + padding;
+    let textY = topLeft.y + padding + (lineSpacing / 2);
 
+    // Ligne 1: Nom du carroyage
+    ctx.fillText(config.gridNameBase, topLeft.x + padding, textY);
+    textY += lineSpacing;
+
+    // Ligne 2: Point de référence
     if (config.referencePointChoice === 'center') {
+        const crossSize = FONT_SIZE_PX * 0.4;
+        const crossX = topLeft.x + padding + crossSize;
+        const crossY = textY;
+
+        // Dessiner la petite croix
+        ctx.strokeStyle = '#FF0000';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(crossX - crossSize, crossY);
+        ctx.lineTo(crossX + crossSize, crossY);
+        ctx.moveTo(crossX, crossY - crossSize);
+        ctx.lineTo(crossX, crossY + crossSize);
+        ctx.stroke();
+
         const refText = `Pt. Réf: ${config.latitude.toFixed(5)}, ${config.longitude.toFixed(5)}`;
-        ctx.fillText(refText, topLeft.x + padding, textY);
+        ctx.fillStyle = 'black'; // S'assurer que le texte est noir
+        ctx.fillText(refText, crossX + crossSize + (padding / 2), textY);
         textY += lineSpacing;
     }
 
+    // Ligne 3: Origine A1
     const originText = `Origine A1: ${a1Lat.toFixed(5)}, ${a1Lon.toFixed(5)}`;
     ctx.fillText(originText, topLeft.x + padding, textY);
     textY += lineSpacing;
     
+    // Ligne 4: Échelle
     const scaleText = `Échelle: 1 case = ${config.scale}m`;
     ctx.fillText(scaleText, topLeft.x + padding, textY);
 }
@@ -433,7 +450,6 @@ function drawCompass(ctx, latLonToPixels, config, a1CornerCoords) {
     ctx.fillStyle = 'red';
     ctx.fill();
 
-    // Dessiner le "N" avec un contour blanc
     ctx.font = 'bold 18px Arial';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'bottom';
