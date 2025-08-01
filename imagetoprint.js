@@ -1,6 +1,7 @@
 // imagetoprint.js
 
-const TILE_PROVIDER_URL = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
+// MODIFICATION 4: La constante est supprimée car l'URL est maintenant dynamique.
+// const TILE_PROVIDER_URL = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
 const TILE_SIZE = 256;
 const MAX_ZOOM = 19;
 
@@ -19,6 +20,9 @@ async function generateImageToPrint() {
         const coordsStr = document.getElementById("decimal-coords").value;
         if (!coordsStr) throw new Error("Veuillez d'abord définir des coordonnées de référence.");
         
+        // MODIFICATION 4: Récupérer l'URL du fournisseur de tuiles depuis le sélecteur.
+        const tileProviderUrl = document.getElementById('map-tile-provider').value;
+
         const config = getGridConfiguration(
             parseFloat(coordsStr.split(',')[0]),
             parseFloat(coordsStr.split(',')[1])
@@ -34,7 +38,8 @@ async function generateImageToPrint() {
         console.log(`Zoom optimal calculé : ${zoomLevel}`);
 
         loadingMessage.textContent = "Téléchargement des fonds de carte (0%)...";
-        const { finalCanvas, canvasInfo } = await createFinalCanvasWithTiles(boundingBox, zoomLevel, (progress) => {
+        // MODIFICATION 4: Passer l'URL du fournisseur de tuiles à la fonction.
+        const { finalCanvas, canvasInfo } = await createFinalCanvasWithTiles(boundingBox, zoomLevel, tileProviderUrl, (progress) => {
             loadingMessage.textContent = `Téléchargement des fonds de carte (${progress.toFixed(0)}%)...`;
         });
 
@@ -84,10 +89,15 @@ function getA1CornerCoordsForPrint(config) {
  */
 function getBoundingBoxForPrint(config, a1CornerCoords) {
     const [a1Lon, a1Lat] = a1CornerCoords;
+    
+    // MODIFICATION 1: Réduction des marges gauche et basse.
+    // col: -1.5 -> -1.0 (réduit la marge gauche de 0.5 case)
+    // row: 19.5 -> 19.0 (réduit la marge basse de 0.5 case)
     const corners = [
-        { col: -1.5, row: -1.5 }, { col: 27.5, row: -1.5 },
-        { col: -1.5, row: 19.5 }, { col: 27.5, row: 19.5 }
+        { col: -1.0, row: -1.5 }, { col: 27.5, row: -1.5 },
+        { col: -1.0, row: 19.0 }, { col: 27.5, row: 19.0 }
     ];
+    
     const geoCorners = corners.map(corner => {
         const point = calculateAndRotatePoint(corner.col, corner.row, config, a1Lat, a1Lon);
         return { lon: point[0], lat: point[1] };
@@ -139,7 +149,7 @@ function tileNumbersToLatLon(x, y, zoom) {
 /**
  * Crée le canevas final et y assemble les tuiles.
  */
-async function createFinalCanvasWithTiles(boundingBox, zoom, onProgress) {
+async function createFinalCanvasWithTiles(boundingBox, zoom, tileProviderUrl, onProgress) { // MODIFICATION 4: Ajout de tileProviderUrl
     const nwPixel = latLonToWorldPixels(boundingBox.north, boundingBox.west, zoom);
     const sePixel = latLonToWorldPixels(boundingBox.south, boundingBox.east, zoom);
     const canvasWidth = Math.abs(sePixel.x - nwPixel.x);
@@ -163,7 +173,15 @@ async function createFinalCanvasWithTiles(boundingBox, zoom, onProgress) {
 
     for (let x = nwTile.x; x <= seTile.x; x++) {
         for (let y = nwTile.y; y <= seTile.y; y++) {
-            const tileUrl = TILE_PROVIDER_URL.replace('{z}', zoom).replace('{x}', x).replace('{y}', y);
+            // MODIFICATION 4: Logique pour construire l'URL de la tuile dynamiquement.
+            let tileUrl = tileProviderUrl.replace('{z}', zoom);
+            // Gère les différents ordres pour x et y (ex: OSM vs Esri)
+            if (tileUrl.includes('{y}/{x}')) {
+                tileUrl = tileUrl.replace('{y}', y).replace('{x}', x);
+            } else {
+                tileUrl = tileUrl.replace('{x}', x).replace('{y}', y);
+            }
+
             const promise = new Promise((resolve, reject) => {
                 const img = new Image();
                 img.crossOrigin = "Anonymous";
@@ -333,32 +351,70 @@ function drawCompass(ctx, latLonToPixels, config, a1CornerCoords) {
 /**
  * Dessine la clé de subdivision en 4 couleurs.
  */
+// CORRECTION 2: Fonction entièrement réécrite pour être robuste.
 function drawSubdivisionKey(ctx, latLonToPixels, config, a1CornerCoords) {
     const [a1Lon, a1Lat] = a1CornerCoords;
 
-    const topLeft = latLonToPixels(calculateAndRotatePoint(0, 1, config, a1Lat, a1Lon)[1], calculateAndRotatePoint(0, 1, config, a1Lat, a1Lon)[0]);
-    const topRight = latLonToPixels(calculateAndRotatePoint(1, 1, config, a1Lat, a1Lon)[1], calculateAndRotatePoint(1, 1, config, a1Lat, a1Lon)[0]);
-    const bottomLeft = latLonToPixels(calculateAndRotatePoint(0, 0, config, a1Lat, a1Lon)[1], calculateAndRotatePoint(0, 0, config, a1Lat, a1Lon)[0]);
+    // Définir les 4 coins géographiques du carré de la clé (1x1 case)
+    // On le place à gauche de la colonne 'A' (col 0 à 1) et sous la ligne '18' (row 19 à 20)
+    // pour éviter qu'il n'interfère avec le cartouche ou la boussole.
+    // NOTE : On utilise des rangs > 18 pour le positionner en bas à gauche.
+    const geo_tl = calculateAndRotatePoint(0, 19, config, a1Lat, a1Lon);
+    const geo_tr = calculateAndRotatePoint(1, 19, config, a1Lat, a1Lon);
+    const geo_bl = calculateAndRotatePoint(0, 20, config, a1Lat, a1Lon);
+    const geo_br = calculateAndRotatePoint(1, 20, config, a1Lat, a1Lon);
 
-    const midX = (topLeft.x + topRight.x) / 2;
-    const midY = (topLeft.y + bottomLeft.y) / 2;
+    // Convertir ces 4 points en pixels sur le canevas
+    const px_tl = latLonToPixels(geo_tl[1], geo_tl[0]);
+    const px_tr = latLonToPixels(geo_tr[1], geo_tr[0]);
+    const px_bl = latLonToPixels(geo_bl[1], geo_bl[0]);
+    const px_br = latLonToPixels(geo_br[1], geo_br[0]);
 
-    const halfWidth = Math.abs(topRight.x - topLeft.x) / 2;
-    const halfHeight = Math.abs(bottomLeft.y - topLeft.y) / 2;
+    // Calculer le point central en pixels
+    const midX = (px_tl.x + px_tr.x + px_bl.x + px_br.x) / 4;
+    const midY = (px_tl.y + px_tr.y + px_bl.y + px_br.y) / 4;
 
+    // Dessiner les 4 quarts de couleur
+    ctx.beginPath();
+    ctx.moveTo(midX, midY);
+    ctx.lineTo(px_tl.x, px_tl.y);
+    ctx.lineTo(px_tr.x, px_tr.y);
+    ctx.closePath();
+    ctx.fillStyle = '#FFFF00'; // Jaune (Haut)
+    ctx.fill();
+
+    ctx.beginPath();
+    ctx.moveTo(midX, midY);
+    ctx.lineTo(px_tr.x, px_tr.y);
+    ctx.lineTo(px_br.x, px_br.y);
+    ctx.closePath();
+    ctx.fillStyle = '#0000FF'; // Bleu (Droite)
+    ctx.fill();
+
+    ctx.beginPath();
+    ctx.moveTo(midX, midY);
+    ctx.lineTo(px_br.x, px_br.y);
+    ctx.lineTo(px_bl.x, px_bl.y);
+    ctx.closePath();
+    ctx.fillStyle = '#FF0000'; // Rouge (Bas)
+    ctx.fill();
+
+    ctx.beginPath();
+    ctx.moveTo(midX, midY);
+    ctx.lineTo(px_bl.x, px_bl.y);
+    ctx.lineTo(px_tl.x, px_tl.y);
+    ctx.closePath();
+    ctx.fillStyle = '#008000'; // Vert (Gauche)
+    ctx.fill();
+
+    // Dessiner le contour du grand carré
+    ctx.beginPath();
+    ctx.moveTo(px_tl.x, px_tl.y);
+    ctx.lineTo(px_tr.x, px_tr.y);
+    ctx.lineTo(px_br.x, px_br.y);
+    ctx.lineTo(px_bl.x, px_bl.y);
+    ctx.closePath();
     ctx.strokeStyle = 'black';
     ctx.lineWidth = 1;
-    ctx.strokeRect(topLeft.x, topLeft.y, halfWidth * 2, halfHeight * 2);
-
-    ctx.fillStyle = '#FFFF00'; // Jaune
-    ctx.fillRect(topLeft.x, topLeft.y, halfWidth, halfHeight);
-
-    ctx.fillStyle = '#0000FF'; // Bleu
-    ctx.fillRect(midX, topLeft.y, halfWidth, halfHeight);
-
-    ctx.fillStyle = '#008000'; // Vert
-    ctx.fillRect(topLeft.x, midY, halfWidth, halfHeight);
-
-    ctx.fillStyle = '#FF0000'; // Rouge
-    ctx.fillRect(midX, midY, halfWidth, halfHeight);
+    ctx.stroke();
 }
