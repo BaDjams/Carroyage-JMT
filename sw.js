@@ -12,6 +12,8 @@ const urlsToCache = [
   '/',
   'index.html',
   'style.css',
+  'helpContent.js';
+  'imagetoprint.js';
   'carroyageUTM.js',
   'carroyageCado.js',
   'version.js', // IMPORTANT : On ajoute le fichier de version au cache !
