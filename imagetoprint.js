@@ -248,6 +248,28 @@ async function createFinalCanvasWithTiles(boundingBox, zoom, tileProviderUrl, on
 }
 
 /**
+ * NOUVEAU: Fonction d'assistance pour dessiner du texte avec un contour.
+ * @param {CanvasRenderingContext2D} ctx Le contexte du canevas.
+ * @param {string} text Le texte à dessiner.
+ * @param {number} x Coordonnée X du centre du texte.
+ * @param {number} y Coordonnée Y du centre du texte.
+ * @param {object} config L'objet de configuration de la grille.
+ */
+function drawLabelWithOutline(ctx, text, x, y, config) {
+    const darkColorsForWhiteOutline = ['black', 'red', 'blue', 'green', 'violet', 'brown'];
+    const outlineColor = darkColorsForWhiteOutline.includes(config.colorName) ? 'white' : 'black';
+
+    // Dessiner le contour
+    ctx.strokeStyle = outlineColor;
+    ctx.lineWidth = 3; // Épaisseur du contour
+    ctx.strokeText(text, x, y);
+
+    // Dessiner le remplissage par-dessus
+    ctx.fillStyle = config.gridColor;
+    ctx.fillText(text, x, y);
+}
+
+/**
  * Dessine la grille et tous les éléments sur le canevas final.
  */
 function drawGridAndElements(ctx, canvasInfo, zoom, config, a1CornerCoords) {
@@ -264,10 +286,6 @@ function drawGridAndElements(ctx, canvasInfo, zoom, config, a1CornerCoords) {
 
     ctx.strokeStyle = config.gridColor;
     ctx.lineWidth = 2;
-    ctx.fillStyle = config.gridColor;
-    ctx.font = 'bold 30px Arial';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
 
     const startColNum = letterToNumber(config.startCol);
     const endColNum = letterToNumber(config.endCol);
@@ -292,18 +310,23 @@ function drawGridAndElements(ctx, canvasInfo, zoom, config, a1CornerCoords) {
         ctx.beginPath(); ctx.moveTo(startPixels.x, startPixels.y); ctx.lineTo(endPixels.x, endPixels.y); ctx.stroke();
     }
 
+    // Préparer le style pour les étiquettes
+    ctx.font = 'bold 30px Arial';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+
     // Étiquettes Lettres
     for (let i = startColNum; i <= endColNum; i++) {
         const labelPoint = calculateAndRotatePoint(i + 0.5, startRowNum - 0.5, config, a1Lat, a1Lon);
         const labelPixels = latLonToPixels(labelPoint[1], labelPoint[0]);
-        ctx.fillText(numberToLetter(i), labelPixels.x, labelPixels.y);
+        drawLabelWithOutline(ctx, numberToLetter(i), labelPixels.x, labelPixels.y, config);
     }
     
     // Étiquettes Chiffres
     for (let i = startRowNum; i <= endRowNum; i++) {
         const labelPoint = calculateAndRotatePoint(startColNum - 0.5, i + 0.5, config, a1Lat, a1Lon);
         const labelPixels = latLonToPixels(labelPoint[1], labelPoint[0]);
-        ctx.fillText(i.toString(), labelPixels.x, labelPixels.y);
+        drawLabelWithOutline(ctx, i.toString(), labelPixels.x, labelPixels.y, config);
     }
     
     drawCartouche(ctx, latLonToPixels, config, a1CornerCoords);
@@ -315,7 +338,6 @@ function drawGridAndElements(ctx, canvasInfo, zoom, config, a1CornerCoords) {
 /**
  * Dessine le cartouche d'information avec une taille et une police robustes.
  */
-// CORRECTION 1: Nouvelle logique de dimensionnement du cartouche.
 function drawCartouche(ctx, latLonToPixels, config, a1CornerCoords) {
     const [a1Lon, a1Lat] = a1CornerCoords;
     const startColNum = letterToNumber(config.startCol);
@@ -330,9 +352,9 @@ function drawCartouche(ctx, latLonToPixels, config, a1CornerCoords) {
 
     // --- Définir la taille et la police ---
     const cartoucheWidth = distanceInPixels * 4;
-    const FONT_SIZE_PX = 20; // Taille de police de base en pixels. Ajustable.
-    const PADDING_RATIO = 0.5; // Padding = 50% de la taille de la police.
-    const LINE_SPACING_RATIO = 1.3; // Interligne = 130% de la taille de la police.
+    const FONT_SIZE_PX = 20;
+    const PADDING_RATIO = 0.5;
+    const LINE_SPACING_RATIO = 1.3;
     
     const padding = FONT_SIZE_PX * PADDING_RATIO;
     const lineSpacing = FONT_SIZE_PX * LINE_SPACING_RATIO;
@@ -411,11 +433,15 @@ function drawCompass(ctx, latLonToPixels, config, a1CornerCoords) {
     ctx.fillStyle = 'red';
     ctx.fill();
 
-    ctx.fillStyle = 'black';
+    // Dessiner le "N" avec un contour blanc
     ctx.font = 'bold 18px Arial';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'bottom';
-    ctx.fillText('N', N_point.x, N_point.y + 2); 
+    ctx.strokeStyle = 'white';
+    ctx.lineWidth = 3;
+    ctx.strokeText('N', N_point.x, N_point.y + 2);
+    ctx.fillStyle = 'black';
+    ctx.fillText('N', N_point.x, N_point.y + 2);
 }
 
 /**
