@@ -37,7 +37,7 @@
         <header class="mb-6 text-center">
              <h1 id="app-title" class="text-2xl md:text-3xl font-bold mb-4 text-content">Générateur de carroyage CADO</h1>
              <div class="flex flex-wrap justify-center gap-2 mb-4">
-                 <button id="helpBtn" class="text-2xl px-3 py-1 rounded-full button-outline bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-white">?</button>
+                 <a href="help.html" target="_blank" id="helpBtn" class="text-2xl px-3 py-1 rounded-full button-outline bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-white no-underline" style="text-decoration: none;">?</a>
                  <a href="https://www.google.com/maps" target="_blank" class="px-3 py-1 button-outline bg-gray-200 hover:bg-gray-300 rounded dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-white text-sm md:text-base">Ouvrir Google Maps</a>
                  <a href="https://www.google.com/mymaps" target="_blank" class="px-3 py-1 button-outline bg-gray-200 hover:bg-gray-300 rounded dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-white text-sm md:text-base">Ouvrir Google MyMaps</a>
                  <a href="https://earth.google.com/web/" target="_blank" class="px-3 py-1 button-outline bg-gray-200 hover:bg-gray-300 rounded dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-white text-sm md:text-base">Ouvrir Google Earth</a>
@@ -141,7 +141,7 @@
                             
                             <div class="flex flex-col space-y-1">
                                 <label for="grid-name-base" class="text-sm md:text-base text-content">Nom du carroyage :</label>
-                                <input type="text" id="grid-name-base" class="input-field px-3 py-2 border rounded shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white text-base grid-parameter" value="CADO Grid">
+                                <input type="text" id="grid-name-base" class="input-field px-3 py-2 border rounded shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white text-base grid-parameter" value="">
                                 <input type="hidden" id="grid-name" value="CADO Grid">
                                 <div id="full-grid-name" class="text-sm text-secondary mt-1 overflow-auto max-h-20 border-l-2 border-blue-500 pl-2 italic">CADO Grid_20m_center_Q12_white</div>
                             </div>
@@ -385,22 +385,6 @@
             <div id="error-message" class="hidden mt-4 p-3 bg-red-100 text-red-700 rounded-lg text-center dark:bg-red-900 dark:text-red-300">
             </div>
         </main>
-        
-        <!-- Help Modal -->
-        <div id="help-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
-            <div class="card bg-white dark:bg-gray-800 rounded-lg shadow-lg max-w-2xl w-full max-h-[80vh] p-6 flex flex-col">
-                <div class="flex-shrink-0 flex justify-between items-center mb-4">
-                    <h3 class="text-xl font-semibold text-content">Aide - Convertisseurs & Générateurs de Carroyage</h3>
-                    <button id="close-help" class="text-gray-400 hover:text-gray-500 dark:text-gray-300 dark:hover:text-gray-200">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                        </svg>
-                    </button>
-                </div>
-                <!-- Le contenu scrollable est dans ce conteneur -->
-                <div id="help-content-container" class="prose dark:prose-invert max-w-none text-content space-y-4 flex-1 overflow-y-auto"></div>
-            </div>
-        </div>
     </div>
     
     <!-- Bannière de mise à jour -->
@@ -412,7 +396,6 @@
     </div>
     
     <!-- Scripts -->
-    <script src="helpContent.js"></script>
     <script src="carroyageUTM.js"></script>
     <script src="carroyageCado.js"></script>
     <script src="imagetoprint.js"></script>
@@ -430,10 +413,31 @@
             document.getElementById('help-content-container').innerHTML = HELP_CONTENT_HTML;
             initUI();
             setupEventListeners();
-            displayAppVersion(); 
+            displayAppVersion();
+            setDefaultGridName();
             registerServiceWorker(); 
         });
+        
+        function setDefaultGridName() {
+            const now = new Date();
+            const day = String(now.getDate()).padStart(2, '0');
+            const month = String(now.getMonth() + 1).padStart(2, '0'); // Les mois sont de 0 à 11
+            const year = now.getFullYear();
+            const hours = String(now.getHours()).padStart(2, '0');
+            const minutes = String(now.getMinutes()).padStart(2, '0');
 
+            const dateStr = `${day}/${month}/${year}`;
+            const timeStr = `${hours}:${minutes}`;
+
+            const defaultName = `Crise du ${dateStr} à ${timeStr}`;
+            
+            const gridNameInput = document.getElementById('grid-name-base');
+            gridNameInput.value = defaultName;
+            
+            // Simuler un événement 'input' pour déclencher la mise à jour du nom complet
+            gridNameInput.dispatchEvent(new Event('input'));
+        }
+        
         function initUI() {
             document.querySelectorAll('#color-options .color-option').forEach(option => {
                 option.addEventListener('click', function() {
@@ -545,12 +549,7 @@
             generateImageButton.addEventListener('click', generateImageToPrint);
 
             updateImageButtonState();
-            
-            const helpModal = document.getElementById('help-modal');
-            document.getElementById('helpBtn').addEventListener('click', () => helpModal.classList.remove('hidden'));
-            document.getElementById('close-help').addEventListener('click', () => helpModal.classList.add('hidden'));
-            helpModal.addEventListener('click', e => { if (e.target === helpModal) helpModal.classList.add('hidden'); });
-            
+      
             document.getElementById('generate-button').addEventListener('click', generateGrid);
             document.getElementById('generate-utm-button').addEventListener('click', generateUTMGrid);
         }
