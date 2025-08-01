@@ -4,6 +4,30 @@ const TILE_SIZE = 256;
 const MAX_ZOOM = 19;
 
 /**
+ * NOUVEAU: Fonction de conversion des coordonnées de tuile (x, y, z) en QuadKey pour Bing Maps.
+ * @param {number} x Coordonnée X de la tuile.
+ * @param {number} y Coordonnée Y de la tuile.
+ * @param {number} zoom Niveau de zoom.
+ * @returns {string} La chaîne de caractères QuadKey.
+ */
+function coordsToQuadKey(x, y, zoom) {
+    let quadKey = '';
+    for (let i = zoom; i > 0; i--) {
+        let digit = 0;
+        const mask = 1 << (i - 1);
+        if ((y & mask) !== 0) {
+            digit += 1;
+        }
+        if ((x & mask) !== 0) {
+            digit += 2;
+        }
+        quadKey += digit.toString();
+    }
+    return quadKey;
+}
+
+
+/**
  * Fonction principale qui orchestre la création de l'image.
  */
 async function generateImageToPrint() {
@@ -188,11 +212,20 @@ async function createFinalCanvasWithTiles(boundingBox, zoom, tileProviderUrl, on
 
     for (let x = nwTile.x; x <= seTile.x; x++) {
         for (let y = nwTile.y; y <= seTile.y; y++) {
-            let tileUrl = tileProviderUrl.replace('{z}', zoom);
-            if (tileUrl.includes('{y}/{x}')) {
-                tileUrl = tileUrl.replace('{y}', y).replace('{x}', x);
-            } else {
-                tileUrl = tileUrl.replace('{x}', x).replace('{y}', y);
+            let tileUrl;
+            
+            // MODIFIÉ: Ajout d'une condition pour gérer les URL de type QuadKey.
+            if (tileProviderUrl.includes('{q}')) {
+                const quadKey = coordsToQuadKey(x, y, zoom);
+                const subdomain = (x + y) % 4; // Répartit la charge sur les serveurs t0, t1, t2, t3
+                tileUrl = tileProviderUrl.replace('{q}', quadKey).replace('{s}', subdomain);
+            } else { // Logique existante pour les URL standard
+                tileUrl = tileProviderUrl.replace('{z}', zoom);
+                if (tileUrl.includes('{y}/{x}')) {
+                    tileUrl = tileUrl.replace('{y}', y).replace('{x}', x);
+                } else {
+                    tileUrl = tileUrl.replace('{x}', x).replace('{y}', y);
+                }
             }
 
             const promise = new Promise((resolve, reject) => {
@@ -293,7 +326,6 @@ function drawCartouche(ctx, latLonToPixels, config, a1CornerCoords) {
     const startColNum = letterToNumber(config.startCol);
     const endRowNum = config.endRow;
 
-    // Positionnement dynamique en haut à gauche de la grille visible.
     const geo_tl = calculateAndRotatePoint(startColNum + 0.1, endRowNum + 0.9, config, a1Lat, a1Lon);
     const geo_br = calculateAndRotatePoint(startColNum + 3.5, endRowNum - 0.5, config, a1Lat, a1Lon);
     
@@ -302,21 +334,15 @@ function drawCartouche(ctx, latLonToPixels, config, a1CornerCoords) {
     const width = bottomRight.x - topLeft.x;
     const cartouchePixelHeight = bottomRight.y - topLeft.y;
 
-    // --- LOGIQUE DE POLICE DYNAMIQUE ---
-    // On veut 4 lignes dans le cartouche (3 pleines, 1 vide).
     const availableHeightPerLine = cartouchePixelHeight / 4;
-    const FONT_SIZE_RATIO_OF_LINE_HEIGHT = 0.75; // La police occupe 75% de la hauteur de sa ligne.
+    const FONT_SIZE_RATIO_OF_LINE_HEIGHT = 0.75;
     let fontSize = Math.floor(availableHeightPerLine * FONT_SIZE_RATIO_OF_LINE_HEIGHT);
 
-    // Brider la taille pour éviter des valeurs extrêmes.
     fontSize = Math.max(10, Math.min(fontSize, 28));
 
-    // L'espacement entre les lignes est la hauteur totale disponible par ligne.
     const lineSpacing = availableHeightPerLine;
-    // Le padding est une petite fraction de cette hauteur.
     const padding = availableHeightPerLine * 0.15;
 
-    // --- DESSIN DU CARTOUCHE ---
     ctx.fillStyle = 'white';
     ctx.fillRect(topLeft.x, topLeft.y, width, cartouchePixelHeight);
     ctx.strokeStyle = 'black';
