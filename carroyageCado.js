@@ -51,18 +51,11 @@ function decimalToDMS(decimal, type) {
 
 // Fonction centrale de mise à jour depuis le format Décimal
 function updateAllFromDecimal(lat, lon) {
-    // Mise à jour DMS
     document.getElementById('dms-coords').value = `${decimalToDMS(lat, 'lat')} ${decimalToDMS(lon, 'lng')}`;
-    
-    // Mise à jour Mercator
     document.getElementById('mercator-coords').value = `${lngToMercatorX(lon).toFixed(2)}, ${latToMercatorY(lat).toFixed(2)}`;
-    
-    // Mise à jour Plus Code
     if (isPlusCodeLibraryAvailable()) {
         document.getElementById('plus-code').value = new OpenLocationCode().encode(lat, lon);
     }
-
-    // NOUVEAU : Mise à jour UTM
     const utm = WGS84_to_UTM.fromLatLon(lat, lon);
     document.getElementById('utm-coords').value = `${utm.zoneNumber} ${utm.zoneLetter} ${utm.easting.toFixed(0)} ${utm.northing.toFixed(0)}`;
 }
@@ -118,7 +111,6 @@ function convertFromMercator() {
     }
 }
 
-// NOUVELLE FONCTION
 function convertFromUTM() {
     try {
         const utmStr = document.getElementById('utm-coords').value.trim();
@@ -149,19 +141,15 @@ async function convertFromPlusCode() { /* Stub */ }
 
 function isPlusCodeLibraryAvailable() { return typeof OpenLocationCode === 'function'; }
 
-// Fonction "Voir sur Maps" améliorée pour gérer tous les types
 function viewOnMaps(type) {
     try {
         let lat, lon;
         
-        // Obtenir les coordonnées Lat/Lon, quel que soit le type d'entrée
         if (type === 'decimal') {
             const coordsStr = document.getElementById('decimal-coords').value;
             if (!coordsStr) throw new Error("Coordonnées non définies.");
             [lat, lon] = coordsStr.split(',').map(parseFloat);
         } else {
-            // Pour les autres types, on force la conversion pour obtenir du décimal
-            // C'est un moyen simple de ne pas dupliquer la logique de parsing
             if (type === 'dms') convertFromDMS();
             else if (type === 'mercator') convertFromMercator();
             else if (type === 'utm') convertFromUTM();
@@ -220,13 +208,11 @@ async function generateGrid() {
         const [lat, lon] = decimalCoords.split(",").map(c => parseFloat(c.trim()));
         if (isNaN(lat) || isNaN(lon)) throw new Error("Coordonnées décimales invalides.");
 
-        // --- CORRECTION BUG 1 : Mise à jour du nom AVANT tout ---
         updateDynamicGridName();
         
         const config = getGridConfiguration(lat, lon);
         const gridData = calculateGridData(config);
 
-        // Ajout de l'origine au nom du fichier final
         const originCoords = gridData.originPointPlacemark.coordinates;
         const originString = `_origine=${originCoords[1].toFixed(6)},${originCoords[0].toFixed(6)}`;
         config.gridName += originString;
@@ -240,29 +226,30 @@ async function generateGrid() {
             case "KMZ":
                 const kmlContent = generateKML(config, gridData);
                 if (fileFormat === "KMZ") {
-                    fileBlob = await generateKMZ(config, gridData, kmlContent);
-                    fileName = `${config.gridName}.kmz`;
+                    // CORRECTION : Le type MIME est maintenant passé à la fonction de génération
                     mimeType = "application/vnd.google-earth.kmz";
+                    fileBlob = await generateKMZ(config, gridData, kmlContent, mimeType);
+                    fileName = `${config.gridName}.kmz`;
                 } else {
-                    fileBlob = new Blob([kmlContent], { type: "application/vnd.google-earth.kml+xml" });
-                    fileName = `${config.gridName}.kml`;
                     mimeType = "application/vnd.google-earth.kml+xml";
+                    fileBlob = new Blob([kmlContent], { type: mimeType });
+                    fileName = `${config.gridName}.kml`;
                 }
                 break;
             case "GeoJSON":
-                fileBlob = new Blob([generateGeoJSON(config, gridData)], { type: "application/geo+json" });
-                fileName = `${config.gridName}.geojson`;
                 mimeType = "application/geo+json";
+                fileBlob = new Blob([generateGeoJSON(config, gridData)], { type: mimeType });
+                fileName = `${config.gridName}.geojson`;
                 break;
             case "GPX":
-                fileBlob = new Blob([generateGPX(config, gridData)], { type: "application/gpx+xml" });
-                fileName = `${config.gridName}.gpx`;
                 mimeType = "application/gpx+xml";
+                fileBlob = new Blob([generateGPX(config, gridData)], { type: mimeType });
+                fileName = `${config.gridName}.gpx`;
                 break;
             default:
                 throw new Error("Format de sortie non supporté.");
         }
-        downloadFile(fileBlob, fileName, mimeType);
+        downloadFile(fileBlob, fileName);
     } catch (error) {
         console.error("Error generating CADO grid:", error);
         showError(error.message);
@@ -286,13 +273,12 @@ function getGridConfiguration(lat, lon) {
     if (gridOption === 'default') {
         const gridType = document.querySelector('input[name="grid-type"]:checked').value;
         switch (gridType) {
-            // MODIFICATION: Ajout du cas Q12
             case 'Q12': startRow = 1; endRow = 12; startCol = 'A'; endCol = 'Q'; break;
             case 'Z26': startRow = 1; endRow = 26; startCol = 'A'; endCol = 'Z'; break;
             case 'Z14': startRow = 1; endRow = 14; startCol = 'A'; endCol = 'Z'; break;
             case 'Z18': startRow = 1; endRow = 18; startCol = 'A'; endCol = 'Z'; break;
             case 'Q9':  startRow = 1; endRow = 9;  startCol = 'A'; endCol = 'Q'; break;
-            default:    startRow = 1; endRow = 12; startCol = 'A'; endCol = 'Q'; // Défaut sur Q12
+            default:    startRow = 1; endRow = 12; startCol = 'A'; endCol = 'Q';
         }
     } else {
         startRow = parseInt(document.getElementById('start-row').value);
@@ -316,9 +302,8 @@ function getGridConfiguration(lat, lon) {
 
 
 const getOffsetInCells = (n) => {
-    if (n > 0) return n - 1; // Cellule 1 est à l'offset 0, Cellule 2 à 1...
-    return n; // Cellule -1 est à -1, et la LIGNE 0 est à l'offset 0 (bord gauche de la case 1) ce qui est faux.
-              // La logique est dans calculateAndRotatePoint
+    if (n > 0) return n - 1;
+    return n;
 };
 const getNextIndex = (n) => (n === -1 ? 1 : n + 1);
 
@@ -333,7 +318,7 @@ function calculateGridData(config) {
     if (config.referencePointChoice === 'origin') {
         a1CornerLat = refLat;
         a1CornerLon = refLon;
-    } else { // 'center'
+    } else {
         const startColNum = letterToNumber(config.startCol);
         const endColNum = letterToNumber(config.endCol);
         const startRowNum = config.startRow;
@@ -344,10 +329,10 @@ function calculateGridData(config) {
             const numCells = indices.length;
             const startOffset = getOffsetInCells(indices[0]);
 
-            if (numCells % 2 === 0) { // Even number of cells
+            if (numCells % 2 === 0) {
                 const middleIndex = numCells / 2;
                 return startOffset + middleIndex;
-            } else { // Odd number of cells
+            } else {
                 const middleIndex = Math.floor(numCells / 2);
                 return startOffset + middleIndex + 0.5;
             }
@@ -410,9 +395,6 @@ function calculateAndRotatePoint(colNumber, rowNumber, config, a1Lat, a1Lon) {
     const metersToLatDegrees = (meters) => meters / 111320;
     const metersToLonDegrees = (meters, lat) => meters / (111320 * Math.cos(toRad(lat)));
 
-    // CORRECTION CRITIQUE : Logique de décalage revue pour être mathématiquement juste.
-    // Il n'y a pas de "case 0". La position d'un index est continue.
-    // L'offset pour un index N positif est (N-1). Pour un index N non-positif, c'est N.
     const xOffsetMeters = (colNumber > 0 ? colNumber - 1 : colNumber) * config.scale;
     const yOffsetMeters = (rowNumber > 0 ? rowNumber - 1 : rowNumber) * config.scale;
 
@@ -529,12 +511,13 @@ function generateKML(config, gridData) {
         kml += '</Folder>';
     }
     
-    kml += '</Folder>'; // **BUG CORRIGÉ ICI** : Fermeture du dossier principal "Carroyage CADO"
+    kml += '</Folder>';
     kml += '</Document></kml>';
     return kml;
 }
 
-async function generateKMZ(config, gridData, kmlContent) {
+// CORRECTION : La fonction accepte et utilise le type MIME pour la génération du Blob.
+async function generateKMZ(config, gridData, kmlContent, mimeType) {
     const zip = new JSZip();
     zip.file("doc.kml", kmlContent);
     if (config.includePoints) {
@@ -547,7 +530,7 @@ async function generateKMZ(config, gridData, kmlContent) {
             }
         }
     }
-    return await zip.generateAsync({ type: "blob" });
+    return await zip.generateAsync({ type: "blob", mimeType: mimeType });
 }
 
 function generateGeoJSON(config, gridData) {
@@ -570,7 +553,6 @@ function generateGeoJSON(config, gridData) {
 }
 
 function generateGPX(config, gridData) {
-    // **BUG CORRIGÉ ICI** : Utilisation de guillemets simples et accès correct aux coordonnées [lon, lat]
     let gpx = '<?xml version="1.0" encoding="UTF-8"?><gpx version="1.1" creator="CADO"><metadata><name>' + config.gridName + '</name></metadata>';
     gpx += '<wpt lat="' + gridData.originPointPlacemark.coordinates[1] + '" lon="' + gridData.originPointPlacemark.coordinates[0] + '"><name>' + gridData.originPointPlacemark.name + '</name></wpt>';
     if (config.includePoints) {
@@ -597,30 +579,13 @@ function generateGPX(config, gridData) {
 // --- FONCTIONS UTILITAIRES PARTAGÉES ---
 
 function downloadFile(blob, fileName) {
-    // Cette technique utilise la création d'un lien invisible et la simulation d'un clic.
-    // C'est la méthode la plus fiable pour contrôler le nom du fichier de téléchargement
-    // sans manipuler le Blob, ce qui évite toute corruption de données.
-    // Elle résout le problème de la double extension sur Android de la manière la plus propre.
-
-    // 1. Crée une URL temporaire pointant vers notre Blob en mémoire.
     const url = window.URL.createObjectURL(blob);
-
-    // 2. Crée un élément de lien (<a>) invisible.
     const a = document.createElement('a');
     a.style.display = 'none';
     a.href = url;
-
-    // 3. L'attribut 'download' est la clé : il force le navigateur à télécharger le fichier
-    //    sous ce nom, au lieu d'essayer de naviguer vers l'URL.
     a.download = fileName;
-
-    // 4. Ajoute le lien au corps de la page.
     document.body.appendChild(a);
-
-    // 5. Simule un clic sur le lien pour lancer le téléchargement.
     a.click();
-
-    // 6. Nettoie en révoquant l'URL temporaire et en supprimant le lien.
     window.URL.revokeObjectURL(url);
     document.body.removeChild(a);
 }
@@ -640,5 +605,5 @@ function rgbToKmlColor(hex, opacity) {
     const g = parseInt(hex.slice(3, 5), 16).toString(16).padStart(2, '0');
     const b = parseInt(hex.slice(5, 7), 16).toString(16).padStart(2, '0');
     const a = Math.floor(255 * opacity).toString(16).padStart(2, '0');
-    return `${a}${b}${g}${r}`; // KML color is aabbggrr
+    return `${a}${b}${g}${r}`;
 }
