@@ -1,6 +1,5 @@
 // imagetoprint.js
 
-const TILE_PROVIDER_URL_DUMMY = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png'; // N'est plus utilisé directement
 const TILE_SIZE = 256;
 const MAX_ZOOM = 19;
 
@@ -87,21 +86,23 @@ function getA1CornerCoordsForPrint(config) {
 function getBoundingBoxForPrint(config, a1CornerCoords) {
     const [a1Lon, a1Lat] = a1CornerCoords;
     
-    // CORRECTION 1: Ajustement correct des marges.
-    // Les 'row' CADO augmentent du Sud vers le Nord.
-    // - Marge HAUT : row = -1.5 (au nord des étiquettes à row=0.5) -> INCHANGÉ
-    // - Marge BAS : row = 19.5 (au sud de la ligne de grille à row=19) -> Réduit à 19.0 pour moins de marge en bas.
-    // - Marge GAUCHE : col = -1.5 (à gauche des étiquettes à col=0.5) -> Réduit à -1.0 pour moins de marge à gauche.
-    // - Marge DROITE : col = 27.5 (à droite de la dernière ligne de grille à col=27) -> INCHANGÉ
+    // CORRECTION 1: Logique de rognage revue.
+    // L'axe des 'row' de la grille est inversé par rapport à l'axe Y du dessin.
+    // Pour avoir une marge en HAUT (au-dessus des étiquettes à row=0.5), il faut une petite valeur de row.
+    // Pour avoir PEU de marge en BAS (sous la ligne à row=19), il faut une grande valeur de row.
     const corners = [
-        { col: -1.0, row: -1.5 }, { col: 27.5, row: -1.5 },
-        { col: -1.0, row: 19.0 }, { col: 27.5, row: 19.0 }
+        { col: -1.0, row: -1.5 }, // Marge Gauche et Marge Haute
+        { col: 27.5, row: -1.5 }, // Marge Droite et Marge Haute
+        { col: -1.0, row: 19.0 }, // Marge Gauche et Marge Basse
+        { col: 27.5, row: 19.0 }  // Marge Droite et Marge Basse
     ];
     
     const geoCorners = corners.map(corner => {
         const point = calculateAndRotatePoint(corner.col, corner.row, config, a1Lat, a1Lon);
         return { lon: point[0], lat: point[1] };
     });
+
+    // On s'assure de prendre le min/max des latitudes et longitudes pour avoir une vraie bounding box rectangulaire.
     const north = Math.max(...geoCorners.map(c => c.lat));
     const south = Math.min(...geoCorners.map(c => c.lat));
     const east = Math.max(...geoCorners.map(c => c.lon));
@@ -275,7 +276,6 @@ function drawGridAndElements(ctx, canvasInfo, zoom, config, a1CornerCoords) {
 function drawCartouche(ctx, latLonToPixels, config, a1CornerCoords) {
     const [a1Lon, a1Lat] = a1CornerCoords;
     
-    // Positionne le cartouche dans le coin supérieur gauche de la grille
     const geo_tl = calculateAndRotatePoint(1.1, 18.9, config, a1Lat, a1Lon);
     const geo_br = calculateAndRotatePoint(4.5, 17.5, config, a1Lat, a1Lon);
     
@@ -284,7 +284,6 @@ function drawCartouche(ctx, latLonToPixels, config, a1CornerCoords) {
     const width = bottomRight.x - topLeft.x;
     const height = bottomRight.y - topLeft.y;
 
-    // CORRECTION 3: Fond blanc opaque
     ctx.fillStyle = 'white';
     ctx.fillRect(topLeft.x, topLeft.y, width, height);
     ctx.strokeStyle = 'black';
@@ -292,13 +291,11 @@ function drawCartouche(ctx, latLonToPixels, config, a1CornerCoords) {
     ctx.strokeRect(topLeft.x, topLeft.y, width, height);
 
     ctx.fillStyle = 'black';
-    // CORRECTION 3: Police agrandie
     ctx.font = '22px Arial';
     ctx.textAlign = 'left';
     ctx.textBaseline = 'top';
     
     let textY = topLeft.y + 8;
-    // CORRECTION 3: Espacement des lignes augmenté
     const lineSpacing = 28;
 
     if (config.referencePointChoice === 'center') {
@@ -356,72 +353,85 @@ function drawCompass(ctx, latLonToPixels, config, a1CornerCoords) {
 /**
  * Dessine la clé de subdivision en 4 couleurs.
  */
-// CORRECTION 2: La clé est maintenant dessinée dans la cellule A1.
+// CORRECTION 2 & 3: Fonction réécrite pour dessiner 4 carrés avec transparence.
 function drawSubdivisionKey(ctx, latLonToPixels, config, a1CornerCoords) {
     const [a1Lon, a1Lat] = a1CornerCoords;
 
-    // Définir les 4 coins géographiques de la cellule A1.
-    // Une cellule (ex: A1) va de col=1 à col=2, et de row=1 à row=2.
-    const geo_bl = calculateAndRotatePoint(1, 1, config, a1Lat, a1Lon); // Bottom-Left
-    const geo_br = calculateAndRotatePoint(2, 1, config, a1Lat, a1Lon); // Bottom-Right
-    const geo_tl = calculateAndRotatePoint(1, 2, config, a1Lat, a1Lon); // Top-Left
-    const geo_tr = calculateAndRotatePoint(2, 2, config, a1Lat, a1Lon); // Top-Right
+    // Définir les 5 points géographiques clés de la cellule A1 (les 4 coins et le centre)
+    const geo_bl = calculateAndRotatePoint(1, 1, config, a1Lat, a1Lon);       // Bottom-Left
+    const geo_br = calculateAndRotatePoint(2, 1, config, a1Lat, a1Lon);       // Bottom-Right
+    const geo_tl = calculateAndRotatePoint(1, 2, config, a1Lat, a1Lon);       // Top-Left
+    const geo_tr = calculateAndRotatePoint(2, 2, config, a1Lat, a1Lon);       // Top-Right
+    const geo_center = calculateAndRotatePoint(1.5, 1.5, config, a1Lat, a1Lon); // Center
 
-    // Convertir ces 4 points en pixels sur le canevas
+    // Calculer les points intermédiaires sur les arêtes
+    const geo_top_mid = calculateAndRotatePoint(1.5, 2, config, a1Lat, a1Lon);
+    const geo_bot_mid = calculateAndRotatePoint(1.5, 1, config, a1Lat, a1Lon);
+    const geo_left_mid = calculateAndRotatePoint(1, 1.5, config, a1Lat, a1Lon);
+    const geo_right_mid = calculateAndRotatePoint(2, 1.5, config, a1Lat, a1Lon);
+
+    // Convertir tous ces points en pixels sur le canevas
     const px_bl = latLonToPixels(geo_bl[1], geo_bl[0]);
     const px_tl = latLonToPixels(geo_tl[1], geo_tl[0]);
     const px_tr = latLonToPixels(geo_tr[1], geo_tr[0]);
     const px_br = latLonToPixels(geo_br[1], geo_br[0]);
+    const px_center = latLonToPixels(geo_center[1], geo_center[0]);
+    const px_top_mid = latLonToPixels(geo_top_mid[1], geo_top_mid[0]);
+    const px_bot_mid = latLonToPixels(geo_bot_mid[1], geo_bot_mid[0]);
+    const px_left_mid = latLonToPixels(geo_left_mid[1], geo_left_mid[0]);
+    const px_right_mid = latLonToPixels(geo_right_mid[1], geo_right_mid[0]);
+    
+    const opacity = 0.7; // 70% d'opacité
 
-    // Calculer le point central de la cellule A1 en pixels
-    const midX = (px_tl.x + px_tr.x + px_bl.x + px_br.x) / 4;
-    const midY = (px_tl.y + px_tr.y + px_bl.y + px_br.y) / 4;
-
-    // Dessiner les 4 quarts de couleur
+    // Dessiner les 4 petits carrés (quadrilatères)
     // Haut-gauche (Jaune)
+    ctx.fillStyle = `rgba(255, 255, 0, ${opacity})`;
     ctx.beginPath();
-    ctx.moveTo(midX, midY);
-    ctx.lineTo(px_tl.x, px_tl.y);
-    ctx.lineTo(px_bl.x, px_bl.y); // Changé pour dessiner un triangle correct
+    ctx.moveTo(px_tl.x, px_tl.y);
+    ctx.lineTo(px_top_mid.x, px_top_mid.y);
+    ctx.lineTo(px_center.x, px_center.y);
+    ctx.lineTo(px_left_mid.x, px_left_mid.y);
     ctx.closePath();
-    ctx.fillStyle = '#FFFF00'; // Jaune
     ctx.fill();
 
     // Haut-droit (Bleu)
+    ctx.fillStyle = `rgba(0, 0, 255, ${opacity})`;
     ctx.beginPath();
-    ctx.moveTo(midX, midY);
+    ctx.moveTo(px_top_mid.x, px_top_mid.y);
     ctx.lineTo(px_tr.x, px_tr.y);
-    ctx.lineTo(px_tl.x, px_tl.y); // Changé
+    ctx.lineTo(px_right_mid.x, px_right_mid.y);
+    ctx.lineTo(px_center.x, px_center.y);
     ctx.closePath();
-    ctx.fillStyle = '#0000FF'; // Bleu
     ctx.fill();
 
     // Bas-gauche (Vert)
+    ctx.fillStyle = `rgba(0, 128, 0, ${opacity})`;
     ctx.beginPath();
-    ctx.moveTo(midX, midY);
+    ctx.moveTo(px_left_mid.x, px_left_mid.y);
+    ctx.lineTo(px_center.x, px_center.y);
+    ctx.lineTo(px_bot_mid.x, px_bot_mid.y);
     ctx.lineTo(px_bl.x, px_bl.y);
-    ctx.lineTo(px_br.x, px_br.y); // Changé
     ctx.closePath();
-    ctx.fillStyle = '#008000'; // Vert
     ctx.fill();
     
     // Bas-droit (Rouge)
+    ctx.fillStyle = `rgba(255, 0, 0, ${opacity})`;
     ctx.beginPath();
-    ctx.moveTo(midX, midY);
+    ctx.moveTo(px_center.x, px_center.y);
+    ctx.lineTo(px_right_mid.x, px_right_mid.y);
     ctx.lineTo(px_br.x, px_br.y);
-    ctx.lineTo(px_tr.x, px_tr.y); // Changé
+    ctx.lineTo(px_bot_mid.x, px_bot_mid.y);
     ctx.closePath();
-    ctx.fillStyle = '#FF0000'; // Rouge
     ctx.fill();
 
-    // Dessiner le contour de la cellule A1 par-dessus pour délimiter
+    // Redessiner le contour complet de la cellule A1 en noir
+    ctx.strokeStyle = 'black';
+    ctx.lineWidth = 1;
     ctx.beginPath();
     ctx.moveTo(px_tl.x, px_tl.y);
     ctx.lineTo(px_tr.x, px_tr.y);
     ctx.lineTo(px_br.x, px_br.y);
     ctx.lineTo(px_bl.x, px_bl.y);
     ctx.closePath();
-    ctx.strokeStyle = 'black';
-    ctx.lineWidth = 1;
     ctx.stroke();
 }
