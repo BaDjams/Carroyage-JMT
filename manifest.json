@@ -1,0 +1,21 @@
+{
+  "name": "CADO Grid Generator",
+  "short_name": "CadoGrid",
+  "description": "A powerful tool to generate CADO and UTM grid overlays for KML, KMZ, and GeoJSON.",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#181818",
+  "theme_color": "#5D5CDE",
+  "icons": [
+    {
+      "src": "icons/icon-192x192.png",
+      "type": "image/png",
+      "sizes": "192x192"
+    },
+    {
+      "src": "icons/icon-512x512.png",
+      "type": "image/png",
+      "sizes": "512x512"
+    }
+  ]
+}
