@@ -37,13 +37,13 @@ const MAP_LAYERS = [
         "layers": [
             // Couche 1: Les images satellites (dessinées en premier)
             {
-                "url": "https://wxs.ign.fr/VOTRE_CLE_API/geoportail/wmts?layer=ORTHOIMAGERY.ORTHOPHOTOS&style=normal&tilematrixset=PM&Service=WMTS&Request=GetTile&Version=1.0.0&Format=image/jpeg&TileMatrix={z}&TileCol={x}&TileRow={y}",
+                "url": "https://wxs.ign.fr/geoportail/wmts?layer=ORTHOIMAGERY.ORTHOPHOTOS&style=normal&tilematrixset=PM&Service=WMTS&Request=GetTile&Version=1.0.0&Format=image/jpeg&TileMatrix={z}&TileCol={x}&TileRow={y}",
                 "type": "xyz",
                 "attribution": "IGN-F/Geoportail"
             },
             // Couche 2: Les routes et étiquettes (dessinées par-dessus)
             {
-                "url": "https://wxs.ign.fr/VOTRE_CLE_API/geoportail/wmts?layer=GEOGRAPHICALGRIDSYSTEMS.PLANIGNV2&style=normal&tilematrixset=PM&Service=WMTS&Request=GetTile&Version=1.0.0&Format=image/png&TileMatrix={z}&TileCol={x}&TileRow={y}",
+                "url": "https://wxs.ign.fr/geoportail/wmts?layer=GEOGRAPHICALGRIDSYSTEMS.PLANIGNV2&style=normal&tilematrixset=PM&Service=WMTS&Request=GetTile&Version=1.0.0&Format=image/png&TileMatrix={z}&TileCol={x}&TileRow={y}",
                 "type": "xyz",
                 "attribution": "IGN-F/Geoportail"
             }
