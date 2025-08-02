@@ -41,11 +41,16 @@ async function generateImageToPrint() {
         const tileProviderUrl = document.getElementById('map-tile-provider').value;
 
         // On récupère le nom de base avant qu'il ne soit modifié pour l'export KMZ.
-        const gridNameBase = document.getElementById('grid-name-base').value || 'CADO Grid';
         const config = getGridConfiguration(
             parseFloat(coordsStr.split(',')[0]),
             parseFloat(coordsStr.split(',')[1])
         );
+        const gridNameBase = document.getElementById('grid-name-base').value || 'CADO Grid';
+        const selectedMapId = document.getElementById('map-tile-provider').value;
+        const mapConfig = MAP_LAYERS.find(m => m.id === selectedMapId);
+        if (!mapConfig) {
+            throw new Error("Configuration de la carte non trouvée !");
+        }
         config.gridNameBase = gridNameBase; // Ajout du nom de base à la config pour le cartouche.
         config.includeGrid = true;
         config.includePoints = false;
@@ -57,7 +62,7 @@ async function generateImageToPrint() {
         console.log(`Zoom optimal calculé pour grille ${config.endCol}${config.endRow}: ${zoomLevel}`);
 
         loadingMessage.textContent = "Téléchargement des fonds de carte (0%)...";
-        const { finalCanvas, canvasInfo } = await createFinalCanvasWithTiles(boundingBox, zoomLevel, tileProviderUrl, (progress) => {
+        const { finalCanvas, canvasInfo } = await createFinalCanvasWithLayers(boundingBox, zoomLevel, mapConfig, (progress) => {
             loadingMessage.textContent = `Téléchargement des fonds de carte (${progress.toFixed(0)}%)...`;
         });
 
@@ -190,7 +195,7 @@ function latLonToTileNumbers(lat, lon, zoom) {
 /**
  * Crée le canevas final et y assemble les tuiles.
  */
-async function createFinalCanvasWithTiles(boundingBox, zoom, tileProviderUrl, onProgress) {
+async function createFinalCanvasWithLayers(boundingBox, zoom, mapConfig, onProgress) {
     const nwPixel = latLonToWorldPixels(boundingBox.north, boundingBox.west, zoom);
     const sePixel = latLonToWorldPixels(boundingBox.south, boundingBox.east, zoom);
     const canvasWidth = Math.abs(sePixel.x - nwPixel.x);
@@ -204,54 +209,71 @@ async function createFinalCanvasWithTiles(boundingBox, zoom, tileProviderUrl, on
     const nwTile = latLonToTileNumbers(boundingBox.north, boundingBox.west, zoom);
     const seTile = latLonToTileNumbers(boundingBox.south, boundingBox.east, zoom);
 
-    const totalTiles = (seTile.x - nwTile.x + 1) * (seTile.y - nwTile.y + 1);
-    if (totalTiles <= 0 || totalTiles > 1000) {
-        throw new Error(`Nombre de tuiles à télécharger invalide ou trop élevé (${totalTiles}).`);
-    }
-
+    let totalTilesToDownload = 0;
     let downloadedCount = 0;
-    const tilePromises = [];
+    const allTilePromises = [];
 
-    for (let x = nwTile.x; x <= seTile.x; x++) {
-        for (let y = nwTile.y; y <= seTile.y; y++) {
-            let tileUrl;
-            
-            if (tileProviderUrl.includes('{q}')) {
-                const quadKey = coordsToQuadKey(x, y, zoom);
-                const subdomain = (x + y) % 4;
-                tileUrl = tileProviderUrl.replace('{q}', quadKey).replace('{s}', subdomain);
-            } else {
-                tileUrl = tileProviderUrl.replace('{z}', zoom);
-                if (tileUrl.includes('{y}/{x}')) {
-                    tileUrl = tileUrl.replace('{y}', y).replace('{x}', x);
-                } else {
-                    tileUrl = tileUrl.replace('{x}', x).replace('{y}', y);
+    // Boucle sur chaque couche définie dans la configuration (ex: satellite, puis routes)
+    for (const layer of mapConfig.layers) {
+        const tileProviderUrl = layer.url;
+
+        for (let x = nwTile.x; x <= seTile.x; x++) {
+            for (let y = nwTile.y; y <= seTile.y; y++) {
+                totalTilesToDownload++;
+                let tileUrl;
+                
+                // Gérer les différents types de format d'URL
+                if (layer.type === 'quadkey') {
+                    const quadKey = coordsToQuadKey(x, y, zoom);
+                    const subdomain = (x + y) % 4;
+                    tileUrl = tileProviderUrl.replace('{q}', quadKey).replace('{s}', subdomain);
+                } else if (layer.type === 'xyz_y_inverted') { // Pour Esri
+                     tileUrl = tileProviderUrl.replace('{z}', zoom).replace('{y}', y).replace('{x}', x);
+                } else { // 'xyz' standard
+                    tileUrl = tileProviderUrl.replace('{z}', zoom).replace('{x}', x).replace('{y}', y);
                 }
-            }
 
-            const promise = new Promise((resolve, reject) => {
-                const img = new Image();
-                img.crossOrigin = "Anonymous";
-                img.onload = () => {
-                    const tileX = (x * TILE_SIZE) - nwPixel.x;
-                    const tileY = (y * TILE_SIZE) - nwPixel.y;
-                    ctx.drawImage(img, tileX, tileY);
-                    downloadedCount++;
-                    onProgress((downloadedCount / totalTiles) * 100);
-                    resolve();
-                };
-                img.onerror = () => reject(new Error(`Impossible de charger la tuile: ${tileUrl}`));
-                img.src = tileUrl;
-            });
-            tilePromises.push(promise);
+                const promise = new Promise((resolve) => {
+                    const img = new Image();
+                    img.crossOrigin = "Anonymous";
+                    img.onload = () => {
+                        resolve({ img, x, y, success: true });
+                    };
+                    img.onerror = () => {
+                        console.warn(`Impossible de charger la tuile: ${tileUrl}`);
+                        resolve({ success: false }); // Résoudre même en cas d'erreur pour ne pas bloquer
+                    };
+                    img.src = tileUrl;
+                });
+                allTilePromises.push(promise);
+            }
         }
     }
 
-    await Promise.all(tilePromises);
+    // Surveiller la progression de toutes les tuiles
+    allTilePromises.forEach(p => {
+        p.then(() => {
+            downloadedCount++;
+            onProgress((downloadedCount / totalTilesToDownload) * 100);
+        });
+    });
+
+    // Attendre que toutes les tuiles de toutes les couches soient téléchargées
+    const resolvedTiles = await Promise.all(allTilePromises);
+
+    // Dessiner les tuiles sur le canevas
+    resolvedTiles.forEach(tileResult => {
+        if (tileResult.success) {
+            const tileX = (tileResult.x * TILE_SIZE) - nwPixel.x;
+            const tileY = (tileResult.y * TILE_SIZE) - nwPixel.y;
+            ctx.drawImage(tileResult.img, tileX, tileY);
+        }
+    });
     
     const canvasInfo = { north: boundingBox.north, west: boundingBox.west };
     return { finalCanvas, canvasInfo };
 }
+
 
 /**
  * Fonction d'assistance pour dessiner du texte avec un contour.
