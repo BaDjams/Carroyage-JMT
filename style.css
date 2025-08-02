@@ -1,0 +1,175 @@
+/* style.css */
+:root {
+    --primary-color: #5D5CDE;
+    --primary-color-hover: #4a49c0;
+    --light-bg: #FFFFFF;
+    --light-card-bg: #f8f9fa;
+    --light-text: #333333;
+    --light-text-secondary: #555555;
+    --light-border: #e2e8f0;
+    --light-input-bg: #f1f5f9;
+    --light-button-bg: #e9ecef;
+    --light-button-hover: #dee2e6;
+    --dark-bg: #181818;
+    --dark-card-bg: #2d2d2d;
+    --dark-text: #f1f1f1;
+    --dark-text-secondary: #d1d5db;
+    --dark-border: #4d4d4d;
+    --dark-input-bg: #3d3d3d;
+    --dark-button-bg: #3d3d3d;
+    --dark-button-hover: #4d4d4d;
+}
+
+body {
+    background-color: var(--light-bg);
+    color: var(--light-text);
+}
+
+.dark-mode {
+    background-color: var(--dark-bg);
+    color: var(--dark-text);
+}
+
+.color-option {
+    width: 30px;
+    height: 30px;
+    cursor: pointer;
+    border: 2px solid transparent;
+    border-radius: 50%;
+    transition: all 0.2s ease;
+}
+
+.color-option.selected {
+    border-color: var(--primary-color) !important;
+    box-shadow: 0 0 0 2px rgba(93, 92, 222, 0.5) !important;
+    transform: scale(1.1) !important;
+}
+
+.dark .color-option.selected {
+    border-color: var(--primary-color) !important;
+    box-shadow: 0 0 0 2px rgba(93, 92, 222, 0.8) !important;
+}
+
+.option-selected {
+    background-color: #5D5CDE !important;
+    color: white !important;
+    border-color: #5D5CDE !important;
+}
+
+input[type="radio"] {
+    display: none;
+}
+
+input[type="radio"]+span {
+    display: inline-block;
+    transition: all 0.2s ease;
+}
+
+input[type="radio"]:checked+span {
+    background-color: #5D5CDE !important;
+    color: white !important;
+    border-color: #5D5CDE !important;
+}
+
+@media (prefers-color-scheme: dark) {
+    body {
+        background-color: var(--dark-bg);
+        color: var(--dark-text);
+    }
+    .card {
+        background-color: var(--dark-card-bg) !important;
+        border-color: var(--dark-border) !important;
+    }
+    .input-field {
+        background-color: var(--dark-input-bg) !important;
+        color: var(--dark-text) !important;
+        border-color: var(--dark-border) !important;
+    }
+    .input-field::placeholder {
+        color: var(--dark-text-secondary) !important;
+    }
+    .button-outline {
+        border-color: var(--dark-border) !important;
+        color: var(--dark-text) !important;
+        background-color: var(--dark-button-bg) !important;
+    }
+    .button-outline:hover {
+        background-color: var(--dark-button-hover) !important;
+    }
+    .text-content {
+        color: var(--dark-text) !important;
+    }
+    .text-secondary {
+        color: var(--dark-text-secondary) !important;
+    }
+    .border-default {
+        border-color: var(--dark-border) !important;
+    }
+    .reset-btn {
+        background-color: var(--dark-button-bg) !important;
+        color: var(--dark-text) !important;
+    }
+    .reset-btn:hover {
+        background-color: var(--dark-button-hover) !important;
+    }
+    .loading-spinner {
+        border-color: rgba(255, 255, 255, 0.1);
+        border-left-color: var(--primary-color);
+    }
+}
+
+.loading-spinner {
+    border: 4px solid rgba(0, 0, 0, 0.1);
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    border-left-color: var(--primary-color);
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% {
+        transform: rotate(0deg);
+    }
+    100% {
+        transform: rotate(360deg);
+    }
+}
+
+.hidden {
+    display: none;
+}
+
+#update-banner {
+    position: fixed;
+    bottom: 1.5rem; /* 24px */
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: #2563eb; /* bleu */
+    color: white;
+    padding: 1rem; /* 16px */
+    border-radius: 0.5rem; /* 8px */
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    display: flex;
+    align-items: center;
+    gap: 1rem; /* 16px */
+    z-index: 50;
+}
+
+#update-banner.hidden {
+    display: none;
+}
+
+#reload-button {
+    background-color: white;
+    color: #2563eb; /* bleu */
+    font-weight: bold;
+    padding: 0.25rem 0.75rem; /* 4px 12px */
+    border-radius: 0.25rem; /* 4px */
+    border: none;
+    cursor: pointer;
+}
+
+#reload-button:hover {
+    background-color: #eff6ff; /* bleu très clair */
+}
