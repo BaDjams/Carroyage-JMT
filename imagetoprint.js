@@ -3,9 +3,6 @@
 const TILE_SIZE = 256;
 const MAX_ZOOM = 19;
 
-/**
- * Fonction de conversion des coordonnées de tuile (x, y, z) en QuadKey pour Bing Maps.
- */
 function coordsToQuadKey(x, y, zoom) {
     let quadKey = '';
     for (let i = zoom; i > 0; i--) {
@@ -23,9 +20,6 @@ function coordsToQuadKey(x, y, zoom) {
 }
 
 
-/**
- * Fonction principale qui orchestre la création de l'image.
- */
 async function generateImageToPrint() {
     const loadingIndicator = document.getElementById("loading-indicator");
     const loadingMessage = document.getElementById("loading-message");
@@ -38,22 +32,20 @@ async function generateImageToPrint() {
         const coordsStr = document.getElementById("decimal-coords").value;
         if (!coordsStr) throw new Error("Veuillez d'abord définir des coordonnées de référence.");
         
-        const tileProviderUrl = document.getElementById('map-tile-provider').value;
-
-        // On récupère le nom de base avant qu'il ne soit modifié pour l'export KMZ.
+        const gridNameBase = document.getElementById('grid-name-base').value || 'CADO Grid';
         const config = getGridConfiguration(
             parseFloat(coordsStr.split(',')[0]),
             parseFloat(coordsStr.split(',')[1])
         );
-        const gridNameBase = document.getElementById('grid-name-base').value || 'CADO Grid';
+        config.gridNameBase = gridNameBase;
+        config.includeGrid = true;
+        config.includePoints = false;
+
         const selectedMapId = document.getElementById('map-tile-provider').value;
         const mapConfig = MAP_LAYERS.find(m => m.id === selectedMapId);
         if (!mapConfig) {
             throw new Error("Configuration de la carte non trouvée !");
         }
-        config.gridNameBase = gridNameBase; // Ajout du nom de base à la config pour le cartouche.
-        config.includeGrid = true;
-        config.includePoints = false;
         
         const a1CornerCoords = getA1CornerCoordsForPrint(config);
         const boundingBox = getBoundingBoxForPrint(config, a1CornerCoords);
@@ -88,9 +80,6 @@ async function generateImageToPrint() {
     }
 }
 
-/**
- * Calcule la position de l'origine A1 de manière dynamique.
- */
 function getA1CornerCoordsForPrint(config) {
     const refLat = config.latitude;
     const refLon = config.longitude;
@@ -115,9 +104,6 @@ function getA1CornerCoordsForPrint(config) {
     }
 }
 
-/**
- * Calcule la Bounding Box de manière dynamique pour la zone à afficher.
- */
 function getBoundingBoxForPrint(config, a1CornerCoords) {
     const [a1Lon, a1Lat] = a1CornerCoords;
 
@@ -162,10 +148,6 @@ function getBoundingBoxForPrint(config, a1CornerCoords) {
     return { north: maxLat, south: minLat, east: maxLon, west: minLon };
 }
 
-
-/**
- * Calcule le niveau de zoom OSM optimal.
- */
 function calculateOptimalZoom(boundingBox) {
     const lonDiff = Math.abs(boundingBox.east - boundingBox.west);
     if (lonDiff === 0) return MAX_ZOOM;
@@ -174,7 +156,6 @@ function calculateOptimalZoom(boundingBox) {
     return Math.min(Math.floor(zoomApproximation), MAX_ZOOM);
 }
 
-// --- Fonctions utilitaires de projection ---
 function latLonToWorldPixels(lat, lon, zoom) {
     const siny = Math.sin(toRad(lat));
     const yClamped = Math.max(Math.min(siny, 0.9999), -0.9999);
@@ -192,9 +173,6 @@ function latLonToTileNumbers(lat, lon, zoom) {
     };
 }
 
-/**
- * Crée le canevas final et y assemble les tuiles.
- */
 async function createFinalCanvasWithLayers(boundingBox, zoom, mapConfig, onProgress) {
     const nwPixel = latLonToWorldPixels(boundingBox.north, boundingBox.west, zoom);
     const sePixel = latLonToWorldPixels(boundingBox.south, boundingBox.east, zoom);
@@ -210,91 +188,86 @@ async function createFinalCanvasWithLayers(boundingBox, zoom, mapConfig, onProgr
     const seTile = latLonToTileNumbers(boundingBox.south, boundingBox.east, zoom);
 
     let totalTilesToDownload = 0;
-    let downloadedCount = 0;
-    const allTilePromises = [];
+    const allLayerPromises = [];
 
-    // Boucle sur chaque couche définie dans la configuration (ex: satellite, puis routes)
     for (const layer of mapConfig.layers) {
-        const tileProviderUrl = layer.url;
-
+        const layerPromises = [];
         for (let x = nwTile.x; x <= seTile.x; x++) {
             for (let y = nwTile.y; y <= seTile.y; y++) {
                 totalTilesToDownload++;
                 let tileUrl;
                 
-                // Gérer les différents types de format d'URL
                 if (layer.type === 'quadkey') {
                     const quadKey = coordsToQuadKey(x, y, zoom);
                     const subdomain = (x + y) % 4;
-                    tileUrl = tileProviderUrl.replace('{q}', quadKey).replace('{s}', subdomain);
-                } else if (layer.type === 'xyz_y_inverted') { // Pour Esri
-                     tileUrl = tileProviderUrl.replace('{z}', zoom).replace('{y}', y).replace('{x}', x);
-                } else { // 'xyz' standard
-                    tileUrl = tileProviderUrl.replace('{z}', zoom).replace('{x}', x).replace('{y}', y);
+                    tileUrl = layer.url.replace('{q}', quadKey).replace('{s}', subdomain);
+                } else if (layer.type === 'xyz_y_inverted') {
+                     tileUrl = layer.url.replace('{z}', zoom).replace('{y}', y).replace('{x}', x);
+                } else {
+                    tileUrl = layer.url.replace('{z}', zoom).replace('{x}', x).replace('{y}', y);
                 }
 
                 const promise = new Promise((resolve) => {
                     const img = new Image();
                     img.crossOrigin = "Anonymous";
-                    img.onload = () => {
-                        resolve({ img, x, y, success: true });
-                    };
+                    img.onload = () => resolve({ img, x, y, success: true });
                     img.onerror = () => {
                         console.warn(`Impossible de charger la tuile: ${tileUrl}`);
-                        resolve({ success: false }); // Résoudre même en cas d'erreur pour ne pas bloquer
+                        resolve({ success: false });
                     };
                     img.src = tileUrl;
                 });
-                allTilePromises.push(promise);
+                layerPromises.push(promise);
             }
         }
+        allLayerPromises.push(Promise.all(layerPromises));
     }
 
-    // Surveiller la progression de toutes les tuiles
-    allTilePromises.forEach(p => {
-        p.then(() => {
-            downloadedCount++;
-            onProgress((downloadedCount / totalTilesToDownload) * 100);
+    let downloadedCount = 0;
+    const updateProgress = () => {
+        downloadedCount++;
+        onProgress((downloadedCount / totalTilesToDownload) * 100);
+    };
+
+    const resolvedLayers = await Promise.all(allLayerPromises.map(async (layerPromise) => {
+        const tiles = await layerPromise;
+        tiles.forEach(updateProgress);
+        return tiles;
+    }));
+
+    resolvedLayers.forEach(layerTiles => {
+        layerTiles.forEach(tileResult => {
+            if (tileResult.success) {
+                const tileX = (tileResult.x * TILE_SIZE) - nwPixel.x;
+                const tileY = (tileResult.y * TILE_SIZE) - nwPixel.y;
+                ctx.drawImage(tileResult.img, tileX, tileY);
+            }
         });
-    });
-
-    // Attendre que toutes les tuiles de toutes les couches soient téléchargées
-    const resolvedTiles = await Promise.all(allTilePromises);
-
-    // Dessiner les tuiles sur le canevas
-    resolvedTiles.forEach(tileResult => {
-        if (tileResult.success) {
-            const tileX = (tileResult.x * TILE_SIZE) - nwPixel.x;
-            const tileY = (tileResult.y * TILE_SIZE) - nwPixel.y;
-            ctx.drawImage(tileResult.img, tileX, tileY);
-        }
     });
     
     const canvasInfo = { north: boundingBox.north, west: boundingBox.west };
     return { finalCanvas, canvasInfo };
 }
 
+function getPixelsForGridPoint(col, row, config, a1CornerCoords, latLonToPixels) {
+    const [a1Lon, a1Lat] = a1CornerCoords;
+    const geoPoint = calculateAndRotatePoint(col, row, config, a1Lat, a1Lon);
+    return latLonToPixels(geoPoint[1], geoPoint[0]);
+}
 
-/**
- * Fonction d'assistance pour dessiner du texte avec un contour.
- */
-function drawLabelWithOutline(ctx, text, x, y, config) {
+function drawLabelWithOutline(ctx, text, x, y, config, outlineWidth) {
     const darkColorsForWhiteOutline = ['black', 'red', 'blue', 'green', 'violet', 'brown'];
     const outlineColor = darkColorsForWhiteOutline.includes(config.colorName) ? 'white' : 'black';
 
     ctx.strokeStyle = outlineColor;
-    ctx.lineWidth = 3;
+    ctx.lineWidth = outlineWidth;
     ctx.strokeText(text, x, y);
 
     ctx.fillStyle = config.gridColor;
     ctx.fillText(text, x, y);
 }
 
-/**
- * Dessine la grille et tous les éléments sur le canevas final.
- */
 function drawGridAndElements(ctx, canvasInfo, zoom, config, a1CornerCoords) {
-    const [a1Lon, a1Lat] = a1CornerCoords;
     const originWorldPixels = latLonToWorldPixels(canvasInfo.north, canvasInfo.west, zoom);
 
     const latLonToPixels = (lat, lon) => {
@@ -313,40 +286,38 @@ function drawGridAndElements(ctx, canvasInfo, zoom, config, a1CornerCoords) {
     const startRowNum = config.startRow;
     const endRowNum = config.endRow;
 
-    // Lignes verticales
     for (let i = startColNum; i <= endColNum + 1; i++) {
-        const startPoint = calculateAndRotatePoint(i, startRowNum, config, a1Lat, a1Lon);
-        const endPoint = calculateAndRotatePoint(i, endRowNum + 1, config, a1Lat, a1Lon);
-        const startPixels = latLonToPixels(startPoint[1], startPoint[0]);
-        const endPixels = latLonToPixels(endPoint[1], endPoint[0]);
+        const startPixels = getPixelsForGridPoint(i, startRowNum, config, a1CornerCoords, latLonToPixels);
+        const endPixels = getPixelsForGridPoint(i, endRowNum + 1, config, a1CornerCoords, latLonToPixels);
         ctx.beginPath(); ctx.moveTo(startPixels.x, startPixels.y); ctx.lineTo(endPixels.x, endPixels.y); ctx.stroke();
     }
     
-    // Lignes horizontales
     for (let i = startRowNum; i <= endRowNum + 1; i++) {
-        const startPoint = calculateAndRotatePoint(startColNum, i, config, a1Lat, a1Lon);
-        const endPoint = calculateAndRotatePoint(endColNum + 1, i, config, a1Lat, a1Lon);
-        const startPixels = latLonToPixels(startPoint[1], startPoint[0]);
-        const endPixels = latLonToPixels(endPoint[1], endPoint[0]);
+        const startPixels = getPixelsForGridPoint(startColNum, i, config, a1CornerCoords, latLonToPixels);
+        const endPixels = getPixelsForGridPoint(endColNum + 1, i, config, a1CornerCoords, latLonToPixels);
         ctx.beginPath(); ctx.moveTo(startPixels.x, startPixels.y); ctx.lineTo(endPixels.x, endPixels.y); ctx.stroke();
     }
+    
+    // CORRECTION: Calcul de la taille de police dynamique
+    const p1 = getPixelsForGridPoint(1.5, 1.5, config, a1CornerCoords, latLonToPixels);
+    const p2 = getPixelsForGridPoint(2.5, 1.5, config, a1CornerCoords, latLonToPixels);
+    const cellPixelSize = Math.hypot(p2.x - p1.x, p2.y - p1.y);
+    let fontSize = Math.floor(cellPixelSize * 0.6); // 60% de la taille de la case
+    fontSize = Math.max(10, Math.min(fontSize, 40)); // Bridée entre 10px et 40px
+    const outlineWidth = fontSize * 0.1; // Contour proportionnel
 
-    ctx.font = 'bold 30px Arial';
+    ctx.font = `bold ${fontSize}px Arial`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
 
-    // Étiquettes Lettres
     for (let i = startColNum; i <= endColNum; i++) {
-        const labelPoint = calculateAndRotatePoint(i + 0.5, startRowNum - 0.5, config, a1Lat, a1Lon);
-        const labelPixels = latLonToPixels(labelPoint[1], labelPoint[0]);
-        drawLabelWithOutline(ctx, numberToLetter(i), labelPixels.x, labelPixels.y, config);
+        const labelPixels = getPixelsForGridPoint(i + 0.5, startRowNum - 0.5, config, a1CornerCoords, latLonToPixels);
+        drawLabelWithOutline(ctx, numberToLetter(i), labelPixels.x, labelPixels.y, config, outlineWidth);
     }
     
-    // Étiquettes Chiffres
     for (let i = startRowNum; i <= endRowNum; i++) {
-        const labelPoint = calculateAndRotatePoint(startColNum - 0.5, i + 0.5, config, a1Lat, a1Lon);
-        const labelPixels = latLonToPixels(labelPoint[1], labelPoint[0]);
-        drawLabelWithOutline(ctx, i.toString(), labelPixels.x, labelPixels.y, config);
+        const labelPixels = getPixelsForGridPoint(startColNum - 0.5, i + 0.5, config, a1CornerCoords, latLonToPixels);
+        drawLabelWithOutline(ctx, i.toString(), labelPixels.x, labelPixels.y, config, outlineWidth);
     }
     
     drawCartouche(ctx, latLonToPixels, config, a1CornerCoords);
@@ -355,18 +326,12 @@ function drawGridAndElements(ctx, canvasInfo, zoom, config, a1CornerCoords) {
     drawReferenceCross(ctx, latLonToPixels, config);
 }
 
-/**
- * Dessine le cartouche d'information avec une taille et une police robustes.
- */
 function drawCartouche(ctx, latLonToPixels, config, a1CornerCoords) {
-    const [a1Lon, a1Lat] = a1CornerCoords;
     const startColNum = letterToNumber(config.startCol);
-    const endRowNum = config.endRow;
+    const topRow = config.letteringDirection === 'ascending' ? config.endRow : config.startRow;
 
-    const geo_A1_center = calculateAndRotatePoint(startColNum + 0.5, endRowNum - 0.5, config, a1Lat, a1Lon);
-    const geo_B1_center = calculateAndRotatePoint(startColNum + 1.5, endRowNum - 0.5, config, a1Lat, a1Lon);
-    const px_A1_center = latLonToPixels(geo_A1_center[1], geo_A1_center[0]);
-    const px_B1_center = latLonToPixels(geo_B1_center[1], geo_B1_center[0]);
+    const px_A1_center = getPixelsForGridPoint(startColNum + 0.5, topRow - 0.5, config, a1CornerCoords, latLonToPixels);
+    const px_B1_center = getPixelsForGridPoint(startColNum + 1.5, topRow - 0.5, config, a1CornerCoords, latLonToPixels);
     const distanceInPixels = Math.hypot(px_B1_center.x - px_A1_center.x, px_B1_center.y - px_A1_center.y);
 
     const cartoucheWidth = distanceInPixels * 4;
@@ -376,11 +341,9 @@ function drawCartouche(ctx, latLonToPixels, config, a1CornerCoords) {
     
     const padding = FONT_SIZE_PX * PADDING_RATIO;
     const lineSpacing = FONT_SIZE_PX * LINE_SPACING_RATIO;
-    // CORRECTION: Hauteur calculée pour 4 lignes de texte.
     const cartoucheHeight = (lineSpacing * 4) + (padding * 2);
 
-    const geo_tl = calculateAndRotatePoint(startColNum + 0.1, endRowNum + 0.9, config, a1Lat, a1Lon);
-    const topLeft = latLonToPixels(geo_tl[1], geo_tl[0]);
+    const topLeft = getPixelsForGridPoint(startColNum + 0.1, topRow + 0.9, config, a1CornerCoords, latLonToPixels);
     
     ctx.fillStyle = 'white';
     ctx.fillRect(topLeft.x, topLeft.y, cartoucheWidth, cartoucheHeight);
@@ -391,21 +354,18 @@ function drawCartouche(ctx, latLonToPixels, config, a1CornerCoords) {
     ctx.fillStyle = 'black';
     ctx.font = `${FONT_SIZE_PX}px Arial`;
     ctx.textAlign = 'left';
-    ctx.textBaseline = 'middle'; // Aligner le texte verticalement au milieu de sa ligne
+    ctx.textBaseline = 'middle';
     
     let textY = topLeft.y + padding + (lineSpacing / 2);
 
-    // Ligne 1: Nom du carroyage
     ctx.fillText(config.gridNameBase, topLeft.x + padding, textY);
     textY += lineSpacing;
 
-    // Ligne 2: Point de référence
     if (config.referencePointChoice === 'center') {
         const crossSize = FONT_SIZE_PX * 0.4;
         const crossX = topLeft.x + padding + crossSize;
         const crossY = textY;
 
-        // Dessiner la petite croix
         ctx.strokeStyle = '#FF0000';
         ctx.lineWidth = 2;
         ctx.beginPath();
@@ -416,38 +376,36 @@ function drawCartouche(ctx, latLonToPixels, config, a1CornerCoords) {
         ctx.stroke();
 
         const refText = `Pt. Réf: ${config.latitude.toFixed(5)}, ${config.longitude.toFixed(5)}`;
-        ctx.fillStyle = 'black'; // S'assurer que le texte est noir
+        ctx.fillStyle = 'black';
         ctx.fillText(refText, crossX + crossSize + (padding / 2), textY);
         textY += lineSpacing;
     }
 
-    // Ligne 3: Origine A1
-    const originText = `Origine A1: ${a1Lat.toFixed(5)}, ${a1Lon.toFixed(5)}`;
+    const originText = `Origine A1: ${a1CornerCoords[1].toFixed(5)}, ${a1CornerCoords[0].toFixed(5)}`;
     ctx.fillText(originText, topLeft.x + padding, textY);
     textY += lineSpacing;
     
-    // Ligne 4: Échelle
     const scaleText = `Échelle: 1 case = ${config.scale}m`;
     ctx.fillText(scaleText, topLeft.x + padding, textY);
 }
 
-
-/**
- * Dessine la boussole de manière dynamique.
- */
 function drawCompass(ctx, latLonToPixels, config, a1CornerCoords) {
-    const [a1Lon, a1Lat] = a1CornerCoords;
-    
     const endColNum = letterToNumber(config.endCol);
-    const endRowNum = config.endRow;
-    const centerPoint = calculateAndRotatePoint(endColNum + 0.5, endRowNum + 0.5, config, a1Lat, a1Lon);
-    const center = latLonToPixels(centerPoint[1], centerPoint[0]);
+    const topRow = config.letteringDirection === 'ascending' ? config.endRow : config.startRow;
+
+    const center = getPixelsForGridPoint(endColNum + 0.5, topRow + 0.5, config, a1CornerCoords, latLonToPixels);
     
     const arrowLengthInMeters = config.scale * 0.35; 
-    const northGeoPoint = { lat: centerPoint[1] + (arrowLengthInMeters / 111320), lon: centerPoint[0] };
+    
+    // Pour une boussole précise, on doit calculer la destination géographique du point nord
+    const centerGeo = calculateAndRotatePoint(endColNum + 0.5, topRow + 0.5, config, a1CornerCoords.reverse()[0], a1CornerCoords.reverse()[1]);
+    const northGeoPoint = { 
+        lat: centerGeo[1] + (arrowLengthInMeters / 111320), 
+        lon: centerGeo[0] 
+    };
     const northPixel = latLonToPixels(northGeoPoint.lat, northGeoPoint.lon);
 
-    const arrowLengthInPixels = Math.abs(center.y - northPixel.y);
+    const arrowLengthInPixels = Math.hypot(northPixel.x - center.x, northPixel.y - center.y);
     const radius = arrowLengthInPixels * 1.2;
 
     ctx.beginPath();
@@ -472,36 +430,32 @@ function drawCompass(ctx, latLonToPixels, config, a1CornerCoords) {
     ctx.fillStyle = 'red';
     ctx.fill();
 
-    ctx.font = 'bold 18px Arial';
+    // Police de la boussole également dynamique
+    const p1 = getPixelsForGridPoint(1.5, 1.5, config, a1CornerCoords, latLonToPixels);
+    const p2 = getPixelsForGridPoint(2.5, 1.5, config, a1CornerCoords, latLonToPixels);
+    const cellPixelSize = Math.hypot(p2.x - p1.x, p2.y - p1.y);
+    let fontSize = Math.floor(cellPixelSize * 0.3);
+    fontSize = Math.max(12, Math.min(fontSize, 22));
+    
+    ctx.font = `bold ${fontSize}px Arial`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'bottom';
     ctx.strokeStyle = 'white';
-    ctx.lineWidth = 3;
+    ctx.lineWidth = fontSize * 0.15;
     ctx.strokeText('N', N_point.x, N_point.y + 2);
     ctx.fillStyle = 'black';
     ctx.fillText('N', N_point.x, N_point.y + 2);
 }
 
-/**
- * Dessine la clé de subdivision en 4 couleurs.
- */
 function drawSubdivisionKey(ctx, latLonToPixels, config, a1CornerCoords) {
-    const [a1Lon, a1Lat] = a1CornerCoords;
-
     const startColNum = letterToNumber(config.startCol);
-    const startRowNum = config.startRow;
+    const bottomRow = config.letteringDirection === 'ascending' ? config.startRow : config.endRow;
 
-    const geo_bl = calculateAndRotatePoint(startColNum, startRowNum, config, a1Lat, a1Lon);
-    const geo_br = calculateAndRotatePoint(startColNum + 1, startRowNum, config, a1Lat, a1Lon);
-    const geo_tl = calculateAndRotatePoint(startColNum, startRowNum + 1, config, a1Lat, a1Lon);
-    const geo_tr = calculateAndRotatePoint(startColNum + 1, startRowNum + 1, config, a1Lat, a1Lon);
-    const geo_center = calculateAndRotatePoint(startColNum + 0.5, startRowNum + 0.5, config, a1Lat, a1Lon);
-
-    const px_tl = latLonToPixels(geo_tl[1], geo_tl[0]);
-    const px_tr = latLonToPixels(geo_tr[1], geo_tr[0]);
-    const px_bl = latLonToPixels(geo_bl[1], geo_bl[0]);
-    const px_br = latLonToPixels(geo_br[1], geo_br[0]);
-    const px_center = latLonToPixels(geo_center[1], geo_center[0]);
+    const px_tl = getPixelsForGridPoint(startColNum, bottomRow + 1, config, a1CornerCoords, latLonToPixels);
+    const px_tr = getPixelsForGridPoint(startColNum + 1, bottomRow + 1, config, a1CornerCoords, latLonToPixels);
+    const px_bl = getPixelsForGridPoint(startColNum, bottomRow, config, a1CornerCoords, latLonToPixels);
+    const px_br = getPixelsForGridPoint(startColNum + 1, bottomRow, config, a1CornerCoords, latLonToPixels);
+    const px_center = getPixelsForGridPoint(startColNum + 0.5, bottomRow + 0.5, config, a1CornerCoords, latLonToPixels);
     
     const opacity = '0.7';
     
@@ -524,9 +478,6 @@ function drawSubdivisionKey(ctx, latLonToPixels, config, a1CornerCoords) {
     ctx.stroke();
 }
 
-/**
- * Dessine la croix du point de référence de l'utilisateur.
- */
 function drawReferenceCross(ctx, latLonToPixels, config) {
     const refPointCoords = { lat: config.latitude, lon: config.longitude };
     const center = latLonToPixels(refPointCoords.lat, refPointCoords.lon);
