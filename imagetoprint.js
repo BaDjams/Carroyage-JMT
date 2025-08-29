@@ -249,12 +249,18 @@ async function createFinalCanvasWithLayers(boundingBox, zoom, mapConfig, onProgr
     return { finalCanvas, canvasInfo };
 }
 
-function drawLabelWithOutline(ctx, text, x, y, config) {
+function getPixelsForGridPoint(col, row, config, a1CornerCoords, latLonToPixels) {
+    const [a1Lon, a1Lat] = a1CornerCoords;
+    const geoPoint = calculateAndRotatePoint(col, row, config, a1Lat, a1Lon);
+    return latLonToPixels(geoPoint[1], geoPoint[0]);
+}
+
+function drawLabelWithOutline(ctx, text, x, y, config, outlineWidth) {
     const darkColorsForWhiteOutline = ['black', 'red', 'blue', 'green', 'violet', 'brown'];
     const outlineColor = darkColorsForWhiteOutline.includes(config.colorName) ? 'white' : 'black';
 
     ctx.strokeStyle = outlineColor;
-    ctx.lineWidth = 3;
+    ctx.lineWidth = outlineWidth;
     ctx.strokeText(text, x, y);
 
     ctx.fillStyle = config.gridColor;
@@ -262,7 +268,6 @@ function drawLabelWithOutline(ctx, text, x, y, config) {
 }
 
 function drawGridAndElements(ctx, canvasInfo, zoom, config, a1CornerCoords) {
-    const [a1Lon, a1Lat] = a1CornerCoords;
     const originWorldPixels = latLonToWorldPixels(canvasInfo.north, canvasInfo.west, zoom);
 
     const latLonToPixels = (lat, lon) => {
@@ -282,70 +287,74 @@ function drawGridAndElements(ctx, canvasInfo, zoom, config, a1CornerCoords) {
     const endRowNum = config.endRow;
 
     for (let i = startColNum; i <= endColNum + 1; i++) {
-        const startPoint = calculateAndRotatePoint(i, startRowNum, config, a1Lat, a1Lon);
-        const endPoint = calculateAndRotatePoint(i, endRowNum + 1, config, a1Lat, a1Lon);
-        const startPixels = latLonToPixels(startPoint[1], startPoint[0]);
-        const endPixels = latLonToPixels(endPoint[1], endPoint[0]);
+        const startPixels = getPixelsForGridPoint(i, startRowNum, config, a1CornerCoords, latLonToPixels);
+        const endPixels = getPixelsForGridPoint(i, endRowNum + 1, config, a1CornerCoords, latLonToPixels);
         ctx.beginPath(); ctx.moveTo(startPixels.x, startPixels.y); ctx.lineTo(endPixels.x, endPixels.y); ctx.stroke();
     }
     
     for (let i = startRowNum; i <= endRowNum + 1; i++) {
-        const startPoint = calculateAndRotatePoint(startColNum, i, config, a1Lat, a1Lon);
-        const endPoint = calculateAndRotatePoint(endColNum + 1, i, config, a1Lat, a1Lon);
-        const startPixels = latLonToPixels(startPoint[1], startPoint[0]);
-        const endPixels = latLonToPixels(endPoint[1], endPoint[0]);
+        const startPixels = getPixelsForGridPoint(startColNum, i, config, a1CornerCoords, latLonToPixels);
+        const endPixels = getPixelsForGridPoint(endColNum + 1, i, config, a1CornerCoords, latLonToPixels);
         ctx.beginPath(); ctx.moveTo(startPixels.x, startPixels.y); ctx.lineTo(endPixels.x, endPixels.y); ctx.stroke();
     }
+    
+    // CORRECTION: La taille de police est maintenant proportionnelle à la taille du canevas
+    const baseFontSize = ctx.canvas.width / 150; // Ratio basé sur la largeur totale de l'image
+    const outlineWidth = baseFontSize * 0.1;
 
-    ctx.font = 'bold 30px Arial';
+    ctx.font = `bold ${baseFontSize}px Arial`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
 
     for (let i = startColNum; i <= endColNum; i++) {
-        const labelPoint = calculateAndRotatePoint(i + 0.5, startRowNum - 0.5, config, a1Lat, a1Lon);
-        const labelPixels = latLonToPixels(labelPoint[1], labelPoint[0]);
-        drawLabelWithOutline(ctx, numberToLetter(i), labelPixels.x, labelPixels.y, config);
+        const labelPixels = getPixelsForGridPoint(i + 0.5, startRowNum - 0.5, config, a1CornerCoords, latLonToPixels);
+        drawLabelWithOutline(ctx, numberToLetter(i), labelPixels.x, labelPixels.y, config, outlineWidth);
     }
     
     for (let i = startRowNum; i <= endRowNum; i++) {
-        const labelPoint = calculateAndRotatePoint(startColNum - 0.5, i + 0.5, config, a1Lat, a1Lon);
-        const labelPixels = latLonToPixels(labelPoint[1], labelPoint[0]);
-        drawLabelWithOutline(ctx, i.toString(), labelPixels.x, labelPixels.y, config);
+        const labelPixels = getPixelsForGridPoint(startColNum - 0.5, i + 0.5, config, a1CornerCoords, latLonToPixels);
+        drawLabelWithOutline(ctx, i.toString(), labelPixels.x, labelPixels.y, config, outlineWidth);
     }
     
-    drawCartouche(ctx, latLonToPixels, config, a1CornerCoords);
-    drawCompass(ctx, latLonToPixels, config, a1CornerCoords);
+    drawCartouche(ctx, latLonToPixels, config, a1CornerCoords, baseFontSize);
+    drawCompass(ctx, latLonToPixels, config, a1CornerCoords, baseFontSize);
     drawSubdivisionKey(ctx, latLonToPixels, config, a1CornerCoords);
     drawReferenceCross(ctx, latLonToPixels, config);
 }
 
-function drawCartouche(ctx, latLonToPixels, config, a1CornerCoords) {
-    const [a1Lon, a1Lat] = a1CornerCoords;
+function drawCartouche(ctx, latLonToPixels, config, a1CornerCoords, baseFontSize) {
     const startColNum = letterToNumber(config.startCol);
-    const endRowNum = config.endRow;
+    const topRow = config.letteringDirection === 'ascending' ? config.endRow : config.startRow;
 
-    // CORRECTION: Déterminer la "rangée du haut" logique
-    const topRow = config.letteringDirection === 'ascending' ? endRowNum : config.startRow;
-
-    const geo_A1_center = calculateAndRotatePoint(startColNum + 0.5, topRow - 0.5, config, a1Lat, a1Lon);
-    const geo_B1_center = calculateAndRotatePoint(startColNum + 1.5, topRow - 0.5, config, a1Lat, a1Lon);
-    const px_A1_center = latLonToPixels(geo_A1_center[1], geo_A1_center[0]);
-    const px_B1_center = latLonToPixels(geo_B1_center[1], geo_B1_center[0]);
-    const distanceInPixels = Math.hypot(px_B1_center.x - px_A1_center.x, px_B1_center.y - px_A1_center.y);
-
-    const cartoucheWidth = distanceInPixels * 4;
-    const FONT_SIZE_PX = 20;
-    const PADDING_RATIO = 0.5;
-    const LINE_SPACING_RATIO = 1.3;
+    // --- Définir la police et les espacements ---
+    const fontSize = baseFontSize * 0.8; // Le texte du cartouche est un peu plus petit que les étiquettes
+    ctx.font = `${fontSize}px Arial`;
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
     
-    const padding = FONT_SIZE_PX * PADDING_RATIO;
-    const lineSpacing = FONT_SIZE_PX * LINE_SPACING_RATIO;
+    const padding = fontSize * 0.5;
+    const lineSpacing = fontSize * 1.3;
     const cartoucheHeight = (lineSpacing * 4) + (padding * 2);
 
-    // CORRECTION: Utiliser topRow pour le positionnement
-    const geo_tl = calculateAndRotatePoint(startColNum + 0.1, topRow + 0.9, config, a1Lat, a1Lon);
-    const topLeft = latLonToPixels(geo_tl[1], geo_tl[0]);
+    // --- Calculer la largeur nécessaire ---
+    const [a1Lon, a1Lat] = a1CornerCoords;
+    const line1 = config.gridNameBase;
+    const line2 = `Pt. Réf: ${config.latitude.toFixed(5)}, ${config.longitude.toFixed(5)}`;
+    const line3 = `Origine A1: ${a1Lat.toFixed(5)}, ${a1Lon.toFixed(5)}`;
+    const line4 = `Échelle: 1 case = ${config.scale}m`;
     
+    const metrics1 = ctx.measureText(line1);
+    const metrics2 = ctx.measureText(line2);
+    const metrics3 = ctx.measureText(line3);
+    const metrics4 = ctx.measureText(line4);
+
+    const maxWidth = Math.max(metrics1.width, metrics2.width, metrics3.width, metrics4.width);
+    const cartoucheWidth = maxWidth + (padding * 3); // Ajouter du padding et de l'espace pour la croix
+
+    // --- Positionner le cartouche ---
+    const topLeft = getPixelsForGridPoint(startColNum + 0.1, topRow + 0.9, config, a1CornerCoords, latLonToPixels);
+    
+    // --- Dessiner le cartouche ---
     ctx.fillStyle = 'white';
     ctx.fillRect(topLeft.x, topLeft.y, cartoucheWidth, cartoucheHeight);
     ctx.strokeStyle = 'black';
@@ -353,17 +362,13 @@ function drawCartouche(ctx, latLonToPixels, config, a1CornerCoords) {
     ctx.strokeRect(topLeft.x, topLeft.y, cartoucheWidth, cartoucheHeight);
     
     ctx.fillStyle = 'black';
-    ctx.font = `${FONT_SIZE_PX}px Arial`;
-    ctx.textAlign = 'left';
-    ctx.textBaseline = 'middle';
-    
     let textY = topLeft.y + padding + (lineSpacing / 2);
 
-    ctx.fillText(config.gridNameBase, topLeft.x + padding, textY);
+    ctx.fillText(line1, topLeft.x + padding, textY);
     textY += lineSpacing;
 
     if (config.referencePointChoice === 'center') {
-        const crossSize = FONT_SIZE_PX * 0.4;
+        const crossSize = fontSize * 0.4;
         const crossX = topLeft.x + padding + crossSize;
         const crossY = textY;
 
@@ -376,36 +381,33 @@ function drawCartouche(ctx, latLonToPixels, config, a1CornerCoords) {
         ctx.lineTo(crossX, crossY + crossSize);
         ctx.stroke();
 
-        const refText = `Pt. Réf: ${config.latitude.toFixed(5)}, ${config.longitude.toFixed(5)}`;
         ctx.fillStyle = 'black';
-        ctx.fillText(refText, crossX + crossSize + (padding / 2), textY);
+        ctx.fillText(line2, crossX + crossSize + (padding / 2), textY);
         textY += lineSpacing;
     }
 
-    const originText = `Origine A1: ${a1Lat.toFixed(5)}, ${a1Lon.toFixed(5)}`;
-    ctx.fillText(originText, topLeft.x + padding, textY);
+    ctx.fillText(line3, topLeft.x + padding, textY);
     textY += lineSpacing;
     
-    const scaleText = `Échelle: 1 case = ${config.scale}m`;
-    ctx.fillText(scaleText, topLeft.x + padding, textY);
+    ctx.fillText(line4, topLeft.x + padding, textY);
 }
 
 
-function drawCompass(ctx, latLonToPixels, config, a1CornerCoords) {
-    const [a1Lon, a1Lat] = a1CornerCoords;
-    
+function drawCompass(ctx, latLonToPixels, config, a1CornerCoords, baseFontSize) {
     const endColNum = letterToNumber(config.endCol);
-    // CORRECTION: Déterminer la "rangée du haut" logique
     const topRow = config.letteringDirection === 'ascending' ? config.endRow : config.startRow;
 
-    const centerPoint = calculateAndRotatePoint(endColNum + 0.5, topRow + 0.5, config, a1Lat, a1Lon);
-    const center = latLonToPixels(centerPoint[1], centerPoint[0]);
+    const center = getPixelsForGridPoint(endColNum + 0.5, topRow + 0.5, config, a1CornerCoords, latLonToPixels);
     
     const arrowLengthInMeters = config.scale * 0.35; 
-    const northGeoPoint = { lat: centerPoint[1] + (arrowLengthInMeters / 111320), lon: centerPoint[0] };
+    const centerGeo = calculateAndRotatePoint(endColNum + 0.5, topRow + 0.5, config, a1CornerCoords.reverse()[0], a1CornerCoords.reverse()[1]);
+    const northGeoPoint = { 
+        lat: centerGeo[1] + (arrowLengthInMeters / 111320), 
+        lon: centerGeo[0] 
+    };
     const northPixel = latLonToPixels(northGeoPoint.lat, northGeoPoint.lon);
 
-    const arrowLengthInPixels = Math.abs(center.y - northPixel.y);
+    const arrowLengthInPixels = Math.hypot(northPixel.x - center.x, northPixel.y - center.y);
     const radius = arrowLengthInPixels * 1.2;
 
     ctx.beginPath();
@@ -430,34 +432,27 @@ function drawCompass(ctx, latLonToPixels, config, a1CornerCoords) {
     ctx.fillStyle = 'red';
     ctx.fill();
 
-    ctx.font = 'bold 18px Arial';
+    const fontSize = baseFontSize * 0.75;
+    
+    ctx.font = `bold ${fontSize}px Arial`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'bottom';
     ctx.strokeStyle = 'white';
-    ctx.lineWidth = 3;
+    ctx.lineWidth = fontSize * 0.15;
     ctx.strokeText('N', N_point.x, N_point.y + 2);
     ctx.fillStyle = 'black';
     ctx.fillText('N', N_point.x, N_point.y + 2);
 }
 
 function drawSubdivisionKey(ctx, latLonToPixels, config, a1CornerCoords) {
-    const [a1Lon, a1Lat] = a1CornerCoords;
-
     const startColNum = letterToNumber(config.startCol);
-    // CORRECTION: Déterminer la "rangée du bas" logique
     const bottomRow = config.letteringDirection === 'ascending' ? config.startRow : config.endRow;
 
-    const geo_bl = calculateAndRotatePoint(startColNum, bottomRow, config, a1Lat, a1Lon);
-    const geo_br = calculateAndRotatePoint(startColNum + 1, bottomRow, config, a1Lat, a1Lon);
-    const geo_tl = calculateAndRotatePoint(startColNum, bottomRow + 1, config, a1Lat, a1Lon);
-    const geo_tr = calculateAndRotatePoint(startColNum + 1, bottomRow + 1, config, a1Lat, a1Lon);
-    const geo_center = calculateAndRotatePoint(startColNum + 0.5, bottomRow + 0.5, config, a1Lat, a1Lon);
-
-    const px_tl = latLonToPixels(geo_tl[1], geo_tl[0]);
-    const px_tr = latLonToPixels(geo_tr[1], geo_tr[0]);
-    const px_bl = latLonToPixels(geo_bl[1], geo_bl[0]);
-    const px_br = latLonToPixels(geo_br[1], geo_br[0]);
-    const px_center = latLonToPixels(geo_center[1], geo_center[0]);
+    const px_tl = getPixelsForGridPoint(startColNum, bottomRow + 1, config, a1CornerCoords, latLonToPixels);
+    const px_tr = getPixelsForGridPoint(startColNum + 1, bottomRow + 1, config, a1CornerCoords, latLonToPixels);
+    const px_bl = getPixelsForGridPoint(startColNum, bottomRow, config, a1CornerCoords, latLonToPixels);
+    const px_br = getPixelsForGridPoint(startColNum + 1, bottomRow, config, a1CornerCoords, latLonToPixels);
+    const px_center = getPixelsForGridPoint(startColNum + 0.5, bottomRow + 0.5, config, a1CornerCoords, latLonToPixels);
     
     const opacity = '0.7';
     
