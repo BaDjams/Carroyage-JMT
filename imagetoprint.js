@@ -322,89 +322,94 @@ function drawGridAndElements(ctx, canvasInfo, zoom, config, a1CornerCoords) {
     drawReferenceCross(ctx, latLonToPixels, config);
 }
 
-function drawCartouche(ctx, latLonToPixels, config, a1CornerCoords, baseFontSize) {
+function drawCartouche(ctx, latLonToPixels, config, a1CornerCoords, cellWidthInPixels) {
+    const [a1Lon, a1Lat] = a1CornerCoords;
     const startColNum = letterToNumber(config.startCol);
-    const topRow = config.letteringDirection === 'ascending' ? config.endRow : config.startRow;
 
-    // --- Définir la police et les espacements ---
-    const fontSize = baseFontSize * 0.8; // Le texte du cartouche est un peu plus petit que les étiquettes
-    ctx.font = `${fontSize}px Arial`;
+    // 1. Déterminer la rangée la plus "haute" visuellement sur la carte.
+    const topRowNum = (config.letteringDirection === 'ascending') 
+        ? Math.max(config.startRow, config.endRow)+1 
+        : Math.min(config.startRow, config.endRow);
+        
+    // 2. Le point d'ancrage est le coin HAUT-GAUCHE de la cellule la plus en haut à gauche.
+    // La ligne "haute" de cette cellule est `topRowNum + 1`.
+    const anchorGeoPoint = calculateAndRotatePoint(startColNum, topRowNum, config, a1Lat, a1Lon);
+    const anchorPixels = latLonToPixels(anchorGeoPoint[1], anchorGeoPoint[0]);
+
+    const FONT_SIZE_RATIO = 0.15;
+    const FONT_SIZE_PX = Math.max(12, cellWidthInPixels * FONT_SIZE_RATIO);
+    const PADDING_RATIO = 0.5;
+    const padding = FONT_SIZE_PX * PADDING_RATIO;
+    const lineSpacing = FONT_SIZE_PX * 1.3;
+    
+    const gridNameText = config.gridNameBase;
+    const refText = (config.referencePointChoice === 'center') ? `Pt. Réf: ${config.latitude.toFixed(5)}, ${config.longitude.toFixed(5)}` : '';
+    const originText = `Origine A1: ${a1Lat.toFixed(5)}, ${a1Lon.toFixed(5)}`;
+    const scaleText = `Échelle: 1 case = ${config.scale}m`;
+    const texts = [gridNameText, originText, scaleText];
+    if (refText) texts.splice(1, 0, refText);
+
+    ctx.font = `${FONT_SIZE_PX}px Arial`;
+    const maxTextWidth = Math.max(...texts.map(text => ctx.measureText(text).width));
+    const cartoucheWidth = maxTextWidth + (padding * 2) + (refText ? (FONT_SIZE_PX * 0.8 + padding / 2) : 0);
+    const cartoucheHeight = (lineSpacing * texts.length) + (padding * 2);
+
+    // 3. On positionne le coin HAUT-GAUCHE du cartouche (cartoucheX, cartoucheY)
+    // juste à l'intérieur du coin de la cellule d'ancrage.
+    const cartoucheX = anchorPixels.x + padding;
+    const cartoucheY = anchorPixels.y + padding;
+
+    // Le reste de la fonction dessine le cartouche à cette position calculée.
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
+    ctx.fillRect(cartoucheX, cartoucheY, cartoucheWidth, cartoucheHeight);
+    ctx.strokeStyle = 'black';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(cartoucheX, cartoucheY, cartoucheWidth, cartoucheHeight);
+    
+    ctx.fillStyle = 'black';
+    ctx.font = `${FONT_SIZE_PX}px Arial`;
     ctx.textAlign = 'left';
     ctx.textBaseline = 'middle';
     
-    const padding = fontSize * 0.5;
-    const lineSpacing = fontSize * 1.3;
-    const cartoucheHeight = (lineSpacing * 4) + (padding * 2);
-
-    // --- Calculer la largeur nécessaire ---
-    const [a1Lon, a1Lat] = a1CornerCoords;
-    const line1 = config.gridNameBase;
-    const line2 = `Pt. Réf: ${config.latitude.toFixed(5)}, ${config.longitude.toFixed(5)}`;
-    const line3 = `Origine A1: ${a1Lat.toFixed(5)}, ${a1Lon.toFixed(5)}`;
-    const line4 = `Échelle: 1 case = ${config.scale}m`;
-    
-    const metrics1 = ctx.measureText(line1);
-    const metrics2 = ctx.measureText(line2);
-    const metrics3 = ctx.measureText(line3);
-    const metrics4 = ctx.measureText(line4);
-
-    const maxWidth = Math.max(metrics1.width, metrics2.width, metrics3.width, metrics4.width);
-    const cartoucheWidth = maxWidth + (padding * 3); // Ajouter du padding et de l'espace pour la croix
-
-    // --- Positionner le cartouche ---
-    const topLeft = getPixelsForGridPoint(startColNum + 0.1, topRow + 0.9, config, a1CornerCoords, latLonToPixels);
-    
-    // --- Dessiner le cartouche ---
-    ctx.fillStyle = 'white';
-    ctx.fillRect(topLeft.x, topLeft.y, cartoucheWidth, cartoucheHeight);
-    ctx.strokeStyle = 'black';
-    ctx.lineWidth = 1;
-    ctx.strokeRect(topLeft.x, topLeft.y, cartoucheWidth, cartoucheHeight);
-    
-    ctx.fillStyle = 'black';
-    let textY = topLeft.y + padding + (lineSpacing / 2);
-
-    ctx.fillText(line1, topLeft.x + padding, textY);
+    let textY = cartoucheY + padding + (lineSpacing / 2);
+    ctx.fillText(gridNameText, cartoucheX + padding, textY);
     textY += lineSpacing;
 
-    if (config.referencePointChoice === 'center') {
-        const crossSize = fontSize * 0.4;
-        const crossX = topLeft.x + padding + crossSize;
-        const crossY = textY;
-
-        ctx.strokeStyle = '#FF0000';
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.moveTo(crossX - crossSize, crossY);
-        ctx.lineTo(crossX + crossSize, crossY);
-        ctx.moveTo(crossX, crossY - crossSize);
-        ctx.lineTo(crossX, crossY + crossSize);
+    if (refText) {
+        const crossSize = FONT_SIZE_PX * 0.4;
+        const crossX = cartoucheX + padding + crossSize;
+        ctx.strokeStyle = '#FF0000'; ctx.lineWidth = 2; ctx.beginPath();
+        ctx.moveTo(crossX - crossSize, textY); ctx.lineTo(crossX + crossSize, textY);
+        ctx.moveTo(crossX, textY - crossSize); ctx.lineTo(crossX, textY + crossSize);
         ctx.stroke();
-
         ctx.fillStyle = 'black';
-        ctx.fillText(line2, crossX + crossSize + (padding / 2), textY);
+        ctx.fillText(refText, crossX + crossSize + (padding / 2), textY);
         textY += lineSpacing;
     }
 
-    ctx.fillText(line3, topLeft.x + padding, textY);
+    ctx.fillText(originText, cartoucheX + padding, textY);
     textY += lineSpacing;
-    
-    ctx.fillText(line4, topLeft.x + padding, textY);
+    ctx.fillText(scaleText, cartoucheX + padding, textY);
 }
 
 
-function drawCompass(ctx, latLonToPixels, config, a1CornerCoords, baseFontSize) {
+/**
+ * Dessine la boussole de manière dynamique.
+ */
+function drawCompass(ctx, latLonToPixels, config, a1CornerCoords, cellWidthInPixels) {
+    const [a1Lon, a1Lat] = a1CornerCoords;
+    
     const endColNum = letterToNumber(config.endCol);
-    const topRow = config.letteringDirection === 'ascending' ? config.endRow : config.startRow;
-
-    const center = getPixelsForGridPoint(endColNum + 0.5, topRow + 0.5, config, a1CornerCoords, latLonToPixels);
+    const topRowNum = (config.letteringDirection === 'ascending') 
+        ? Math.max(config.startRow, config.endRow) 
+        : Math.min(config.startRow, config.endRow);
+    
+    // Le point central est le centre de la case en haut à droite
+    const centerPoint = calculateAndRotatePoint(endColNum + 0.5, topRowNum + 0.5, config, a1Lat, a1Lon);
+    const center = latLonToPixels(centerPoint[1], centerPoint[0]);
     
     const arrowLengthInMeters = config.scale * 0.35; 
-    const centerGeo = calculateAndRotatePoint(endColNum + 0.5, topRow + 0.5, config, a1CornerCoords.reverse()[0], a1CornerCoords.reverse()[1]);
-    const northGeoPoint = { 
-        lat: centerGeo[1] + (arrowLengthInMeters / 111320), 
-        lon: centerGeo[0] 
-    };
+    const northGeoPoint = { lat: centerPoint[1] + (arrowLengthInMeters / 111320), lon: centerPoint[0] };
     const northPixel = latLonToPixels(northGeoPoint.lat, northGeoPoint.lon);
 
     const arrowLengthInPixels = Math.hypot(northPixel.x - center.x, northPixel.y - center.y);
@@ -415,63 +420,72 @@ function drawCompass(ctx, latLonToPixels, config, a1CornerCoords, baseFontSize) 
     ctx.fillStyle = 'rgba(200, 200, 200, 0.7)';
     ctx.fill();
     
-    const N_point = { x: center.x, y: center.y - arrowLengthInPixels };
-
+    // Calcul de la rotation de la flèche Nord
+    const angle = Math.atan2(northPixel.y - center.y, northPixel.x - center.x);
+    const N_point = { x: center.x + arrowLengthInPixels * Math.cos(angle), y: center.y + arrowLengthInPixels * Math.sin(angle) };
+    const base_point = { x: center.x - (arrowLengthInPixels * 0.3) * Math.cos(angle), y: center.y - (arrowLengthInPixels * 0.3) * Math.sin(angle) };
+    
     ctx.beginPath();
-    ctx.moveTo(center.x, center.y + (arrowLengthInPixels * 0.3));
+    ctx.moveTo(base_point.x, base_point.y);
     ctx.lineTo(N_point.x, N_point.y);
-    ctx.strokeStyle = 'red';
-    ctx.lineWidth = 3;
-    ctx.stroke();
+    ctx.strokeStyle = 'red'; ctx.lineWidth = 3; ctx.stroke();
 
     ctx.beginPath();
     ctx.moveTo(N_point.x, N_point.y);
-    ctx.lineTo(N_point.x - 5, N_point.y + 10);
-    ctx.lineTo(N_point.x + 5, N_point.y + 10);
+    ctx.lineTo(N_point.x - 10 * Math.cos(angle + 0.3), N_point.y - 10 * Math.sin(angle + 0.3));
+    ctx.lineTo(N_point.x - 10 * Math.cos(angle - 0.3), N_point.y - 10 * Math.sin(angle - 0.3));
     ctx.closePath();
-    ctx.fillStyle = 'red';
-    ctx.fill();
+    ctx.fillStyle = 'red'; ctx.fill();
 
-    const fontSize = baseFontSize * 0.75;
-    
-    ctx.font = `bold ${fontSize}px Arial`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'bottom';
-    ctx.strokeStyle = 'white';
-    ctx.lineWidth = fontSize * 0.15;
+    const compassNFontSize = cellWidthInPixels * 0.25;
+    ctx.font = `bold ${compassNFontSize}px Arial`;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
+    ctx.strokeStyle = 'white'; ctx.lineWidth = 3;
     ctx.strokeText('N', N_point.x, N_point.y + 2);
     ctx.fillStyle = 'black';
     ctx.fillText('N', N_point.x, N_point.y + 2);
 }
 
+/**
+ * Dessine la clé de subdivision en 4 couleurs.
+ */
 function drawSubdivisionKey(ctx, latLonToPixels, config, a1CornerCoords) {
-    const startColNum = letterToNumber(config.startCol);
-    const bottomRow = config.letteringDirection === 'ascending' ? config.startRow : config.endRow;
+    const [a1Lon, a1Lat] = a1CornerCoords;
 
-    const px_tl = getPixelsForGridPoint(startColNum, bottomRow + 1, config, a1CornerCoords, latLonToPixels);
-    const px_tr = getPixelsForGridPoint(startColNum + 1, bottomRow + 1, config, a1CornerCoords, latLonToPixels);
-    const px_bl = getPixelsForGridPoint(startColNum, bottomRow, config, a1CornerCoords, latLonToPixels);
-    const px_br = getPixelsForGridPoint(startColNum + 1, bottomRow, config, a1CornerCoords, latLonToPixels);
-    const px_center = getPixelsForGridPoint(startColNum + 0.5, bottomRow + 0.5, config, a1CornerCoords, latLonToPixels);
+    const startColNum = letterToNumber(config.startCol);
+    // Détermine la rangée la plus "basse" visuellement
+    const bottomRowNum = (config.letteringDirection === 'ascending') 
+        ? Math.min(config.startRow, config.endRow) 
+        : Math.max(config.startRow, config.endRow);
+
+    // Points de la cellule en bas à gauche
+    const geo_bl = calculateAndRotatePoint(startColNum, bottomRowNum, config, a1Lat, a1Lon);
+    const geo_br = calculateAndRotatePoint(startColNum + 1, bottomRowNum, config, a1Lat, a1Lon);
+    const geo_tl = calculateAndRotatePoint(startColNum, bottomRowNum + 1, config, a1Lat, a1Lon);
+    const geo_tr = calculateAndRotatePoint(startColNum + 1, bottomRowNum + 1, config, a1Lat, a1Lon);
+    const geo_center = calculateAndRotatePoint(startColNum + 0.5, bottomRowNum + 0.5, config, a1Lat, a1Lon);
+
+    const px_tl = latLonToPixels(geo_tl[1], geo_tl[0]);
+    const px_tr = latLonToPixels(geo_tr[1], geo_tr[0]);
+    const px_bl = latLonToPixels(geo_bl[1], geo_bl[0]);
+    const px_br = latLonToPixels(geo_br[1], geo_br[0]);
+    const px_center = latLonToPixels(geo_center[1], geo_center[0]);
     
     const opacity = '0.7';
     
-    ctx.fillStyle = `rgba(255, 255, 0, ${opacity})`;
-    ctx.beginPath(); ctx.moveTo(px_tl.x, px_tl.y); ctx.lineTo(px_center.x, px_tl.y); ctx.lineTo(px_center.x, px_center.y); ctx.lineTo(px_tl.x, px_center.y); ctx.closePath(); ctx.fill();
-    
-    ctx.fillStyle = `rgba(0, 0, 255, ${opacity})`;
-    ctx.beginPath(); ctx.moveTo(px_center.x, px_tr.y); ctx.lineTo(px_tr.x, px_tr.y); ctx.lineTo(px_tr.x, px_center.y); ctx.lineTo(px_center.x, px_center.y); ctx.closePath(); ctx.fill();
-    
-    ctx.fillStyle = `rgba(0, 128, 0, ${opacity})`;
-    ctx.beginPath(); ctx.moveTo(px_bl.x, px_center.y); ctx.lineTo(px_center.x, px_center.y); ctx.lineTo(px_center.x, px_bl.y); ctx.lineTo(px_bl.x, px_bl.y); ctx.closePath(); ctx.fill();
-    
-    ctx.fillStyle = `rgba(255, 0, 0, ${opacity})`;
-    ctx.beginPath(); ctx.moveTo(px_center.x, px_center.y); ctx.lineTo(px_br.x, px_center.y); ctx.lineTo(px_br.x, px_br.y); ctx.lineTo(px_center.x, px_br.y); ctx.closePath(); ctx.fill();
+    // La subdivision est dessinée dans un repère local non-rotaté puis appliquée
+    const drawSubdivision = (color, p1, p2, p3, p4) => {
+        ctx.fillStyle = color;
+        ctx.beginPath(); ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); ctx.lineTo(p3.x, p3.y); ctx.lineTo(p4.x, p4.y); ctx.closePath(); ctx.fill();
+    };
 
-    ctx.strokeStyle = 'black';
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.moveTo(px_tl.x, px_tl.y); ctx.lineTo(px_tr.x, px_tr.y); ctx.lineTo(px_br.x, px_br.y); ctx.lineTo(px_bl.x, px_bl.y); ctx.closePath();
+    drawSubdivision(`rgba(255, 255, 0, ${opacity})`, px_tl, {x: (px_tl.x + px_tr.x)/2, y: (px_tl.y + px_tr.y)/2}, px_center, {x: (px_tl.x + px_bl.x)/2, y: (px_tl.y + px_bl.y)/2});
+    drawSubdivision(`rgba(0, 0, 255, ${opacity})`, {x: (px_tl.x + px_tr.x)/2, y: (px_tl.y + px_tr.y)/2}, px_tr, {x: (px_tr.x + px_br.x)/2, y: (px_tr.y + px_br.y)/2}, px_center);
+    drawSubdivision(`rgba(0, 128, 0, ${opacity})`, {x: (px_tl.x + px_bl.x)/2, y: (px_tl.y + px_bl.y)/2}, px_center, {x: (px_bl.x + px_br.x)/2, y: (px_bl.y + px_br.y)/2}, px_bl);
+    drawSubdivision(`rgba(255, 0, 0, ${opacity})`, px_center, {x: (px_tr.x + px_br.x)/2, y: (px_tr.y + px_br.y)/2}, px_br, {x: (px_bl.x + px_br.x)/2, y: (px_bl.y + px_br.y)/2});
+
+    ctx.strokeStyle = 'black'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(px_tl.x, px_tl.y); ctx.lineTo(px_tr.x, px_tr.y); ctx.lineTo(px_br.x, px_br.y); ctx.lineTo(px_bl.x, px_bl.y); ctx.closePath();
     ctx.stroke();
 }
 
