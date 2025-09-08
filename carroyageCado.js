@@ -26,6 +26,8 @@ function initIconDictionaries() {
         }
     }
 }
+document.addEventListener('DOMContentLoaded', initIconDictionaries);
+
 
 // --- CONVERSIONS DE COORDONNÉES ---
 const R = 6378137;
@@ -170,30 +172,43 @@ function viewOnMaps(type) {
 
 // --- LOGIQUE DE GÉNÉRATION DE CARROYAGE CADO ---
 
+/**
+ * [CORRIGÉE] Met à jour le nom complet de la grille affiché dans l'interface.
+ */
 function updateDynamicGridName() {
-    const baseName = document.getElementById('grid-name-base').value || 'CADO Grid';
-    const scale = document.getElementById('scale').value || 20;
-    const refPoint = document.querySelector('input[name="reference-point"]:checked').value;
-    const lettering = document.querySelector('input[name="lettering-direction"]:checked').value;
-    let gridTypeStr = "";
-    const gridOption = document.querySelector('input[name="grid-option"]:checked').value;
-    if (gridOption === 'default') {
-        gridTypeStr = `_${document.querySelector('input[name="grid-type"]:checked').value}`;
-    } else {
-        const sr = document.getElementById('start-row').value;
-        const er = document.getElementById('end-row').value;
-        const sc = document.getElementById('start-col').value;
-        const ec = document.getElementById('end-col').value;
-        gridTypeStr = `_${sc}${sr}-${ec}${er}`;
+    try {
+        const baseName = document.getElementById('grid-name-base').value || 'CADO Grid';
+        const scale = document.getElementById('scale').value || 20;
+        const refPoint = document.querySelector('input[name="reference-point"]:checked').value;
+        const lettering = document.querySelector('input[name="lettering-direction"]:checked').value;
+        
+        let gridTypeStr;
+        const gridType = document.querySelector('input[name="grid-type"]:checked').value;
+
+        if (gridType === 'custom') {
+            const sr = document.getElementById('start-row').value;
+            const er = document.getElementById('end-row').value;
+            const sc = document.getElementById('start-col').value;
+            const ec = document.getElementById('end-col').value;
+            gridTypeStr = `_${sc}${sr}-${ec}${er}`;
+        } else {
+            gridTypeStr = `_${gridType}`;
+        }
+
+        const deviation = parseInt(document.getElementById('deviation').value) || 0;
+        let deviationStr = deviation > 0 ? `_+${deviation}°` : (deviation < 0 ? `_${deviation}°` : "");
+        const colorName = document.getElementById('grid-color-name').value;
+        const letteringStr = lettering === 'descending' ? '_descendant' : '';
+        
+        const fullName = `${baseName}_${scale}m_${refPoint}${letteringStr}${gridTypeStr}${deviationStr}_${colorName}`;
+        
+        document.getElementById('full-grid-name').textContent = fullName;
+        document.getElementById('grid-name').value = fullName;
+    } catch (e) {
+        console.warn("Could not update dynamic grid name, likely due to an element not being ready.", e);
     }
-    const deviation = parseInt(document.getElementById('deviation').value) || 0;
-    let deviationStr = deviation > 0 ? `_+${deviation}°` : (deviation < 0 ? `_${deviation}°` : "");
-    const colorName = document.getElementById('grid-color-name').value;
-    const letteringStr = lettering === 'descending' ? '_descendant' : '';
-    const fullName = `${baseName}_${scale}m_${refPoint}${letteringStr}${gridTypeStr}${deviationStr}_${colorName}`;
-    document.getElementById('full-grid-name').textContent = fullName;
-    document.getElementById('grid-name').value = fullName;
 }
+
 
 async function generateGrid() {
     const loadingIndicator = document.getElementById("loading-indicator");
@@ -226,7 +241,6 @@ async function generateGrid() {
             case "KMZ":
                 const kmlContent = generateKML(config, gridData);
                 if (fileFormat === "KMZ") {
-                    // CORRECTION : Le type MIME est maintenant passé à la fonction de génération
                     mimeType = "application/vnd.google-earth.kmz";
                     fileBlob = await generateKMZ(config, gridData, kmlContent, mimeType);
                     fileName = `${config.gridName}.kmz`;
@@ -258,39 +272,41 @@ async function generateGrid() {
     }
 }
 
+/**
+ * [CORRIGÉE] Récupère tous les paramètres de l'interface pour la génération.
+ */
 function getGridConfiguration(lat, lon) {
-    const scale = parseFloat(document.getElementById('scale').value);
-    const gridColor = document.getElementById('grid-color').value;
-    const colorName = document.getElementById('grid-color-name').value;
-    const transparency = parseInt(document.getElementById('transparency').value);
-    const gridName = document.getElementById('grid-name').value || "CADO Grid";
-    const deviation = parseInt(document.getElementById('deviation').value);
-    const labelSize = parseFloat(document.getElementById('label-size').value);
-    const iconSize = parseFloat(document.getElementById('icon-size').value || 2);
-    const gridOption = document.querySelector('input[name="grid-option"]:checked').value;
+    const gridType = document.querySelector('input[name="grid-type"]:checked').value;
     let startRow, endRow, startCol, endCol;
 
-    if (gridOption === 'default') {
-        const gridType = document.querySelector('input[name="grid-type"]:checked').value;
-        switch (gridType) {
-            case 'Q12': startRow = 1; endRow = 12; startCol = 'A'; endCol = 'Q'; break;
-            case 'Z26': startRow = 1; endRow = 26; startCol = 'A'; endCol = 'Z'; break;
-            case 'Z14': startRow = 1; endRow = 14; startCol = 'A'; endCol = 'Z'; break;
-            case 'Z18': startRow = 1; endRow = 18; startCol = 'A'; endCol = 'Z'; break;
-            case 'Q9':  startRow = 1; endRow = 9;  startCol = 'A'; endCol = 'Q'; break;
-            default:    startRow = 1; endRow = 12; startCol = 'A'; endCol = 'Q';
-        }
-    } else {
-        startRow = parseInt(document.getElementById('start-row').value);
-        endRow = parseInt(document.getElementById('end-row').value);
-        startCol = document.getElementById('start-col').value;
-        endCol = document.getElementById('end-col').value;
+    switch (gridType) {
+        case 'Q12': startRow = 1; endRow = 12; startCol = 'A'; endCol = 'Q'; break;
+        case 'Z18': startRow = 1; endRow = 18; startCol = 'A'; endCol = 'Z'; break;
+        case 'Z14': startRow = 1; endRow = 14; startCol = 'A'; endCol = 'Z'; break;
+        case 'Q9':  startRow = 1; endRow = 9;  startCol = 'A'; endCol = 'Q'; break;
+        case 'Z26': startRow = 1; endRow = 26; startCol = 'A'; endCol = 'Z'; break;
+        case 'custom':
+            startRow = parseInt(document.getElementById('start-row').value);
+            endRow = parseInt(document.getElementById('end-row').value);
+            startCol = document.getElementById('start-col').value.toUpperCase();
+            endCol = document.getElementById('end-col').value.toUpperCase();
+            break;
+        default: // Fallback de sécurité
+            startRow = 1; endRow = 12; startCol = 'A'; endCol = 'Q';
     }
 
     return {
-        latitude: lat, longitude: lon, scale, gridColor, colorName,
-        colorOpacity: (100 - transparency) / 100, gridName, deviation,
-        labelSize, iconSize, needsDarkOutline: ['white', 'orange', 'yellow'].includes(colorName),
+        latitude: lat,
+        longitude: lon,
+        scale: parseFloat(document.getElementById('scale').value),
+        gridColor: document.getElementById('grid-color').value,
+        colorName: document.getElementById('grid-color-name').value,
+        colorOpacity: (100 - parseInt(document.getElementById('transparency').value)) / 100,
+        gridName: document.getElementById('grid-name').value || "CADO Grid",
+        deviation: parseInt(document.getElementById('deviation').value),
+        labelSize: parseFloat(document.getElementById('label-size').value),
+        iconSize: parseFloat(document.getElementById('icon-size').value || 2),
+        needsDarkOutline: ['white', 'orange', 'yellow'].includes(document.getElementById('grid-color-name').value),
         referencePointChoice: document.querySelector('input[name="reference-point"]:checked').value,
         letteringDirection: document.querySelector('input[name="lettering-direction"]:checked').value,
         startRow, endRow, startCol, endCol,
@@ -516,7 +532,6 @@ function generateKML(config, gridData) {
     return kml;
 }
 
-// CORRECTION : La fonction accepte et utilise le type MIME pour la génération du Blob.
 async function generateKMZ(config, gridData, kmlContent, mimeType) {
     const zip = new JSZip();
     zip.file("doc.kml", kmlContent);
