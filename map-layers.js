@@ -3,18 +3,12 @@
 const MAP_LAYERS = [
     {
         "id": "ign_public_hybrid",
-        "name": "IGN Hybride (Public)",
+        "name": "Plan IGN",
         "layers": [
             {
-                "url": "https://data.geopf.fr/wmts?Layer=ORTHOIMAGERY.ORTHOPHOTOS&Style=normal&TileMatrixSet=PM&SERVICE=WMTS&REQUEST=GetTile&Version=1.0.0&FORMAT=image/jpeg&TileMatrix={z}&TileCol={x}&TileRow={y}",
-                "type": "xyz",
-                "attribution": "IGN-F/Geoportail"
-            },
-            {
-                "url": "https://data.geopf.fr/wmts?Layer=PLAN.IGN&Style=normal&TileMatrixSet=PM&SERVICE=WMTS&REQUEST=GetTile&Version=1.0.0&FORMAT=image/png&TileMatrix={z}&TileCol={x}&TileRow={y}",
+                "url": "https://data.geopf.fr/wmts?Layer=GEOGRAPHICALGRIDSYSTEMS.PLANIGNV2&Style=normal&TileMatrixSet=PM&SERVICE=WMTS&REQUEST=GetTile&Version=1.0.0&FORMAT=image/png&TileMatrix={z}&TileCol={x}&TileRow={y}",
                 "type": "xyz",
                 "attribution": "IGN-F/Geoportail",
-                "transparent": true
             }
         ]
     },
