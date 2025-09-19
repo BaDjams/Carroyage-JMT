@@ -2,12 +2,39 @@
 
 const MAP_LAYERS = [
     {
-        "id": "bing_hybrid",
-        "name": "Bing Hybrid",
+        "id": "ign_public_hybrid",
+        "name": "IGN Hybride (Public)",
         "layers": [
             {
-                "url": "http://ecn.t{s}.tiles.virtualearth.net/tiles/h{q}.jpeg?g=14927",
-                "type": "quadkey"
+                "url": "https://data.geopf.fr/wmts?Layer=ORTHOIMAGERY.ORTHOPHOTOS&Style=normal&TileMatrixSet=PM&SERVICE=WMTS&REQUEST=GetTile&Version=1.0.0&FORMAT=image/jpeg&TileMatrix={z}&TileCol={x}&TileRow={y}",
+                "type": "xyz",
+                "attribution": "IGN-F/Geoportail"
+            },
+            {
+                "url": "https://data.geopf.fr/wmts?Layer=PLAN.IGN&Style=normal&TileMatrixSet=PM&SERVICE=WMTS&REQUEST=GetTile&Version=1.0.0&FORMAT=image/png&TileMatrix={z}&TileCol={x}&TileRow={y}",
+                "type": "xyz",
+                "attribution": "IGN-F/Geoportail",
+                "transparent": true
+            }
+        ]
+    },
+    {
+        "id": "google_hybrid",
+        "name": "Google Hybrid",
+        "layers": [
+            {
+                "url": "https://mt0.google.com/vt/lyrs=y&hl=fr&x={x}&y={y}&z={z}",
+                "type": "xyz"
+            }
+        ]
+    },
+    {
+        "id": "google_hybrid_NOPOI",
+        "name": "Google Hybrid sans POI",
+        "layers": [
+            {
+                "url": "https://mt0.google.com/vt/lyrs=y&hl=fr&x={x}&y={y}&z={z}&apistyle=s.t%3a2|s.e%3al|p.v%3aoff",
+                "type": "xyz"
             }
         ]
     },
@@ -27,26 +54,8 @@ const MAP_LAYERS = [
         "layers": [
             {
                 "url": "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
-                "type": "xyz_y_inverted" // Note: Esri utilise un ordre {y}/{x}
+                "type": "xyz"
             }
         ]
-    },
-   /* {
-        "id": "ign_hybrid",
-        "name": "IGN Satellite + Routes (Exemple)",
-        "layers": [
-            // Couche 1: Les images satellites (dessinées en premier)
-            {
-                "url": "https://wxs.ign.fr/VOTRE_CLE_API/geoportail/wmts?layer=ORTHOIMAGERY.ORTHOPHOTOS&style=normal&tilematrixset=PM&Service=WMTS&Request=GetTile&Version=1.0.0&Format=image/jpeg&TileMatrix={z}&TileCol={x}&TileRow={y}",
-                "type": "xyz",
-                "attribution": "IGN-F/Geoportail"
-            },
-            // Couche 2: Les routes et étiquettes (dessinées par-dessus)
-            {
-                "url": "https://wxs.ign.fr//VOTRE_CLE_API/geoportail/wmts?layer=GEOGRAPHICALGRIDSYSTEMS.PLANIGNV2&style=normal&tilematrixset=PM&Service=WMTS&Request=GetTile&Version=1.0.0&Format=image/png&TileMatrix={z}&TileCol={x}&TileRow={y}",
-                "type": "xyz",
-                "attribution": "IGN-F/Geoportail"
-            }
-        ]
-    }*/
+    }
 ];
