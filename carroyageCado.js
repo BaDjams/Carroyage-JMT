@@ -1,34 +1,5 @@
 // carroyageCado.js
 
-// --- GESTION DES ICÔNES ---
-const iconDictionaries = {};
-
-function initIconDictionaries() {
-    const iconDataSources = {
-        'FFFFFF': typeof imageBase64DataFFFFFF !== 'undefined' ? imageBase64DataFFFFFF : [],
-        '000000': typeof imageBase64Data000000 !== 'undefined' ? imageBase64Data000000 : [],
-        'FF0000': typeof imageBase64DataFF0000 !== 'undefined' ? imageBase64DataFF0000 : [],
-        'FFA500': typeof imageBase64DataFFA500 !== 'undefined' ? imageBase64DataFFA500 : [],
-        'FFFF00': typeof imageBase64DataFFFF00 !== 'undefined' ? imageBase64DataFFFF00 : [],
-        '008000': typeof imageBase64Data008000 !== 'undefined' ? imageBase64Data008000 : [],
-        '0000FF': typeof imageBase64Data0000FF !== 'undefined' ? imageBase64Data0000FF : [],
-        '800080': typeof imageBase64Data800080 !== 'undefined' ? imageBase64Data800080 : [],
-        'A52A2A': typeof imageBase64DataA52A2A !== 'undefined' ? imageBase64DataA52A2A : [],
-        '808080': typeof imageBase64Data808080 !== 'undefined' ? imageBase64Data808080 : []
-    };
-    for (const [colorHex, data] of Object.entries(iconDataSources)) {
-        if (data && data.length > 0) {
-            const dict = {};
-            data.forEach(item => { dict[item.name] = item.base64; });
-            iconDictionaries[colorHex] = dict;
-        } else {
-            console.warn(`Données manquantes ou vides pour ${colorHex}`);
-        }
-    }
-}
-document.addEventListener('DOMContentLoaded', initIconDictionaries);
-
-
 // --- CONVERSIONS DE COORDONNÉES ---
 const R = 6378137;
 const toRad = deg => deg * Math.PI / 180;
@@ -546,12 +517,26 @@ async function generateKMZ(config, gridData, kmlContent, mimeType) {
     zip.file("doc.kml", kmlContent);
     if (config.includePoints) {
         const iconsFolder = zip.folder("icons");
-        const colorKey = config.gridColor.substring(1).toUpperCase();
-        const iconDict = iconDictionaries[colorKey] || {};
+
+        const canvas = document.createElement("canvas")
+        canvas.setAttribute("width", 64)
+        canvas.setAttribute("height", 64)
+        canvas.style.letterSpacing = '-1px';
+
+        const ctx = canvas.getContext("2d");
+        ctx.font = "bold 24px Arial";
+        ctx.fillStyle = config.gridColor;
+        ctx.textAlign = "center";
+        ctx.textBaseline =  "middle"
+
         for (const point of gridData.points) {
-            if (iconDict[point.name]) {
-                iconsFolder.file(`${point.name}.png`, iconDict[point.name].replace(/^data:image\/png;base64,/, ''), { base64: true });
+            ctx.fillText(point.name, 32, 32)
+            if (config.gridColor.toUpperCase() === "#FFFFFF") {
+                ctx.strokeText(point.name, 32, 32)
             }
+
+            iconsFolder.file(`${point.name}.png`, canvas.toDataURL("image/png").replace(/^data:image\/png;base64,/, ''), { base64: true });
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
         }
     }
     return await zip.generateAsync({ type: "blob", mimeType: mimeType });
