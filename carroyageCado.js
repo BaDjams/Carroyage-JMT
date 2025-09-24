@@ -1,37 +1,6 @@
 // carroyageCado.js
 
-// --- GESTION DES ICÔNES ---
-const iconDictionaries = {};
-
-function initIconDictionaries() {
-    const iconDataSources = {
-        'FFFFFF': typeof imageBase64DataFFFFFF !== 'undefined' ? imageBase64DataFFFFFF : [],
-        '000000': typeof imageBase64Data000000 !== 'undefined' ? imageBase64Data000000 : [],
-        'FF0000': typeof imageBase64DataFF0000 !== 'undefined' ? imageBase64DataFF0000 : [],
-        'FFA500': typeof imageBase64DataFFA500 !== 'undefined' ? imageBase64DataFFA500 : [],
-        'FFFF00': typeof imageBase64DataFFFF00 !== 'undefined' ? imageBase64DataFFFF00 : [],
-        '008000': typeof imageBase64Data008000 !== 'undefined' ? imageBase64Data008000 : [],
-        '0000FF': typeof imageBase64Data0000FF !== 'undefined' ? imageBase64Data0000FF : [],
-        '800080': typeof imageBase64Data800080 !== 'undefined' ? imageBase64Data800080 : [],
-        'A52A2A': typeof imageBase64DataA52A2A !== 'undefined' ? imageBase64DataA52A2A : [],
-        '808080': typeof imageBase64Data808080 !== 'undefined' ? imageBase64Data808080 : []
-    };
-    for (const [colorHex, data] of Object.entries(iconDataSources)) {
-        if (data && data.length > 0) {
-            const dict = {};
-            data.forEach(item => { dict[item.name] = item.base64; });
-            iconDictionaries[colorHex] = dict;
-        } else {
-            console.warn(`Données manquantes ou vides pour ${colorHex}`);
-        }
-    }
-}
-
-// --- CONVERSIONS DE COORDONNÉES ---
-const R = 6378137;
-const toRad = deg => deg * Math.PI / 180;
-const toDeg = rad => rad * 180 / Math.PI;
-
+// --- CONVERSIONS DE COORDONNÉES SPÉCIFIQUES ---
 function mercatorXToLng(x) { return toDeg(x / R); }
 function mercatorYToLat(y) { return toDeg(2 * Math.atan(Math.exp(y / R)) - Math.PI / 2); }
 function lngToMercatorX(lng) { return R * toRad(lng); }
@@ -59,7 +28,6 @@ function updateAllFromDecimal(lat, lon) {
     const utm = WGS84_to_UTM.fromLatLon(lat, lon);
     document.getElementById('utm-coords').value = `${utm.zoneNumber} ${utm.zoneLetter} ${utm.easting.toFixed(0)} ${utm.northing.toFixed(0)}`;
 }
-
 
 function convertFromDecimal() {
     try {
@@ -136,7 +104,6 @@ function convertFromUTM() {
     }
 }
 
-
 async function convertFromPlusCode() { /* Stub */ }
 
 function isPlusCodeLibraryAvailable() { return typeof OpenLocationCode === 'function'; }
@@ -171,28 +138,37 @@ function viewOnMaps(type) {
 // --- LOGIQUE DE GÉNÉRATION DE CARROYAGE CADO ---
 
 function updateDynamicGridName() {
-    const baseName = document.getElementById('grid-name-base').value || 'CADO Grid';
-    const scale = document.getElementById('scale').value || 20;
-    const refPoint = document.querySelector('input[name="reference-point"]:checked').value;
-    const lettering = document.querySelector('input[name="lettering-direction"]:checked').value;
-    let gridTypeStr = "";
-    const gridOption = document.querySelector('input[name="grid-option"]:checked').value;
-    if (gridOption === 'default') {
-        gridTypeStr = `_${document.querySelector('input[name="grid-type"]:checked').value}`;
-    } else {
-        const sr = document.getElementById('start-row').value;
-        const er = document.getElementById('end-row').value;
-        const sc = document.getElementById('start-col').value;
-        const ec = document.getElementById('end-col').value;
-        gridTypeStr = `_${sc}${sr}-${ec}${er}`;
+    try {
+        const baseName = document.getElementById('grid-name-base').value || 'CADO Grid';
+        const scale = document.getElementById('scale').value || 20;
+        const refPoint = document.querySelector('input[name="reference-point"]:checked').value;
+        const lettering = document.querySelector('input[name="lettering-direction"]:checked').value;
+        
+        let gridTypeStr;
+        const gridType = document.querySelector('input[name="grid-type"]:checked').value;
+
+        if (gridType === 'custom') {
+            const sr = document.getElementById('start-row').value;
+            const er = document.getElementById('end-row').value;
+            const sc = document.getElementById('start-col').value;
+            const ec = document.getElementById('end-col').value;
+            gridTypeStr = `_${sc}${sr}-${ec}${er}`;
+        } else {
+            gridTypeStr = `_${gridType}`;
+        }
+
+        const deviation = parseInt(document.getElementById('deviation').value) || 0;
+        let deviationStr = deviation > 0 ? `_+${deviation}°` : (deviation < 0 ? `_${deviation}°` : "");
+        const colorName = document.getElementById('grid-color-name').value;
+        const letteringStr = lettering === 'descending' ? '_descendant' : '';
+        
+        const fullName = `${baseName}_${scale}m_${refPoint}${letteringStr}${gridTypeStr}${deviationStr}_${colorName}`;
+        
+        document.getElementById('full-grid-name').textContent = fullName;
+        document.getElementById('grid-name').value = fullName;
+    } catch (e) {
+        console.warn("Could not update dynamic grid name, likely due to an element not being ready.", e);
     }
-    const deviation = parseInt(document.getElementById('deviation').value) || 0;
-    let deviationStr = deviation > 0 ? `_+${deviation}°` : (deviation < 0 ? `_${deviation}°` : "");
-    const colorName = document.getElementById('grid-color-name').value;
-    const letteringStr = lettering === 'descending' ? '_descendant' : '';
-    const fullName = `${baseName}_${scale}m_${refPoint}${letteringStr}${gridTypeStr}${deviationStr}_${colorName}`;
-    document.getElementById('full-grid-name').textContent = fullName;
-    document.getElementById('grid-name').value = fullName;
 }
 
 async function generateGrid() {
@@ -226,7 +202,6 @@ async function generateGrid() {
             case "KMZ":
                 const kmlContent = generateKML(config, gridData);
                 if (fileFormat === "KMZ") {
-                    // CORRECTION : Le type MIME est maintenant passé à la fonction de génération
                     mimeType = "application/vnd.google-earth.kmz";
                     fileBlob = await generateKMZ(config, gridData, kmlContent, mimeType);
                     fileName = `${config.gridName}.kmz`;
@@ -259,38 +234,37 @@ async function generateGrid() {
 }
 
 function getGridConfiguration(lat, lon) {
-    const scale = parseFloat(document.getElementById('scale').value);
-    const gridColor = document.getElementById('grid-color').value;
-    const colorName = document.getElementById('grid-color-name').value;
-    const transparency = parseInt(document.getElementById('transparency').value);
-    const gridName = document.getElementById('grid-name').value || "CADO Grid";
-    const deviation = parseInt(document.getElementById('deviation').value);
-    const labelSize = parseFloat(document.getElementById('label-size').value);
-    const iconSize = parseFloat(document.getElementById('icon-size').value || 2);
-    const gridOption = document.querySelector('input[name="grid-option"]:checked').value;
+    const gridType = document.querySelector('input[name="grid-type"]:checked').value;
     let startRow, endRow, startCol, endCol;
 
-    if (gridOption === 'default') {
-        const gridType = document.querySelector('input[name="grid-type"]:checked').value;
-        switch (gridType) {
-            case 'Q12': startRow = 1; endRow = 12; startCol = 'A'; endCol = 'Q'; break;
-            case 'Z26': startRow = 1; endRow = 26; startCol = 'A'; endCol = 'Z'; break;
-            case 'Z14': startRow = 1; endRow = 14; startCol = 'A'; endCol = 'Z'; break;
-            case 'Z18': startRow = 1; endRow = 18; startCol = 'A'; endCol = 'Z'; break;
-            case 'Q9':  startRow = 1; endRow = 9;  startCol = 'A'; endCol = 'Q'; break;
-            default:    startRow = 1; endRow = 12; startCol = 'A'; endCol = 'Q';
-        }
-    } else {
-        startRow = parseInt(document.getElementById('start-row').value);
-        endRow = parseInt(document.getElementById('end-row').value);
-        startCol = document.getElementById('start-col').value;
-        endCol = document.getElementById('end-col').value;
+    switch (gridType) {
+        case 'Q12': startRow = 1; endRow = 12; startCol = 'A'; endCol = 'Q'; break;
+        case 'Z18': startRow = 1; endRow = 18; startCol = 'A'; endCol = 'Z'; break;
+        case 'Z14': startRow = 1; endRow = 14; startCol = 'A'; endCol = 'Z'; break;
+        case 'Q9':  startRow = 1; endRow = 9;  startCol = 'A'; endCol = 'Q'; break;
+        case 'Z26': startRow = 1; endRow = 26; startCol = 'A'; endCol = 'Z'; break;
+        case 'custom':
+            startRow = parseInt(document.getElementById('start-row').value);
+            endRow = parseInt(document.getElementById('end-row').value);
+            startCol = document.getElementById('start-col').value.toUpperCase();
+            endCol = document.getElementById('end-col').value.toUpperCase();
+            break;
+        default: // Fallback de sécurité
+            startRow = 1; endRow = 12; startCol = 'A'; endCol = 'Q';
     }
 
     return {
-        latitude: lat, longitude: lon, scale, gridColor, colorName,
-        colorOpacity: (100 - transparency) / 100, gridName, deviation,
-        labelSize, iconSize, needsDarkOutline: ['white', 'orange', 'yellow'].includes(colorName),
+        latitude: lat,
+        longitude: lon,
+        scale: parseFloat(document.getElementById('scale').value),
+        gridColor: document.getElementById('grid-color').value,
+        colorName: document.getElementById('grid-color-name').value,
+        colorOpacity: (100 - parseInt(document.getElementById('transparency').value)) / 100,
+        gridName: document.getElementById('grid-name').value || "CADO Grid",
+        deviation: parseInt(document.getElementById('deviation').value),
+        labelSize: parseFloat(document.getElementById('label-size').value),
+        iconSize: parseFloat(document.getElementById('icon-size').value || 2),
+        needsDarkOutline: ['white', 'orange', 'yellow'].includes(document.getElementById('grid-color-name').value),
         referencePointChoice: document.querySelector('input[name="reference-point"]:checked').value,
         letteringDirection: document.querySelector('input[name="lettering-direction"]:checked').value,
         startRow, endRow, startCol, endCol,
@@ -299,13 +273,6 @@ function getGridConfiguration(lat, lon) {
         outputFormat: document.querySelector('input[name="file-format"]:checked').value
     };
 }
-
-
-const getOffsetInCells = (n) => {
-    if (n > 0) return n - 1;
-    return n;
-};
-const getNextIndex = (n) => (n === -1 ? 1 : n + 1);
 
 function calculateGridData(config) {
     const metersToLatDegrees = (meters) => meters / 111320;
@@ -342,10 +309,15 @@ function calculateGridData(config) {
         const centerRowOffset = calculateCenterOffsetInCells(startRowNum, endRowNum);
         
         const xOffsetMeters = centerColOffset * config.scale;
-        const yOffsetMeters = centerRowOffset * config.scale;
+		const yOffsetMeters = centerRowOffset * config.scale;
 
-        a1CornerLon = refLon - metersToLonDegrees(xOffsetMeters, refLat);
-        a1CornerLat = refLat - metersToLatDegrees(yOffsetMeters, refLat);
+		a1CornerLon = refLon - metersToLonDegrees(xOffsetMeters, refLat);
+
+		if (config.letteringDirection === 'ascending') {
+			a1CornerLat = refLat - metersToLatDegrees(yOffsetMeters);
+		} else { // 'descending'
+			a1CornerLat = refLat + metersToLatDegrees(yOffsetMeters);
+		}
     }
     
     const points = [];
@@ -391,48 +363,6 @@ function calculateGridData(config) {
     };
 }
 
-function calculateAndRotatePoint(colNumber, rowNumber, config, a1Lat, a1Lon) {
-    const metersToLatDegrees = (meters) => meters / 111320;
-    const metersToLonDegrees = (meters, lat) => meters / (111320 * Math.cos(toRad(lat)));
-
-    const xOffsetMeters = (colNumber > 0 ? colNumber - 1 : colNumber) * config.scale;
-    const yOffsetMeters = (rowNumber > 0 ? rowNumber - 1 : rowNumber) * config.scale;
-
-    const finalYOffset = config.letteringDirection === 'ascending' ? yOffsetMeters : -yOffsetMeters;
-
-    const unrotatedLon = a1Lon + metersToLonDegrees(xOffsetMeters, a1Lat);
-    const unrotatedLat = a1Lat + metersToLatDegrees(finalYOffset, a1Lat);
-
-    if (config.deviation === 0) {
-        return [unrotatedLon, unrotatedLat];
-    }
-
-    const pivotLon = config.longitude;
-    const pivotLat = config.latitude;
-    const deviationRad = -toRad(config.deviation);
-
-    const cartesianX = (unrotatedLon - pivotLon) * 111320 * Math.cos(toRad(pivotLat));
-    const cartesianY = (unrotatedLat - pivotLat) * 111320;
-
-    const rotatedX = cartesianX * Math.cos(deviationRad) - cartesianY * Math.sin(deviationRad);
-    const rotatedY = cartesianX * Math.sin(deviationRad) + cartesianY * Math.cos(deviationRad);
-
-    const finalLon = pivotLon + metersToLonDegrees(rotatedX, pivotLat);
-    const finalLat = pivotLat + metersToLatDegrees(rotatedY);
-
-    return [finalLon, finalLat];
-}
-
-function generateIndices(start, end) {
-    const indices = [];
-    if (start <= end) {
-        for (let i = start; i <= end; i++) { if (i !== 0) indices.push(i); }
-    } else {
-        for (let i = start; i >= end; i--) { if (i !== 0) indices.push(i); }
-    }
-    return indices;
-}
-
 function generateCirclePoints(lon, lat, radiusMeters, segments) {
     const circlePoints = [];
     for (let i = 0; i <= segments; i++) {
@@ -446,23 +376,12 @@ function generateCirclePoints(lon, lat, radiusMeters, segments) {
     return circlePoints;
 }
 
-function letterToNumber(str) {
-    if (!str || typeof str !== 'string') return 0;
-    if (str.startsWith('-')) return -letterToNumber(str.substring(1));
-    return str.toUpperCase().split('').reduce((acc, char) => acc * 26 + char.charCodeAt(0) - 64, 0);
-}
-
-function numberToLetter(num) {
-    if (num < 0) return '-' + numberToLetter(-num);
-    if (num === 0) return '';
-    let letter = '';
-    let tempNum = num;
-    while (tempNum > 0) {
-        const remainder = (tempNum - 1) % 26;
-        letter = String.fromCharCode(65 + remainder) + letter;
-        tempNum = Math.floor((tempNum - 1) / 26);
-    }
-    return letter;
+function rgbToKmlColor(hex, opacity) {
+    const r = parseInt(hex.slice(1, 3), 16).toString(16).padStart(2, '0');
+    const g = parseInt(hex.slice(3, 5), 16).toString(16).padStart(2, '0');
+    const b = parseInt(hex.slice(5, 7), 16).toString(16).padStart(2, '0');
+    const a = Math.floor(255 * opacity).toString(16).padStart(2, '0');
+    return `${a}${b}${g}${r}`;
 }
 
 function generateKML(config, gridData) {
@@ -516,18 +435,31 @@ function generateKML(config, gridData) {
     return kml;
 }
 
-// CORRECTION : La fonction accepte et utilise le type MIME pour la génération du Blob.
 async function generateKMZ(config, gridData, kmlContent, mimeType) {
     const zip = new JSZip();
     zip.file("doc.kml", kmlContent);
     if (config.includePoints) {
         const iconsFolder = zip.folder("icons");
-        const colorKey = config.gridColor.substring(1).toUpperCase();
-        const iconDict = iconDictionaries[colorKey] || {};
+
+        const canvas = document.createElement("canvas")
+        canvas.setAttribute("width", 64)
+        canvas.setAttribute("height", 64)
+        canvas.style.letterSpacing = '-1px';
+
+        const ctx = canvas.getContext("2d");
+        ctx.font = "bold 24px Arial";
+        ctx.fillStyle = config.gridColor;
+        ctx.textAlign = "center";
+        ctx.textBaseline =  "middle"
+
         for (const point of gridData.points) {
-            if (iconDict[point.name]) {
-                iconsFolder.file(`${point.name}.png`, iconDict[point.name].replace(/^data:image\/png;base64,/, ''), { base64: true });
+            ctx.fillText(point.name, 32, 32)
+            if (config.gridColor.toUpperCase() === "#FFFFFF") {
+                ctx.strokeText(point.name, 32, 32)
             }
+
+            iconsFolder.file(`${point.name}.png`, canvas.toDataURL("image/png").replace(/^data:image\/png;base64,/, ''), { base64: true });
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
         }
     }
     return await zip.generateAsync({ type: "blob", mimeType: mimeType });
@@ -574,36 +506,4 @@ function generateGPX(config, gridData) {
     }
     gpx += '</gpx>';
     return gpx;
-}
-        
-// --- FONCTIONS UTILITAIRES PARTAGÉES ---
-
-function downloadFile(blob, fileName) {
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.style.display = 'none';
-    a.href = url;
-    a.download = fileName;
-    document.body.appendChild(a);
-    a.click();
-    window.URL.revokeObjectURL(url);
-    document.body.removeChild(a);
-}
-
-function showError(message) {
-    const errorDiv = document.getElementById("error-message");
-    errorDiv.textContent = message;
-    errorDiv.classList.remove("hidden");
-}
-
-function hideError() {
-    document.getElementById("error-message").classList.add("hidden");
-}
-
-function rgbToKmlColor(hex, opacity) {
-    const r = parseInt(hex.slice(1, 3), 16).toString(16).padStart(2, '0');
-    const g = parseInt(hex.slice(3, 5), 16).toString(16).padStart(2, '0');
-    const b = parseInt(hex.slice(5, 7), 16).toString(16).padStart(2, '0');
-    const a = Math.floor(255 * opacity).toString(16).padStart(2, '0');
-    return `${a}${b}${g}${r}`;
 }
