@@ -1,83 +1,65 @@
 // sw.js
 
-// On importe notre fichier de version. C'est la première chose qu'il fait.
+// 1. Importation des bibliothèques nécessaires
+// Workbox pour la gestion intelligente du cache
+importScripts('https://storage.googleapis.com/workbox-cdn/releases/6.4.1/workbox-sw.js');
+// Votre fichier de version pour la communication avec la page
 importScripts('version.js');
 
-// La constante VERSION est maintenant disponible grâce à l'import.
-const VERSION = APP_VERSION; 
-// Le nom du cache est construit à partir de cette variable.
-const CACHE_NAME = `cado-utm-generator-v${VERSION}`;
+// On s'assure que tout est bien chargé avant de continuer
+if (workbox && typeof APP_VERSION !== 'undefined') {
+  console.log(`Workbox et la version ${APP_VERSION} sont chargés !`);
 
-const urlsToCache = [
-  '/',
-  'index.html',
-  'style.css',
-  'helpContent.js';
-  'imagetoprint.js';
-  'carroyageUTM.js',
-  'carroyageCado.js',
-  'version.js', // IMPORTANT : On ajoute le fichier de version au cache !
-  'FFFFFF-images.js',
-  '000000-images.js',
-  'FF0000-images.js',
-  'FFA500-images.js',
-  'FFFF00-images.js',
-  '008000-images.js',
-  '0000FF-images.js',
-  '800080-images.js',
-  'A52A2A-images.js',
-  '808080-images.js',
-  // You can also cache the CDN files if you want true offline resilience
-  'tailwind.min.css',
-  'flowbite.min.css',
-  'jszip.min.js',
-  'FileSaver.min.js',
-  'openlocationcode.min.js'
-];
+  // 2. Configuration de Workbox pour une mise à jour rapide
+  // Force le nouveau Service Worker à s'activer dès qu'il est installé.
+  workbox.core.skipWaiting();
+  // Force le Service Worker à prendre le contrôle de la page immédiatement.
+  workbox.core.clientsClaim();
 
-// -- Installation --
-self.addEventListener('install', event => {
-  event.waitUntil(
-    caches.open(CACHE_NAME)
-      .then(cache => {
-        console.log('Cache ouvert pour l\'installation');
-        return cache.addAll(urlsToCache);
+  // 3. Pré-mise en cache (Pre-caching)
+  // C'est ici que la magie opère. Workbox va mettre en cache tous ces fichiers.
+  // Lors d'une mise à jour, il ne téléchargera QUE les fichiers dont le contenu a changé.
+  // Pour que cela fonctionne, vous devez mettre à jour la "revision" d'un fichier quand vous le modifiez.
+  // Si vous n'utilisez pas d'outil de build, vous pouvez changer manuellement la révision (ex: 'v1.1').
+  workbox.precaching.precacheAndRoute([
+    { url: '/', revision: 'v1' },
+    { url: 'index.html', revision: 'v1' },
+    { url: 'style.css', revision: 'v1' },
+    { url: 'help.html', revision: 'v1' },
+    { url: 'imagetoprint.js', revision: 'v1' },
+    { url: 'carroyageUTM.js', revision: 'v1' },
+    { url: 'carroyageCado.js', revision: 'v1' },
+    { url: 'zoneDownloader.js', revision: 'v1' },
+    { url: 'map-layers.js', revision: 'v1' },
+    { url: 'utilities.js', revision: 'v1' },
+    // On met aussi en cache le fichier de version pour être sûr qu'il est à jour.
+    { url: 'version.js', revision: 'v1' }, 
+    // Fichiers CDN
+    { url: 'tailwind.min.css', revision: 'cdn-v1' },
+    { url: 'flowbite.min.css', revision: 'cdn-v1' },
+    { url: 'flowbite.min.js', revision: 'cdn-v1' },
+    { url: 'jszip.min.js', revision: 'cdn-v1' },
+    { url: 'FileSaver.min.js', revision: 'cdn-v1' },
+    { url: 'openlocationcode.min.js', revision: 'cdn-v1' }
+  ]);
+
+  // 4. Logique de communication vers la page
+  // Cet événement se déclenche quand le nouveau Service Worker prend le contrôle.
+  self.addEventListener('activate', (event) => {
+    event.waitUntil(
+      self.clients.matchAll({ type: 'window' }).then(windowClients => {
+        // On parcourt toutes les fenêtres ouvertes de l'application
+        windowClients.forEach(windowClient => {
+          // Et on envoie un message contenant la nouvelle version
+          windowClient.postMessage({
+            type: 'VERSION_UPDATE',
+            version: APP_VERSION
+          });
+        });
       })
-      .then(() => {
-        // NOUVEAU : Forcer le nouveau Service Worker à s'activer immédiatement
-        return self.skipWaiting();
-      })
-  );
-});
+    );
+  });
 
-// -- Activation --
-self.addEventListener('activate', event => {
-  const cacheWhitelist = [CACHE_NAME];
-  event.waitUntil(
-    caches.keys().then(cacheNames => {
-      return Promise.all(
-        cacheNames.map(cacheName => {
-          if (cacheWhitelist.indexOf(cacheName) === -1) {
-            // Nettoyer les anciens caches
-            return caches.delete(cacheName);
-          }
-        })
-      );
-    }).then(() => {
-        // NOUVEAU : Prendre le contrôle de toutes les pages immédiatement
-        return self.clients.claim();
-    })
-  );
-});
-
-
-// -- Fetch (Gestion des requêtes) --
-self.addEventListener('fetch', event => {
-  event.respondWith(
-    caches.match(event.request)
-      .then(response => {
-        // La stratégie est "Cache First" : on sert depuis le cache si possible
-        return response || fetch(event.request);
-      })
-  );
-});
+} else {
+  console.log(`Erreur critique : Workbox ou le fichier de version n'a pas pu être chargé.`);
+}
