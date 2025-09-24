@@ -1,0 +1,162 @@
+/* style.css */
+:root {
+    --primary-color: #3b82f6; /* Bleu mis à jour */
+    --primary-color-hover: #2563eb;
+    
+    --btn-image-bg: #3b82f6; /* Bleu pour les boutons Image */
+    --btn-image-hover: #2563eb;
+    --btn-grid-bg: #16a34a; /* Vert pour les boutons Carroyage */
+    --btn-grid-hover: #15803d;
+    --btn-disabled-bg: #9ca3af; /* Gris pour les boutons inactifs */
+
+    --light-bg: #f9fafb;
+    --light-card-bg: #ffffff;
+    --light-text: #1f2937;
+    --light-text-secondary: #6b7280;
+    --light-border: #e5e7eb;
+    --light-input-bg: #f9fafb;
+
+    --dark-bg: #111827;
+    --dark-card-bg: #1f2937;
+    --dark-text: #f9fafb;
+    --dark-text-secondary: #9ca3af;
+    --dark-border: #4b5563;
+    --dark-input-bg: #374151;
+}
+
+/* Styles de base et mode sombre */
+body {
+    background-color: var(--light-bg);
+    color: var(--light-text);
+    transition: background-color 0.3s, color 0.3s;
+}
+
+.dark body {
+    background-color: var(--dark-bg);
+    color: var(--dark-text);
+}
+
+/* Styles des cartes et overlays Leaflet */
+.interactive-map-container {
+    height: 400px;
+    width: 100%;
+    margin-bottom: 1em;
+    border: 1px solid var(--light-border);
+    border-radius: 8px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    /*z-index: 1;*/
+}
+.dark .interactive-map-container { border-color: var(--dark-border); }
+
+#zone-interactive-map { height: 600px; }
+#cado-interactive-map { cursor: crosshair; }
+.leaflet-control-container { z-index: 1000 !important; }
+
+/* Barre de recherche d'adresse */
+.address-search-container {
+    position: relative;
+    display: flex;
+    margin-bottom: 1em;
+    gap: 0.5em;
+}
+.address-search-input { flex-grow: 1; }
+#suggestions, #zone-suggestions {
+    position: absolute; top: 100%; left: 0; right: 0;
+    background: var(--light-card-bg);
+    border: 1px solid var(--light-border);
+    border-top: none; border-radius: 0 0 8px 8px;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    z-index: 2000; max-height: 220px; overflow-y: auto;
+    margin: 0; padding: 0; list-style-type: none;
+}
+#suggestions li, #zone-suggestions li { padding: 10px 15px; cursor: pointer; font-size: 14px; }
+#suggestions li:hover, #zone-suggestions li:hover { background-color: var(--light-bg); }
+
+.dark #suggestions, .dark #zone-suggestions {
+    background: var(--dark-card-bg);
+    border-color: var(--dark-border);
+}
+.dark #suggestions li:hover, .dark #zone-suggestions li:hover { background-color: var(--dark-input-bg); }
+
+/* Sélecteur de couleur */
+.color-option {
+    width: 30px; height: 30px; cursor: pointer;
+    border: 2px solid transparent; border-radius: 50%;
+    transition: all 0.2s ease;
+}
+.color-option.selected {
+    border-color: var(--primary-color) !important;
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--primary-color) 50%, transparent);
+    transform: scale(1.1);
+}
+.color-option[data-name="transparent"] {
+    background-color: #4b5563; position: relative; overflow: hidden;
+}
+.color-option[data-name="transparent"]::after {
+    content: ''; position: absolute; top: 50%; left: -10%;
+    width: 120%; height: 3px; background-color: #ef4444;
+    transform: rotate(-45deg); transform-origin: center;
+}
+
+/* Styles pour les boutons radio customisés */
+input[type="radio"].custom-radio { display: none; }
+input[type="radio"].custom-radio + span { display: inline-block; transition: all 0.2s ease; }
+input[type="radio"].custom-radio:checked + span {
+    background-color: var(--primary-color) !important;
+    color: white !important;
+    border-color: var(--primary-color) !important;
+}
+
+/* Styles globaux des boutons principaux */
+.btn-main {
+    padding: 0.75rem 1.5rem;
+    border-radius: 0.5rem;
+    font-size: 1.125rem;
+    font-weight: 600;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    transform: perspective(1px) translateZ(0);
+    transition: transform 0.2s, background-color 0.2s;
+    color: white;
+    border: none;
+    cursor: pointer;
+}
+.btn-main:hover { transform: scale(1.05); }
+.btn-main:disabled {
+    background-color: var(--btn-disabled-bg);
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
+.btn-image { background-color: var(--btn-image-bg); }
+.btn-image:hover:not(:disabled) { background-color: var(--btn-image-hover); }
+.btn-grid { background-color: var(--btn-grid-bg); }
+.btn-grid:hover:not(:disabled) { background-color: var(--btn-grid-hover); }
+
+/* Curseur de qualité JPEG */
+.jpeg-quality-slider {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.3s ease-out;
+}
+.jpeg-quality-slider.visible { max-height: 100px; }
+
+/* Indicateur de chargement */
+.loading-spinner {
+    border: 4px solid color-mix(in srgb, var(--light-text) 10%, transparent);
+    width: 36px; height: 36px; border-radius: 50%;
+    border-left-color: var(--primary-color);
+    animation: spin 1s linear infinite;
+}
+.dark .loading-spinner { border-color: color-mix(in srgb, var(--dark-text) 10%, transparent); border-left-color: var(--primary-color); }
+@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+/* Avertissement pour le nombre de tuiles */
+#zone-tile-warning {
+    color: #ef4444; /* Rouge */
+    font-weight: 600;
+    font-size: 0.875rem;
+    display: none; /* Caché par défaut */
+}
+
+/* Visibilité des éléments */
+.hidden { display: none; }

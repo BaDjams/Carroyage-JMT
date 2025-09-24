@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aide - Générateur de Carroyage</title>
+    <!-- Utilisation du CDN de Tailwind v3 pour un style moderne -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        // Configuration pour le mode sombre de Tailwind
+        tailwind.config = {
+            darkMode: 'class', // Active le mode sombre basé sur une classe
+        }
+    </script>
+    <style>
+        body {
+            background-color: #f8fafc; /* gris très clair */
+        }
+        body.dark {
+            background-color: #111827; /* gris-bleu très sombre */
+        }
+    </style>
+</head>
+<body class="p-4 md:p-8 dark">
+    <div class="max-w-4xl mx-auto bg-white dark:bg-gray-800 p-6 md:p-8 rounded-lg shadow-xl text-gray-700 dark:text-gray-300">
+        
+        <div class="flex justify-between items-center border-b dark:border-gray-600 pb-4 mb-6">
+            <h1 class="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white">Guide d'utilisation</h1>
+            <a href="index.html" class="px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-lg shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-opacity-75 no-underline">Retour à l'application</a>
+        </div>
+        
+        <div class="prose dark:prose-invert max-w-none space-y-8">
+            <p>
+                Bienvenue sur le guide du Générateur de Carroyage. Cette application est conçue pour vous fournir des outils cartographiques précis pour la planification, l'analyse et l'exportation. L'application est divisée en trois modes principaux.
+            </p>
+
+            <!-- Mode 1: Carroyage CADO -->
+            <section>
+                <h2 class="text-xl font-bold border-t dark:border-gray-600 pt-6">Mode 1 : Carroyage CADO</h2>
+                <p>
+                    Ce mode est le cœur de l'application. Il vous permet de générer un carroyage tactique (A1, B2, etc.) et une image imprimable à partir d'un point de référence.
+                </p>
+
+                <h3 class="font-semibold mt-4">Convertisseurs de Coordonnées</h3>
+                <p>
+                    Avant de générer une grille, vous devez définir un point. Cette section vous aide à trouver et à convertir des coordonnées entre plusieurs formats :
+                </p>
+                <ul class="list-disc pl-5 space-y-1">
+                    <li><strong>GPS (Décimal ou DMS) :</strong> Le standard universel.</li>
+                    <li><strong>MERCATOR :</strong> Coordonnées projetées utilisées par de nombreux systèmes cartographiques web.</li>
+                    <li><strong>UTM :</strong> Un système de grille précis utilisé mondialement. Le format attendu est <code>Zone Lettre Easting Northing</code> (ex: <code>31 U 448252 5411943</code>).</li>
+                </ul>
+                <p>Cliquez sur <strong>"Convertir"</strong> pour mettre à jour tous les champs, ou <strong>"Voir sur la carte"</strong> pour centrer la carte sur ce point.</p>
+                
+                <h3 class="font-semibold mt-4">Configuration du Carroyage</h3>
+                <p>
+                    Ici, vous définissez l'apparence et le comportement de votre grille. La compréhension des points suivants est essentielle :
+                </p>
+                <ul class="list-disc pl-5 space-y-2">
+                    <li><strong>Point de Référence :</strong> C'est le pivot de votre grille. Si vous appliquez une rotation (déviation), la grille tournera autour de ce point. Un cercle jaune le matérialise dans le fichier final.</li>
+                    <li><strong>Point d'Origine (A1) :</strong> C'est l'ancre de la grille, le coin de la case A1. Si vous choisissez <strong>"Origine (A1)"</strong> comme point de référence, les deux points sont confondus. Si vous choisissez <strong>"Milieu du carroyage"</strong>, l'outil calcule la position de l'origine pour que votre point de référence soit au centre géométrique de la grille.</li>
+                </ul>
+
+                <h3 class="font-semibold mt-4">Génération d'Image (PNG/JPEG)</h3>
+                <p>
+                    Cette fonction crée une image haute résolution de votre carroyage, superposée sur un fond de carte, prête à être imprimée ou partagée. Elle est activée sous certaines conditions pour garantir un rendu correct (Déviation à 0°, alignement de la grille).
+                </p>
+                 <ul class="list-disc pl-5 space-y-1">
+                    <li><strong>Rendu dynamique :</strong> Le cartouche d'information, la boussole et la clé de subdivision s'adaptent automatiquement à la grille choisie.</li>
+                    <li><strong>Fonds de carte :</strong> Sélectionnez votre fond de carte préféré (Google, OSM, etc.) dans la liste déroulante.</li>
+                 </ul>
+            </section>
+
+            <!-- Mode 2: Grille UTM -->
+            <section>
+                <h2 class="text-xl font-bold border-t dark:border-gray-600 pt-6">Mode 2 : Grille UTM</h2>
+                <p>
+                    Ce mode génère les lignes de la grille UTM officielle (carrés de 1km) pour une zone rectangulaire que vous dessinez sur la carte.
+                </p>
+                <ul class="list-disc pl-5 space-y-1">
+                    <li><strong>Multi-zone :</strong> La grille est générée correctement même si votre zone s'étend sur plusieurs fuseaux UTM.</li>
+                    <li><strong>Précision :</strong> Les lignes suivent la courbure de la Terre pour un alignement parfait dans les logiciels de SIG comme Google Earth.</li>
+                    <li><strong>Étiquettes Alignées :</strong> Les étiquettes de coordonnées sont placées directement sur les lignes pour une lecture facile.</li>
+                </ul>
+            </section>
+            
+            <!-- Mode 3: Exporter Zone -->
+            <section>
+                <h2 class="text-xl font-bold border-t dark:border-gray-600 pt-6">Mode 3 : Exporter une Zone</h2>
+                <p>
+                    Ce mode puissant vous permet de télécharger une image géoréférencée (PNG ou JPEG) d'une zone rectangulaire de votre choix, à un niveau de zoom précis.
+                </p>
+                <ul class="list-disc pl-5 space-y-1">
+                    <li><strong>Définition de la zone :</strong> Utilisez l'outil de dessin pour tracer un rectangle sur la carte.</li>
+                    <li><strong>Choix du rendu :</strong> Sélectionnez le fond de carte et le niveau de zoom qui vous intéressent. Le panneau d'information vous indique le nombre de tuiles à télécharger (limité à 2000 pour éviter les abus).</li>
+                    <li><strong>Import KML/KMZ (Optionnel) :</strong> Vous pouvez importer un fichier KML/KMZ contenant des polygones ou des tracés. L'outil dessinera automatiquement un rectangle qui englobe tous les éléments de votre fichier, vous faisant gagner du temps.</li>
+                    <li><strong>Téléchargement :</strong> L'outil assemble les tuiles pour créer une image unique de haute qualité.</li>
+                </ul>
+            </section>
+            
+            <section>
+                <h2 class="text-xl font-bold border-t dark:border-gray-600 pt-6">Formats de Fichiers</h2>
+                 <ul class="list-disc pl-5 space-y-1">
+                    <li><strong>KMZ :</strong> Format compressé pour Google Earth, idéal pour le carroyage CADO car il inclut les icônes personnalisées.</li>
+                    <li><strong>KML :</strong> Format standard pour Google Earth et Google Maps (sans icônes intégrées).</li>
+                    <li><strong>GeoJSON :</strong> Format universel pour les Systèmes d'Information Géographique (SIG) comme QGIS.</li>
+                    <li><strong>GPX :</strong> Format standard pour les appareils GPS (Garmin, etc.) et les applications mobiles de randonnée (OsmAnd, ViewRanger).</li>
+                </ul>
+            </section>
+
+        </div>
+        <footer class="mt-8 pt-6 text-center text-sm text-gray-500 dark:text-gray-400 border-t dark:border-gray-600">
+            <p>Application développée par Romain JMT.</p>
+            <p>Contact : <a href="mailto:tmj.niamor@gmail.com" class="text-blue-500 hover:underline">tmj.niamor@gmail.com</a></p>
+        </footer>
+    </div>
+
+    <script>
+        // Applique le mode sombre en fonction des préférences système ou du stockage local
+        if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+            document.documentElement.classList.add('dark');
+            document.body.classList.add('dark');
+        } else {
+            document.documentElement.classList.remove('dark');
+            document.body.classList.remove('dark');
+        }
+    </script>
+</body>
+</html>
