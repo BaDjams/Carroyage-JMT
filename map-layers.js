@@ -1,4 +1,5 @@
 // map-layers.js
+const IGN_API_KEY = "ign_scan_ws";
 
 const MAP_LAYERS = [
     {
@@ -78,5 +79,20 @@ const MAP_LAYERS = [
                 "type": "xyz"
             }
         ]
-    }
+    }/*,
+	{
+        id: "ign_scan25",
+        name: "IGN Scan 25",
+        maxZoom: 18,
+        type: 'wms', // Le type qui déclenchera la logique du plugin
+        url: 'https://data.geopf.fr/wms-r/wms',
+        wmsParams: {
+            apikey: IGN_API_KEY,
+            layers: 'SCAN25TOUR_PYR-JPEG_WLD_WM', // Notez 'layers' au lieu de 'LAYERS' pour le plugin
+            format: 'image/jpeg',
+            transparent: false,
+            version: '1.3.0',
+            crs: 'EPSG:4326'
+        }
+    }*/
 ];
