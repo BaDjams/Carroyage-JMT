@@ -1,8 +1,5 @@
 // imagetoprint.js
 
-const TILE_SIZE = 256;
-const MAX_ZOOM = 19;
-
 /**
  * Fonction de conversion des coordonnées de tuile (x, y, z) en QuadKey pour Bing Maps.
  */
@@ -21,7 +18,6 @@ function coordsToQuadKey(x, y, zoom) {
     }
     return quadKey;
 }
-
 
 /**
  * Fonction principale qui orchestre la création de l'image.
@@ -91,7 +87,9 @@ async function generateImageToPrint() {
 }
 
 /**
- * Calcule la position de l'origine A1 de manière dynamique.
+ * [VERSION CORRIGÉE]
+ * Calcule la position de l'origine A1 de manière dynamique, en utilisant la
+ * logique robuste de utilities.js
  */
 function getA1CornerCoordsForPrint(config) {
     const refLat = config.latitude;
@@ -102,17 +100,39 @@ function getA1CornerCoordsForPrint(config) {
     if (config.referencePointChoice === 'origin') {
         return [refLon, refLat];
     } else { // 'center'
-        const numCols = letterToNumber(config.endCol) - letterToNumber(config.startCol) + 1;
-        const numRows = config.endRow - config.startRow + 1;
+        const startColNum = letterToNumber(config.startCol);
+        const endColNum = letterToNumber(config.endCol);
+        const startRowNum = config.startRow;
+        const endRowNum = config.endRow;
 
-        const centerColOffset = (numCols / 2);
-        const centerRowOffset = (numRows / 2);
+        const calculateCenterOffsetInCells = (start, end) => {
+            const indices = generateIndices(start, end);
+            const numCells = indices.length;
+            const startOffset = getOffsetInCells(indices[0]);
 
+            if (numCells % 2 === 0) {
+                const middleIndex = numCells / 2;
+                return startOffset + middleIndex;
+            } else {
+                const middleIndex = Math.floor(numCells / 2);
+                return startOffset + middleIndex + 0.5;
+            }
+        };
+        
+        const centerColOffset = calculateCenterOffsetInCells(startColNum, endColNum);
+        const centerRowOffset = calculateCenterOffsetInCells(startRowNum, endRowNum);
+        
         const xOffsetMeters = centerColOffset * config.scale;
-        const yOffsetMeters = centerRowOffset * config.scale;
+		const yOffsetMeters = centerRowOffset * config.scale;
 
-        const a1Lon = refLon - metersToLonDegrees(xOffsetMeters, refLat);
-        const a1Lat = refLat - metersToLatDegrees(yOffsetMeters, refLat);
+		const a1Lon = refLon - metersToLonDegrees(xOffsetMeters, refLat);
+        let a1Lat;
+		if (config.letteringDirection === 'ascending') {
+			a1Lat = refLat - metersToLatDegrees(yOffsetMeters);
+		} else { // 'descending'
+			a1Lat = refLat + metersToLatDegrees(yOffsetMeters);
+		}
+        
         return [a1Lon, a1Lat];
     }
 }
@@ -283,7 +303,9 @@ function drawLabelWithOutline(ctx, text, x, y, config) {
 }
 
 /**
- * Dessine la grille et tous les éléments sur le canevas final.
+ * [VERSION CORRIGÉE]
+ * Dessine la grille et tous les éléments sur le canevas final en utilisant
+ * la logique robuste de utilities.js pour être 100% cohérent avec carroyageCado.js.
  */
 function drawGridAndElements(ctx, canvasInfo, zoom, config, a1CornerCoords) {
     const [a1Lon, a1Lat] = a1CornerCoords;
@@ -303,25 +325,31 @@ function drawGridAndElements(ctx, canvasInfo, zoom, config, a1CornerCoords) {
     const startRowNum = config.startRow;
     const endRowNum = config.endRow;
 
-    if (!isTransparent) {
+    const colsToDraw = generateIndices(startColNum, endColNum);
+    const rowsToDraw = generateIndices(startRowNum, endRowNum);
+
+    if (!isTransparent && colsToDraw.length > 0 && rowsToDraw.length > 0) {
         ctx.strokeStyle = config.gridColor;
         ctx.lineWidth = config.lineWidth || 1;
+        
+        const colsForLines = [...colsToDraw, getNextIndex(colsToDraw[colsToDraw.length - 1])];
+        const rowsForLines = [...rowsToDraw, getNextIndex(rowsToDraw[rowsToDraw.length - 1])];
 
-        for (let i = startColNum; i <= endColNum + 1; i++) {
-            const startPoint = calculateAndRotatePoint(i, startRowNum, config, a1Lat, a1Lon);
-            const endPoint = calculateAndRotatePoint(i, endRowNum + 1, config, a1Lat, a1Lon);
+        colsForLines.forEach(colNum => {
+            const startPoint = calculateAndRotatePoint(colNum, rowsForLines[0], config, a1Lat, a1Lon);
+            const endPoint = calculateAndRotatePoint(colNum, rowsForLines[rowsForLines.length - 1], config, a1Lat, a1Lon);
             const startPixels = latLonToPixels(startPoint[1], startPoint[0]);
             const endPixels = latLonToPixels(endPoint[1], endPoint[0]);
             ctx.beginPath(); ctx.moveTo(startPixels.x, startPixels.y); ctx.lineTo(endPixels.x, endPixels.y); ctx.stroke();
-        }
+        });
 
-        for (let i = startRowNum; i <= endRowNum + 1; i++) {
-            const startPoint = calculateAndRotatePoint(startColNum, i, config, a1Lat, a1Lon);
-            const endPoint = calculateAndRotatePoint(endColNum + 1, i, config, a1Lat, a1Lon);
+        rowsForLines.forEach(rowNum => {
+            const startPoint = calculateAndRotatePoint(colsForLines[0], rowNum, config, a1Lat, a1Lon);
+            const endPoint = calculateAndRotatePoint(colsForLines[colsForLines.length - 1], rowNum, config, a1Lat, a1Lon);
             const startPixels = latLonToPixels(startPoint[1], startPoint[0]);
             const endPixels = latLonToPixels(endPoint[1], endPoint[0]);
             ctx.beginPath(); ctx.moveTo(startPixels.x, startPixels.y); ctx.lineTo(endPixels.x, endPixels.y); ctx.stroke();
-        }
+        });
     }
     
     const geo_A1_center = calculateAndRotatePoint(startColNum + 0.5, startRowNum + 0.5, config, a1Lat, a1Lon);
@@ -336,13 +364,13 @@ function drawGridAndElements(ctx, canvasInfo, zoom, config, a1CornerCoords) {
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
 
-        for (let i = startColNum; i <= endColNum; i++) {
+        for (const i of colsToDraw) {
             const labelPoint = calculateAndRotatePoint(i + 0.5, startRowNum - 0.5, config, a1Lat, a1Lon);
             const labelPixels = latLonToPixels(labelPoint[1], labelPoint[0]);
             drawLabelWithOutline(ctx, numberToLetter(i), labelPixels.x, labelPixels.y, config);
         }
 
-        for (let i = startRowNum; i <= endRowNum; i++) {
+        for (const i of rowsToDraw) {
             const labelPoint = calculateAndRotatePoint(startColNum - 0.5, i + 0.5, config, a1Lat, a1Lon);
             const labelPixels = latLonToPixels(labelPoint[1], labelPoint[0]);
             drawLabelWithOutline(ctx, i.toString(), labelPixels.x, labelPixels.y, config);
