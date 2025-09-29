@@ -1,10 +1,6 @@
 // carroyageCado.js
 
-// --- CONVERSIONS DE COORDONNÉES ---
-const R = 6378137;
-const toRad = deg => deg * Math.PI / 180;
-const toDeg = rad => rad * 180 / Math.PI;
-
+// --- CONVERSIONS DE COORDONNÉES SPÉCIFIQUES ---
 function mercatorXToLng(x) { return toDeg(x / R); }
 function mercatorYToLat(y) { return toDeg(2 * Math.atan(Math.exp(y / R)) - Math.PI / 2); }
 function lngToMercatorX(lng) { return R * toRad(lng); }
@@ -32,7 +28,6 @@ function updateAllFromDecimal(lat, lon) {
     const utm = WGS84_to_UTM.fromLatLon(lat, lon);
     document.getElementById('utm-coords').value = `${utm.zoneNumber} ${utm.zoneLetter} ${utm.easting.toFixed(0)} ${utm.northing.toFixed(0)}`;
 }
-
 
 function convertFromDecimal() {
     try {
@@ -109,7 +104,6 @@ function convertFromUTM() {
     }
 }
 
-
 async function convertFromPlusCode() { /* Stub */ }
 
 function isPlusCodeLibraryAvailable() { return typeof OpenLocationCode === 'function'; }
@@ -143,9 +137,6 @@ function viewOnMaps(type) {
 
 // --- LOGIQUE DE GÉNÉRATION DE CARROYAGE CADO ---
 
-/**
- * [CORRIGÉE] Met à jour le nom complet de la grille affiché dans l'interface.
- */
 function updateDynamicGridName() {
     try {
         const baseName = document.getElementById('grid-name-base').value || 'CADO Grid';
@@ -179,7 +170,6 @@ function updateDynamicGridName() {
         console.warn("Could not update dynamic grid name, likely due to an element not being ready.", e);
     }
 }
-
 
 async function generateGrid() {
     const loadingIndicator = document.getElementById("loading-indicator");
@@ -243,9 +233,6 @@ async function generateGrid() {
     }
 }
 
-/**
- * [CORRIGÉE] Récupère tous les paramètres de l'interface pour la génération.
- */
 function getGridConfiguration(lat, lon) {
     const gridType = document.querySelector('input[name="grid-type"]:checked').value;
     let startRow, endRow, startCol, endCol;
@@ -287,13 +274,6 @@ function getGridConfiguration(lat, lon) {
     };
 }
 
-
-const getOffsetInCells = (n) => {
-    if (n > 0) return n - 1;
-    return n;
-};
-const getNextIndex = (n) => (n === -1 ? 1 : n + 1);
-
 function calculateGridData(config) {
     const metersToLatDegrees = (meters) => meters / 111320;
     const metersToLonDegrees = (meters, lat) => meters / (111320 * Math.cos(toRad(lat)));
@@ -331,15 +311,11 @@ function calculateGridData(config) {
         const xOffsetMeters = centerColOffset * config.scale;
 		const yOffsetMeters = centerRowOffset * config.scale;
 
-		// Le décalage en longitude est indépendant de la direction de la grille
 		a1CornerLon = refLon - metersToLonDegrees(xOffsetMeters, refLat);
 
-		// Le décalage en latitude DÉPEND de la direction de la grille
 		if (config.letteringDirection === 'ascending') {
-			// Si la grille monte, A1 doit être en dessous du centre
 			a1CornerLat = refLat - metersToLatDegrees(yOffsetMeters);
 		} else { // 'descending'
-			// Si la grille descend, A1 doit être au-dessus du centre
 			a1CornerLat = refLat + metersToLatDegrees(yOffsetMeters);
 		}
     }
@@ -387,48 +363,6 @@ function calculateGridData(config) {
     };
 }
 
-function calculateAndRotatePoint(colNumber, rowNumber, config, a1Lat, a1Lon) {
-    const metersToLatDegrees = (meters) => meters / 111320;
-    const metersToLonDegrees = (meters, lat) => meters / (111320 * Math.cos(toRad(lat)));
-
-    const xOffsetMeters = (colNumber > 0 ? colNumber - 1 : colNumber) * config.scale;
-    const yOffsetMeters = (rowNumber > 0 ? rowNumber - 1 : rowNumber) * config.scale;
-
-    const finalYOffset = config.letteringDirection === 'ascending' ? yOffsetMeters : -yOffsetMeters;
-
-    const unrotatedLon = a1Lon + metersToLonDegrees(xOffsetMeters, a1Lat);
-    const unrotatedLat = a1Lat + metersToLatDegrees(finalYOffset, a1Lat);
-
-    if (config.deviation === 0) {
-        return [unrotatedLon, unrotatedLat];
-    }
-
-    const pivotLon = config.longitude;
-    const pivotLat = config.latitude;
-    const deviationRad = -toRad(config.deviation);
-
-    const cartesianX = (unrotatedLon - pivotLon) * 111320 * Math.cos(toRad(pivotLat));
-    const cartesianY = (unrotatedLat - pivotLat) * 111320;
-
-    const rotatedX = cartesianX * Math.cos(deviationRad) - cartesianY * Math.sin(deviationRad);
-    const rotatedY = cartesianX * Math.sin(deviationRad) + cartesianY * Math.cos(deviationRad);
-
-    const finalLon = pivotLon + metersToLonDegrees(rotatedX, pivotLat);
-    const finalLat = pivotLat + metersToLatDegrees(rotatedY);
-
-    return [finalLon, finalLat];
-}
-
-function generateIndices(start, end) {
-    const indices = [];
-    if (start <= end) {
-        for (let i = start; i <= end; i++) { if (i !== 0) indices.push(i); }
-    } else {
-        for (let i = start; i >= end; i--) { if (i !== 0) indices.push(i); }
-    }
-    return indices;
-}
-
 function generateCirclePoints(lon, lat, radiusMeters, segments) {
     const circlePoints = [];
     for (let i = 0; i <= segments; i++) {
@@ -442,23 +376,12 @@ function generateCirclePoints(lon, lat, radiusMeters, segments) {
     return circlePoints;
 }
 
-function letterToNumber(str) {
-    if (!str || typeof str !== 'string') return 0;
-    if (str.startsWith('-')) return -letterToNumber(str.substring(1));
-    return str.toUpperCase().split('').reduce((acc, char) => acc * 26 + char.charCodeAt(0) - 64, 0);
-}
-
-function numberToLetter(num) {
-    if (num < 0) return '-' + numberToLetter(-num);
-    if (num === 0) return '';
-    let letter = '';
-    let tempNum = num;
-    while (tempNum > 0) {
-        const remainder = (tempNum - 1) % 26;
-        letter = String.fromCharCode(65 + remainder) + letter;
-        tempNum = Math.floor((tempNum - 1) / 26);
-    }
-    return letter;
+function rgbToKmlColor(hex, opacity) {
+    const r = parseInt(hex.slice(1, 3), 16).toString(16).padStart(2, '0');
+    const g = parseInt(hex.slice(3, 5), 16).toString(16).padStart(2, '0');
+    const b = parseInt(hex.slice(5, 7), 16).toString(16).padStart(2, '0');
+    const a = Math.floor(255 * opacity).toString(16).padStart(2, '0');
+    return `${a}${b}${g}${r}`;
 }
 
 function generateKML(config, gridData) {
@@ -583,36 +506,4 @@ function generateGPX(config, gridData) {
     }
     gpx += '</gpx>';
     return gpx;
-}
-        
-// --- FONCTIONS UTILITAIRES PARTAGÉES ---
-
-function downloadFile(blob, fileName) {
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.style.display = 'none';
-    a.href = url;
-    a.download = fileName;
-    document.body.appendChild(a);
-    a.click();
-    window.URL.revokeObjectURL(url);
-    document.body.removeChild(a);
-}
-
-function showError(message) {
-    const errorDiv = document.getElementById("error-message");
-    errorDiv.textContent = message;
-    errorDiv.classList.remove("hidden");
-}
-
-function hideError() {
-    document.getElementById("error-message").classList.add("hidden");
-}
-
-function rgbToKmlColor(hex, opacity) {
-    const r = parseInt(hex.slice(1, 3), 16).toString(16).padStart(2, '0');
-    const g = parseInt(hex.slice(3, 5), 16).toString(16).padStart(2, '0');
-    const b = parseInt(hex.slice(5, 7), 16).toString(16).padStart(2, '0');
-    const a = Math.floor(255 * opacity).toString(16).padStart(2, '0');
-    return `${a}${b}${g}${r}`;
 }
