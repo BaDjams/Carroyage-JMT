@@ -22,18 +22,16 @@ if (workbox && typeof APP_VERSION !== 'undefined') {
   // Pour que cela fonctionne, vous devez mettre à jour la "revision" d'un fichier quand vous le modifiez.
   // Si vous n'utilisez pas d'outil de build, vous pouvez changer manuellement la révision (ex: 'v1.1').
   workbox.precaching.precacheAndRoute([
-    { url: '/', revision: 'v1' },
-    { url: 'index.html', revision: 'v1' },
-	{ url: 'utilities.js', revision: 'v1' },
-    { url: 'style.css', revision: 'v1' },
-    { url: 'help.html', revision: 'v1' },
-    { url: 'imagetoprint.js', revision: 'v1' },
-    { url: 'carroyageUTM.js', revision: 'v1' },
-    { url: 'carroyageCado.js', revision: 'v1' },
-	{ url: 'zoneDowloader.js', revision: 'v1' },
-    { url: 'map-layers.js', revision: 'v1' },
-    // On met aussi en cache le fichier de version pour être sûr qu'il est à jour.
-    { url: 'version.js', revision: 'v1' }, 
+    { url: '/', revision: APP_VERSION },
+    { url: 'index.html', revision: APP_VERSION },
+	{ url: 'utilities.js', revision: APP_VERSION },
+    { url: 'style.css', revision: APP_VERSION },
+    { url: 'help.html', revision: APP_VERSION },
+    { url: 'imagetoprint.js', revision: APP_VERSION },
+    { url: 'carroyageUTM.js', revision: APP_VERSION },
+    { url: 'carroyageCado.js', revision: APP_VERSION },
+	{ url: 'zoneDowloader.js', revision: APP_VERSION },
+    { url: 'map-layers.js', revision: APP_VERSION },
     // Fichiers CDN
     { url: 'tailwind.min.css', revision: 'cdn-v1' },
     { url: 'flowbite.min.css', revision: 'cdn-v1' },
