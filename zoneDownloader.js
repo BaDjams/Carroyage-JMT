@@ -92,29 +92,15 @@ async function generateZonePNG() {
         const { finalCanvas } = await zdCreateFinalCanvas(boundingBox, zoom, selectedMap, dynamicMargin);
         const ctx = finalCanvas.getContext('2d');
         
-        // --- NOUVEAU BLOC DE CALCUL DES DIMENSIONS D'IMPRESSION ---
         const scale = 25000;
-
-        // 1. Dimensions en pixels de la zone de carte (sans les marges)
         const drawingBoxPixelWidth = finalCanvas.width - 2 * dynamicMargin;
-
-        // 2. Dimensions réelles en mètres de cette même zone
         const centralLat = (north + south) / 2;
         const realWidthMeters = haversineDistance({lat: centralLat, lon: west}, {lat: centralLat, lon: east});
-
-        // 3. Ratio : combien de mètres réels représente un seul pixel de la carte
         const metersPerPixel = realWidthMeters / drawingBoxPixelWidth;
-
-        // 4. Ratio : combien de mm sur le papier un pixel doit-il mesurer pour respecter l'échelle
-        // (m / px) / (m_réel / m_papier) * (mm_papier / m_papier) -> mm/px
         const mmPerPixel = (metersPerPixel / scale) * 1000;
-
-        // 5. Calculer la taille d'impression finale pour L'IMAGE ENTIÈRE (canvas total)
         const totalPrintWidthMm = finalCanvas.width * mmPerPixel;
         const totalPrintHeightMm = finalCanvas.height * mmPerPixel;
-
         const printDimensionsString = `print_${totalPrintWidthMm.toFixed(0)}x${totalPrintHeightMm.toFixed(0)}mm`;
-        // --- FIN DU NOUVEAU BLOC ---
         
         ctx.fillStyle = 'white';
         ctx.fillRect(0, 0, finalCanvas.width, dynamicMargin);
@@ -141,9 +127,16 @@ async function generateZonePNG() {
         }
 
         const overlayUtmGrid = document.getElementById('overlay-utm-grid-checkbox').checked;
+        const overlayCadoGrid = document.getElementById('overlay-cado-grid-checkbox').checked;
+
         if (overlayUtmGrid) {
             loadingMessage.textContent = "Dessin de la grille UTM...";
             await drawUtmGridOnCanvas(ctx, boundingBox, zoom, latLonToCanvasPixels, dynamicMargin, cartoucheFontSize);
+        }
+        
+        if (overlayCadoGrid) {
+            loadingMessage.textContent = "Dessin du carroyage CADO...";
+            await drawCadoGridOnCanvas(ctx, boundingBox, latLonToCanvasPixels);
         }
 
 		loadingMessage.textContent = "Finalisation de l'image...";
@@ -168,6 +161,71 @@ async function generateZonePNG() {
 }
 
 /**
+ * Génère un fichier KMZ du carroyage CADO pour la zone définie.
+ */
+async function generateCadoGridForZone() {
+    const loadingIndicator = document.getElementById("loading-indicator");
+    const loadingMessage = document.getElementById("loading-message");
+    
+    loadingMessage.textContent = "Génération du carroyage CADO (KMZ)...";
+    loadingIndicator.classList.remove("hidden");
+    hideError();
+
+    try {
+        const nwCoordsStr = document.getElementById("zone-nw-coords").value;
+        const seCoordsStr = document.getElementById("zone-se-coords").value;
+        if (!nwCoordsStr || !seCoordsStr) throw new Error("Veuillez d'abord dessiner une zone rectangulaire.");
+        
+        const [nwLat, nwLon] = nwCoordsStr.split(',').map(c => parseFloat(c.trim()));
+        const [seLat, seLon] = seCoordsStr.split(',').map(c => parseFloat(c.trim()));
+
+        const scale = parseFloat(document.getElementById('cado-overlay-scale').value);
+        if (isNaN(scale) || scale <= 0) throw new Error("L'échelle doit être un nombre positif.");
+        
+        const widthMeters = haversineDistance({lat: nwLat, lon: nwLon}, {lat: nwLat, lon: seLon});
+        const heightMeters = haversineDistance({lat: nwLat, lon: nwLon}, {lat: seLat, lon: nwLon});
+        
+        const numCols = Math.ceil(widthMeters / scale);
+        const numRows = Math.ceil(heightMeters / scale);
+
+        const config = {
+            latitude: nwLat,
+            longitude: nwLon,
+            scale: scale,
+            gridColor: document.getElementById('grid-color').value,
+            colorName: document.getElementById('grid-color-name').value,
+            colorOpacity: (100 - parseInt(document.getElementById('transparency').value)) / 100,
+            gridName: document.getElementById("zone-title").value || "Carroyage CADO de Zone",
+            deviation: 0,
+            labelSize: parseFloat(document.getElementById('label-size').value),
+            iconSize: parseFloat(document.getElementById('icon-size').value || 2),
+            referencePointChoice: 'origin',
+            letteringDirection: document.querySelector('input[name="cado-overlay-direction"]:checked').value,
+            startRow: 1,
+            endRow: numRows,
+            startCol: 'A',
+            endCol: numberToLetter(numCols),
+            includeGrid: true,
+            includePoints: true,
+            outputFormat: 'KMZ'
+        };
+
+        const gridData = calculateGridData(config);
+        const kmlContent = generateKML(config, gridData);
+        const kmzBlob = await generateKMZ(config, gridData, kmlContent, 'application/vnd.google-earth.kmz');
+        
+        downloadFile(kmzBlob, `${config.gridName}.kmz`);
+
+    } catch (error) {
+        console.error("Erreur lors de la génération du KMZ CADO:", error);
+        showError(error.message);
+    } finally {
+        loadingIndicator.classList.add("hidden");
+    }
+}
+
+
+/**
  * Crée le canevas final avec des marges, et y assemble les tuiles pour la zone sélectionnée.
  */
 async function zdCreateFinalCanvas(boundingBox, zoom, mapConfig, margin) {
@@ -182,7 +240,6 @@ async function zdCreateFinalCanvas(boundingBox, zoom, mapConfig, margin) {
     finalCanvas.height = imageHeight + margin * 2;
     const ctx = finalCanvas.getContext('2d');
 
-    // Remplir tout le canevas en blanc pour créer les marges
     ctx.fillStyle = 'white';
     ctx.fillRect(0, 0, finalCanvas.width, finalCanvas.height);
 
@@ -244,14 +301,13 @@ function drawZoneCartouche(ctx, title, bbox, layerName, zoom, margin) {
         `UTM NO: ${utmNW_string}`,
         `UTM SE: ${utmSE_string}`,
         `Fond: ${layerName} (Zoom ${zoom})`,
-        `Échelle : 1 carré = 1km` // Ajout de l'échelle
+        `Échelle : 1 carré = 1km`
     ];
 
     ctx.font = `${FONT_SIZE}px Arial`;
     const cartoucheWidth = Math.max(...texts.map(text => ctx.measureText(text).width)) + (PADDING * 2);
     const cartoucheHeight = (lineSpacing * texts.length) - (lineSpacing - FONT_SIZE) + (PADDING * 2);
 
-    // --- CORRECTION : Positionnement à l'intérieur de la drawing box ---
     const cartoucheX = margin + PADDING;
     const cartoucheY = margin + PADDING;
 
@@ -281,7 +337,6 @@ function drawZoneCompass(ctx, canvasWidth, canvasHeight, margin, cartoucheMetric
     const maxRadius = (cartoucheMetrics.cartoucheHeight * 0.75) / 2;
     const dynamicRadius = (canvasWidth - margin * 2) * 0.03;
     const radius = Math.max(20, Math.min(maxRadius, dynamicRadius));
-    // --- CORRECTION : Augmentation du padding pour éviter le chevauchement ---
     const PADDING = radius * 1.6; 
 
     const centerX = canvasWidth - margin - PADDING;
@@ -617,11 +672,9 @@ function drawZoneKmlFeatures(ctx, zoom, features, latLonToCanvasPixels) {
 }
 
 /**
- * Calcule et dessine une grille UTM. Les lignes utilisent la couleur sélectionnée,
- * tandis que les étiquettes sont toujours en noir gras pour une lisibilité maximale.
+ * Calcule et dessine une grille UTM.
  */
 async function drawUtmGridOnCanvas(ctx, boundingBox, zoom, latLonToCanvasPixels, margin, cartoucheFontSize) {
-    // Couleur pour les LIGNES de la grille uniquement, choisie par l'utilisateur
     const color = document.getElementById('utm-grid-color').value;
     const opacity = (100 - parseInt(document.getElementById('utm-transparency').value)) / 100;
     const r = parseInt(color.slice(1, 3), 16);
@@ -648,7 +701,6 @@ async function drawUtmGridOnCanvas(ctx, boundingBox, zoom, latLonToCanvasPixels,
     const labelPadding = 5;
     const labelsToDraw = [];
 
-    // --- ÉTAPE 1: DESSINER LES LIGNES DE LA GRILLE (avec couleur utilisateur) ---
     ctx.save();
     ctx.beginPath();
     ctx.rect(drawingBox.x, drawingBox.y, drawingBox.width, drawingBox.height);
@@ -671,7 +723,7 @@ async function drawUtmGridOnCanvas(ctx, boundingBox, zoom, latLonToCanvasPixels,
 
         for (const line of allLines) {
             ctx.lineWidth = (parseInt(line.name.split(' ')[1], 10) % 5 === 0) ? 3 : 1.5;
-            ctx.strokeStyle = gridLineColor; // Utilise la couleur des lignes
+            ctx.strokeStyle = gridLineColor;
             ctx.beginPath();
             let firstCanvasPoint = null;
             let lastCanvasPoint = null;
@@ -709,9 +761,8 @@ async function drawUtmGridOnCanvas(ctx, boundingBox, zoom, latLonToCanvasPixels,
     }
     ctx.restore();
 
-    // --- ÉTAPE 2: DESSINER LES ÉTIQUETTES (toujours en noir gras) ---
-    ctx.fillStyle = 'black'; // Couleur fixe pour les étiquettes
-    ctx.font = `bold ${labelFontSize}px Arial`; // Police en gras
+    ctx.fillStyle = 'black';
+    ctx.font = `bold ${labelFontSize}px Arial`;
 
     for (const label of labelsToDraw) {
         ctx.save();
@@ -722,7 +773,7 @@ async function drawUtmGridOnCanvas(ctx, boundingBox, zoom, latLonToCanvasPixels,
                 ctx.rotate(-Math.PI / 2);
                 ctx.textAlign = 'left';
                 ctx.textBaseline = 'middle';
-                ctx.fillText(label.text, labelPadding, 0); // Uniquement fillText, pas de strokeText
+                ctx.fillText(label.text, labelPadding, 0);
                 break;
             case 'bottom':
                 ctx.rotate(-Math.PI / 2);
@@ -742,5 +793,82 @@ async function drawUtmGridOnCanvas(ctx, boundingBox, zoom, latLonToCanvasPixels,
                 break;
         }
         ctx.restore();
+    }
+}
+
+/**
+ * Dessine un carroyage CADO sur le canvas de la zone.
+ */
+async function drawCadoGridOnCanvas(ctx, boundingBox, latLonToCanvasPixels) {
+    const config = {
+        scale: parseFloat(document.getElementById('cado-overlay-scale').value),
+        lineWidth: parseInt(document.getElementById('cado-overlay-thickness').value, 10),
+        letteringDirection: document.querySelector('input[name="cado-overlay-direction"]:checked').value,
+        gridColor: document.getElementById('grid-color').value,
+        colorName: document.getElementById('grid-color-name').value,
+        deviation: 0
+    };
+
+    const a1Lon = boundingBox.west;
+    const a1Lat = boundingBox.north;
+    const widthMeters = haversineDistance({lat: a1Lat, lon: a1Lon}, {lat: a1Lat, lon: boundingBox.east});
+    const heightMeters = haversineDistance({lat: a1Lat, lon: a1Lon}, {lat: boundingBox.south, lon: a1Lon});
+    const numCols = Math.ceil(widthMeters / config.scale);
+    const numRows = Math.ceil(heightMeters / config.scale);
+    
+    const startColNum = 1;
+    const endColNum = numCols;
+    const startRowNum = 1;
+    const endRowNum = numRows;
+
+    ctx.strokeStyle = config.gridColor;
+    ctx.lineWidth = config.lineWidth;
+
+    for (let c = startColNum; c <= endColNum + 1; c++) {
+        const startPoint = calculateAndRotatePoint(c, startRowNum, config, a1Lat, a1Lon);
+        const endPoint = calculateAndRotatePoint(c, endRowNum + 1, config, a1Lat, a1Lon);
+        const startPixels = latLonToCanvasPixels(startPoint[1], startPoint[0]);
+        const endPixels = latLonToCanvasPixels(endPoint[1], endPoint[0]);
+        ctx.beginPath(); ctx.moveTo(startPixels.x, startPixels.y); ctx.lineTo(endPixels.x, endPixels.y); ctx.stroke();
+    }
+
+    for (let r = startRowNum; r <= endRowNum + 1; r++) {
+        const startPoint = calculateAndRotatePoint(startColNum, r, config, a1Lat, a1Lon);
+        const endPoint = calculateAndRotatePoint(endColNum + 1, r, config, a1Lat, a1Lon);
+        const startPixels = latLonToCanvasPixels(startPoint[1], startPoint[0]);
+        const endPixels = latLonToCanvasPixels(endPoint[1], endPoint[0]);
+        ctx.beginPath(); ctx.moveTo(startPixels.x, startPixels.y); ctx.lineTo(endPixels.x, endPixels.y); ctx.stroke();
+    }
+    
+    const geo_A1_center = calculateAndRotatePoint(1.5, 1.5, config, a1Lat, a1Lon);
+    const geo_B1_center = calculateAndRotatePoint(2.5, 1.5, config, a1Lat, a1Lon);
+    const px_A1_center = latLonToCanvasPixels(geo_A1_center[1], geo_A1_center[0]);
+    const px_B1_center = latLonToCanvasPixels(geo_B1_center[1], geo_B1_center[0]);
+    const cellWidthInPixels = Math.hypot(px_B1_center.x - px_A1_center.x, px_B1_center.y - px_A1_center.y);
+    
+    const labelFontSize = cellWidthInPixels * 0.4;
+    ctx.font = `bold ${labelFontSize}px Arial`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    
+    const drawLabelWithOutline = (text, x, y) => {
+        const darkColors = ['black', 'red', 'blue', 'green', 'violet', 'brown'];
+        ctx.strokeStyle = darkColors.includes(config.colorName) ? 'white' : 'black';
+        ctx.lineWidth = 3;
+        ctx.strokeText(text, x, y);
+        ctx.fillStyle = config.gridColor;
+        ctx.fillText(text, x, y);
+    };
+
+    for (let c = startColNum; c <= endColNum; c++) {
+        const labelPoint = calculateAndRotatePoint(c + 0.5, startRowNum - 0.5, config, a1Lat, a1Lon);
+        const labelPixels = latLonToCanvasPixels(labelPoint[1], labelPoint[0]);
+        drawLabelWithOutline(numberToLetter(c), labelPixels.x, labelPixels.y);
+    }
+
+    for (let r = startRowNum; r <= endRowNum; r++) {
+        const labelPoint = calculateAndRotatePoint(startColNum - 0.5, r + 0.5, config, a1Lat, a1Lon);
+        const labelPixels = latLonToCanvasPixels(labelPoint[1], labelPoint[0]);
+        drawLabelWithOutline(r.toString(), labelPixels.x, labelPixels.y);
     }
 }
