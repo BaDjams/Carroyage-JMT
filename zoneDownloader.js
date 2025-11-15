@@ -43,7 +43,6 @@ function getZoneCadoConfigAndBounds() {
     
     const [nwLat, nwLon] = nwCoordsStr.split(',').map(c => parseFloat(c.trim()));
     const [seLat, seLon] = seCoordsStr.split(',').map(c => parseFloat(c.trim()));
-    const boundingBox = { north: nwLat, west: nwLon, south: seLat, east: seLon };
 
     const scale = parseFloat(document.getElementById('cado-overlay-scale').value);
     if (isNaN(scale) || scale <= 0) throw new Error("L'échelle doit être un nombre positif.");
@@ -96,7 +95,21 @@ function getZoneCadoConfigAndBounds() {
         outputFormat: 'KMZ'
     };
 
-    return { config, boundingBox, a1CornerLat, a1CornerLon };
+    const gridCorners = [
+        calculateAndRotatePoint(config.startRow, 1, config, a1CornerLat, a1CornerLon),
+        calculateAndRotatePoint(numCols + 1, 1, config, a1CornerLat, a1CornerLon),
+        calculateAndRotatePoint(1, numRows + 1, config, a1CornerLat, a1CornerLon),
+        calculateAndRotatePoint(numCols + 1, numRows + 1, config, a1CornerLat, a1CornerLon)
+    ].map(p => ({ lon: p[0], lat: p[1] }));
+
+    const gridBounds = {
+        minLat: Math.min(...gridCorners.map(c => c.lat)),
+        maxLat: Math.max(...gridCorners.map(c => c.lat)),
+        minLon: Math.min(...gridCorners.map(c => c.lon)),
+        maxLon: Math.max(...gridCorners.map(c => c.lon))
+    };
+
+    return { config, gridBounds, a1CornerLat, a1CornerLon };
 }
 
 async function generateZonePNG() {
@@ -109,25 +122,30 @@ async function generateZonePNG() {
 
     try {
         const isCadoExport = document.getElementById('overlay-cado-grid-checkbox').checked;
+        const isUtmExport = document.getElementById('overlay-utm-grid-checkbox').checked;
         let cadoData = null;
-        if(isCadoExport) {
-            cadoData = getZoneCadoConfigAndBounds();
-        }
+        let finalBoundingBox;
 
         const nwCoordsStr = document.getElementById("zone-nw-coords").value;
         const seCoordsStr = document.getElementById("zone-se-coords").value;
         const [north, west] = nwCoordsStr.split(',').map(c => parseFloat(c.trim()));
         const [south, east] = seCoordsStr.split(',').map(c => parseFloat(c.trim()));
         
-        let finalBoundingBox = { north, west, south, east };
-
-        if (isCadoExport && cadoData) {
-            const scale = cadoData.config.scale;
-            const avgLat = (north + south) / 2;
+        if(isCadoExport) {
+            cadoData = getZoneCadoConfigAndBounds();
+            const { config, gridBounds } = cadoData;
+            const avgLat = (gridBounds.minLat + gridBounds.maxLat) / 2;
             const metersToLat = (meters) => meters / 111320;
             const metersToLon = (meters, lat) => meters / (111320 * Math.cos(toRad(lat)));
-            finalBoundingBox.south -= metersToLat(scale);
-            finalBoundingBox.west -= metersToLon(scale, avgLat);
+
+            finalBoundingBox = {
+                north: gridBounds.maxLat + metersToLat(0.5 * config.scale),
+                south: gridBounds.minLat - metersToLat(1.5 * config.scale),
+                west: gridBounds.minLon - metersToLon(1.5 * config.scale, avgLat),
+                east: gridBounds.maxLon + metersToLon(0.5 * config.scale, avgLat)
+            };
+        } else {
+            finalBoundingBox = { north, west, south, east };
         }
 
         const zoom = parseInt(document.getElementById("zone-info-zoom").textContent, 10);
@@ -158,7 +176,6 @@ async function generateZonePNG() {
             drawZoneKmlFeatures(ctx, zoom, loadedZoneKmlFeatures, latLonToCanvasPixels);
         }
 
-        const isUtmExport = document.getElementById('overlay-utm-grid-checkbox').checked;
         if (isUtmExport) {
             loadingMessage.textContent = "Dessin de la grille UTM...";
             const cartoucheFontSize = Math.max(10, Math.min(48, finalCanvas.width * 0.007));
@@ -171,7 +188,7 @@ async function generateZonePNG() {
             drawCadoElementsOnCanvas(ctx, config, latLonToCanvasPixels, [a1CornerLon, a1CornerLat]);
         }
 
-        if (!isCadoExport && isUtmExport) {
+        if (!isCadoExport) {
             loadingMessage.textContent = "Finalisation de l'image...";
             const cartoucheFontSize = Math.max(10, Math.min(48, finalCanvas.width * 0.007));
             const cartoucheMetrics = drawZoneCartouche(ctx, "Export de zone", finalBoundingBox, mapLayerName, zoom, dynamicMargin, cartoucheFontSize);
