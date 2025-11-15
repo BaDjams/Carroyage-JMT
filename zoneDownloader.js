@@ -1,29 +1,20 @@
 // zoneDownloader.js
 
 const ZD_TILE_SIZE = 256;
-let loadedZoneKmlFeatures = []; // Pour stocker les données du KMZ
-let kmlResources = { images: {} }; // Pour stocker les icônes chargées depuis le KMZ
+let loadedZoneKmlFeatures = [];
+let kmlResources = { images: {} };
 
-/**
- * Calcule la distance en mètres entre deux coordonnées GPS en utilisant la formule de Haversine.
- */
 function haversineDistance(p1, p2) {
-    const R = 6371e3; // Rayon de la Terre en mètres
+    const R = 6371e3;
     const lat1Rad = toRad(p1.lat);
     const lat2Rad = toRad(p2.lat);
     const deltaLatRad = toRad(p2.lat - p1.lat);
     const deltaLonRad = toRad(p2.lon - p1.lon);
-
-    const a = Math.sin(deltaLatRad / 2) * Math.sin(deltaLatRad / 2) +
-              Math.cos(lat1Rad) * Math.cos(lat2Rad) *
-              Math.sin(deltaLonRad / 2) * Math.sin(deltaLonRad / 2);
+    const a = Math.sin(deltaLatRad / 2) * Math.sin(deltaLatRad / 2) + Math.cos(lat1Rad) * Math.cos(lat2Rad) * Math.sin(deltaLonRad / 2) * Math.sin(deltaLonRad / 2);
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-
     return R * c;
 }
 
-
-// --- Fonctions de projection (partagées) ---
 function zdCoordsToQuadKey(x, y, zoom) {
     let quadKey = '';
     for (let i = zoom; i > 0; i--) {
@@ -45,10 +36,6 @@ function zdLatLonToWorldPixels(lat, lon, zoom) {
     return { x: x * mapSize, y: y * mapSize };
 }
 
-
-/**
- * Fonction centrale pour calculer la configuration du carroyage CADO de zone.
- */
 function getZoneCadoConfigAndBounds() {
     const nwCoordsStr = document.getElementById("zone-nw-coords").value;
     const seCoordsStr = document.getElementById("zone-se-coords").value;
@@ -66,8 +53,8 @@ function getZoneCadoConfigAndBounds() {
     const numCols = Math.ceil(widthMeters / scale);
     const numRows = Math.ceil(heightMeters / scale);
 
-    if (numCols > 100) {
-        throw new Error(`Le nombre de colonnes (${numCols}) est trop élevé. Augmentez l'échelle ou réduisez la largeur de la zone.`);
+    if (numCols > 100 || numRows > 100) {
+        throw new Error(`Le nombre de cases (${numCols}x${numRows}) est trop élevé (>100). Augmentez l'échelle ou réduisez la zone.`);
     }
 
     const refLat = (nwLat + seLat) / 2;
@@ -85,7 +72,7 @@ function getZoneCadoConfigAndBounds() {
     let a1CornerLat;
     if (letteringDirection === 'ascending') {
         a1CornerLat = refLat - metersToLatDegrees(yOffsetMeters);
-    } else { // 'descending'
+    } else {
         a1CornerLat = refLat + metersToLatDegrees(yOffsetMeters);
     }
     
@@ -98,7 +85,7 @@ function getZoneCadoConfigAndBounds() {
         gridColor: document.getElementById('grid-color').value,
         colorName: document.getElementById('grid-color-name').value,
         colorOpacity: (100 - parseInt(document.getElementById('transparency').value)) / 100,
-        gridName: document.getElementById("zone-title").value || "Carroyage CADO de Zone",
+        gridNameBase: document.getElementById("zone-title").value || "Carroyage CADO de Zone",
         deviation: 0,
         labelSize: parseFloat(document.getElementById('label-size').value),
         iconSize: parseFloat(document.getElementById('icon-size').value || 2),
@@ -109,13 +96,9 @@ function getZoneCadoConfigAndBounds() {
         outputFormat: 'KMZ'
     };
 
-    return { config, boundingBox, a1CornerLat, a1CornerLon, numCols, numRows };
+    return { config, boundingBox, a1CornerLat, a1CornerLon };
 }
 
-
-/**
- * Fonction principale qui orchestre la création de l'image de la zone.
- */
 async function generateZonePNG() {
     const loadingIndicator = document.getElementById("loading-indicator");
     const loadingMessage = document.getElementById("loading-message");
@@ -125,25 +108,24 @@ async function generateZonePNG() {
     hideError();
 
     try {
+        const overlayCadoGrid = document.getElementById('overlay-cado-grid-checkbox').checked;
+        let cadoConfig, a1CornerLat, a1CornerLon;
+        if(overlayCadoGrid) {
+            const cadoData = getZoneCadoConfigAndBounds();
+            cadoConfig = cadoData.config;
+            a1CornerLat = cadoData.a1CornerLat;
+            a1CornerLon = cadoData.a1CornerLon;
+        }
+
         const nwCoordsStr = document.getElementById("zone-nw-coords").value;
         const seCoordsStr = document.getElementById("zone-se-coords").value;
-        if (!nwCoordsStr || !seCoordsStr) throw new Error("Veuillez d'abord dessiner une zone rectangulaire sur la carte.");
-
         const [north, west] = nwCoordsStr.split(',').map(c => parseFloat(c.trim()));
         const [south, east] = seCoordsStr.split(',').map(c => parseFloat(c.trim()));
         const boundingBox = { north, west, south, east };
         
         const zoom = parseInt(document.getElementById("zone-info-zoom").textContent, 10);
         
-        const nwPixelForSize = zdLatLonToWorldPixels(north, west, zoom);
-        const sePixelForSize = zdLatLonToWorldPixels(south, east, zoom);
-        const imageWidth = Math.abs(sePixelForSize.x - nwPixelForSize.x);
-        const cartoucheFontSize = Math.max(10, Math.min(48, imageWidth * 0.007));
-        const dynamicMargin = Math.ceil(cartoucheFontSize * 4);
-
-        const title = document.getElementById("zone-title").value || "Export de zone";
         const mapLayerName = document.getElementById("zone-info-layer").textContent;
-        
         const selectedMap = MAP_LAYERS.find(m => m.name === mapLayerName);
         if (!selectedMap) throw new Error("Impossible de trouver la configuration du fond de carte.");
         
@@ -153,28 +135,8 @@ async function generateZonePNG() {
         const fileExtension = format === 'jpeg' ? '.jpg' : '.png';
 
         loadingMessage.textContent = "Téléchargement et assemblage des fonds de carte...";
-        const { finalCanvas } = await zdCreateFinalCanvas(boundingBox, zoom, selectedMap, dynamicMargin);
+        const { finalCanvas, canvasInfo, dynamicMargin } = await zdCreateFinalCanvas(boundingBox, zoom, selectedMap);
         const ctx = finalCanvas.getContext('2d');
-        
-        const scale = 25000;
-        const drawingBoxPixelWidth = finalCanvas.width - 2 * dynamicMargin;
-        const centralLat = (north + south) / 2;
-        const realWidthMeters = haversineDistance({lat: centralLat, lon: west}, {lat: centralLat, lon: east});
-        const metersPerPixel = realWidthMeters / drawingBoxPixelWidth;
-        const mmPerPixel = (metersPerPixel / scale) * 1000;
-        const totalPrintWidthMm = finalCanvas.width * mmPerPixel;
-        const totalPrintHeightMm = finalCanvas.height * mmPerPixel;
-        const printDimensionsString = `print_${totalPrintWidthMm.toFixed(0)}x${totalPrintHeightMm.toFixed(0)}mm`;
-        
-        ctx.fillStyle = 'white';
-        ctx.fillRect(0, 0, finalCanvas.width, dynamicMargin);
-        ctx.fillRect(0, finalCanvas.height - dynamicMargin, finalCanvas.width, dynamicMargin);
-        ctx.fillRect(0, dynamicMargin, dynamicMargin, finalCanvas.height - 2 * dynamicMargin);
-        ctx.fillRect(finalCanvas.width - dynamicMargin, dynamicMargin, dynamicMargin, finalCanvas.height - 2 * dynamicMargin);
-        
-        ctx.strokeStyle = 'black';
-        ctx.lineWidth = 1;
-        ctx.strokeRect(dynamicMargin, dynamicMargin, finalCanvas.width - dynamicMargin * 2, finalCanvas.height - dynamicMargin * 2);
         
         const nwPixel = zdLatLonToWorldPixels(boundingBox.north, boundingBox.west, zoom);
         const latLonToCanvasPixels = (lat, lon) => {
@@ -191,29 +153,36 @@ async function generateZonePNG() {
         }
 
         const overlayUtmGrid = document.getElementById('overlay-utm-grid-checkbox').checked;
-        const overlayCadoGrid = document.getElementById('overlay-cado-grid-checkbox').checked;
-
         if (overlayUtmGrid) {
             loadingMessage.textContent = "Dessin de la grille UTM...";
+            const cartoucheFontSize = Math.max(10, Math.min(48, finalCanvas.width * 0.007));
             await drawUtmGridOnCanvas(ctx, boundingBox, zoom, latLonToCanvasPixels, dynamicMargin, cartoucheFontSize);
         }
         
         if (overlayCadoGrid) {
             loadingMessage.textContent = "Dessin du carroyage CADO...";
-            await drawCadoGridOnCanvas(ctx, latLonToCanvasPixels);
+            const canvasInfoForDrawing = { north, west, width: finalCanvas.width, height: finalCanvas.height };
+            drawCadoElementsOnCanvas(ctx, cadoConfig, canvasInfoForDrawing, zoom, [a1CornerLon, a1CornerLat]);
         }
 
-		loadingMessage.textContent = "Finalisation de l'image...";
-		const cartoucheMetrics = drawZoneCartouche(ctx, title, boundingBox, mapLayerName, zoom, dynamicMargin);
-        drawZoneCompass(ctx, finalCanvas.width, finalCanvas.height, dynamicMargin, cartoucheMetrics);
+        if (!overlayCadoGrid) {
+            loadingMessage.textContent = "Finalisation de l'image...";
+            const cartoucheMetrics = drawZoneCartouche(ctx, cadoConfig?.gridNameBase || "Export de zone", boundingBox, mapLayerName, zoom, dynamicMargin);
+            drawZoneCompass(ctx, finalCanvas.width, finalCanvas.height, dynamicMargin, cartoucheMetrics);
+        }
+        
+        let fileName;
+        if (overlayCadoGrid) {
+            const letteringStr = cadoConfig.letteringDirection === 'descending' ? '_descendant' : '';
+            fileName = `${cadoConfig.gridNameBase}_${cadoConfig.scale}m_zone${letteringStr}_${cadoConfig.colorName}_origine=${a1CornerLat.toFixed(6)},${a1CornerLon.toFixed(6)}${fileExtension}`;
+        } else {
+            const title = document.getElementById("zone-title").value || "Export de zone";
+            fileName = `${title.replace(/[^a-z0-9]/gi, '_')}_${mapLayerName}_z${zoom}${fileExtension}`;
+        }
 
-        const fileName = `${title.replace(/[^a-z0-9]/gi, '_')}_${mapLayerName}_z${zoom}_${printDimensionsString}${fileExtension}`;
         finalCanvas.toBlob((blob) => {
-            if (blob) {
-                downloadFile(blob, fileName);
-            } else {
-                showError("Erreur lors de la création du fichier image.");
-            }
+            if (blob) { downloadFile(blob, fileName); } 
+            else { showError("Erreur lors de la création du fichier image."); }
         }, mimeType, quality);
 
     } catch (error) {
@@ -224,9 +193,7 @@ async function generateZonePNG() {
     }
 }
 
-/**
- * Génère un fichier KMZ du carroyage CADO pour la zone définie.
- */
+
 async function generateCadoGridForZone() {
     const loadingIndicator = document.getElementById("loading-indicator");
     const loadingMessage = document.getElementById("loading-message");
@@ -236,12 +203,15 @@ async function generateCadoGridForZone() {
     hideError();
 
     try {
-        const { config } = getZoneCadoConfigAndBounds();
+        const { config, a1CornerLat, a1CornerLon } = getZoneCadoConfigAndBounds();
         const gridData = calculateGridData(config);
         const kmlContent = generateKML(config, gridData);
         const kmzBlob = await generateKMZ(config, gridData, kmlContent, 'application/vnd.google-earth.kmz');
         
-        downloadFile(kmzBlob, `${config.gridName}.kmz`);
+        const letteringStr = config.letteringDirection === 'descending' ? '_descendant' : '';
+        const fileName = `${config.gridNameBase}_${config.scale}m_zone${letteringStr}_${config.colorName}_origine=${a1CornerLat.toFixed(6)},${a1CornerLon.toFixed(6)}.kmz`;
+
+        downloadFile(kmzBlob, fileName);
 
     } catch (error) {
         console.error("Erreur lors de la génération du KMZ CADO:", error);
@@ -251,20 +221,17 @@ async function generateCadoGridForZone() {
     }
 }
 
-
-/**
- * Crée le canevas final avec des marges, et y assemble les tuiles pour la zone sélectionnée.
- */
-async function zdCreateFinalCanvas(boundingBox, zoom, mapConfig, margin) {
+async function zdCreateFinalCanvas(boundingBox, zoom, mapConfig) {
     const nwPixel = zdLatLonToWorldPixels(boundingBox.north, boundingBox.west, zoom);
     const sePixel = zdLatLonToWorldPixels(boundingBox.south, boundingBox.east, zoom);
-
     const imageWidth = Math.abs(sePixel.x - nwPixel.x);
     const imageHeight = Math.abs(sePixel.y - nwPixel.y);
+    const cartoucheFontSize = Math.max(10, Math.min(48, imageWidth * 0.007));
+    const dynamicMargin = Math.ceil(cartoucheFontSize * 4);
 
     const finalCanvas = document.createElement('canvas');
-    finalCanvas.width = imageWidth + margin * 2;
-    finalCanvas.height = imageHeight + margin * 2;
+    finalCanvas.width = imageWidth + dynamicMargin * 2;
+    finalCanvas.height = imageHeight + dynamicMargin * 2;
     const ctx = finalCanvas.getContext('2d');
 
     ctx.fillStyle = 'white';
@@ -299,14 +266,18 @@ async function zdCreateFinalCanvas(boundingBox, zoom, mapConfig, margin) {
         const resolvedTiles = await Promise.all(tilePromises);
         resolvedTiles.forEach(tileResult => {
             if (tileResult.success) {
-                const tileX = (tileResult.x * ZD_TILE_SIZE) - nwPixel.x + margin;
-                const tileY = (tileResult.y * ZD_TILE_SIZE) - nwPixel.y + margin;
+                const tileX = (tileResult.x * ZD_TILE_SIZE) - nwPixel.x + dynamicMargin;
+                const tileY = (tileResult.y * ZD_TILE_SIZE) - nwPixel.y + dynamicMargin;
                 ctx.drawImage(tileResult.img, Math.round(tileX), Math.round(tileY));
             }
         });
     }
 
-    return { finalCanvas };
+    ctx.strokeStyle = 'black';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(dynamicMargin, dynamicMargin, finalCanvas.width - dynamicMargin * 2, finalCanvas.height - dynamicMargin * 2);
+
+    return { finalCanvas, dynamicMargin };
 }
 
 /**
