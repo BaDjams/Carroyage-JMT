@@ -104,7 +104,7 @@ function hideError() {
 }
 
 // =======================================================================
-// --- NOUVELLES FONCTIONS DE DESSIN CADO PARTAGÉES ---
+// --- FONCTIONS DE DESSIN CADO PARTAGÉES ---
 // =======================================================================
 
 function drawLabelWithOutline(ctx, text, x, y, config) {
@@ -249,18 +249,8 @@ function drawCompass(ctx, latLonToPixels, config, a1CornerCoords, cellWidthInPix
     ctx.fillText('N', N_point.x, N_point.y + 2);
 }
 
-function drawCadoElementsOnCanvas(ctx, config, canvasInfo, zoom, a1CornerCoords) {
+function drawCadoElementsOnCanvas(ctx, config, latLonToPixels, a1CornerCoords) {
     const [a1Lon, a1Lat] = a1CornerCoords;
-    const originWorldPixels = zdLatLonToWorldPixels(canvasInfo.north, canvasInfo.west, zoom);
-
-    const latLonToPixels = (lat, lon) => {
-        const worldPixels = zdLatLonToWorldPixels(lat, lon, zoom);
-        return {
-            x: worldPixels.x - originWorldPixels.x,
-            y: worldPixels.y - originWorldPixels.y
-        };
-    };
-
     const startColNum = letterToNumber(config.startCol);
     const endColNum = letterToNumber(config.endCol);
     const startRowNum = config.startRow;
@@ -268,6 +258,8 @@ function drawCadoElementsOnCanvas(ctx, config, canvasInfo, zoom, a1CornerCoords)
 
     const colsToDraw = generateIndices(startColNum, endColNum);
     const rowsToDraw = generateIndices(startRowNum, endRowNum);
+
+    if (colsToDraw.length === 0 || rowsToDraw.length === 0) return;
 
     ctx.strokeStyle = config.gridColor;
     ctx.lineWidth = config.lineWidth || 1;
@@ -298,7 +290,7 @@ function drawCadoElementsOnCanvas(ctx, config, canvasInfo, zoom, a1CornerCoords)
     const cellWidthInPixels = Math.hypot(px_B1_center.x - px_A1_center.x, px_B1_center.y - px_A1_center.y);
     
     const labelFontSize = cellWidthInPixels * 0.75;
-    if (labelFontSize > 5) {
+    if (labelFontSize > 5) { // Ne pas dessiner les étiquettes si elles sont illisibles
         ctx.font = `bold ${labelFontSize}px Arial`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';

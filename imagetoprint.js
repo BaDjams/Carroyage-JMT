@@ -1,27 +1,17 @@
 // imagetoprint.js
 
-/**
- * Fonction de conversion des coordonnées de tuile (x, y, z) en QuadKey pour Bing Maps.
- */
 function coordsToQuadKey(x, y, zoom) {
     let quadKey = '';
     for (let i = zoom; i > 0; i--) {
         let digit = 0;
         const mask = 1 << (i - 1);
-        if ((y & mask) !== 0) {
-            digit += 2;
-        }
-        if ((x & mask) !== 0) {
-            digit += 1;
-        }
+        if ((y & mask) !== 0) { digit += 2; }
+        if ((x & mask) !== 0) { digit += 1; }
         quadKey += digit.toString();
     }
     return quadKey;
 }
 
-/**
- * Fonction principale qui orchestre la création de l'image.
- */
 async function generateImageToPrint() {
     const loadingIndicator = document.getElementById("loading-indicator");
     const loadingMessage = document.getElementById("loading-message");
@@ -41,9 +31,8 @@ async function generateImageToPrint() {
         const gridNameBase = document.getElementById('grid-name-base').value || 'CADO Grid';
         const selectedMapId = document.getElementById('map-tile-provider').value;
         const mapConfig = MAP_LAYERS.find(m => m.id === selectedMapId);
-        if (!mapConfig) {
-            throw new Error("Configuration de la carte non trouvée !");
-        }
+        if (!mapConfig) throw new Error("Configuration de la carte non trouvée !");
+        
         config.gridNameBase = gridNameBase;
         config.lineWidth = parseInt(document.getElementById('line-thickness').value, 10) || 1;
 
@@ -52,21 +41,23 @@ async function generateImageToPrint() {
         const zoomLevel = calculateOptimalZoom(boundingBox);
 
         loadingMessage.textContent = `Téléchargement des fonds de carte (0%)...`;
-        const { finalCanvas, canvasInfo } = await createFinalCanvasWithLayers(boundingBox, zoomLevel, mapConfig, (progress) => {
+        const { finalCanvas } = await createFinalCanvasWithLayers(boundingBox, zoomLevel, mapConfig, (progress) => {
             loadingMessage.textContent = `Téléchargement des fonds de carte (${progress.toFixed(0)}%)...`;
         });
 
         loadingMessage.textContent = "Dessin du carroyage...";
         const finalCtx = finalCanvas.getContext('2d');
         
-        // Appel à la fonction partagée de utilities.js
-        const canvasInfoForDrawing = { 
-            north: boundingBox.north, 
-            west: boundingBox.west, 
-            width: finalCanvas.width, 
-            height: finalCanvas.height 
+        const originWorldPixels = zdLatLonToWorldPixels(boundingBox.north, boundingBox.west, zoomLevel);
+        const latLonToPixels = (lat, lon) => {
+            const worldPixels = zdLatLonToWorldPixels(lat, lon, zoomLevel);
+            return {
+                x: worldPixels.x - originWorldPixels.x,
+                y: worldPixels.y - originWorldPixels.y
+            };
         };
-        drawCadoElementsOnCanvas(finalCtx, config, canvasInfoForDrawing, zoomLevel, a1CornerCoords);
+        
+        drawCadoElementsOnCanvas(finalCtx, config, latLonToPixels, a1CornerCoords);
 
         const format = document.querySelector('input[name="image-format-cado"]:checked').value;
         const quality = parseInt(document.getElementById('cado-jpeg-quality').value) / 100;
@@ -79,11 +70,8 @@ async function generateImageToPrint() {
         const fileName = `${finalGridName}${originString}${fileExtension}`;
 
         finalCanvas.toBlob((blob) => {
-            if (blob) {
-                downloadFile(blob, fileName);
-            } else { 
-                showError("Erreur lors de la création du fichier image."); 
-            }
+            if (blob) { downloadFile(blob, fileName); } 
+            else { showError("Erreur lors de la création du fichier image."); }
         }, mimeType, quality);
 
     } catch (error) {
@@ -94,9 +82,6 @@ async function generateImageToPrint() {
     }
 }
 
-/**
- * Calcule la position de l'origine A1 de manière dynamique.
- */
 function getA1CornerCoordsForPrint(config) {
     const refLat = config.latitude;
     const refLon = config.longitude;
@@ -105,7 +90,7 @@ function getA1CornerCoordsForPrint(config) {
 
     if (config.referencePointChoice === 'origin') {
         return [refLon, refLat];
-    } else { // 'center'
+    } else {
         const startColNum = letterToNumber(config.startCol);
         const endColNum = letterToNumber(config.endCol);
         const startRowNum = config.startRow;
@@ -133,7 +118,7 @@ function getA1CornerCoordsForPrint(config) {
         let a1Lat;
 		if (config.letteringDirection === 'ascending') {
 			a1Lat = refLat - metersToLatDegrees(yOffsetMeters);
-		} else { // 'descending'
+		} else {
 			a1Lat = refLat + metersToLatDegrees(yOffsetMeters);
 		}
         
@@ -141,27 +126,17 @@ function getA1CornerCoordsForPrint(config) {
     }
 }
 
-/**
- * Calcule la Bounding Box de manière dynamique pour la zone à afficher.
- */
 function getBoundingBoxForPrint(config, a1CornerCoords) {
     const [a1Lon, a1Lat] = a1CornerCoords;
-
-    const margeHaute = 0.5;
-    const margeBasse = 0.5;
-    const margeGauche = 0.5;
-    const margeDroite = 0.5;
-
+    const margeHaute = 0.5, margeBasse = 0.5, margeGauche = 0.5, margeDroite = 0.5;
     const startColNum = letterToNumber(config.startCol);
     const endColNum = letterToNumber(config.endCol);
     const startRowNum = config.startRow;
     const endRowNum = config.endRow;
 
     const contentBounds = {
-        minCol: startColNum - 0.5,
-        maxCol: endColNum + 1,
-        minRow: startRowNum - 0.5,
-        maxRow: endRowNum + 1
+        minCol: startColNum - 0.5, maxCol: endColNum + 1,
+        minRow: startRowNum - 0.5, maxRow: endRowNum + 1
     };
 
     const contentCorners = [
@@ -188,7 +163,6 @@ function getBoundingBoxForPrint(config, a1CornerCoords) {
     return { north: maxLat, south: minLat, east: maxLon, west: minLon };
 }
 
-
 function calculateOptimalZoom(boundingBox) {
     const lonDiff = Math.abs(boundingBox.east - boundingBox.west);
     if (lonDiff === 0) return MAX_ZOOM;
@@ -197,9 +171,6 @@ function calculateOptimalZoom(boundingBox) {
     return Math.min(Math.floor(zoomApproximation), MAX_ZOOM);
 }
 
-/**
- * Crée le canevas final et y assemble les tuiles.
- */
 async function createFinalCanvasWithLayers(boundingBox, zoom, mapConfig, onProgress) {
     const nwPixel = zdLatLonToWorldPixels(boundingBox.north, boundingBox.west, zoom);
     const sePixel = zdLatLonToWorldPixels(boundingBox.south, boundingBox.east, zoom);
@@ -219,8 +190,6 @@ async function createFinalCanvasWithLayers(boundingBox, zoom, mapConfig, onProgr
     
     for (const layer of mapConfig.layers) {
         const tilePromises = [];
-        const tileProviderUrl = layer.url;
-
         for (let x = nwTile.x; x <= seTile.x; x++) {
             for (let y = nwTile.y; y <= seTile.y; y++) {
                 let tileUrl;
@@ -229,7 +198,7 @@ async function createFinalCanvasWithLayers(boundingBox, zoom, mapConfig, onProgr
                     const subdomain = (x + y) % 4;
                     tileUrl = tileProviderUrl.replace('{q}', quadKey).replace('{s}', subdomain);
                 } else {
-                    tileUrl = tileProviderUrl.replace('{z}', zoom).replace('{x}', x).replace('{y}', y);
+                    tileUrl = layer.url.replace('{z}', zoom).replace('{x}', x).replace('{y}', y);
                 }
 
                 const promise = new Promise((resolve) => {
@@ -252,7 +221,7 @@ async function createFinalCanvasWithLayers(boundingBox, zoom, mapConfig, onProgr
             }
         }
         
-        const resolvedTiles = await Promise.all(resolvedTiles);
+        const resolvedTiles = await Promise.all(tilePromises);
         resolvedTiles.forEach(tileResult => {
             if (tileResult.success) {
                 const tileX = (tileResult.x * TILE_SIZE) - nwPixel.x;
@@ -262,6 +231,5 @@ async function createFinalCanvasWithLayers(boundingBox, zoom, mapConfig, onProgr
         });
     }
 
-    const canvasInfo = { north: boundingBox.north, west: boundingBox.west };
-    return { finalCanvas, canvasInfo };
+    return { finalCanvas };
 }
