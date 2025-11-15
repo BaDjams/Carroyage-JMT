@@ -96,7 +96,7 @@ function getZoneCadoConfigAndBounds() {
     };
 
     const gridCorners = [
-        calculateAndRotatePoint(config.startRow, 1, config, a1CornerLat, a1CornerLon),
+        calculateAndRotatePoint(1, 1, config, a1CornerLat, a1CornerLon),
         calculateAndRotatePoint(numCols + 1, 1, config, a1CornerLat, a1CornerLon),
         calculateAndRotatePoint(1, numRows + 1, config, a1CornerLat, a1CornerLon),
         calculateAndRotatePoint(numCols + 1, numRows + 1, config, a1CornerLat, a1CornerLon)
@@ -138,11 +138,24 @@ async function generateZonePNG() {
             const metersToLat = (meters) => meters / 111320;
             const metersToLon = (meters, lat) => meters / (111320 * Math.cos(toRad(lat)));
 
+            let margeHaute, margeBasse, margeGauche, margeDroite;
+            if (config.letteringDirection === 'descending') {
+                margeHaute = 1.0 * config.scale;
+                margeBasse = 0.5 * config.scale;
+                margeGauche = 1.0 * config.scale;
+                margeDroite = 0.5 * config.scale;
+            } else { // ascending
+                margeHaute = 0.5 * config.scale;
+                margeBasse = 1.0 * config.scale;
+                margeGauche = 1.0 * config.scale;
+                margeDroite = 0.5 * config.scale;
+            }
+
             finalBoundingBox = {
-                north: gridBounds.maxLat + metersToLat(0.5 * config.scale),
-                south: gridBounds.minLat - metersToLat(1.5 * config.scale),
-                west: gridBounds.minLon - metersToLon(1.5 * config.scale, avgLat),
-                east: gridBounds.maxLon + metersToLon(0.5 * config.scale, avgLat)
+                north: gridBounds.maxLat + metersToLat(margeHaute),
+                south: gridBounds.minLat - metersToLat(margeBasse),
+                west: gridBounds.minLon - metersToLon(margeGauche, avgLat),
+                east: gridBounds.maxLon + metersToLon(margeDroite, avgLat)
             };
         } else {
             finalBoundingBox = { north, west, south, east };
@@ -188,7 +201,7 @@ async function generateZonePNG() {
             drawCadoElementsOnCanvas(ctx, config, latLonToCanvasPixels, [a1CornerLon, a1CornerLat]);
         }
 
-        if (!isCadoExport) {
+        if (!isCadoExport) { // This block now only runs for non-CADO exports
             loadingMessage.textContent = "Finalisation de l'image...";
             const cartoucheFontSize = Math.max(10, Math.min(48, finalCanvas.width * 0.007));
             const cartoucheMetrics = drawZoneCartouche(ctx, "Export de zone", finalBoundingBox, mapLayerName, zoom, dynamicMargin, cartoucheFontSize);
