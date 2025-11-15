@@ -425,11 +425,11 @@
                                     <div id="cado-overlay-options" class="hidden pl-8 space-y-3 pt-2">
                                         <div class="flex flex-col space-y-1">
                                             <label for="cado-overlay-scale" class="text-sm text-content">Échelle (m) :</label>
-                                            <input type="number" id="cado-overlay-scale" class="input-field px-2 py-1 border rounded shadow-sm text-sm" value="50">
+                                            <input type="number" id="cado-overlay-scale" class="input-field px-2 py-1 border rounded shadow-sm text-sm dark:bg-gray-600 dark:border-gray-500 dark:text-white" value="50">
                                         </div>
                                         <div class="flex flex-col space-y-1">
                                             <label for="cado-overlay-thickness" class="text-sm text-content">Épaisseur du trait :</label>
-                                            <select id="cado-overlay-thickness" class="input-field px-2 py-1 border rounded shadow-sm text-sm">
+                                            <select id="cado-overlay-thickness" class="input-field px-2 py-1 border rounded shadow-sm text-sm dark:bg-gray-600 dark:border-gray-500 dark:text-white">
                                                 <option value="1">Fine (1px)</option>
                                                 <option value="2" selected>Moyenne (2px)</option>
                                                 <option value="3">Épaisse (3px)</option>
@@ -587,6 +587,21 @@
                 setTimeout(() => { updateZoneInfo({name: "Google Hybrid"})}, 500);
                 setupZoneAddressSearch();
             }
+            
+            function updateCadoOverlayDefaults() {
+                const nwCoordsStr = document.getElementById("zone-nw-coords").value;
+                const seCoordsStr = document.getElementById("zone-se-coords").value;
+
+                if (!nwCoordsStr || !seCoordsStr) return;
+
+                const [nwLat, nwLon] = nwCoordsStr.split(',').map(c => parseFloat(c.trim()));
+                const widthMeters = haversineDistance({lat: nwLat, lon: nwLon}, {lat: nwLat, lon: parseFloat(seCoordsStr.split(',')[1].trim())});
+                
+                if (widthMeters > 0) {
+                    const newScale = Math.round(widthMeters / 26);
+                    document.getElementById('cado-overlay-scale').value = newScale > 0 ? newScale : 1;
+                }
+            }
 
             function updateZoneCoordsFromBounds(bounds) {
                 const nw = bounds.getNorthWest();
@@ -594,6 +609,7 @@
                 document.getElementById('zone-nw-coords').value = `${nw.lat.toFixed(6)}, ${nw.lng.toFixed(6)}`;
                 document.getElementById('zone-se-coords').value = `${se.lat.toFixed(6)}, ${se.lng.toFixed(6)}`;
                 updateZoneTileCount();
+                updateCadoOverlayDefaults();
             }
             
             function updateZoneInfo(e) {

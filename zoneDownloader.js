@@ -6,9 +6,6 @@ let kmlResources = { images: {} }; // Pour stocker les icônes chargées depuis 
 
 /**
  * Calcule la distance en mètres entre deux coordonnées GPS en utilisant la formule de Haversine.
- * @param {{lat: number, lon: number}} p1 Point 1
- * @param {{lat: number, lon: number}} p2 Point 2
- * @returns {number} Distance en mètres
  */
 function haversineDistance(p1, p2) {
     const R = 6371e3; // Rayon de la Terre en mètres
@@ -48,6 +45,74 @@ function zdLatLonToWorldPixels(lat, lon, zoom) {
     return { x: x * mapSize, y: y * mapSize };
 }
 
+
+/**
+ * Fonction centrale pour calculer la configuration du carroyage CADO de zone.
+ */
+function getZoneCadoConfigAndBounds() {
+    const nwCoordsStr = document.getElementById("zone-nw-coords").value;
+    const seCoordsStr = document.getElementById("zone-se-coords").value;
+    if (!nwCoordsStr || !seCoordsStr) throw new Error("Veuillez d'abord dessiner une zone rectangulaire.");
+    
+    const [nwLat, nwLon] = nwCoordsStr.split(',').map(c => parseFloat(c.trim()));
+    const [seLat, seLon] = seCoordsStr.split(',').map(c => parseFloat(c.trim()));
+    const boundingBox = { north: nwLat, west: nwLon, south: seLat, east: seLon };
+
+    const scale = parseFloat(document.getElementById('cado-overlay-scale').value);
+    if (isNaN(scale) || scale <= 0) throw new Error("L'échelle doit être un nombre positif.");
+
+    const widthMeters = haversineDistance({lat: nwLat, lon: nwLon}, {lat: nwLat, lon: seLon});
+    const heightMeters = haversineDistance({lat: nwLat, lon: nwLon}, {lat: seLat, lon: nwLon});
+    const numCols = Math.ceil(widthMeters / scale);
+    const numRows = Math.ceil(heightMeters / scale);
+
+    if (numCols > 100) {
+        throw new Error(`Le nombre de colonnes (${numCols}) est trop élevé. Augmentez l'échelle ou réduisez la largeur de la zone.`);
+    }
+
+    const refLat = (nwLat + seLat) / 2;
+    const refLon = (nwLon + seLon) / 2;
+    
+    const metersToLatDegrees = (meters) => meters / 111320;
+    const metersToLonDegrees = (meters, lat) => meters / (111320 * Math.cos(toRad(lat)));
+    
+    const xOffsetMeters = (numCols / 2) * scale;
+    const yOffsetMeters = (numRows / 2) * scale;
+    
+    const letteringDirection = document.querySelector('input[name="cado-overlay-direction"]:checked').value;
+    
+    const a1CornerLon = refLon - metersToLonDegrees(xOffsetMeters, refLat);
+    let a1CornerLat;
+    if (letteringDirection === 'ascending') {
+        a1CornerLat = refLat - metersToLatDegrees(yOffsetMeters);
+    } else { // 'descending'
+        a1CornerLat = refLat + metersToLatDegrees(yOffsetMeters);
+    }
+    
+    const config = {
+        latitude: refLat,
+        longitude: refLon,
+        scale: scale,
+        lineWidth: parseInt(document.getElementById('cado-overlay-thickness').value, 10),
+        letteringDirection: letteringDirection,
+        gridColor: document.getElementById('grid-color').value,
+        colorName: document.getElementById('grid-color-name').value,
+        colorOpacity: (100 - parseInt(document.getElementById('transparency').value)) / 100,
+        gridName: document.getElementById("zone-title").value || "Carroyage CADO de Zone",
+        deviation: 0,
+        labelSize: parseFloat(document.getElementById('label-size').value),
+        iconSize: parseFloat(document.getElementById('icon-size').value || 2),
+        referencePointChoice: 'center',
+        startRow: 1, endRow: numRows,
+        startCol: 'A', endCol: numberToLetter(numCols),
+        includeGrid: true, includePoints: true,
+        outputFormat: 'KMZ'
+    };
+
+    return { config, boundingBox, a1CornerLat, a1CornerLon, numCols, numRows };
+}
+
+
 /**
  * Fonction principale qui orchestre la création de l'image de la zone.
  */
@@ -66,6 +131,7 @@ async function generateZonePNG() {
 
         const [north, west] = nwCoordsStr.split(',').map(c => parseFloat(c.trim()));
         const [south, east] = seCoordsStr.split(',').map(c => parseFloat(c.trim()));
+        const boundingBox = { north, west, south, east };
         
         const zoom = parseInt(document.getElementById("zone-info-zoom").textContent, 10);
         
@@ -85,8 +151,6 @@ async function generateZonePNG() {
         const quality = parseInt(document.getElementById('zone-jpeg-quality').value) / 100;
         const mimeType = format === 'jpeg' ? 'image/jpeg' : 'image/png';
         const fileExtension = format === 'jpeg' ? '.jpg' : '.png';
-
-        const boundingBox = { north, west, south, east };
 
         loadingMessage.textContent = "Téléchargement et assemblage des fonds de carte...";
         const { finalCanvas } = await zdCreateFinalCanvas(boundingBox, zoom, selectedMap, dynamicMargin);
@@ -136,7 +200,7 @@ async function generateZonePNG() {
         
         if (overlayCadoGrid) {
             loadingMessage.textContent = "Dessin du carroyage CADO...";
-            await drawCadoGridOnCanvas(ctx, boundingBox, latLonToCanvasPixels);
+            await drawCadoGridOnCanvas(ctx, latLonToCanvasPixels);
         }
 
 		loadingMessage.textContent = "Finalisation de l'image...";
@@ -172,44 +236,7 @@ async function generateCadoGridForZone() {
     hideError();
 
     try {
-        const nwCoordsStr = document.getElementById("zone-nw-coords").value;
-        const seCoordsStr = document.getElementById("zone-se-coords").value;
-        if (!nwCoordsStr || !seCoordsStr) throw new Error("Veuillez d'abord dessiner une zone rectangulaire.");
-        
-        const [nwLat, nwLon] = nwCoordsStr.split(',').map(c => parseFloat(c.trim()));
-        const [seLat, seLon] = seCoordsStr.split(',').map(c => parseFloat(c.trim()));
-
-        const scale = parseFloat(document.getElementById('cado-overlay-scale').value);
-        if (isNaN(scale) || scale <= 0) throw new Error("L'échelle doit être un nombre positif.");
-        
-        const widthMeters = haversineDistance({lat: nwLat, lon: nwLon}, {lat: nwLat, lon: seLon});
-        const heightMeters = haversineDistance({lat: nwLat, lon: nwLon}, {lat: seLat, lon: nwLon});
-        
-        const numCols = Math.ceil(widthMeters / scale);
-        const numRows = Math.ceil(heightMeters / scale);
-
-        const config = {
-            latitude: nwLat,
-            longitude: nwLon,
-            scale: scale,
-            gridColor: document.getElementById('grid-color').value,
-            colorName: document.getElementById('grid-color-name').value,
-            colorOpacity: (100 - parseInt(document.getElementById('transparency').value)) / 100,
-            gridName: document.getElementById("zone-title").value || "Carroyage CADO de Zone",
-            deviation: 0,
-            labelSize: parseFloat(document.getElementById('label-size').value),
-            iconSize: parseFloat(document.getElementById('icon-size').value || 2),
-            referencePointChoice: 'origin',
-            letteringDirection: document.querySelector('input[name="cado-overlay-direction"]:checked').value,
-            startRow: 1,
-            endRow: numRows,
-            startCol: 'A',
-            endCol: numberToLetter(numCols),
-            includeGrid: true,
-            includePoints: true,
-            outputFormat: 'KMZ'
-        };
-
+        const { config } = getZoneCadoConfigAndBounds();
         const gridData = calculateGridData(config);
         const kmlContent = generateKML(config, gridData);
         const kmzBlob = await generateKMZ(config, gridData, kmlContent, 'application/vnd.google-earth.kmz');
@@ -799,23 +826,9 @@ async function drawUtmGridOnCanvas(ctx, boundingBox, zoom, latLonToCanvasPixels,
 /**
  * Dessine un carroyage CADO sur le canvas de la zone.
  */
-async function drawCadoGridOnCanvas(ctx, boundingBox, latLonToCanvasPixels) {
-    const config = {
-        scale: parseFloat(document.getElementById('cado-overlay-scale').value),
-        lineWidth: parseInt(document.getElementById('cado-overlay-thickness').value, 10),
-        letteringDirection: document.querySelector('input[name="cado-overlay-direction"]:checked').value,
-        gridColor: document.getElementById('grid-color').value,
-        colorName: document.getElementById('grid-color-name').value,
-        deviation: 0
-    };
+async function drawCadoGridOnCanvas(ctx, latLonToCanvasPixels) {
+    const { config, a1CornerLat, a1CornerLon, numCols, numRows } = getZoneCadoConfigAndBounds();
 
-    const a1Lon = boundingBox.west;
-    const a1Lat = boundingBox.north;
-    const widthMeters = haversineDistance({lat: a1Lat, lon: a1Lon}, {lat: a1Lat, lon: boundingBox.east});
-    const heightMeters = haversineDistance({lat: a1Lat, lon: a1Lon}, {lat: boundingBox.south, lon: a1Lon});
-    const numCols = Math.ceil(widthMeters / config.scale);
-    const numRows = Math.ceil(heightMeters / config.scale);
-    
     const startColNum = 1;
     const endColNum = numCols;
     const startRowNum = 1;
@@ -823,30 +836,35 @@ async function drawCadoGridOnCanvas(ctx, boundingBox, latLonToCanvasPixels) {
 
     ctx.strokeStyle = config.gridColor;
     ctx.lineWidth = config.lineWidth;
-
-    for (let c = startColNum; c <= endColNum + 1; c++) {
-        const startPoint = calculateAndRotatePoint(c, startRowNum, config, a1Lat, a1Lon);
-        const endPoint = calculateAndRotatePoint(c, endRowNum + 1, config, a1Lat, a1Lon);
-        const startPixels = latLonToCanvasPixels(startPoint[1], startPoint[0]);
-        const endPixels = latLonToCanvasPixels(endPoint[1], endPoint[0]);
-        ctx.beginPath(); ctx.moveTo(startPixels.x, startPixels.y); ctx.lineTo(endPixels.x, endPixels.y); ctx.stroke();
-    }
-
-    for (let r = startRowNum; r <= endRowNum + 1; r++) {
-        const startPoint = calculateAndRotatePoint(startColNum, r, config, a1Lat, a1Lon);
-        const endPoint = calculateAndRotatePoint(endColNum + 1, r, config, a1Lat, a1Lon);
-        const startPixels = latLonToCanvasPixels(startPoint[1], startPoint[0]);
-        const endPixels = latLonToCanvasPixels(endPoint[1], endPoint[0]);
-        ctx.beginPath(); ctx.moveTo(startPixels.x, startPixels.y); ctx.lineTo(endPixels.x, endPixels.y); ctx.stroke();
-    }
     
-    const geo_A1_center = calculateAndRotatePoint(1.5, 1.5, config, a1Lat, a1Lon);
-    const geo_B1_center = calculateAndRotatePoint(2.5, 1.5, config, a1Lat, a1Lon);
+    const colsForLines = generateIndices(startColNum, endColNum + 1);
+    const rowsForLines = generateIndices(startRowNum, endRowNum + 1);
+
+    colsForLines.forEach(colNum => {
+        const startPoint = calculateAndRotatePoint(colNum, rowsForLines[0], config, a1CornerLat, a1CornerLon);
+        const endPoint = calculateAndRotatePoint(colNum, rowsForLines[rowsForLines.length - 1], config, a1CornerLat, a1CornerLon);
+        const startPixels = latLonToCanvasPixels(startPoint[1], startPoint[0]);
+        const endPixels = latLonToCanvasPixels(endPoint[1], endPoint[0]);
+        ctx.beginPath(); ctx.moveTo(startPixels.x, startPixels.y); ctx.lineTo(endPixels.x, endPixels.y); ctx.stroke();
+    });
+
+    rowsForLines.forEach(rowNum => {
+        const startPoint = calculateAndRotatePoint(colsForLines[0], rowNum, config, a1CornerLat, a1CornerLon);
+        const endPoint = calculateAndRotatePoint(colsForLines[colsForLines.length - 1], rowNum, config, a1CornerLat, a1CornerLon);
+        const startPixels = latLonToCanvasPixels(startPoint[1], startPoint[0]);
+        const endPixels = latLonToCanvasPixels(endPoint[1], endPoint[0]);
+        ctx.beginPath(); ctx.moveTo(startPixels.x, startPixels.y); ctx.lineTo(endPixels.x, endPixels.y); ctx.stroke();
+    });
+    
+    const geo_A1_center = calculateAndRotatePoint(1.5, 1.5, config, a1CornerLat, a1CornerLon);
+    const geo_B1_center = calculateAndRotatePoint(2.5, 1.5, config, a1CornerLat, a1CornerLon);
     const px_A1_center = latLonToCanvasPixels(geo_A1_center[1], geo_A1_center[0]);
     const px_B1_center = latLonToCanvasPixels(geo_B1_center[1], geo_B1_center[0]);
     const cellWidthInPixels = Math.hypot(px_B1_center.x - px_A1_center.x, px_B1_center.y - px_A1_center.y);
     
     const labelFontSize = cellWidthInPixels * 0.4;
+    if (labelFontSize < 5) return;
+
     ctx.font = `bold ${labelFontSize}px Arial`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
@@ -860,14 +878,17 @@ async function drawCadoGridOnCanvas(ctx, boundingBox, latLonToCanvasPixels) {
         ctx.fillText(text, x, y);
     };
 
-    for (let c = startColNum; c <= endColNum; c++) {
-        const labelPoint = calculateAndRotatePoint(c + 0.5, startRowNum - 0.5, config, a1Lat, a1Lon);
+    const colsToDraw = generateIndices(startColNum, endColNum);
+    const rowsToDraw = generateIndices(startRowNum, endRowNum);
+
+    for (const c of colsToDraw) {
+        const labelPoint = calculateAndRotatePoint(c + 0.5, startRowNum - 0.5, config, a1CornerLat, a1CornerLon);
         const labelPixels = latLonToCanvasPixels(labelPoint[1], labelPoint[0]);
         drawLabelWithOutline(numberToLetter(c), labelPixels.x, labelPixels.y);
     }
 
-    for (let r = startRowNum; r <= endRowNum; r++) {
-        const labelPoint = calculateAndRotatePoint(startColNum - 0.5, r + 0.5, config, a1Lat, a1Lon);
+    for (const r of rowsToDraw) {
+        const labelPoint = calculateAndRotatePoint(startColNum - 0.5, r + 0.5, config, a1CornerLat, a1CornerLon);
         const labelPixels = latLonToCanvasPixels(labelPoint[1], labelPoint[0]);
         drawLabelWithOutline(r.toString(), labelPixels.x, labelPixels.y);
     }
