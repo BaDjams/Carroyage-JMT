@@ -108,9 +108,9 @@ async function generateZonePNG() {
     hideError();
 
     try {
-        const overlayCadoGrid = document.getElementById('overlay-cado-grid-checkbox').checked;
+        const isCadoExport = document.getElementById('overlay-cado-grid-checkbox').checked;
         let cadoData = null;
-        if(overlayCadoGrid) {
+        if(isCadoExport) {
             cadoData = getZoneCadoConfigAndBounds();
         }
 
@@ -118,10 +118,19 @@ async function generateZonePNG() {
         const seCoordsStr = document.getElementById("zone-se-coords").value;
         const [north, west] = nwCoordsStr.split(',').map(c => parseFloat(c.trim()));
         const [south, east] = seCoordsStr.split(',').map(c => parseFloat(c.trim()));
-        const boundingBox = { north, west, south, east };
         
+        let finalBoundingBox = { north, west, south, east };
+
+        if (isCadoExport && cadoData) {
+            const scale = cadoData.config.scale;
+            const avgLat = (north + south) / 2;
+            const metersToLat = (meters) => meters / 111320;
+            const metersToLon = (meters, lat) => meters / (111320 * Math.cos(toRad(lat)));
+            finalBoundingBox.south -= metersToLat(scale);
+            finalBoundingBox.west -= metersToLon(scale, avgLat);
+        }
+
         const zoom = parseInt(document.getElementById("zone-info-zoom").textContent, 10);
-        
         const mapLayerName = document.getElementById("zone-info-layer").textContent;
         const selectedMap = MAP_LAYERS.find(m => m.name === mapLayerName);
         if (!selectedMap) throw new Error("Impossible de trouver la configuration du fond de carte.");
@@ -132,10 +141,10 @@ async function generateZonePNG() {
         const fileExtension = format === 'jpeg' ? '.jpg' : '.png';
 
         loadingMessage.textContent = "Téléchargement et assemblage des fonds de carte...";
-        const { finalCanvas, dynamicMargin } = await zdCreateFinalCanvas(boundingBox, zoom, selectedMap);
+        const { finalCanvas, dynamicMargin } = await zdCreateFinalCanvas(finalBoundingBox, zoom, selectedMap, isCadoExport);
         const ctx = finalCanvas.getContext('2d');
         
-        const nwPixel = zdLatLonToWorldPixels(boundingBox.north, boundingBox.west, zoom);
+        const nwPixel = zdLatLonToWorldPixels(finalBoundingBox.north, finalBoundingBox.west, zoom);
         const latLonToCanvasPixels = (lat, lon) => {
             const worldPixels = zdLatLonToWorldPixels(lat, lon, zoom);
             return {
@@ -149,28 +158,28 @@ async function generateZonePNG() {
             drawZoneKmlFeatures(ctx, zoom, loadedZoneKmlFeatures, latLonToCanvasPixels);
         }
 
-        const overlayUtmGrid = document.getElementById('overlay-utm-grid-checkbox').checked;
-        if (overlayUtmGrid) {
+        const isUtmExport = document.getElementById('overlay-utm-grid-checkbox').checked;
+        if (isUtmExport) {
             loadingMessage.textContent = "Dessin de la grille UTM...";
             const cartoucheFontSize = Math.max(10, Math.min(48, finalCanvas.width * 0.007));
-            await drawUtmGridOnCanvas(ctx, boundingBox, latLonToCanvasPixels, dynamicMargin, cartoucheFontSize);
+            await drawUtmGridOnCanvas(ctx, finalBoundingBox, latLonToCanvasPixels, dynamicMargin, cartoucheFontSize);
         }
         
-        if (overlayCadoGrid && cadoData) {
+        if (isCadoExport && cadoData) {
             loadingMessage.textContent = "Dessin du carroyage CADO...";
             const { config, a1CornerLat, a1CornerLon } = cadoData;
             drawCadoElementsOnCanvas(ctx, config, latLonToCanvasPixels, [a1CornerLon, a1CornerLat]);
         }
 
-        if (!overlayCadoGrid) {
+        if (!isCadoExport && isUtmExport) {
             loadingMessage.textContent = "Finalisation de l'image...";
             const cartoucheFontSize = Math.max(10, Math.min(48, finalCanvas.width * 0.007));
-            const cartoucheMetrics = drawZoneCartouche(ctx, "Export de zone", boundingBox, mapLayerName, zoom, dynamicMargin, cartoucheFontSize);
+            const cartoucheMetrics = drawZoneCartouche(ctx, "Export de zone", finalBoundingBox, mapLayerName, zoom, dynamicMargin, cartoucheFontSize);
             drawZoneCompass(ctx, finalCanvas.width, finalCanvas.height, dynamicMargin, cartoucheMetrics);
         }
         
         let fileName;
-        if (overlayCadoGrid && cadoData) {
+        if (isCadoExport && cadoData) {
             const { config, a1CornerLat, a1CornerLon } = cadoData;
             const letteringStr = config.letteringDirection === 'descending' ? '_descendant' : '';
             fileName = `${config.gridNameBase}_${config.scale}m_zone${letteringStr}_${config.colorName}_origine=${a1CornerLat.toFixed(6)},${a1CornerLon.toFixed(6)}${fileExtension}`;
@@ -191,7 +200,6 @@ async function generateZonePNG() {
         loadingIndicator.classList.add("hidden");
     }
 }
-
 
 async function generateCadoGridForZone() {
     const loadingIndicator = document.getElementById("loading-indicator");
@@ -220,21 +228,27 @@ async function generateCadoGridForZone() {
     }
 }
 
-async function zdCreateFinalCanvas(boundingBox, zoom, mapConfig) {
+async function zdCreateFinalCanvas(boundingBox, zoom, mapConfig, isCadoExport = false) {
     const nwPixel = zdLatLonToWorldPixels(boundingBox.north, boundingBox.west, zoom);
     const sePixel = zdLatLonToWorldPixels(boundingBox.south, boundingBox.east, zoom);
     const imageWidth = Math.abs(sePixel.x - nwPixel.x);
     const imageHeight = Math.abs(sePixel.y - nwPixel.y);
-    const cartoucheFontSize = Math.max(10, Math.min(48, imageWidth * 0.007));
-    const dynamicMargin = Math.ceil(cartoucheFontSize * 4);
+    
+    let dynamicMargin = 0;
+    if (!isCadoExport) {
+        const cartoucheFontSize = Math.max(10, Math.min(48, imageWidth * 0.007));
+        dynamicMargin = Math.ceil(cartoucheFontSize * 4);
+    }
 
     const finalCanvas = document.createElement('canvas');
     finalCanvas.width = imageWidth + dynamicMargin * 2;
     finalCanvas.height = imageHeight + dynamicMargin * 2;
     const ctx = finalCanvas.getContext('2d');
 
-    ctx.fillStyle = 'white';
-    ctx.fillRect(0, 0, finalCanvas.width, finalCanvas.height);
+    if (!isCadoExport) {
+        ctx.fillStyle = 'white';
+        ctx.fillRect(0, 0, finalCanvas.width, finalCanvas.height);
+    }
 
     const nwTile = { x: Math.floor(nwPixel.x / ZD_TILE_SIZE), y: Math.floor(nwPixel.y / ZD_TILE_SIZE) };
     const seTile = { x: Math.floor(sePixel.x / ZD_TILE_SIZE), y: Math.floor(sePixel.y / ZD_TILE_SIZE) };
@@ -272,9 +286,11 @@ async function zdCreateFinalCanvas(boundingBox, zoom, mapConfig) {
         });
     }
 
-    ctx.strokeStyle = 'black';
-    ctx.lineWidth = 1;
-    ctx.strokeRect(dynamicMargin, dynamicMargin, finalCanvas.width - dynamicMargin * 2, finalCanvas.height - dynamicMargin * 2);
+    if (!isCadoExport) {
+        ctx.strokeStyle = 'black';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(dynamicMargin, dynamicMargin, finalCanvas.width - dynamicMargin * 2, finalCanvas.height - dynamicMargin * 2);
+    }
 
     return { finalCanvas, dynamicMargin };
 }
@@ -344,7 +360,6 @@ function drawZoneCompass(ctx, canvasWidth, canvasHeight, margin, cartoucheMetric
     ctx.fillStyle = 'black';
     ctx.fillText('N', N_point.x, N_point.y);
 }
-
 
 async function handleZoneKmzFile(event) {
     const file = event.target.files[0];
@@ -554,10 +569,6 @@ function getContrastingOutlineColor(rgbaColor) {
     }
 }
 
-// =======================================================================
-// SECTION 2 : FONCTIONS DE DESSIN SUR CANVAS
-// =======================================================================
-
 function drawZoneKmlFeatures(ctx, zoom, features, latLonToCanvasPixels) {
     features.forEach(feature => {
         const style = feature.style || {};
@@ -635,9 +646,6 @@ function drawZoneKmlFeatures(ctx, zoom, features, latLonToCanvasPixels) {
     });
 }
 
-/**
- * Calcule et dessine une grille UTM.
- */
 async function drawUtmGridOnCanvas(ctx, boundingBox, latLonToCanvasPixels, margin, cartoucheFontSize) {
     const color = document.getElementById('utm-grid-color').value;
     const opacity = (100 - parseInt(document.getElementById('utm-transparency').value)) / 100;
