@@ -31,79 +31,108 @@
         
         <div class="prose dark:prose-invert max-w-none space-y-8">
             <p>
-                Bienvenue sur le guide du Générateur de Carroyage. Cette application est conçue pour vous fournir des outils cartographiques précis pour la planification, l'analyse et l'exportation. L'application est divisée en trois modes principaux.
+                Bienvenue sur le guide du Générateur de Carroyage. Cette application est conçue pour vous fournir des outils cartographiques précis pour la planification, l'analyse et l'exportation. L'application est divisée en deux modes principaux, accessibles via les boutons en haut de la page.
             </p>
 
             <!-- Mode 1: Carroyage CADO -->
             <section>
                 <h2 class="text-xl font-bold border-t dark:border-gray-600 pt-6">Mode 1 : Carroyage CADO</h2>
                 <p>
-                    Ce mode est le cœur de l'application. Il vous permet de générer un carroyage tactique (A1, B2, etc.) et une image imprimable à partir d'un point de référence.
+                    Ce mode est le cœur de l'application. Il vous permet de générer un carroyage tactique détaillé (A1, B2, etc.) et une image imprimable à partir d'un point de référence unique que vous définissez.
                 </p>
 
-                <h3 class="font-semibold mt-4">Convertisseurs de Coordonnées</h3>
+                <h3 class="font-semibold mt-4">1. Définir un Point de Référence</h3>
                 <p>
-                    Avant de générer une grille, vous devez définir un point. Cette section vous aide à trouver et à convertir des coordonnées entre plusieurs formats :
+                    Avant de générer une grille, vous devez définir un point. Utilisez l'une des méthodes suivantes :
                 </p>
                 <ul class="list-disc pl-5 space-y-1">
-                    <li><strong>GPS (Décimal ou DMS) :</strong> Le standard universel.</li>
-                    <li><strong>MERCATOR :</strong> Coordonnées projetées utilisées par de nombreux systèmes cartographiques web.</li>
-                    <li><strong>UTM :</strong> Un système de grille précis utilisé mondialement. Le format attendu est <code>Zone Lettre Easting Northing</code> (ex: <code>31 U 448252 5411943</code>).</li>
+                    <li><strong>Clic sur la carte :</strong> La méthode la plus simple et la plus intuitive.</li>
+                    <li><strong>Barre de recherche :</strong> Entrez une adresse pour centrer la carte et placer un point.</li>
+                    <li><strong>Convertisseurs de Coordonnées :</strong> Entrez des coordonnées dans un des formats ci-dessous, puis cliquez sur <strong>"Convertir"</strong> pour mettre à jour tous les autres formats, ou sur <strong>"Voir sur la carte"</strong> pour centrer la carte sur ce point.
+                        <ul class="list-disc pl-5 mt-2">
+                            <li><strong>GPS (Décimal ou DMS) :</strong> Le standard universel.</li>
+                            <li><strong>MERCATOR :</strong> Coordonnées projetées utilisées par de nombreux systèmes cartographiques web.</li>
+                            <li><strong>UTM :</strong> Un système de grille précis. Le format attendu est <code>Zone Lettre Est Nord</code> (ex: <code>31 U 448252 5411943</code>).</li>
+                        </ul>
+                    </li>
                 </ul>
-                <p>Cliquez sur <strong>"Convertir"</strong> pour mettre à jour tous les champs, ou <strong>"Voir sur la carte"</strong> pour centrer la carte sur ce point.</p>
                 
-                <h3 class="font-semibold mt-4">Configuration du Carroyage</h3>
+                <h3 class="font-semibold mt-4">2. Configuration du Carroyage</h3>
                 <p>
-                    Ici, vous définissez l'apparence et le comportement de votre grille. La compréhension des points suivants est essentielle :
+                    Ici, vous définissez l'apparence de votre grille.
                 </p>
                 <ul class="list-disc pl-5 space-y-2">
-                    <li><strong>Point de Référence :</strong> C'est le pivot de votre grille. Si vous appliquez une rotation (déviation), la grille tournera autour de ce point. Un cercle jaune le matérialise dans le fichier final.</li>
-                    <li><strong>Point d'Origine (A1) :</strong> C'est l'ancre de la grille, le coin de la case A1. Si vous choisissez <strong>"Origine (A1)"</strong> comme point de référence, les deux points sont confondus. Si vous choisissez <strong>"Milieu du carroyage"</strong>, l'outil calcule la position de l'origine pour que votre point de référence soit au centre géométrique de la grille.</li>
+                    <li><strong>Point de Référence vs Point d'Origine (A1) :</strong> C'est un concept clé.
+                        <ul>
+                           <li>Le <strong>Point de Référence</strong> est le pivot de votre grille, matérialisé par un cercle jaune. Si vous appliquez une rotation (déviation), la grille tournera autour de ce point.</li>
+                           <li>L'<strong>Origine (A1)</strong> est le coin de la case A1. Vous pouvez choisir de faire coïncider ces deux points ("Origine A1" comme point de référence) ou de placer le point de référence au centre géométrique de la grille ("Milieu du carroyage").</li>
+                        </ul>
+                    </li>
+                    <li><strong>Options Avancées :</strong> Cliquez sur "Options avancées ▼" pour affiner chaque détail de la grille :
+                        <ul>
+                            <li><strong>Transparence et Épaisseur :</strong> Ajustez l'opacité et l'épaisseur des lignes.</li>
+                            <li><strong>Taille du Texte et des Icônes :</strong> Changez la taille des étiquettes (pour les exports KML) et des icônes (pour les exports KMZ).</li>
+                            <li><strong>Orientation des lettres :</strong> Choisissez si les lignes (A, B, C...) sont nommées du Sud vers le Nord (Ascendante) ou du Nord vers le Sud (Descendante).</li>
+                            <li><strong>Déviation :</strong> Appliquez une rotation en degrés à votre grille autour du point de référence.</li>
+                            <li><strong>Types de grille étendus :</strong> En plus des formats A4 (Q12) et A3 (Z18), vous pouvez choisir d'autres dimensions ou définir une grille entièrement personnalisée (ex: de C-5 à W20).</li>
+                        </ul>
+                    </li>
                 </ul>
 
-                <h3 class="font-semibold mt-4">Génération d'Image (PNG/JPEG)</h3>
-                <p>
-                    Cette fonction crée une image haute résolution de votre carroyage, superposée sur un fond de carte, prête à être imprimée ou partagée. Elle est activée sous certaines conditions pour garantir un rendu correct (Déviation à 0°, alignement de la grille).
-                </p>
-                 <ul class="list-disc pl-5 space-y-1">
-                    <li><strong>Rendu dynamique :</strong> Le cartouche d'information, la boussole et la clé de subdivision s'adaptent automatiquement à la grille choisie.</li>
-                    <li><strong>Fonds de carte :</strong> Sélectionnez votre fond de carte préféré (Google, OSM, etc.) dans la liste déroulante.</li>
+                <h3 class="font-semibold mt-4">3. Génération d'Image et de Fichiers</h3>
+                 <ul class="list-disc pl-5 space-y-2">
+                    <li><strong>Générer l'image :</strong> Crée une image haute résolution de votre carroyage, superposée sur un fond de carte, prête à être imprimée ou partagée. Vous pouvez choisir le fond de carte (Google, IGN, etc.) et le format (PNG ou JPEG avec qualité ajustable). Un cartouche d'information, une boussole et une clé de subdivision sont ajoutés automatiquement. <em>Note : cette fonction est optimale lorsque la déviation est à 0°.</em></li>
+                    <li><strong>Générer Carroyage :</strong> Exporte les données de la grille dans un format géographique.
+                        <ul>
+                            <li><strong>Choix du format :</strong> KML, KMZ, GeoJSON, ou GPX (voir section "Formats de Fichiers").</li>
+                            <li><strong>Choix du contenu :</strong> Vous pouvez exporter la grille seule, les points centraux des cases seuls, ou les deux ensemble.</li>
+                        </ul>
+                    </li>
                  </ul>
             </section>
 
-            <!-- Mode 2: Grille UTM -->
+            <!-- Mode 2: Exporter Zone -->
             <section>
-                <h2 class="text-xl font-bold border-t dark:border-gray-600 pt-6">Mode 2 : Grille UTM</h2>
+                <h2 class="text-xl font-bold border-t dark:border-gray-600 pt-6">Mode 2 : Exporter une Zone</h2>
                 <p>
-                    Ce mode génère les lignes de la grille UTM officielle (carrés de 1km) pour une zone rectangulaire que vous dessinez sur la carte.
+                    Ce mode puissant offre plusieurs outils basés sur une zone rectangulaire que vous définissez.
                 </p>
-                <ul class="list-disc pl-5 space-y-1">
-                    <li><strong>Multi-zone :</strong> La grille est générée correctement même si votre zone s'étend sur plusieurs fuseaux UTM.</li>
-                    <li><strong>Précision :</strong> Les lignes suivent la courbure de la Terre pour un alignement parfait dans les logiciels de SIG comme Google Earth.</li>
-                    <li><strong>Étiquettes Alignées :</strong> Les étiquettes de coordonnées sont placées directement sur les lignes pour une lecture facile.</li>
+                
+                <h3 class="font-semibold mt-4">1. Définir une Zone</h3>
+                 <ul class="list-disc pl-5 space-y-1">
+                    <li><strong>Dessiner un rectangle :</strong> Utilisez l'outil de dessin sur la carte pour tracer votre zone d'intérêt.</li>
+                    <li><strong>Importer un KML/KMZ :</strong> Importez un fichier contenant des points ou des tracés. L'outil dessinera automatiquement un rectangle qui englobe tous les éléments de votre fichier.</li>
+                    <li><strong>Panneau d'information :</strong> Ce panneau vous indique le niveau de zoom actuel et le nombre de tuiles cartographiques à télécharger (limité à 2000 pour éviter les abus).</li>
                 </ul>
-            </section>
-            
-            <!-- Mode 3: Exporter Zone -->
-            <section>
-                <h2 class="text-xl font-bold border-t dark:border-gray-600 pt-6">Mode 3 : Exporter une Zone</h2>
-                <p>
-                    Ce mode puissant vous permet de télécharger une image géoréférencée (PNG ou JPEG) d'une zone rectangulaire de votre choix, à un niveau de zoom précis.
-                </p>
-                <ul class="list-disc pl-5 space-y-1">
-                    <li><strong>Définition de la zone :</strong> Utilisez l'outil de dessin pour tracer un rectangle sur la carte.</li>
-                    <li><strong>Choix du rendu :</strong> Sélectionnez le fond de carte et le niveau de zoom qui vous intéressent. Le panneau d'information vous indique le nombre de tuiles à télécharger (limité à 2000 pour éviter les abus).</li>
-                    <li><strong>Import KML/KMZ (Optionnel) :</strong> Vous pouvez importer un fichier KML/KMZ contenant des polygones ou des tracés. L'outil dessinera automatiquement un rectangle qui englobe tous les éléments de votre fichier, vous faisant gagner du temps.</li>
-                    <li><strong>Téléchargement :</strong> L'outil assemble les tuiles pour créer une image unique de haute qualité.</li>
+
+                <h3 class="font-semibold mt-4">2. Actions Disponibles</h3>
+                <p>Une fois votre zone définie, vous avez accès à trois générateurs :</p>
+                <ul class="list-disc pl-5 space-y-2">
+                    <li>
+                        <strong>Générer une Grille UTM (KMZ) :</strong>
+                        <p>Crée les lignes de la grille UTM officielle (carrés de 1km) pour la zone dessinée. La grille est générée correctement même si votre zone s'étend sur plusieurs fuseaux UTM, et les lignes suivent la courbure de la Terre pour une précision maximale dans les logiciels SIG.</p>
+                    </li>
+                    <li>
+                        <strong>Générer un Carroyage CADO (KMZ) :</strong>
+                        <p>Génère automatiquement un carroyage CADO qui recouvre entièrement la zone rectangulaire que vous avez dessinée. C'est idéal pour créer rapidement une grille tactique sur une large zone d'opération.</p>
+                    </li>
+                    <li>
+                        <strong>Télécharger l'Image de la Zone :</strong>
+                        <p>Télécharge une image géoréférencée (PNG ou JPEG) de la zone, au niveau de zoom sélectionné. Sa fonctionnalité la plus puissante est la possibilité d'incruster des informations directement sur l'image finale :</p>
+                        <ul>
+                            <li><strong>Apposer le carroyage UTM :</strong> Dessine la grille UTM sur l'image exportée.</li>
+                            <li><strong>Apposer le carroyage CADO :</strong> Dessine un carroyage CADO sur l'image, avec des options dédiées pour l'échelle, l'épaisseur des lignes et l'orientation des lettres.</li>
+                        </ul>
+                    </li>
                 </ul>
             </section>
             
             <section>
                 <h2 class="text-xl font-bold border-t dark:border-gray-600 pt-6">Formats de Fichiers</h2>
                  <ul class="list-disc pl-5 space-y-1">
-                    <li><strong>KMZ :</strong> Format compressé pour Google Earth, idéal pour le carroyage CADO car il inclut les icônes personnalisées.</li>
-                    <li><strong>KML :</strong> Format standard pour Google Earth et Google Maps (sans icônes intégrées).</li>
-                    <li><strong>GeoJSON :</strong> Format universel pour les Systèmes d'Information Géographique (SIG) comme QGIS.</li>
+                    <li><strong>KMZ :</strong> Format compressé pour Google Earth, idéal pour le carroyage CADO car il inclut les icônes personnalisées (A1, A2, etc.), rendant la grille très lisible.</li>
+                    <li><strong>KML :</strong> Format standard pour Google Earth et Google Maps. Les icônes ne sont pas intégrées, mais les étiquettes de texte sont visibles.</li>
+                    <li><strong>GeoJSON :</strong> Format universel pour les Systèmes d'Information Géographique (SIG) professionnels comme QGIS.</li>
                     <li><strong>GPX :</strong> Format standard pour les appareils GPS (Garmin, etc.) et les applications mobiles de randonnée (OsmAnd, ViewRanger).</li>
                 </ul>
             </section>
