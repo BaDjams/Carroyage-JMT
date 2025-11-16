@@ -88,7 +88,8 @@ function getZoneCadoConfigAndBounds() {
         deviation: 0,
         labelSize: parseFloat(document.getElementById('label-size').value),
         iconSize: parseFloat(document.getElementById('icon-size').value || 2),
-        referencePointChoice: 'center',
+        // **CORRECTION** : On change la valeur ici pour que la croix ne s'affiche pas
+        referencePointChoice: 'zone_center', // Auparavant 'center'
         startRow: 1, endRow: numRows,
         startCol: 'A', endCol: numberToLetter(numCols),
         includeGrid: true, includePoints: true,
