@@ -78,10 +78,6 @@ const WGS84_to_UTM = (function() {
     return { fromLatLon, toLatLon, getUTMZoneLetter };
 })();
 
-/**********************************************************************************/
-/*    FONCTION PRINCIPALE DE GÉNÉRATION DE LA GRILLE UTM (Mise à jour)            */
-/**********************************************************************************/
-
 async function generateUTMGrid() {
     const loadingIndicator = document.getElementById('loading-indicator');
     document.getElementById('loading-message').textContent = "Génération de la grille UTM en cours...";
@@ -122,7 +118,6 @@ async function generateUTMGrid() {
             allEastingLines.push(...gridDataForZone.eastingLines);
             allNorthingLines.push(...gridDataForZone.northingLines);
             
-            // **NOUVEAU** : Ajout de la ligne de frontière de zone
             if (zone < endZone && seLon > zoneBoundaryRight) {
                 allBoundaryLines.push({ 
                     name: `Frontière Zone ${zone}/${zone + 1}`, 
@@ -148,18 +143,12 @@ async function generateUTMGrid() {
     }
 }
 
-/**********************************************************************************/
-/*    FONCTION DE CALCUL DE LA GRILLE (Mise à jour majeure)                       */
-/**********************************************************************************/
-
 function calculateGridForZoneStrip(nwLat, nwLon, seLat, seLon, zoneToUse) {
-    // **CORRECTION** : Calculer les coordonnées UTM des 4 coins de la zone pour obtenir une emprise précise
     const utm_nw = WGS84_to_UTM.fromLatLon(nwLat, nwLon, zoneToUse);
     const utm_ne = WGS84_to_UTM.fromLatLon(nwLat, seLon, zoneToUse);
     const utm_sw = WGS84_to_UTM.fromLatLon(seLat, nwLon, zoneToUse);
     const utm_se = WGS84_to_UTM.fromLatLon(seLat, seLon, zoneToUse);
     
-    // **CORRECTION** : Utiliser les min/max des 4 coins pour l'emprise
     const minEasting = Math.min(utm_nw.easting, utm_sw.easting);
     const maxEasting = Math.max(utm_ne.easting, utm_se.easting);
     const minNorthing = Math.min(utm_sw.northing, utm_se.northing);
@@ -167,13 +156,11 @@ function calculateGridForZoneStrip(nwLat, nwLon, seLat, seLon, zoneToUse) {
 
     const gridSpacing = 1000;
     const eastingLines = [], northingLines = [];
-    const segments = 20; // Nombre de segments pour dessiner les courbes
-    const tolerance = 1e-9; // Tolérance pour le clipping des longitudes
+    const segments = 20;
+    const tolerance = 1e-9;
 
-    // Génération des lignes verticales (Easting)
     for (let e = Math.ceil(minEasting / gridSpacing) * gridSpacing; e <= maxEasting; e += gridSpacing) {
         const linePoints = [];
-        // **CORRECTION** : Déterminer la lettre de zone à partir de la latitude moyenne pour plus de précision
         const midLat = (nwLat + seLat) / 2;
         const zoneLetter = WGS84_to_UTM.getUTMZoneLetter(midLat);
         if (!zoneLetter) continue;
@@ -182,7 +169,6 @@ function calculateGridForZoneStrip(nwLat, nwLon, seLat, seLon, zoneToUse) {
             const currentNorthing = minNorthing + (i / segments) * (maxNorthing - minNorthing);
             const wgsPoint = WGS84_to_UTM.toLatLon(e, currentNorthing, zoneToUse, zoneLetter);
             
-            // Clipping précis pour s'assurer que la ligne ne dépasse pas la frontière
             if (wgsPoint.longitude >= (nwLon - tolerance) && wgsPoint.longitude <= (seLon + tolerance)) {
                 linePoints.push([wgsPoint.longitude, wgsPoint.latitude, 0]);
             }
@@ -192,10 +178,8 @@ function calculateGridForZoneStrip(nwLat, nwLon, seLat, seLon, zoneToUse) {
         }
     }
 
-    // Génération des lignes horizontales (Northing)
     for (let n = Math.ceil(minNorthing / gridSpacing) * gridSpacing; n <= maxNorthing; n += gridSpacing) {
         const linePoints = [];
-        // **CORRECTION** : Déterminer la lettre de zone à partir de la latitude de la ligne elle-même
         const tempLatForN = WGS84_to_UTM.toLatLon(minEasting, n, zoneToUse, WGS84_to_UTM.getUTMZoneLetter(seLat)).latitude;
         const zoneLetterForN = WGS84_to_UTM.getUTMZoneLetter(tempLatForN);
         if (!zoneLetterForN) continue;
@@ -216,10 +200,6 @@ function calculateGridForZoneStrip(nwLat, nwLon, seLat, seLon, zoneToUse) {
     return { eastingLines, northingLines };
 }
 
-/**********************************************************************************/
-/*    FONCTION DE CRÉATION DU KML (Mise à jour)                                   */
-/**********************************************************************************/
-
 function createUTM_KML(eastingLines, northingLines, boundaryLines, config) {
     const kmlColor = rgbToKmlColor(config.lineColor, config.lineOpacity);
     let kml = `<?xml version="1.0" encoding="UTF-8"?>
@@ -228,8 +208,8 @@ function createUTM_KML(eastingLines, northingLines, boundaryLines, config) {
     <name>${config.gridName}</name>
     <Style id="utmLineStyle"><LineStyle><color>${kmlColor}</color><width>2</width></LineStyle><IconStyle><scale>0</scale></IconStyle></Style>
     <Style id="utmLabelStyle"><IconStyle><scale>0</scale></IconStyle><LabelStyle><scale>0.7</scale></LabelStyle></Style>
-    <!-- **NOUVEAU** : Style pour la ligne de frontière -->
-    <Style id="boundaryLineStyle"><LineStyle><color>ff0000ff</color><width>4</width></LineStyle><IconStyle><scale>0</scale></IconStyle></Style>`;
+    <!-- **CORRECTION** : Style pour la ligne de frontière en jaune opaque -->
+    <Style id="boundaryLineStyle"><LineStyle><color>ff00ffff</color><width>4</width></LineStyle><IconStyle><scale>0</scale></IconStyle></Style>`;
     
     const linesByZone = {};
     [...eastingLines, ...northingLines].forEach(line => {
@@ -253,7 +233,6 @@ function createUTM_KML(eastingLines, northingLines, boundaryLines, config) {
         kml += `</Folder>`;
     }
 
-    // **NOUVEAU** : Dossier pour les frontières de zone
     if (boundaryLines.length > 0) {
         kml += `<Folder><name>Frontières de Zone</name>`;
         boundaryLines.forEach(line => {
@@ -274,10 +253,8 @@ function createUTM_KML(eastingLines, northingLines, boundaryLines, config) {
     return kml;
 }
 
-// Fonction utilitaire (Inchangée)
 function createKMLPlacemarkForLine(line, lineStyleUrl, labelStyleUrl) {
     const coordinateString = line.coordinates.map(c => c.join(',')).join(' ');
-    // Positionner les étiquettes légèrement à l'intérieur pour une meilleure lisibilité
     const startPoint = line.coordinates[1].join(','); 
     const endPoint = line.coordinates[line.coordinates.length - 2].join(',');
     

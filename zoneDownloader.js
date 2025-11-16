@@ -201,7 +201,7 @@ async function generateZonePNG() {
             drawCadoElementsOnCanvas(ctx, config, latLonToCanvasPixels, [a1CornerLon, a1CornerLat]);
         }
 
-        if (!isCadoExport) { // This block now only runs for non-CADO exports
+        if (!isCadoExport) { 
             loadingMessage.textContent = "Finalisation de l'image...";
             const cartoucheFontSize = Math.max(10, Math.min(48, finalCanvas.width * 0.007));
             const cartoucheMetrics = drawZoneCartouche(ctx, "Export de zone", finalBoundingBox, mapLayerName, zoom, dynamicMargin, cartoucheFontSize);
@@ -718,11 +718,11 @@ async function drawUtmGridOnCanvas(ctx, boundingBox, latLonToCanvasPixels, margi
                 const coordValue = line.name.split(' ')[1];
                 const labelText = `${zoneDesignator} ${coordValue}`;
                 if (line.name.startsWith('E')) {
-                    labelsToDraw.push({ type: 'top', anchor: { x: lastCanvasPoint.x, y: drawingBox.y }, text: labelText });
-                    labelsToDraw.push({ type: 'bottom', anchor: { x: firstCanvasPoint.x, y: drawingBox.y + drawingBox.height }, text: labelText });
+                    labelsToDraw.push({ type: 'top', anchor: { x: lastCanvasPoint.x, y: drawingBox.y }, text: labelText, zone: zoneDesignator });
+                    labelsToDraw.push({ type: 'bottom', anchor: { x: firstCanvasPoint.x, y: drawingBox.y + drawingBox.height }, text: labelText, zone: zoneDesignator });
                 } else {
-                    labelsToDraw.push({ type: 'left', anchor: { x: drawingBox.x, y: firstCanvasPoint.y }, text: labelText });
-                    labelsToDraw.push({ type: 'right', anchor: { x: drawingBox.x + drawingBox.width, y: lastCanvasPoint.y }, text: labelText });
+                    labelsToDraw.push({ type: 'left', anchor: { x: drawingBox.x, y: firstCanvasPoint.y }, text: labelText, zone: zoneDesignator });
+                    labelsToDraw.push({ type: 'right', anchor: { x: drawingBox.x + drawingBox.width, y: lastCanvasPoint.y }, text: labelText, zone: zoneDesignator });
                 }
             }
         }
@@ -737,15 +737,31 @@ async function drawUtmGridOnCanvas(ctx, boundingBox, latLonToCanvasPixels, margi
 
     ctx.fillStyle = 'black';
     ctx.font = `bold ${labelFontSize}px Arial`;
+    
+    // **NOUVEAU** : Logique de filtrage des étiquettes pour les marges
+    const startZoneStr = `${startZone}`;
+    const endZoneStr = `${endZone}`;
+
     for (const label of labelsToDraw) {
-        ctx.save();
-        ctx.translate(label.anchor.x, label.anchor.y);
-        switch(label.type) {
-            case 'top': ctx.rotate(-Math.PI / 2); ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.fillText(label.text, labelPadding, 0); break;
-            case 'bottom': ctx.rotate(-Math.PI / 2); ctx.textAlign = 'right'; ctx.textBaseline = 'middle'; ctx.fillText(label.text, -labelPadding, 0); break;
-            case 'left': ctx.textAlign = 'right'; ctx.textBaseline = 'middle'; ctx.fillText(label.text, -labelPadding, 0); break;
-            case 'right': ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.fillText(label.text, labelPadding, 0); break;
+        let shouldDraw = false;
+        if (label.type === 'left' && label.zone.startsWith(startZoneStr)) {
+            shouldDraw = true;
+        } else if (label.type === 'right' && label.zone.startsWith(endZoneStr)) {
+            shouldDraw = true;
+        } else if (label.type === 'top' || label.type === 'bottom') {
+            shouldDraw = true;
         }
-        ctx.restore();
+
+        if (shouldDraw) {
+            ctx.save();
+            ctx.translate(label.anchor.x, label.anchor.y);
+            switch(label.type) {
+                case 'top': ctx.rotate(-Math.PI / 2); ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.fillText(label.text, labelPadding, 0); break;
+                case 'bottom': ctx.rotate(-Math.PI / 2); ctx.textAlign = 'right'; ctx.textBaseline = 'middle'; ctx.fillText(label.text, -labelPadding, 0); break;
+                case 'left': ctx.textAlign = 'right'; ctx.textBaseline = 'middle'; ctx.fillText(label.text, -labelPadding, 0); break;
+                case 'right': ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.fillText(label.text, labelPadding, 0); break;
+            }
+            ctx.restore();
+        }
     }
 }
