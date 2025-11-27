@@ -47,7 +47,8 @@
              </div>
         </header>
 
-        <div id="settings-modal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+        <!-- MODAL SETTINGS - FIX Z-INDEX -->
+        <div id="settings-modal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full" style="z-index: 9999;">
             <div class="relative top-20 mx-auto p-5 border w-11/12 md:w-3/4 lg:w-2/3 shadow-lg rounded-md bg-white dark:bg-gray-800 dark:border-gray-700">
                 <div class="flex justify-between items-center mb-4">
                     <h3 class="text-xl font-bold text-gray-900 dark:text-white">Gestion des Icônes POI</h3>
@@ -97,6 +98,7 @@
         </div>
 
         <main class="space-y-6">
+            <!-- MODE 1 : CARROYAGE CADO -->
             <div id="cado-mode-container">
                 <div class="space-y-6">
                     <div class="card bg-white shadow-md rounded-lg p-4 md:p-6 dark:bg-gray-800 dark:border dark:border-gray-700">
@@ -506,7 +508,7 @@
                             <button id="generate-zone-png-button" class="btn-main btn-image w-full sm:w-auto">Télécharger l'image</button>
                         </div>
                     </div>
-                </div>
+                 </div>
             </div>
 
             <div id="loading-indicator" class="hidden mt-4 flex flex-col items-center">
