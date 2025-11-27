@@ -22,6 +22,7 @@
     <script src="map-layers.js" defer></script>
 	<script src="wms-layers.js" defer></script>
     <script src="icons.js" defer></script>
+    <script src="settingsManager.js" defer></script>
 	<script src="utilities.js"></script>
     <script src="carroyageUTM.js" defer></script>
     <script src="carroyageCado.js" defer></script>
@@ -34,6 +35,7 @@
         <header class="mb-6 text-center">
              <h1 id="app-title" class="text-2xl md:text-3xl font-bold mb-4 text-content">Générateur de carroyage CADO</h1>
              <div class="flex flex-wrap justify-center items-center gap-2 mb-4">
+                 <button id="settingsBtn" class="text-2xl px-3 py-1 rounded-full button-outline bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-white transition-colors" title="Gérer les icônes">⚙️</button>
                  <a href="help.html" target="_blank" id="helpBtn" class="text-2xl px-3 py-1 rounded-full button-outline bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-white no-underline" style="text-decoration: none;">?</a>
                  <a href="https://www.google.com/maps" target="_blank" class="px-3 py-1 button-outline bg-gray-200 hover:bg-gray-300 rounded dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-white text-sm md:text-base">Ouvrir Google Maps</a>
                  <a href="https://www.google.com/mymaps" target="_blank" class="px-3 py-1 button-outline bg-gray-200 hover:bg-gray-300 rounded dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-white text-sm md:text-base">Ouvrir Google MyMaps</a>
@@ -45,8 +47,56 @@
              </div>
         </header>
 
+        <div id="settings-modal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+            <div class="relative top-20 mx-auto p-5 border w-11/12 md:w-3/4 lg:w-2/3 shadow-lg rounded-md bg-white dark:bg-gray-800 dark:border-gray-700">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-xl font-bold text-gray-900 dark:text-white">Gestion des Icônes POI</h3>
+                    <button id="close-settings-btn" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 text-2xl">&times;</button>
+                </div>
+                
+                <div id="drop-zone" class="border-2 border-dashed border-blue-400 rounded-lg p-8 text-center mb-6 bg-blue-50 dark:bg-gray-700 dark:border-blue-500 transition-colors">
+                    <p class="text-gray-600 dark:text-gray-300">Glissez et déposez une image PNG ici pour ajouter une nouvelle icône.</p>
+                    <p class="text-xs text-gray-500 mt-2">(Format recommandé : PNG 32x32 ou 64x64 pixels, transparent)</p>
+                </div>
+
+                <div class="overflow-x-auto max-h-96">
+                    <table class="w-full text-sm text-left text-gray-500 dark:text-gray-400">
+                        <thead class="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400 sticky top-0">
+                            <tr>
+                                <th scope="col" class="px-4 py-3 w-16">Aperçu</th>
+                                <th scope="col" class="px-4 py-3 w-20">Ordre</th>
+                                <th scope="col" class="px-4 py-3">Nom</th>
+                                <th scope="col" class="px-4 py-3">Catégorie</th>
+                                <th scope="col" class="px-4 py-3 text-right">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="settings-icons-list">
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="mt-6 pt-4 border-t dark:border-gray-700">
+                    <div class="flex justify-between items-center">
+                        <div class="flex gap-2">
+                            <button id="export-icons-btn" class="px-3 py-2 bg-gray-500 text-white rounded hover:bg-gray-600 text-xs flex items-center gap-1" title="Sauvegarder ma configuration dans un fichier">
+                                ⬇️ Exporter JSON
+                            </button>
+                            <button id="import-icons-trigger" class="px-3 py-2 bg-gray-500 text-white rounded hover:bg-gray-600 text-xs flex items-center gap-1" title="Charger un fichier de configuration">
+                                ⬆️ Importer JSON
+                            </button>
+                            <input type="file" id="import-icons-input" accept=".json" class="hidden">
+                        </div>
+
+                        <div class="flex gap-2">
+                            <button id="reset-settings-btn" class="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 text-xs">Réinitialiser</button>
+                            <button id="save-settings-btn" class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 text-sm font-bold">OK</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <main class="space-y-6">
-            <!-- MODE 1 : CARROYAGE CADO -->
             <div id="cado-mode-container">
                 <div class="space-y-6">
                     <div class="card bg-white shadow-md rounded-lg p-4 md:p-6 dark:bg-gray-800 dark:border dark:border-gray-700">
@@ -206,7 +256,6 @@
                                         </div>
                                     </div>
                                     <div id="custom-grid-options" class="hidden md:col-span-2 space-y-3">
-                                        <!-- Custom options ... -->
                                         <div class="grid grid-cols-2 gap-2">
                                             <div class="flex flex-col space-y-1"><label for="start-row" class="text-sm text-content">Début des lignes :</label><input type="number" id="start-row" class="input-field px-3 py-2 border rounded shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white text-base grid-parameter" value="1"></div>
                                             <div class="flex flex-col space-y-1"><label for="end-row" class="text-sm text-content">Fin des lignes :</label><input type="number" id="end-row" class="input-field px-3 py-2 border rounded shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white text-base grid-parameter" value="26"></div>
@@ -317,7 +366,7 @@
                         <div class="flex flex-wrap gap-4 items-end mb-4">
                             <div class="flex flex-col space-y-1">
                                 <label for="poi-type-selector" class="text-sm text-content">Type d'icône :</label>
-                                <!-- Le contenu sera généré par JS -->
+                                <!-- Le contenu sera généré par settingsManager.js -->
                                 <select id="poi-type-selector" class="input-field px-2 py-1 border rounded shadow-sm text-sm text-gray-900 dark:bg-gray-600 dark:border-gray-500 dark:text-white">
                                 </select>
                             </div>
@@ -599,6 +648,9 @@
                         handleMapClickForPOI(e);
                     }
                 });
+                
+                // Hack pour rendre zoneMap accessible à zoneDownloader.js
+                window.zoneMap = zoneMap;
 
                 setTimeout(() => { updateZoneInfo({name: "Google Hybrid"})}, 500);
                 setupZoneAddressSearch();
@@ -886,16 +938,9 @@
                     });
                 });
 
-                // Remplissage dynamique du sélecteur d'icônes
-                const poiSelect = document.getElementById('poi-type-selector');
-                if (typeof ICON_LIBRARY !== 'undefined' && poiSelect) {
-                    poiSelect.innerHTML = '';
-                    ICON_LIBRARY.forEach(iconDef => {
-                        const option = document.createElement('option');
-                        option.value = iconDef.id;
-                        option.textContent = iconDef.label;
-                        poiSelect.appendChild(option);
-                    });
+                // Initialisation du Settings Manager qui remplit aussi le dropdown
+                if (typeof initSettingsManager === 'function') {
+                    initSettingsManager();
                 }
             }
 
@@ -1003,9 +1048,6 @@
                         addPoiBtn.classList.toggle('hover:bg-blue-700', !isAdding);
                     }
                 });
-                
-                // Hack pour rendre zoneMap accessible à zoneDownloader.js
-                window.zoneMap = zoneMap;
 
 				updateImageButtonState();
                 

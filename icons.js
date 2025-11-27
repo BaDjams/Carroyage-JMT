@@ -3,12 +3,6 @@
 // L'administrateur peut modifier les URLs vers des images locales ou distantes.
 
 const ICON_LIBRARY = [
-    /*{
-        id: "target",
-        label: "Target",
-        url: "icons/target.png",
-        scale: 1.0
-    },*/
     {
         id: "start",
         label: "Départ (Vert)",
