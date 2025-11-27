@@ -1,32 +1,20 @@
 // zoneDownloader.js
 
 const ZD_TILE_SIZE = 256;
-let loadedZoneKmlFeatures = []; // Pour stocker les données du KMZ
-let kmlResources = { images: {} }; // Pour stocker les icônes chargées depuis le KMZ
+let loadedZoneKmlFeatures = [];
+let kmlResources = { images: {} };
 
-/**
- * Calcule la distance en mètres entre deux coordonnées GPS en utilisant la formule de Haversine.
- * @param {{lat: number, lon: number}} p1 Point 1
- * @param {{lat: number, lon: number}} p2 Point 2
- * @returns {number} Distance en mètres
- */
 function haversineDistance(p1, p2) {
-    const R = 6371e3; // Rayon de la Terre en mètres
+    const R = 6371e3;
     const lat1Rad = toRad(p1.lat);
     const lat2Rad = toRad(p2.lat);
     const deltaLatRad = toRad(p2.lat - p1.lat);
     const deltaLonRad = toRad(p2.lon - p1.lon);
-
-    const a = Math.sin(deltaLatRad / 2) * Math.sin(deltaLatRad / 2) +
-              Math.cos(lat1Rad) * Math.cos(lat2Rad) *
-              Math.sin(deltaLonRad / 2) * Math.sin(deltaLonRad / 2);
+    const a = Math.sin(deltaLatRad / 2) * Math.sin(deltaLatRad / 2) + Math.cos(lat1Rad) * Math.cos(lat2Rad) * Math.sin(deltaLonRad / 2) * Math.sin(deltaLonRad / 2);
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-
     return R * c;
 }
 
-
-// --- Fonctions de projection (partagées) ---
 function zdCoordsToQuadKey(x, y, zoom) {
     let quadKey = '';
     for (let i = zoom; i > 0; i--) {
@@ -48,9 +36,82 @@ function zdLatLonToWorldPixels(lat, lon, zoom) {
     return { x: x * mapSize, y: y * mapSize };
 }
 
-/**
- * Fonction principale qui orchestre la création de l'image de la zone.
- */
+function getZoneCadoConfigAndBounds() {
+    const nwCoordsStr = document.getElementById("zone-nw-coords").value;
+    const seCoordsStr = document.getElementById("zone-se-coords").value;
+    if (!nwCoordsStr || !seCoordsStr) throw new Error("Veuillez d'abord dessiner une zone rectangulaire.");
+    
+    const [nwLat, nwLon] = nwCoordsStr.split(',').map(c => parseFloat(c.trim()));
+    const [seLat, seLon] = seCoordsStr.split(',').map(c => parseFloat(c.trim()));
+
+    const scale = parseFloat(document.getElementById('cado-overlay-scale').value);
+    if (isNaN(scale) || scale <= 0) throw new Error("L'échelle doit être un nombre positif.");
+
+    const widthMeters = haversineDistance({lat: nwLat, lon: nwLon}, {lat: nwLat, lon: seLon});
+    const heightMeters = haversineDistance({lat: nwLat, lon: nwLon}, {lat: seLat, lon: nwLon});
+    const numCols = Math.ceil(widthMeters / scale);
+    const numRows = Math.ceil(heightMeters / scale);
+
+    if (numCols > 100 || numRows > 100) {
+        throw new Error(`Le nombre de cases (${numCols}x${numRows}) est trop élevé (>100). Augmentez l'échelle ou réduisez la zone.`);
+    }
+
+    const refLat = (nwLat + seLat) / 2;
+    const refLon = (nwLon + seLon) / 2;
+    
+    const metersToLatDegrees = (meters) => meters / 111320;
+    const metersToLonDegrees = (meters, lat) => meters / (111320 * Math.cos(toRad(lat)));
+    
+    const xOffsetMeters = (numCols / 2) * scale;
+    const yOffsetMeters = (numRows / 2) * scale;
+    
+    const letteringDirection = document.querySelector('input[name="cado-overlay-direction"]:checked').value;
+    
+    const a1CornerLon = refLon - metersToLonDegrees(xOffsetMeters, refLat);
+    let a1CornerLat;
+    if (letteringDirection === 'ascending') {
+        a1CornerLat = refLat - metersToLatDegrees(yOffsetMeters);
+    } else {
+        a1CornerLat = refLat + metersToLatDegrees(yOffsetMeters);
+    }
+    
+    const config = {
+        latitude: refLat,
+        longitude: refLon,
+        scale: scale,
+        lineWidth: parseInt(document.getElementById('cado-overlay-thickness').value, 10),
+        letteringDirection: letteringDirection,
+        gridColor: document.getElementById('utm-grid-color').value,
+        colorName: document.getElementById('utm-grid-color-name').value,
+        colorOpacity: (100 - parseInt(document.getElementById('utm-transparency').value)) / 100,
+        gridNameBase: document.getElementById("zone-title").value || "Carroyage CADO de Zone",
+        deviation: 0,
+        labelSize: parseFloat(document.getElementById('label-size').value),
+        iconSize: parseFloat(document.getElementById('icon-size').value || 2),
+        referencePointChoice: 'center',
+        startRow: 1, endRow: numRows,
+        startCol: 'A', endCol: numberToLetter(numCols),
+        includeGrid: true, includePoints: true,
+        outputFormat: 'KMZ'
+    };
+
+    const gridCorners = [
+        calculateAndRotatePoint(config.startRow, 1, config, a1CornerLat, a1CornerLon),
+        calculateAndRotatePoint(numCols + 1, 1, config, a1CornerLat, a1CornerLon),
+        calculateAndRotatePoint(1, numRows + 1, config, a1CornerLat, a1CornerLon),
+        calculateAndRotatePoint(numCols + 1, numRows + 1, config, a1CornerLat, a1CornerLon)
+    ].map(p => ({ lon: p[0], lat: p[1] }));
+
+    const gridBounds = {
+        minLat: Math.min(...gridCorners.map(c => c.lat)),
+        maxLat: Math.max(...gridCorners.map(c => c.lat)),
+        minLon: Math.min(...gridCorners.map(c => c.lon)),
+        maxLon: Math.max(...gridCorners.map(c => c.lon))
+    };
+
+    return { config, gridBounds, a1CornerLat, a1CornerLon };
+}
+
 async function generateZonePNG() {
     const loadingIndicator = document.getElementById("loading-indicator");
     const loadingMessage = document.getElementById("loading-message");
@@ -60,24 +121,35 @@ async function generateZonePNG() {
     hideError();
 
     try {
+        const isCadoExport = document.getElementById('overlay-cado-grid-checkbox').checked;
+        const isUtmExport = document.getElementById('overlay-utm-grid-checkbox').checked;
+        let cadoData = null;
+        let finalBoundingBox;
+
         const nwCoordsStr = document.getElementById("zone-nw-coords").value;
         const seCoordsStr = document.getElementById("zone-se-coords").value;
-        if (!nwCoordsStr || !seCoordsStr) throw new Error("Veuillez d'abord dessiner une zone rectangulaire sur la carte.");
-
         const [north, west] = nwCoordsStr.split(',').map(c => parseFloat(c.trim()));
         const [south, east] = seCoordsStr.split(',').map(c => parseFloat(c.trim()));
         
-        const zoom = parseInt(document.getElementById("zone-info-zoom").textContent, 10);
-        
-        const nwPixelForSize = zdLatLonToWorldPixels(north, west, zoom);
-        const sePixelForSize = zdLatLonToWorldPixels(south, east, zoom);
-        const imageWidth = Math.abs(sePixelForSize.x - nwPixelForSize.x);
-        const cartoucheFontSize = Math.max(10, Math.min(48, imageWidth * 0.007));
-        const dynamicMargin = Math.ceil(cartoucheFontSize * 4);
+        if(isCadoExport) {
+            cadoData = getZoneCadoConfigAndBounds();
+            const { config, gridBounds } = cadoData;
+            const avgLat = (gridBounds.minLat + gridBounds.maxLat) / 2;
+            const metersToLat = (meters) => meters / 111320;
+            const metersToLon = (meters, lat) => meters / (111320 * Math.cos(toRad(lat)));
 
-        const title = document.getElementById("zone-title").value || "Export de zone";
+            finalBoundingBox = {
+                north: gridBounds.maxLat + metersToLat(0.5 * config.scale),
+                south: gridBounds.minLat - metersToLat(1.5 * config.scale),
+                west: gridBounds.minLon - metersToLon(1.5 * config.scale, avgLat),
+                east: gridBounds.maxLon + metersToLon(0.5 * config.scale, avgLat)
+            };
+        } else {
+            finalBoundingBox = { north, west, south, east };
+        }
+
+        const zoom = parseInt(document.getElementById("zone-info-zoom").textContent, 10);
         const mapLayerName = document.getElementById("zone-info-layer").textContent;
-        
         const selectedMap = MAP_LAYERS.find(m => m.name === mapLayerName);
         if (!selectedMap) throw new Error("Impossible de trouver la configuration du fond de carte.");
         
@@ -86,33 +158,11 @@ async function generateZonePNG() {
         const mimeType = format === 'jpeg' ? 'image/jpeg' : 'image/png';
         const fileExtension = format === 'jpeg' ? '.jpg' : '.png';
 
-        const boundingBox = { north, west, south, east };
-
         loadingMessage.textContent = "Téléchargement et assemblage des fonds de carte...";
-        const { finalCanvas } = await zdCreateFinalCanvas(boundingBox, zoom, selectedMap, dynamicMargin);
+        const { finalCanvas, dynamicMargin } = await zdCreateFinalCanvas(finalBoundingBox, zoom, selectedMap, isCadoExport);
         const ctx = finalCanvas.getContext('2d');
         
-        const scale = 25000;
-        const drawingBoxPixelWidth = finalCanvas.width - 2 * dynamicMargin;
-        const centralLat = (north + south) / 2;
-        const realWidthMeters = haversineDistance({lat: centralLat, lon: west}, {lat: centralLat, lon: east});
-        const metersPerPixel = realWidthMeters / drawingBoxPixelWidth;
-        const mmPerPixel = (metersPerPixel / scale) * 1000;
-        const totalPrintWidthMm = finalCanvas.width * mmPerPixel;
-        const totalPrintHeightMm = finalCanvas.height * mmPerPixel;
-        const printDimensionsString = `print_${totalPrintWidthMm.toFixed(0)}x${totalPrintHeightMm.toFixed(0)}mm`;
-        
-        ctx.fillStyle = 'white';
-        ctx.fillRect(0, 0, finalCanvas.width, dynamicMargin);
-        ctx.fillRect(0, finalCanvas.height - dynamicMargin, finalCanvas.width, dynamicMargin);
-        ctx.fillRect(0, dynamicMargin, dynamicMargin, finalCanvas.height - 2 * dynamicMargin);
-        ctx.fillRect(finalCanvas.width - dynamicMargin, dynamicMargin, dynamicMargin, finalCanvas.height - 2 * dynamicMargin);
-        
-        ctx.strokeStyle = 'black';
-        ctx.lineWidth = 1;
-        ctx.strokeRect(dynamicMargin, dynamicMargin, finalCanvas.width - dynamicMargin * 2, finalCanvas.height - dynamicMargin * 2);
-        
-        const nwPixel = zdLatLonToWorldPixels(boundingBox.north, boundingBox.west, zoom);
+        const nwPixel = zdLatLonToWorldPixels(finalBoundingBox.north, finalBoundingBox.west, zoom);
         const latLonToCanvasPixels = (lat, lon) => {
             const worldPixels = zdLatLonToWorldPixels(lat, lon, zoom);
             return {
@@ -126,30 +176,57 @@ async function generateZonePNG() {
             drawZoneKmlFeatures(ctx, zoom, loadedZoneKmlFeatures, latLonToCanvasPixels);
         }
 
-        const overlayUtmGrid = document.getElementById('overlay-utm-grid-checkbox').checked;
-        const overlayCadoGrid = document.getElementById('overlay-cado-grid-checkbox').checked;
-
-        if (overlayUtmGrid) {
+        if (isUtmExport) {
             loadingMessage.textContent = "Dessin de la grille UTM...";
-            await drawUtmGridOnCanvas(ctx, boundingBox, zoom, latLonToCanvasPixels, dynamicMargin, cartoucheFontSize);
+            const cartoucheFontSize = Math.max(10, Math.min(48, finalCanvas.width * 0.007));
+            await drawUtmGridOnCanvas(ctx, finalBoundingBox, latLonToCanvasPixels, dynamicMargin, cartoucheFontSize);
         }
         
-        if (overlayCadoGrid) {
+        if (isCadoExport && cadoData) {
             loadingMessage.textContent = "Dessin du carroyage CADO...";
-            await drawCadoGridOnCanvas(ctx, boundingBox, latLonToCanvasPixels);
+            const { config, a1CornerLat, a1CornerLon } = cadoData;
+            drawCadoElementsOnCanvas(ctx, config, latLonToCanvasPixels, [a1CornerLon, a1CornerLat]);
         }
 
-		loadingMessage.textContent = "Finalisation de l'image...";
-		const cartoucheMetrics = drawZoneCartouche(ctx, title, boundingBox, mapLayerName, zoom, dynamicMargin);
-        drawZoneCompass(ctx, finalCanvas.width, finalCanvas.height, dynamicMargin, cartoucheMetrics);
-
-        const fileName = `${title.replace(/[^a-z0-9]/gi, '_')}_${mapLayerName}_z${zoom}_${printDimensionsString}${fileExtension}`;
-        finalCanvas.toBlob((blob) => {
-            if (blob) {
-                downloadFile(blob, fileName);
+        if (!isCadoExport) {
+            loadingMessage.textContent = "Finalisation de l'image...";
+            
+            if (isUtmExport) {
+                const cartoucheFontSize = Math.max(10, Math.min(48, finalCanvas.width * 0.007));
+                const cartoucheMetrics = drawZoneCartouche(ctx, "Export de zone", finalBoundingBox, mapLayerName, zoom, dynamicMargin, cartoucheFontSize);
+                drawZoneCompass(ctx, finalCanvas.width, finalCanvas.height, dynamicMargin, cartoucheMetrics);
             } else {
-                showError("Erreur lors de la création du fichier image.");
+                // MODE IMAGE SEULE : Boussole discrète + Échelle jaune
+                
+                // 1. Boussole discrète (plus petite)
+                const compassRadius = Math.max(15, finalCanvas.width * 0.015); // 1.5% de la largeur
+                const padding = compassRadius * 1.5;
+                const compassCenterX = finalCanvas.width - dynamicMargin - padding;
+                const compassCenterY = dynamicMargin + padding;
+                drawSimpleCompass(ctx, compassCenterX, compassCenterY, compassRadius);
+
+                // 2. Échelle intelligente (en bas à gauche)
+                const realWidthMeters = haversineDistance({lat: north, lon: west}, {lat: north, lon: east});
+                const mapPixelWidth = finalCanvas.width - (2 * dynamicMargin);
+                const metersPerPixel = realWidthMeters / mapPixelWidth;
+
+                drawSmartScaleBar(ctx, finalCanvas.width, finalCanvas.height, dynamicMargin, metersPerPixel);
             }
+        }
+        
+        let fileName;
+        if (isCadoExport && cadoData) {
+            const { config, a1CornerLat, a1CornerLon } = cadoData;
+            const letteringStr = config.letteringDirection === 'descending' ? '_descendant' : '';
+            fileName = `${config.gridNameBase}_${config.scale}m_zone${letteringStr}_${config.colorName}_origine=${a1CornerLat.toFixed(6)},${a1CornerLon.toFixed(6)}${fileExtension}`;
+        } else {
+            const title = document.getElementById("zone-title").value || "Export de zone";
+            fileName = `${title.replace(/[^a-z0-9]/gi, '_')}_${mapLayerName}_z${zoom}${fileExtension}`;
+        }
+
+        finalCanvas.toBlob((blob) => {
+            if (blob) { downloadFile(blob, fileName); } 
+            else { showError("Erreur lors de la création du fichier image."); }
         }, mimeType, quality);
 
     } catch (error) {
@@ -160,9 +237,6 @@ async function generateZonePNG() {
     }
 }
 
-/**
- * Génère un fichier KMZ du carroyage CADO pour la zone définie.
- */
 async function generateCadoGridForZone() {
     const loadingIndicator = document.getElementById("loading-indicator");
     const loadingMessage = document.getElementById("loading-message");
@@ -172,49 +246,15 @@ async function generateCadoGridForZone() {
     hideError();
 
     try {
-        const nwCoordsStr = document.getElementById("zone-nw-coords").value;
-        const seCoordsStr = document.getElementById("zone-se-coords").value;
-        if (!nwCoordsStr || !seCoordsStr) throw new Error("Veuillez d'abord dessiner une zone rectangulaire.");
-        
-        const [nwLat, nwLon] = nwCoordsStr.split(',').map(c => parseFloat(c.trim()));
-        const [seLat, seLon] = seCoordsStr.split(',').map(c => parseFloat(c.trim()));
-
-        const scale = parseFloat(document.getElementById('cado-overlay-scale').value);
-        if (isNaN(scale) || scale <= 0) throw new Error("L'échelle doit être un nombre positif.");
-        
-        const widthMeters = haversineDistance({lat: nwLat, lon: nwLon}, {lat: nwLat, lon: seLon});
-        const heightMeters = haversineDistance({lat: nwLat, lon: nwLon}, {lat: seLat, lon: nwLon});
-        
-        const numCols = Math.ceil(widthMeters / scale);
-        const numRows = Math.ceil(heightMeters / scale);
-
-        const config = {
-            latitude: nwLat,
-            longitude: nwLon,
-            scale: scale,
-            gridColor: document.getElementById('grid-color').value,
-            colorName: document.getElementById('grid-color-name').value,
-            colorOpacity: (100 - parseInt(document.getElementById('transparency').value)) / 100,
-            gridName: document.getElementById("zone-title").value || "Carroyage CADO de Zone",
-            deviation: 0,
-            labelSize: parseFloat(document.getElementById('label-size').value),
-            iconSize: parseFloat(document.getElementById('icon-size').value || 2),
-            referencePointChoice: 'origin',
-            letteringDirection: document.querySelector('input[name="cado-overlay-direction"]:checked').value,
-            startRow: 1,
-            endRow: numRows,
-            startCol: 'A',
-            endCol: numberToLetter(numCols),
-            includeGrid: true,
-            includePoints: true,
-            outputFormat: 'KMZ'
-        };
-
+        const { config, a1CornerLat, a1CornerLon } = getZoneCadoConfigAndBounds();
         const gridData = calculateGridData(config);
         const kmlContent = generateKML(config, gridData);
         const kmzBlob = await generateKMZ(config, gridData, kmlContent, 'application/vnd.google-earth.kmz');
         
-        downloadFile(kmzBlob, `${config.gridName}.kmz`);
+        const letteringStr = config.letteringDirection === 'descending' ? '_descendant' : '';
+        const fileName = `${config.gridNameBase}_${config.scale}m_zone${letteringStr}_${config.colorName}_origine=${a1CornerLat.toFixed(6)},${a1CornerLon.toFixed(6)}.kmz`;
+
+        downloadFile(kmzBlob, fileName);
 
     } catch (error) {
         console.error("Erreur lors de la génération du KMZ CADO:", error);
@@ -224,22 +264,24 @@ async function generateCadoGridForZone() {
     }
 }
 
-
-/**
- * Crée le canevas final avec des marges, et y assemble les tuiles pour la zone sélectionnée.
- */
-async function zdCreateFinalCanvas(boundingBox, zoom, mapConfig, margin) {
+async function zdCreateFinalCanvas(boundingBox, zoom, mapConfig, isCadoExport = false) {
     const nwPixel = zdLatLonToWorldPixels(boundingBox.north, boundingBox.west, zoom);
     const sePixel = zdLatLonToWorldPixels(boundingBox.south, boundingBox.east, zoom);
-
     const imageWidth = Math.abs(sePixel.x - nwPixel.x);
     const imageHeight = Math.abs(sePixel.y - nwPixel.y);
+    
+    let dynamicMargin = 0;
+    if (!isCadoExport) {
+        const cartoucheFontSize = Math.max(10, Math.min(48, imageWidth * 0.007));
+        dynamicMargin = Math.ceil(cartoucheFontSize * 4);
+    }
 
     const finalCanvas = document.createElement('canvas');
-    finalCanvas.width = imageWidth + margin * 2;
-    finalCanvas.height = imageHeight + margin * 2;
+    finalCanvas.width = imageWidth + dynamicMargin * 2;
+    finalCanvas.height = imageHeight + dynamicMargin * 2;
     const ctx = finalCanvas.getContext('2d');
 
+    // Fond blanc pour tout le canvas (y compris marges)
     ctx.fillStyle = 'white';
     ctx.fillRect(0, 0, finalCanvas.width, finalCanvas.height);
 
@@ -272,93 +314,71 @@ async function zdCreateFinalCanvas(boundingBox, zoom, mapConfig, margin) {
         const resolvedTiles = await Promise.all(tilePromises);
         resolvedTiles.forEach(tileResult => {
             if (tileResult.success) {
-                const tileX = (tileResult.x * ZD_TILE_SIZE) - nwPixel.x + margin;
-                const tileY = (tileResult.y * ZD_TILE_SIZE) - nwPixel.y + margin;
+                const tileX = (tileResult.x * ZD_TILE_SIZE) - nwPixel.x + dynamicMargin;
+                const tileY = (tileResult.y * ZD_TILE_SIZE) - nwPixel.y + dynamicMargin;
                 ctx.drawImage(tileResult.img, Math.round(tileX), Math.round(tileY));
             }
         });
     }
 
-    return { finalCanvas };
+    // Suppression du cadre noir (boundary limit)
+    // Le code précédent ctx.strokeRect(...) a été supprimé
+
+    return { finalCanvas, dynamicMargin };
 }
 
-/**
- * Dessine le cartouche d'information et retourne ses dimensions.
- */
-function drawZoneCartouche(ctx, title, bbox, layerName, zoom, margin) {
-    const FONT_SIZE = Math.max(10, Math.min(48, ctx.canvas.width * 0.007));
-    const PADDING = FONT_SIZE;
-    const lineSpacing = FONT_SIZE * 1.3;
-
+function drawZoneCartouche(ctx, title, bbox, layerName, zoom, margin, fontSize) {
+    const PADDING = fontSize;
+    const lineSpacing = fontSize * 1.3;
     const utmNW = WGS84_to_UTM.fromLatLon(bbox.north, bbox.west);
     const utmSE = WGS84_to_UTM.fromLatLon(bbox.south, bbox.east);
-
     const utmNW_string = `${utmNW.zoneNumber}${utmNW.zoneLetter} ${Math.round(utmNW.easting)} E ${Math.round(utmNW.northing)} N`;
     const utmSE_string = `${utmSE.zoneNumber}${utmSE.zoneLetter} ${Math.round(utmSE.easting)} E ${Math.round(utmSE.northing)} N`;
-    
-    const texts = [
-        title,
-        `UTM NO: ${utmNW_string}`,
-        `UTM SE: ${utmSE_string}`,
-        `Fond: ${layerName} (Zoom ${zoom})`,
-        `Échelle : 1 carré = 1km`
-    ];
-
-    ctx.font = `${FONT_SIZE}px Arial`;
+    const texts = [ title, `UTM NO: ${utmNW_string}`, `UTM SE: ${utmSE_string}`, `Fond: ${layerName} (Zoom ${zoom})`];
+    ctx.font = `${fontSize}px Arial`;
     const cartoucheWidth = Math.max(...texts.map(text => ctx.measureText(text).width)) + (PADDING * 2);
-    const cartoucheHeight = (lineSpacing * texts.length) - (lineSpacing - FONT_SIZE) + (PADDING * 2);
-
+    const cartoucheHeight = (lineSpacing * texts.length) - (lineSpacing - fontSize) + (PADDING * 2);
     const cartoucheX = margin + PADDING;
     const cartoucheY = margin + PADDING;
-
     ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
     ctx.fillRect(cartoucheX, cartoucheY, cartoucheWidth, cartoucheHeight);
     ctx.strokeStyle = 'black';
     ctx.lineWidth = 1;
     ctx.strokeRect(cartoucheX, cartoucheY, cartoucheWidth, cartoucheHeight);
-    
     ctx.fillStyle = 'black';
     ctx.textAlign = 'left';
     ctx.textBaseline = 'top';
-    
     let textY = cartoucheY + PADDING;
     for (const text of texts) {
         ctx.fillText(text, cartoucheX + PADDING, textY);
         textY += lineSpacing;
     }
-    
-    return { FONT_SIZE, cartoucheHeight };
+    return { fontSize, cartoucheHeight };
 }
 
-/**
- * Dessine une boussole simple sur la carte, avec une taille proportionnelle au cartouche.
- */
 function drawZoneCompass(ctx, canvasWidth, canvasHeight, margin, cartoucheMetrics) {
-    const maxRadius = (cartoucheMetrics.cartoucheHeight * 0.75) / 2;
-    const dynamicRadius = (canvasWidth - margin * 2) * 0.03;
-    const radius = Math.max(20, Math.min(maxRadius, dynamicRadius));
+    const radius = Math.max(20, (cartoucheMetrics.cartoucheHeight * 0.75) / 2);
     const PADDING = radius * 1.6; 
-
     const centerX = canvasWidth - margin - PADDING;
     const centerY = margin + PADDING;
-    
+    drawSimpleCompass(ctx, centerX, centerY, radius);
+}
+
+function drawSimpleCompass(ctx, x, y, radius) {
     ctx.beginPath();
-    ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
+    ctx.arc(x, y, radius, 0, 2 * Math.PI);
     ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
     ctx.strokeStyle = 'rgba(0, 0, 0, 0.7)';
     ctx.lineWidth = 1;
     ctx.fill();
     ctx.stroke();
-
     const arrowLength = radius / 1.2;
-    const N_point = { x: centerX, y: centerY - arrowLength };
-    const base_point = { x: centerX, y: centerY + (arrowLength * 0.3) };
-
+    const N_point = { x: x, y: y - arrowLength };
+    const base_point = { x: x, y: y + (arrowLength * 0.3) };
     ctx.beginPath();
     ctx.moveTo(base_point.x, base_point.y);
     ctx.lineTo(N_point.x, N_point.y);
     ctx.strokeStyle = 'red'; ctx.lineWidth = 3; ctx.stroke();
-
     ctx.beginPath();
     ctx.moveTo(N_point.x, N_point.y);
     const arrowHeadSize = radius * 0.25;
@@ -366,7 +386,6 @@ function drawZoneCompass(ctx, canvasWidth, canvasHeight, margin, cartoucheMetric
     ctx.lineTo(N_point.x + arrowHeadSize, N_point.y + arrowHeadSize);
     ctx.closePath();
     ctx.fillStyle = 'red'; ctx.fill();
-
     const compassNFontSize = radius * 0.6;
     ctx.font = `bold ${compassNFontSize}px Arial`;
     ctx.textAlign = 'center'; 
@@ -378,9 +397,54 @@ function drawZoneCompass(ctx, canvasWidth, canvasHeight, margin, cartoucheMetric
     ctx.fillText('N', N_point.x, N_point.y);
 }
 
-// =======================================================================
-// SECTION 1 : FONCTIONS DE PARSING KML
-// =======================================================================
+function drawSmartScaleBar(ctx, canvasWidth, canvasHeight, margin, metersPerPixel) {
+    // 1. Largeur cible (4% de la largeur image)
+    const targetWidthPx = canvasWidth * 0.04;
+    
+    // 2. Convertir en mètres
+    const rawMeters = targetWidthPx * metersPerPixel;
+    
+    // 3. Arrondir
+    const magnitude = Math.pow(10, Math.floor(Math.log10(rawMeters)));
+    const residual = rawMeters / magnitude;
+    let roundedMeters;
+    if (residual < 1.5) roundedMeters = 1 * magnitude;
+    else if (residual < 3.5) roundedMeters = 2 * magnitude;
+    else if (residual < 7.5) roundedMeters = 5 * magnitude;
+    else roundedMeters = 10 * magnitude;
+    
+    // 4. Largeur finale en pixels
+    const finalBarWidthPx = roundedMeters / metersPerPixel;
+    
+    // 5. Paramètres de dessin
+    const barHeight = Math.max(14, canvasHeight * 0.015);
+    const fontSize = barHeight * 0.9;
+    const padding = barHeight * 0.5;
+    
+    // 6. Position: BAS GAUCHE (avec marge et padding)
+    const x = margin + padding;
+    const y = canvasHeight - margin - barHeight - padding;
+    
+    // 7. Dessin
+    ctx.fillStyle = 'yellow';
+    ctx.strokeStyle = 'black';
+    ctx.lineWidth = 2;
+    
+    ctx.beginPath();
+    ctx.rect(x, y, finalBarWidthPx, barHeight);
+    ctx.fill();
+    ctx.stroke();
+    
+    // 8. Texte
+    ctx.fillStyle = 'black';
+    ctx.font = `bold ${fontSize}px Arial`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    const label = roundedMeters >= 1000 ? `${roundedMeters/1000} km` : `${roundedMeters} m`;
+    ctx.fillText(label, x + (finalBarWidthPx / 2), y + (barHeight / 2));
+}
+
+// --- Fonctions utilitaires / KML (inchangées) ---
 
 async function handleZoneKmzFile(event) {
     const file = event.target.files[0];
@@ -590,10 +654,6 @@ function getContrastingOutlineColor(rgbaColor) {
     }
 }
 
-// =======================================================================
-// SECTION 2 : FONCTIONS DE DESSIN SUR CANVAS
-// =======================================================================
-
 function drawZoneKmlFeatures(ctx, zoom, features, latLonToCanvasPixels) {
     features.forEach(feature => {
         const style = feature.style || {};
@@ -671,204 +731,76 @@ function drawZoneKmlFeatures(ctx, zoom, features, latLonToCanvasPixels) {
     });
 }
 
-/**
- * Calcule et dessine une grille UTM.
- */
-async function drawUtmGridOnCanvas(ctx, boundingBox, zoom, latLonToCanvasPixels, margin, cartoucheFontSize) {
+async function drawUtmGridOnCanvas(ctx, boundingBox, latLonToCanvasPixels, margin, cartoucheFontSize) {
     const color = document.getElementById('utm-grid-color').value;
     const opacity = (100 - parseInt(document.getElementById('utm-transparency').value)) / 100;
-    const r = parseInt(color.slice(1, 3), 16);
-    const g = parseInt(color.slice(3, 5), 16);
-    const b = parseInt(color.slice(5, 7), 16);
+    const r = parseInt(color.slice(1, 3), 16), g = parseInt(color.slice(3, 5), 16), b = parseInt(color.slice(5, 7), 16);
     const gridLineColor = `rgba(${r}, ${g}, ${b}, ${opacity})`;
-
-    const nwLat = boundingBox.north;
-    const nwLon = boundingBox.west;
-    const seLat = boundingBox.south;
-    const seLon = boundingBox.east;
-
-    const drawingBox = {
-        x: margin,
-        y: margin,
-        width: ctx.canvas.width - margin * 2,
-        height: ctx.canvas.height - margin * 2
-    };
-
+    const nwLat = boundingBox.north, nwLon = boundingBox.west, seLat = boundingBox.south, seLon = boundingBox.east;
+    const drawingBox = { x: margin, y: margin, width: ctx.canvas.width - margin * 2, height: ctx.canvas.height - margin * 2 };
     const startZone = WGS84_to_UTM.fromLatLon(nwLat, nwLon).zoneNumber;
     const endZone = WGS84_to_UTM.fromLatLon(seLat, seLon).zoneNumber;
-
     const labelFontSize = cartoucheFontSize * 0.75;
     const labelPadding = 5;
     const labelsToDraw = [];
-
     ctx.save();
     ctx.beginPath();
     ctx.rect(drawingBox.x, drawingBox.y, drawingBox.width, drawingBox.height);
     ctx.clip();
-
     for (let zone = startZone; zone <= endZone; zone++) {
         const zoneBoundaryLeft = (zone - 1) * 6 - 180;
-        const zoneBoundaryRight = zone * 6 - 180;
         const clipLonStart = Math.max(nwLon, zoneBoundaryLeft);
-        const clipLonEnd = Math.min(seLon, zoneBoundaryRight);
+        const clipLonEnd = Math.min(seLon, zone * 6 - 180);
         if (clipLonStart >= clipLonEnd) continue;
-        
         const latPadding = (nwLat - seLat) * 0.1;
         const gridData = calculateGridForZoneStrip(nwLat + latPadding, clipLonStart, seLat - latPadding, clipLonEnd, zone);
         const allLines = [...gridData.eastingLines, ...gridData.northingLines];
-        
-        const representativeLat = (nwLat + seLat) / 2;
-        const utmInfo = WGS84_to_UTM.fromLatLon(representativeLat, clipLonStart);
+        const utmInfo = WGS84_to_UTM.fromLatLon((nwLat + seLat) / 2, clipLonStart);
         const zoneDesignator = `${zone}${utmInfo.zoneLetter}`;
-
         for (const line of allLines) {
-            ctx.lineWidth = (parseInt(line.name.split(' ')[1], 10) % 5 === 0) ? 3 : 1.5;
+            ctx.lineWidth = (parseInt(line.name.split(' ')[1], 10) % 5 === 0) ? 2 : 1;
             ctx.strokeStyle = gridLineColor;
             ctx.beginPath();
-            let firstCanvasPoint = null;
-            let lastCanvasPoint = null;
-            
+            let firstCanvasPoint = null, lastCanvasPoint = null;
             for (let i = 0; i < line.coordinates.length; i++) {
                 const p = latLonToCanvasPixels(line.coordinates[i][1], line.coordinates[i][0]);
-                if (i === 0) {
-                    ctx.moveTo(p.x, p.y);
-                    firstCanvasPoint = p;
-                } else {
-                    ctx.lineTo(p.x, p.y);
-                }
+                if (i === 0) { ctx.moveTo(p.x, p.y); firstCanvasPoint = p; } 
+                else { ctx.lineTo(p.x, p.y); }
                 lastCanvasPoint = p;
             }
             ctx.stroke();
-
             if (firstCanvasPoint && lastCanvasPoint) {
                 const coordValue = line.name.split(' ')[1];
                 const labelText = `${zoneDesignator} ${coordValue}`;
-                let topAnchor, bottomAnchor, leftAnchor, rightAnchor;
-
                 if (line.name.startsWith('E')) {
-                    topAnchor = { x: lastCanvasPoint.x, y: drawingBox.y };
-                    bottomAnchor = { x: firstCanvasPoint.x, y: drawingBox.y + drawingBox.height };
-                    labelsToDraw.push({ type: 'top', anchor: topAnchor, text: labelText });
-                    labelsToDraw.push({ type: 'bottom', anchor: bottomAnchor, text: labelText });
+                    labelsToDraw.push({ type: 'top', anchor: { x: lastCanvasPoint.x, y: drawingBox.y }, text: labelText });
+                    labelsToDraw.push({ type: 'bottom', anchor: { x: firstCanvasPoint.x, y: drawingBox.y + drawingBox.height }, text: labelText });
                 } else {
-                    leftAnchor = { x: drawingBox.x, y: firstCanvasPoint.y };
-                    rightAnchor = { x: drawingBox.x + drawingBox.width, y: lastCanvasPoint.y };
-                    labelsToDraw.push({ type: 'left', anchor: leftAnchor, text: labelText });
-                    labelsToDraw.push({ type: 'right', anchor: rightAnchor, text: labelText });
+                    labelsToDraw.push({ type: 'left', anchor: { x: drawingBox.x, y: firstCanvasPoint.y }, text: labelText });
+                    labelsToDraw.push({ type: 'right', anchor: { x: drawingBox.x + drawingBox.width, y: lastCanvasPoint.y }, text: labelText });
                 }
             }
         }
     }
     ctx.restore();
 
+    ctx.fillStyle = 'white';
+    ctx.fillRect(0, 0, ctx.canvas.width, margin);
+    ctx.fillRect(0, ctx.canvas.height - margin, ctx.canvas.width, margin);
+    ctx.fillRect(0, 0, margin, ctx.canvas.height);
+    ctx.fillRect(ctx.canvas.width - margin, 0, margin, ctx.canvas.height);
+
     ctx.fillStyle = 'black';
     ctx.font = `bold ${labelFontSize}px Arial`;
-
     for (const label of labelsToDraw) {
         ctx.save();
         ctx.translate(label.anchor.x, label.anchor.y);
-
         switch(label.type) {
-            case 'top':
-                ctx.rotate(-Math.PI / 2);
-                ctx.textAlign = 'left';
-                ctx.textBaseline = 'middle';
-                ctx.fillText(label.text, labelPadding, 0);
-                break;
-            case 'bottom':
-                ctx.rotate(-Math.PI / 2);
-                ctx.textAlign = 'right';
-                ctx.textBaseline = 'middle';
-                ctx.fillText(label.text, -labelPadding, 0);
-                break;
-            case 'left':
-                ctx.textAlign = 'right';
-                ctx.textBaseline = 'middle';
-                ctx.fillText(label.text, -labelPadding, 0);
-                break;
-            case 'right':
-                ctx.textAlign = 'left';
-                ctx.textBaseline = 'middle';
-                ctx.fillText(label.text, labelPadding, 0);
-                break;
+            case 'top': ctx.rotate(-Math.PI / 2); ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.fillText(label.text, labelPadding, 0); break;
+            case 'bottom': ctx.rotate(-Math.PI / 2); ctx.textAlign = 'right'; ctx.textBaseline = 'middle'; ctx.fillText(label.text, -labelPadding, 0); break;
+            case 'left': ctx.textAlign = 'right'; ctx.textBaseline = 'middle'; ctx.fillText(label.text, -labelPadding, 0); break;
+            case 'right': ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.fillText(label.text, labelPadding, 0); break;
         }
         ctx.restore();
-    }
-}
-
-/**
- * Dessine un carroyage CADO sur le canvas de la zone.
- */
-async function drawCadoGridOnCanvas(ctx, boundingBox, latLonToCanvasPixels) {
-    const config = {
-        scale: parseFloat(document.getElementById('cado-overlay-scale').value),
-        lineWidth: parseInt(document.getElementById('cado-overlay-thickness').value, 10),
-        letteringDirection: document.querySelector('input[name="cado-overlay-direction"]:checked').value,
-        gridColor: document.getElementById('grid-color').value,
-        colorName: document.getElementById('grid-color-name').value,
-        deviation: 0
-    };
-
-    const a1Lon = boundingBox.west;
-    const a1Lat = boundingBox.north;
-    const widthMeters = haversineDistance({lat: a1Lat, lon: a1Lon}, {lat: a1Lat, lon: boundingBox.east});
-    const heightMeters = haversineDistance({lat: a1Lat, lon: a1Lon}, {lat: boundingBox.south, lon: a1Lon});
-    const numCols = Math.ceil(widthMeters / config.scale);
-    const numRows = Math.ceil(heightMeters / config.scale);
-    
-    const startColNum = 1;
-    const endColNum = numCols;
-    const startRowNum = 1;
-    const endRowNum = numRows;
-
-    ctx.strokeStyle = config.gridColor;
-    ctx.lineWidth = config.lineWidth;
-
-    for (let c = startColNum; c <= endColNum + 1; c++) {
-        const startPoint = calculateAndRotatePoint(c, startRowNum, config, a1Lat, a1Lon);
-        const endPoint = calculateAndRotatePoint(c, endRowNum + 1, config, a1Lat, a1Lon);
-        const startPixels = latLonToCanvasPixels(startPoint[1], startPoint[0]);
-        const endPixels = latLonToCanvasPixels(endPoint[1], endPoint[0]);
-        ctx.beginPath(); ctx.moveTo(startPixels.x, startPixels.y); ctx.lineTo(endPixels.x, endPixels.y); ctx.stroke();
-    }
-
-    for (let r = startRowNum; r <= endRowNum + 1; r++) {
-        const startPoint = calculateAndRotatePoint(startColNum, r, config, a1Lat, a1Lon);
-        const endPoint = calculateAndRotatePoint(endColNum + 1, r, config, a1Lat, a1Lon);
-        const startPixels = latLonToCanvasPixels(startPoint[1], startPoint[0]);
-        const endPixels = latLonToCanvasPixels(endPoint[1], endPoint[0]);
-        ctx.beginPath(); ctx.moveTo(startPixels.x, startPixels.y); ctx.lineTo(endPixels.x, endPixels.y); ctx.stroke();
-    }
-    
-    const geo_A1_center = calculateAndRotatePoint(1.5, 1.5, config, a1Lat, a1Lon);
-    const geo_B1_center = calculateAndRotatePoint(2.5, 1.5, config, a1Lat, a1Lon);
-    const px_A1_center = latLonToCanvasPixels(geo_A1_center[1], geo_A1_center[0]);
-    const px_B1_center = latLonToCanvasPixels(geo_B1_center[1], geo_B1_center[0]);
-    const cellWidthInPixels = Math.hypot(px_B1_center.x - px_A1_center.x, px_B1_center.y - px_A1_center.y);
-    
-    const labelFontSize = cellWidthInPixels * 0.4;
-    ctx.font = `bold ${labelFontSize}px Arial`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    
-    const drawLabelWithOutline = (text, x, y) => {
-        const darkColors = ['black', 'red', 'blue', 'green', 'violet', 'brown'];
-        ctx.strokeStyle = darkColors.includes(config.colorName) ? 'white' : 'black';
-        ctx.lineWidth = 3;
-        ctx.strokeText(text, x, y);
-        ctx.fillStyle = config.gridColor;
-        ctx.fillText(text, x, y);
-    };
-
-    for (let c = startColNum; c <= endColNum; c++) {
-        const labelPoint = calculateAndRotatePoint(c + 0.5, startRowNum - 0.5, config, a1Lat, a1Lon);
-        const labelPixels = latLonToCanvasPixels(labelPoint[1], labelPoint[0]);
-        drawLabelWithOutline(numberToLetter(c), labelPixels.x, labelPixels.y);
-    }
-
-    for (let r = startRowNum; r <= endRowNum; r++) {
-        const labelPoint = calculateAndRotatePoint(startColNum - 0.5, r + 0.5, config, a1Lat, a1Lon);
-        const labelPixels = latLonToCanvasPixels(labelPoint[1], labelPoint[0]);
-        drawLabelWithOutline(r.toString(), labelPixels.x, labelPixels.y);
     }
 }
