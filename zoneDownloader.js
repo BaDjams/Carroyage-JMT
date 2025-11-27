@@ -4,7 +4,7 @@ const ZD_TILE_SIZE = 256;
 let loadedZoneKmlFeatures = [];
 let kmlResources = { images: {} };
 
-// --- NOUVEAU: Gestion des POIs Utilisateur ---
+// --- GESTION DES POIS UTILISATEUR ---
 let userPOIs = [];
 let isAddingPoint = false;
 let poiMarkersLayer = null;
@@ -25,31 +25,37 @@ function handleMapClickForPOI(e) {
 
     const lat = e.latlng.lat;
     const lon = e.latlng.lng;
-    const type = document.getElementById('poi-type-selector').value;
+    const typeId = document.getElementById('poi-type-selector').value;
     const name = document.getElementById('poi-name-input').value.trim();
 
-    const poi = { id: Date.now(), lat, lon, type, name };
+    // Récupérer l'URL depuis la librairie
+    const iconConfig = typeof ICON_LIBRARY !== 'undefined' ? ICON_LIBRARY.find(i => i.id === typeId) : null;
+    
+    const poi = { 
+        id: Date.now(), 
+        lat, lon, 
+        type: typeId, 
+        name,
+        url: iconConfig ? iconConfig.url : "https://maps.google.com/mapfiles/kml/pushpin/ylw-pushpin.png" 
+    };
+    
     userPOIs.push(poi);
     
     updatePOIMarkers();
     updatePOIList();
     
-    // Reset mode
+    // Désactiver le mode ajout après un clic
     toggleAddPointMode();
-    document.getElementById('add-poi-btn').textContent = "+ Ajouter un point";
-    document.getElementById('add-poi-btn').classList.remove('bg-red-600', 'hover:bg-red-700');
-    document.getElementById('add-poi-btn').classList.add('bg-blue-600', 'hover:bg-blue-700');
+    const addBtn = document.getElementById('add-poi-btn');
+    if (addBtn) {
+        addBtn.textContent = "+ Ajouter un point";
+        addBtn.classList.remove('bg-red-600', 'hover:bg-red-700');
+        addBtn.classList.add('bg-blue-600', 'hover:bg-blue-700');
+    }
 }
 
 function updatePOIMarkers() {
-    // Si la couche n'existe pas, on l'initialise et on l'ajoute à la carte globale
-    // Note: zoneMap est définie dans index.html scope global, mais ici on n'y a pas accès direct.
-    // L'astuce est de passer zoneMap à une fonction d'init ou d'utiliser un event.
-    // Pour simplifier ici, on suppose que zoneMap est accessible ou on gère les markers via une variable globale attachée à window si besoin.
-    // Mais mieux: on va gérer cela via une fonction exportée ou accessible.
-    // Hack propre: On utilise une variable globale window.zoneMap si elle existe (ce qui est le cas dans index.html)
-    
-    const map = window.zoneMap; // Assure-toi que zoneMap est globale dans index.html (retirer 'let' dans DOMContentLoaded ou attacher à window)
+    const map = window.zoneMap; 
     if (!map) return;
 
     if (!poiMarkersLayer) {
@@ -58,24 +64,19 @@ function updatePOIMarkers() {
     poiMarkersLayer.clearLayers();
 
     userPOIs.forEach(poi => {
-        let color = 'blue';
-        if (poi.type === 'target') color = 'red';
-        if (poi.type === 'start') color = 'green';
-        if (poi.type === 'end') color = 'black'; // Drapeau/Damier souvent noir/blanc
-        if (poi.type === 'danger') color = 'orange';
-
-        // Simple CircleMarker pour la prévisualisation
-        const marker = L.circleMarker([poi.lat, poi.lon], {
-            color: 'white',
-            fillColor: color,
-            fillOpacity: 1,
-            radius: 6,
-            weight: 2
+        const customIcon = L.icon({
+            iconUrl: poi.url,
+            iconSize: [32, 32],
+            iconAnchor: [16, 16], 
+            popupAnchor: [0, -16]
         });
+
+        const marker = L.marker([poi.lat, poi.lon], { icon: customIcon });
         
-        if (poi.name) marker.bindTooltip(poi.name, { permanent: true, direction: 'top', offset: [0, -5] });
+        if (poi.name) {
+            marker.bindTooltip(poi.name, { permanent: true, direction: 'top', offset: [0, -20] });
+        }
         
-        // Clic sur marker pour supprimer ?
         marker.on('click', () => {
             if (confirm(`Supprimer le point "${poi.name || poi.type}" ?`)) {
                 removePOI(poi.id);
@@ -85,9 +86,6 @@ function updatePOIMarkers() {
         poiMarkersLayer.addLayer(marker);
     });
 }
-
-// Petit hack pour rendre zoneMap accessible depuis ici sans tout refondre
-// Dans index.html, ajoutez: window.zoneMap = zoneMap; juste après sa création.
 
 function removePOI(id) {
     userPOIs = userPOIs.filter(p => p.id !== id);
@@ -107,24 +105,82 @@ function updatePOIList() {
     tbody.innerHTML = '';
 
     userPOIs.forEach(poi => {
+        const iconDef = typeof ICON_LIBRARY !== 'undefined' ? ICON_LIBRARY.find(i => i.id === poi.type) : null;
+        const label = iconDef ? iconDef.label : poi.type;
+        
         const row = document.createElement('tr');
         row.className = "bg-white border-b dark:bg-gray-800 dark:border-gray-700";
         row.innerHTML = `
-            <td class="px-2 py-1 font-medium text-gray-900 whitespace-nowrap dark:text-white capitalize">${poi.type}</td>
-            <td class="px-2 py-1">${poi.name || '-'}</td>
+            <td class="px-2 py-1 font-medium text-gray-900 whitespace-nowrap dark:text-white text-xs">${label}</td>
+            <td class="px-2 py-1 text-xs">${poi.name || '-'}</td>
             <td class="px-2 py-1 text-xs">${poi.lat.toFixed(4)}, ${poi.lon.toFixed(4)}</td>
             <td class="px-2 py-1 text-right">
-                <button onclick="window.removePOI(${poi.id})" class="font-medium text-red-600 dark:text-red-500 hover:underline">X</button>
+                <button onclick="window.removePOI(${poi.id})" class="font-medium text-red-600 dark:text-red-500 hover:underline text-xs">X</button>
             </td>
         `;
         tbody.appendChild(row);
     });
 }
-// Exposer removePOI globalement pour le onclick du HTML généré
+
+// Exposer removePOI pour le HTML généré dynamiquement
 window.removePOI = removePOI;
 
+// Helper pour charger une image pour le Canvas
+function loadImage(url) {
+    return new Promise((resolve) => {
+        const img = new Image();
+        img.crossOrigin = "Anonymous";
+        img.onload = () => resolve(img);
+        img.onerror = (e) => {
+            console.warn("Erreur chargement image POI", url);
+            resolve(null);
+        };
+        img.src = url;
+    });
+}
 
-// --- Fonctions Utilitaires Géographiques ---
+async function drawUserPOIsOnCanvas(ctx, latLonToPixels) {
+    // Pré-charger les images uniques
+    const uniqueUrls = [...new Set(userPOIs.map(p => p.url))];
+    const imageCache = {};
+    
+    await Promise.all(uniqueUrls.map(async (url) => {
+        const img = await loadImage(url);
+        if (img) imageCache[url] = img;
+    }));
+
+    userPOIs.forEach(poi => {
+        const px = latLonToPixels(poi.lat, poi.lon);
+        const img = imageCache[poi.url];
+        
+        if (img) {
+            const w = 32; 
+            const h = 32;
+            ctx.drawImage(img, px.x - w/2, px.y - h/2, w, h);
+        } else {
+            // Fallback
+            ctx.beginPath(); ctx.arc(px.x, px.y, 8, 0, 2*Math.PI); 
+            ctx.fillStyle = 'red'; ctx.fill();
+            ctx.stroke();
+        }
+        
+        if (poi.name) {
+            ctx.shadowColor = "transparent";
+            ctx.font = "bold 14px Arial";
+            ctx.textAlign = "center";
+            ctx.textBaseline = "top";
+            
+            ctx.strokeStyle = "white";
+            ctx.lineWidth = 3;
+            ctx.strokeText(poi.name, px.x, px.y - 20); // Au dessus
+            
+            ctx.fillStyle = "black";
+            ctx.fillText(poi.name, px.x, px.y - 20);
+        }
+    });
+}
+
+// --- FONCTIONS UTILITAIRES GÉOGRAPHIQUES ---
 
 function haversineDistance(p1, p2) {
     const R = 6371e3;
@@ -210,7 +266,7 @@ function getZoneCadoConfigAndBounds() {
         deviation: 0,
         labelSize: parseFloat(document.getElementById('label-size').value),
         iconSize: parseFloat(document.getElementById('icon-size').value || 2),
-        referencePointChoice: 'no_cross', // Avoid utilities.js drawing the cross
+        referencePointChoice: 'no_cross', 
         startRow: 1, endRow: numRows,
         startCol: 'A', endCol: numberToLetter(numCols),
         includeGrid: true, includePoints: true,
@@ -234,7 +290,7 @@ function getZoneCadoConfigAndBounds() {
     return { config, gridBounds, a1CornerLat, a1CornerLon };
 }
 
-// --- Fonctions de Génération Principales ---
+// --- GENERATION DE L'IMAGE ---
 
 async function generateZonePNG() {
     const loadingIndicator = document.getElementById("loading-indicator");
@@ -303,10 +359,10 @@ async function generateZonePNG() {
             drawZoneKmlFeatures(ctx, zoom, loadedZoneKmlFeatures, latLonToCanvasPixels);
         }
 
-        // DESSIN DES POIS UTILISATEUR
+        // Dessiner les POIs (attendre le chargement des images)
         if (userPOIs.length > 0) {
             loadingMessage.textContent = "Dessin des points d'intérêt...";
-            drawUserPOIsOnCanvas(ctx, latLonToCanvasPixels);
+            await drawUserPOIsOnCanvas(ctx, latLonToCanvasPixels);
         }
 
         if (isUtmExport) {
@@ -368,6 +424,8 @@ async function generateZonePNG() {
     }
 }
 
+// --- GENERATION KMZ CADO ---
+
 async function generateCadoGridForZone() {
     const loadingIndicator = document.getElementById("loading-indicator");
     const loadingMessage = document.getElementById("loading-message");
@@ -380,46 +438,30 @@ async function generateCadoGridForZone() {
         const { config, a1CornerLat, a1CornerLon } = getZoneCadoConfigAndBounds();
         const gridData = calculateGridData(config);
         
-        // --- Injection des POIs dans les données de la grille pour le KMZ ---
-        // On convertit userPOIs en format compatible avec gridData.points
-        const userPointsForGrid = userPOIs.map(poi => ({
-            name: poi.name || poi.type,
-            coordinates: [poi.lon, poi.lat],
-            // On peut ajouter un style spécial si nécessaire, mais pour l'instant on utilise le défaut
-            // Ou on triche en préfixant le nom pour gérer les icônes côté KMZ generator
-            iconType: poi.type 
-        }));
-        
-        // On fusionne avec les points de grille existants (ou on les ajoute séparément)
-        // gridData.points contient déjà les labels A1, A2 etc.
-        // On va plutôt modifier generateKMZ pour accepter une liste séparée ou on les fusionne ici.
-        // Le plus simple pour ne pas casser generateKMZ est de les ajouter à gridData.points
-        // MAIS generateKMZ utilise des icônes générées dynamiquement avec du texte.
-        // Pour faire simple et propre : on va créer le KML manuellement pour ces points additionnels
-        // et l'injecter.
-        
         let kmlContent = generateKML(config, gridData);
         
-        // --- Injection manuelle des Placemarks POIs dans le KML ---
-        let poiKml = "";
-        userPOIs.forEach(poi => {
-            let iconHref = "http://maps.google.com/mapfiles/kml/paddle/wht-blank.png";
-            if (poi.type === 'target') iconHref = "http://maps.google.com/mapfiles/kml/shapes/target.png";
-            if (poi.type === 'start') iconHref = "http://maps.google.com/mapfiles/kml/paddle/grn-circle.png";
-            if (poi.type === 'end') iconHref = "http://maps.google.com/mapfiles/kml/paddle/red-square.png"; // Flag/Square
-            if (poi.type === 'danger') iconHref = "http://maps.google.com/mapfiles/kml/shapes/caution.png";
-            if (poi.type === 'info') iconHref = "http://maps.google.com/mapfiles/kml/shapes/info_circle.png";
+        // Injection manuelle des POIs dans le KML
+        if (userPOIs.length > 0) {
+            let poiKml = "";
+            userPOIs.forEach(poi => {
+                let iconUrl = "https://maps.google.com/mapfiles/kml/paddle/wht-blank.png";
+                // Tenter de récupérer l'URL depuis la librairie si le POI contient juste l'ID
+                if (typeof ICON_LIBRARY !== 'undefined') {
+                     const iconDef = ICON_LIBRARY.find(i => i.id === poi.type);
+                     if(iconDef) iconUrl = iconDef.url;
+                }
+                if(poi.url) iconUrl = poi.url; // Priorité à l'URL stockée dans l'objet
 
-            poiKml += `
-            <Placemark>
-                <name>${poi.name || poi.type}</name>
-                <Style><IconStyle><scale>1.2</scale><Icon><href>${iconHref}</href></Icon></IconStyle></Style>
-                <Point><coordinates>${poi.lon},${poi.lat},0</coordinates></Point>
-            </Placemark>`;
-        });
-        
-        // Insérer les POIs avant la fermeture du Document
-        kmlContent = kmlContent.replace('</Document>', `<Folder><name>Points d'intérêt</name>${poiKml}</Folder></Document>`);
+                poiKml += `
+                <Placemark>
+                    <name>${poi.name || poi.type}</name>
+                    <Style><IconStyle><scale>1.2</scale><Icon><href>${iconUrl}</href></Icon></IconStyle></Style>
+                    <Point><coordinates>${poi.lon},${poi.lat},0</coordinates></Point>
+                </Placemark>`;
+            });
+            
+            kmlContent = kmlContent.replace('</Document>', `<Folder><name>Points d'intérêt</name>${poiKml}</Folder></Document>`);
+        }
 
         const kmzBlob = await generateKMZ(config, gridData, kmlContent, 'application/vnd.google-earth.kmz');
         
@@ -435,109 +477,6 @@ async function generateCadoGridForZone() {
         loadingIndicator.classList.add("hidden");
     }
 }
-
-function drawUserPOIsOnCanvas(ctx, latLonToPixels) {
-    userPOIs.forEach(poi => {
-        const px = latLonToPixels(poi.lat, poi.lon);
-        const x = px.x;
-        const y = px.y;
-        
-        // Taille de base pour les icônes
-        const size = 16; 
-        
-        ctx.save();
-        ctx.translate(x, y);
-        
-        // Ombre portée pour lisibilité
-        ctx.shadowColor = "rgba(0,0,0,0.5)";
-        ctx.shadowBlur = 4;
-        
-        if (poi.type === 'target') {
-            // Cible rouge
-            ctx.strokeStyle = 'red';
-            ctx.lineWidth = 3;
-            ctx.beginPath(); ctx.arc(0, 0, size, 0, 2 * Math.PI); ctx.stroke();
-            ctx.beginPath(); ctx.arc(0, 0, size * 0.3, 0, 2 * Math.PI); ctx.fill(); // Point central
-            ctx.fillStyle = 'red'; ctx.fill();
-            // Réticule
-            ctx.beginPath(); ctx.moveTo(-size*1.2, 0); ctx.lineTo(size*1.2, 0); ctx.stroke();
-            ctx.beginPath(); ctx.moveTo(0, -size*1.2); ctx.lineTo(0, size*1.2); ctx.stroke();
-        } 
-        else if (poi.type === 'start') {
-            // Rond vert
-            ctx.fillStyle = '#00CC00';
-            ctx.strokeStyle = 'white';
-            ctx.lineWidth = 2;
-            ctx.beginPath(); ctx.arc(0, 0, size, 0, 2 * Math.PI); ctx.fill(); ctx.stroke();
-            // Lettre D
-            ctx.fillStyle = 'white';
-            ctx.font = 'bold 16px Arial';
-            ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-            ctx.fillText('D', 0, 1);
-        }
-        else if (poi.type === 'end') {
-            // Carré rouge (Drapeau)
-            ctx.fillStyle = '#CC0000';
-            ctx.strokeStyle = 'white';
-            ctx.lineWidth = 2;
-            ctx.beginPath(); ctx.rect(-size, -size, size*2, size*2); ctx.fill(); ctx.stroke();
-            // Lettre A
-            ctx.fillStyle = 'white';
-            ctx.font = 'bold 16px Arial';
-            ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-            ctx.fillText('A', 0, 1);
-        }
-        else if (poi.type === 'danger') {
-            // Triangle Jaune/Orange
-            ctx.fillStyle = 'orange';
-            ctx.strokeStyle = 'black';
-            ctx.lineWidth = 2;
-            ctx.beginPath();
-            ctx.moveTo(0, -size*1.2);
-            ctx.lineTo(size, size*0.8);
-            ctx.lineTo(-size, size*0.8);
-            ctx.closePath();
-            ctx.fill(); ctx.stroke();
-            // Point d'exclamation
-            ctx.fillStyle = 'black';
-            ctx.font = 'bold 16px Arial';
-            ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-            ctx.fillText('!', 0, 2);
-        }
-        else { // info
-            // Rond bleu
-            ctx.fillStyle = '#0066CC';
-            ctx.strokeStyle = 'white';
-            ctx.lineWidth = 2;
-            ctx.beginPath(); ctx.arc(0, 0, size, 0, 2 * Math.PI); ctx.fill(); ctx.stroke();
-            // Lettre i
-            ctx.fillStyle = 'white';
-            ctx.font = 'bold italic 18px Serif';
-            ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-            ctx.fillText('i', 0, 1);
-        }
-        
-        // Label du point
-        if (poi.name) {
-            ctx.shadowColor = "transparent"; // Pas d'ombre sur le texte pour netteté
-            ctx.font = "bold 14px Arial";
-            ctx.textAlign = "center";
-            ctx.textBaseline = "top";
-            
-            // Contour blanc pour lisibilité sur carte
-            ctx.strokeStyle = "white";
-            ctx.lineWidth = 3;
-            ctx.strokeText(poi.name, 0, size + 4);
-            
-            ctx.fillStyle = "black";
-            ctx.fillText(poi.name, 0, size + 4);
-        }
-
-        ctx.restore();
-    });
-}
-
-// ... (Reste des fonctions utilitaires inchangées : zdCreateFinalCanvas, drawZoneCartouche, etc.) ...
 
 async function zdCreateFinalCanvas(boundingBox, zoom, mapConfig, hasExternalMargin = false) {
     const nwPixel = zdLatLonToWorldPixels(boundingBox.north, boundingBox.west, zoom);
@@ -556,7 +495,6 @@ async function zdCreateFinalCanvas(boundingBox, zoom, mapConfig, hasExternalMarg
     finalCanvas.height = imageHeight + dynamicMargin * 2;
     const ctx = finalCanvas.getContext('2d');
 
-    // Toujours remplir de blanc pour les marges
     ctx.fillStyle = 'white';
     ctx.fillRect(0, 0, finalCanvas.width, finalCanvas.height);
 
@@ -687,7 +625,6 @@ function drawSmartScaleBar(ctx, canvasWidth, canvasHeight, margin, metersPerPixe
     const fontSize = barHeight * 0.9;
     const padding = barHeight * 0.5;
     
-    // Position BAS GAUCHE (Marge + Padding)
     const x = margin + padding;
     const y = canvasHeight - margin - barHeight - padding;
     

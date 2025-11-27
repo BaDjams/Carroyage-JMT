@@ -21,6 +21,7 @@
     <script src="flowbite.min.js" defer></script>
     <script src="map-layers.js" defer></script>
 	<script src="wms-layers.js" defer></script>
+    <script src="icons.js" defer></script>
 	<script src="utilities.js"></script>
     <script src="carroyageUTM.js" defer></script>
     <script src="carroyageCado.js" defer></script>
@@ -59,7 +60,6 @@
                             <div id="cado-interactive-map" class="interactive-map-container"></div>
                         </section>
                     </div>
-                    <!-- ... (Le reste du mode CADO reste inchangé) ... -->
                     <div class="card bg-white shadow-md rounded-lg p-4 md:p-6 dark:bg-gray-800 dark:border dark:border-gray-700">
                         <section class="mb-6">
                             <h3 class="text-lg font-semibold mb-3 text-content">2. Coordonnées et Configuration</h3>
@@ -206,6 +206,7 @@
                                         </div>
                                     </div>
                                     <div id="custom-grid-options" class="hidden md:col-span-2 space-y-3">
+                                        <!-- Custom options ... -->
                                         <div class="grid grid-cols-2 gap-2">
                                             <div class="flex flex-col space-y-1"><label for="start-row" class="text-sm text-content">Début des lignes :</label><input type="number" id="start-row" class="input-field px-3 py-2 border rounded shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white text-base grid-parameter" value="1"></div>
                                             <div class="flex flex-col space-y-1"><label for="end-row" class="text-sm text-content">Fin des lignes :</label><input type="number" id="end-row" class="input-field px-3 py-2 border rounded shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white text-base grid-parameter" value="26"></div>
@@ -307,21 +308,17 @@
                     </section>
                 </div>
 
-                <!-- Tuile 3 : Points d'intérêt (NOUVEAU) -->
+                <!-- Tuile 3 : Points d'intérêt (NOUVEAU - Dynamique) -->
                 <div class="card bg-white shadow-md rounded-lg p-4 md:p-6 dark:bg-gray-800 dark:border dark:border-gray-700">
                     <section>
                         <h3 class="text-lg font-semibold mb-3 text-content">3. Points d'intérêt (Optionnel)</h3>
-                        <p class="text-sm text-secondary mb-4">Ajoutez des symboles sur la carte. Cliquez sur "Ajouter un point" puis cliquez sur la carte.</p>
+                        <p class="text-sm text-secondary mb-4">Ajoutez des symboles sur la carte.</p>
                         
                         <div class="flex flex-wrap gap-4 items-end mb-4">
                             <div class="flex flex-col space-y-1">
                                 <label for="poi-type-selector" class="text-sm text-content">Type d'icône :</label>
+                                <!-- Le contenu sera généré par JS -->
                                 <select id="poi-type-selector" class="input-field px-2 py-1 border rounded shadow-sm text-sm text-gray-900 dark:bg-gray-600 dark:border-gray-500 dark:text-white">
-                                    <option value="target">Cible (Rouge)</option>
-                                    <option value="start">Départ (Vert)</option>
-                                    <option value="end">Arrivée (Drapeau)</option>
-                                    <option value="danger">Danger (Triangle)</option>
-                                    <option value="info">Info (Bleu)</option>
                                 </select>
                             </div>
                             <div class="flex flex-col space-y-1">
@@ -343,9 +340,7 @@
                                         <th scope="col" class="px-2 py-1 text-right">Action</th>
                                     </tr>
                                 </thead>
-                                <tbody id="poi-table-body">
-                                    <!-- Les POIs seront injectés ici -->
-                                </tbody>
+                                <tbody id="poi-table-body"></tbody>
                             </table>
                         </div>
                     </section>
@@ -465,7 +460,6 @@
                 </div>
             </div>
 
-            <!-- ... (Loading indicator & Footer inchangés) ... -->
             <div id="loading-indicator" class="hidden mt-4 flex flex-col items-center">
                 <div class="loading-spinner mb-2"></div>
                 <p id="loading-message" class="text-sm text-secondary">Génération en cours...</p>
@@ -479,7 +473,6 @@
     </div>
     
     <div id="toast-update" class="hidden fixed top-5 right-5 flex items-center w-full max-w-xs p-4 space-x-4 text-gray-500 bg-white divide-x divide-gray-200 rounded-lg shadow-lg dark:text-gray-400 dark:divide-gray-700 space-x dark:bg-gray-800 z-50" role="alert">
-        <!-- ... (Toast inchangé) ... -->
         <div class="text-sm font-normal">
             <div class="text-sm font-semibold text-gray-900 dark:text-white">Mise à jour effectuée !</div>
             <div class="text-sm font-normal">Version <span id="toast-version-number" class="font-semibold"></span> installée.</div> 
@@ -511,7 +504,6 @@
                 registerAndHandleUpdates();
             }
 
-            // ... (setupTheme, createBaseLayers, initializeCadoMap restent inchangés) ...
             function setupTheme() {
                 if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
                     document.documentElement.classList.add('dark');
@@ -612,7 +604,6 @@
                 setupZoneAddressSearch();
             }
             
-            // ... (updateCadoOverlayDefaults, updateZoneCoordsFromBounds, updateZoneInfo, updateZoneTileCount, setupZoneAddressSearch, handleCadoMapClick, searchInput listener, fetchSuggestions, displaySuggestions, document click listener, viewOnMap, populateMapSelectorForPNG, setDefaultGridName, setupToggle, initUI, toggleMode) restent inchangés ...
             function updateCadoOverlayDefaults() {
                 const nwCoordsStr = document.getElementById("zone-nw-coords").value;
                 const seCoordsStr = document.getElementById("zone-se-coords").value;
@@ -894,6 +885,18 @@
                         updateDynamicGridName();
                     });
                 });
+
+                // Remplissage dynamique du sélecteur d'icônes
+                const poiSelect = document.getElementById('poi-type-selector');
+                if (typeof ICON_LIBRARY !== 'undefined' && poiSelect) {
+                    poiSelect.innerHTML = '';
+                    ICON_LIBRARY.forEach(iconDef => {
+                        const option = document.createElement('option');
+                        option.value = iconDef.id;
+                        option.textContent = iconDef.label;
+                        poiSelect.appendChild(option);
+                    });
+                }
             }
 
             function toggleMode(targetMode) {
@@ -925,7 +928,6 @@
             }
 
             function setupEventListeners() {
-                // ... (listeners existants inchangés) ...
                 document.getElementById('mode-selector').addEventListener('click', (e) => {
                     if (e.target.matches('.mode-btn')) toggleMode(e.target.getAttribute('data-mode'));
                 });
@@ -1001,6 +1003,9 @@
                         addPoiBtn.classList.toggle('hover:bg-blue-700', !isAdding);
                     }
                 });
+                
+                // Hack pour rendre zoneMap accessible à zoneDownloader.js
+                window.zoneMap = zoneMap;
 
 				updateImageButtonState();
                 
@@ -1016,7 +1021,6 @@
                 document.getElementById('zone-jpeg-quality').addEventListener('input', (e) => { document.getElementById('zone-jpeg-quality-value').textContent = `${e.target.value}%`; });
             }
             
-            // ... (rest of functions unchanged) ...
             function displayAppVersion() {
                 if (typeof APP_VERSION !== 'undefined') {
                     const displayVersion = `v${APP_VERSION}`;
