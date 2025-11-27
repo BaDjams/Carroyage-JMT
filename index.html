@@ -59,6 +59,7 @@
                             <div id="cado-interactive-map" class="interactive-map-container"></div>
                         </section>
                     </div>
+                    <!-- ... (Le reste du mode CADO reste inchangé) ... -->
                     <div class="card bg-white shadow-md rounded-lg p-4 md:p-6 dark:bg-gray-800 dark:border dark:border-gray-700">
                         <section class="mb-6">
                             <h3 class="text-lg font-semibold mb-3 text-content">2. Coordonnées et Configuration</h3>
@@ -205,7 +206,6 @@
                                         </div>
                                     </div>
                                     <div id="custom-grid-options" class="hidden md:col-span-2 space-y-3">
-                                        <!-- Custom options ... -->
                                         <div class="grid grid-cols-2 gap-2">
                                             <div class="flex flex-col space-y-1"><label for="start-row" class="text-sm text-content">Début des lignes :</label><input type="number" id="start-row" class="input-field px-3 py-2 border rounded shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white text-base grid-parameter" value="1"></div>
                                             <div class="flex flex-col space-y-1"><label for="end-row" class="text-sm text-content">Fin des lignes :</label><input type="number" id="end-row" class="input-field px-3 py-2 border rounded shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white text-base grid-parameter" value="26"></div>
@@ -267,9 +267,8 @@
                 </div>
             </div>
 
-            <!-- MODE 2 : ZONE DOWNLOADER (Restructuré avec style en tuiles) -->
+            <!-- MODE 2 : ZONE DOWNLOADER -->
             <div id="zone-downloader-mode-container" class="hidden space-y-6">
-                
                 <!-- Tuile 1 : Carte -->
                 <div class="card bg-white shadow-md rounded-lg p-4 md:p-6 dark:bg-gray-800 dark:border dark:border-gray-700">
                     <section>
@@ -308,10 +307,54 @@
                     </section>
                 </div>
 
-                <!-- Tuile 3 : Style (Nouvelle palette complète) -->
+                <!-- Tuile 3 : Points d'intérêt (NOUVEAU) -->
                 <div class="card bg-white shadow-md rounded-lg p-4 md:p-6 dark:bg-gray-800 dark:border dark:border-gray-700">
                     <section>
-                        <h3 class="text-lg font-semibold mb-3 text-content">3. Configuration du Style (Commun)</h3>
+                        <h3 class="text-lg font-semibold mb-3 text-content">3. Points d'intérêt (Optionnel)</h3>
+                        <p class="text-sm text-secondary mb-4">Ajoutez des symboles sur la carte. Cliquez sur "Ajouter un point" puis cliquez sur la carte.</p>
+                        
+                        <div class="flex flex-wrap gap-4 items-end mb-4">
+                            <div class="flex flex-col space-y-1">
+                                <label for="poi-type-selector" class="text-sm text-content">Type d'icône :</label>
+                                <select id="poi-type-selector" class="input-field px-2 py-1 border rounded shadow-sm text-sm text-gray-900 dark:bg-gray-600 dark:border-gray-500 dark:text-white">
+                                    <option value="target">Cible (Rouge)</option>
+                                    <option value="start">Départ (Vert)</option>
+                                    <option value="end">Arrivée (Drapeau)</option>
+                                    <option value="danger">Danger (Triangle)</option>
+                                    <option value="info">Info (Bleu)</option>
+                                </select>
+                            </div>
+                            <div class="flex flex-col space-y-1">
+                                <label for="poi-name-input" class="text-sm text-content">Nom du point :</label>
+                                <input type="text" id="poi-name-input" class="input-field px-2 py-1 border rounded shadow-sm text-sm text-gray-900 dark:bg-gray-600 dark:border-gray-500 dark:text-white" placeholder="Nom (facultatif)">
+                            </div>
+                            <button id="add-poi-btn" class="px-4 py-1 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded shadow transition-colors h-[30px]">
+                                + Ajouter un point
+                            </button>
+                        </div>
+
+                        <div id="poi-list-container" class="border rounded p-2 max-h-40 overflow-y-auto hidden dark:border-gray-600">
+                            <table class="w-full text-sm text-left text-gray-500 dark:text-gray-400">
+                                <thead class="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
+                                    <tr>
+                                        <th scope="col" class="px-2 py-1">Type</th>
+                                        <th scope="col" class="px-2 py-1">Nom</th>
+                                        <th scope="col" class="px-2 py-1">Coord</th>
+                                        <th scope="col" class="px-2 py-1 text-right">Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="poi-table-body">
+                                    <!-- Les POIs seront injectés ici -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </section>
+                </div>
+
+                <!-- Tuile 4 : Style (Nouvelle palette complète) -->
+                <div class="card bg-white shadow-md rounded-lg p-4 md:p-6 dark:bg-gray-800 dark:border dark:border-gray-700">
+                    <section>
+                        <h3 class="text-lg font-semibold mb-3 text-content">4. Configuration du Style (Commun)</h3>
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div class="flex flex-col space-y-1">
                                 <label class="text-sm md:text-base text-content">Couleur globale des lignes :</label>
@@ -422,6 +465,7 @@
                 </div>
             </div>
 
+            <!-- ... (Loading indicator & Footer inchangés) ... -->
             <div id="loading-indicator" class="hidden mt-4 flex flex-col items-center">
                 <div class="loading-spinner mb-2"></div>
                 <p id="loading-message" class="text-sm text-secondary">Génération en cours...</p>
@@ -433,7 +477,9 @@
             <p>Contact : <a href="mailto:tmj.niamor@gmail.com" class="hover:underline">tmj.niamor@gmail.com</a></p>
         </footer>
     </div>
+    
     <div id="toast-update" class="hidden fixed top-5 right-5 flex items-center w-full max-w-xs p-4 space-x-4 text-gray-500 bg-white divide-x divide-gray-200 rounded-lg shadow-lg dark:text-gray-400 dark:divide-gray-700 space-x dark:bg-gray-800 z-50" role="alert">
+        <!-- ... (Toast inchangé) ... -->
         <div class="text-sm font-normal">
             <div class="text-sm font-semibold text-gray-900 dark:text-white">Mise à jour effectuée !</div>
             <div class="text-sm font-normal">Version <span id="toast-version-number" class="font-semibold"></span> installée.</div> 
@@ -465,6 +511,7 @@
                 registerAndHandleUpdates();
             }
 
+            // ... (setupTheme, createBaseLayers, initializeCadoMap restent inchangés) ...
             function setupTheme() {
                 if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
                     document.documentElement.classList.add('dark');
@@ -553,10 +600,19 @@
                 });
                 zoneMap.on('zoomend', updateZoneInfo);
                 zoneMap.on('baselayerchange', updateZoneInfo);
+                
+                // Click handler for POI adding
+                zoneMap.on('click', (e) => {
+                    if (typeof handleMapClickForPOI === 'function') {
+                        handleMapClickForPOI(e);
+                    }
+                });
+
                 setTimeout(() => { updateZoneInfo({name: "Google Hybrid"})}, 500);
                 setupZoneAddressSearch();
             }
             
+            // ... (updateCadoOverlayDefaults, updateZoneCoordsFromBounds, updateZoneInfo, updateZoneTileCount, setupZoneAddressSearch, handleCadoMapClick, searchInput listener, fetchSuggestions, displaySuggestions, document click listener, viewOnMap, populateMapSelectorForPNG, setDefaultGridName, setupToggle, initUI, toggleMode) restent inchangés ...
             function updateCadoOverlayDefaults() {
                 const nwCoordsStr = document.getElementById("zone-nw-coords").value;
                 const seCoordsStr = document.getElementById("zone-se-coords").value;
@@ -869,6 +925,7 @@
             }
 
             function setupEventListeners() {
+                // ... (listeners existants inchangés) ...
                 document.getElementById('mode-selector').addEventListener('click', (e) => {
                     if (e.target.matches('.mode-btn')) toggleMode(e.target.getAttribute('data-mode'));
                 });
@@ -932,6 +989,19 @@
                     }
                 });
 
+                // --- GESTION DES POIS ---
+                const addPoiBtn = document.getElementById('add-poi-btn');
+                addPoiBtn.addEventListener('click', () => {
+                    if (typeof toggleAddPointMode === 'function') {
+                        const isAdding = toggleAddPointMode();
+                        addPoiBtn.textContent = isAdding ? "Annuler l'ajout" : "+ Ajouter un point";
+                        addPoiBtn.classList.toggle('bg-red-600', isAdding);
+                        addPoiBtn.classList.toggle('hover:bg-red-700', isAdding);
+                        addPoiBtn.classList.toggle('bg-blue-600', !isAdding);
+                        addPoiBtn.classList.toggle('hover:bg-blue-700', !isAdding);
+                    }
+                });
+
 				updateImageButtonState();
                 
                 function handleFormatChange(event) {
@@ -946,6 +1016,7 @@
                 document.getElementById('zone-jpeg-quality').addEventListener('input', (e) => { document.getElementById('zone-jpeg-quality-value').textContent = `${e.target.value}%`; });
             }
             
+            // ... (rest of functions unchanged) ...
             function displayAppVersion() {
                 if (typeof APP_VERSION !== 'undefined') {
                     const displayVersion = `v${APP_VERSION}`;
