@@ -9,7 +9,7 @@ let userPOIs = [];
 let isAddingPoint = false;
 let poiMarkersLayer = null;
 
-// Helper CRUCIAL : Récupère toujours la liste à jour (Settings ou fichier base)
+// Helper pour récupérer la liste d'icônes à jour (depuis settingsManager ou icons.js)
 function getIcons() {
     if (typeof window.getIconLibrary === 'function') {
         return window.getIconLibrary();
@@ -36,7 +36,7 @@ function handleMapClickForPOI(e) {
     const typeId = document.getElementById('poi-type-selector').value;
     const name = document.getElementById('poi-name-input').value.trim();
 
-    // Correction : Utilise getIcons() pour trouver les customs
+    // Récupérer l'URL depuis la librairie dynamique
     const iconConfig = getIcons().find(i => i.id === typeId);
     const url = iconConfig ? iconConfig.url : "https://maps.google.com/mapfiles/kml/pushpin/ylw-pushpin.png";
     
@@ -53,6 +53,7 @@ function handleMapClickForPOI(e) {
     updatePOIMarkers();
     updatePOIList();
     
+    // Désactiver le mode ajout après un clic
     toggleAddPointMode();
     const addBtn = document.getElementById('add-poi-btn');
     if (addBtn) {
@@ -113,14 +114,13 @@ function updatePOIList() {
     tbody.innerHTML = '';
 
     userPOIs.forEach(poi => {
-        // Correction : Utilise getIcons() ici aussi
         const iconDef = getIcons().find(i => i.id === poi.type);
         const label = iconDef ? iconDef.label : poi.type;
         
         const row = document.createElement('tr');
         row.className = "bg-white border-b dark:bg-gray-800 dark:border-gray-700";
         row.innerHTML = `
-            <td class="px-2 py-1 font-medium text-gray-900 whitespace-nowrap dark:text-white text-xs text-center"><img src="${poi.url}" class="w-6 h-6 inline-block object-contain"></td>
+            <td class="px-2 py-1 font-medium text-gray-900 whitespace-nowrap dark:text-white text-xs text-center"><img src="${poi.url}" class="w-6 h-6 inline-block"></td>
             <td class="px-2 py-1 text-xs">${poi.name || label}</td>
             <td class="px-2 py-1 text-xs">${poi.lat.toFixed(4)}, ${poi.lon.toFixed(4)}</td>
             <td class="px-2 py-1 text-right">
@@ -132,16 +132,17 @@ function updatePOIList() {
 }
 window.removePOI = removePOI;
 
-// --- FONCTIONS ROBUSTES DE CHARGEMENT D'IMAGE ---
+// --- FONCTIONS ROBUSTES DE CHARGEMENT D'IMAGE (POUR EXPORT) ---
 
 function getIconData(url) {
     return new Promise((resolve) => {
+        // Si c'est déjà du base64, on le retourne directement
         if (url.startsWith('data:image')) {
             resolve(url);
             return;
         }
 
-        // Essai via fetch (meilleur pour Blob/CORS)
+        // Sinon on tente de le récupérer
         fetch(url)
             .then(response => response.blob())
             .then(blob => {
@@ -150,7 +151,6 @@ function getIconData(url) {
                 reader.readAsDataURL(blob);
             })
             .catch(e => {
-                // Fallback image classique (pour certains contextes locaux)
                 const img = new Image();
                 img.crossOrigin = "Anonymous";
                 img.onload = () => {
@@ -178,15 +178,18 @@ function loadImageForCanvas(url) {
         img.crossOrigin = "Anonymous"; 
         
         let safeUrl = url;
+        // Ajout timestamp pour les URLs HTTP pour bypasser le cache navigateur parfois strict sur CORS
         if (url.startsWith('http')) {
             safeUrl = url + (url.includes('?') ? '&' : '?') + 't=' + Date.now();
         }
 
         img.onload = () => resolve(img);
+        
         img.onerror = () => {
             console.warn("Image ignorée pour l'export (Erreur CORS ou 404):", url);
             resolve(null);
         };
+        
         img.src = safeUrl;
     });
 }
@@ -209,6 +212,7 @@ async function drawUserPOIsOnCanvas(ctx, latLonToPixels) {
             const h = 32;
             ctx.drawImage(img, px.x - w/2, px.y - h/2, w, h);
         } else {
+            // Fallback vectoriel
             ctx.save();
             ctx.shadowColor = "rgba(0,0,0,0.5)";
             ctx.shadowBlur = 4;
@@ -413,6 +417,7 @@ async function generateZonePNG() {
             drawZoneKmlFeatures(ctx, zoom, loadedZoneKmlFeatures, latLonToCanvasPixels);
         }
 
+        // DESSIN DES POIS UTILISATEUR
         if (userPOIs.length > 0) {
             loadingMessage.textContent = "Dessin des points d'intérêt...";
             await drawUserPOIsOnCanvas(ctx, latLonToCanvasPixels);
@@ -494,7 +499,7 @@ async function generateCadoGridForZone() {
         let kmlContent = generateKML(config, gridData);
         const zip = new JSZip(); 
         
-        // 1. Injection manuelle des POIs
+        // 1. Injection manuelle des POIs dans le KML ET gestion des fichiers locaux
         if (userPOIs.length > 0) {
             let poiKml = "";
             const imagesToZip = new Map();
@@ -502,13 +507,11 @@ async function generateCadoGridForZone() {
             for (const [index, poi] of userPOIs.entries()) {
                 let iconUrl = "https://maps.google.com/mapfiles/kml/paddle/wht-blank.png";
                 let iconFilename = "";
+                let styleId = `poi_style_${index}`;
                 
-                // Correction : Utilise getIcons() ici aussi
-                const iconDef = getIcons().find(i => i.id === poi.type);
-                if(iconDef) iconUrl = iconDef.url;
                 if(poi.url) iconUrl = poi.url;
 
-                // Si image locale (base64 ou path), on l'ajoute au zip
+                // Si c'est une image locale ou base64, il faut l'intégrer au ZIP
                 if (!iconUrl.startsWith('http')) {
                     iconFilename = `icon_${index}.png`;
                     const zipPath = `files/${iconFilename}`;
@@ -538,6 +541,7 @@ async function generateCadoGridForZone() {
 
         zip.file("doc.kml", kmlContent);
 
+        // Reprise logique icônes grille
         if (config.includePoints) {
             const iconsFolder = zip.folder("icons");
             const canvas = document.createElement("canvas");
@@ -611,6 +615,7 @@ async function zdCreateFinalCanvas(boundingBox, zoom, mapConfig, hasExternalMarg
                     tileUrl = layer.url.replace('{z}', zoom).replace('{x}', x).replace('{y}', y);
                 }
                 
+                // Timestamp pour bypass cache CORS
                 const safeUrl = tileUrl + (tileUrl.includes('?') ? '&' : '?') + 't=' + Date.now();
 
                 const promise = new Promise((resolve) => {
