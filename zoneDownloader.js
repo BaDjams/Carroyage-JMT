@@ -88,7 +88,8 @@ function getZoneCadoConfigAndBounds() {
         deviation: 0,
         labelSize: parseFloat(document.getElementById('label-size').value),
         iconSize: parseFloat(document.getElementById('icon-size').value || 2),
-        referencePointChoice: 'center',
+        // CHANGEMENT ICI : 'no_cross' empêche utilities.js de dessiner la croix rouge (qui attend 'center')
+        referencePointChoice: 'no_cross', 
         startRow: 1, endRow: numRows,
         startCol: 'A', endCol: numberToLetter(numCols),
         includeGrid: true, includePoints: true,
@@ -138,10 +139,11 @@ async function generateZonePNG() {
             const metersToLat = (meters) => meters / 111320;
             const metersToLon = (meters, lat) => meters / (111320 * Math.cos(toRad(lat)));
 
+            // CHANGEMENT MARGES CADO : Réduction de 1.5 à 1.0 pour Sud et Ouest
             finalBoundingBox = {
                 north: gridBounds.maxLat + metersToLat(0.5 * config.scale),
-                south: gridBounds.minLat - metersToLat(1.5 * config.scale),
-                west: gridBounds.minLon - metersToLon(1.5 * config.scale, avgLat),
+                south: gridBounds.minLat - metersToLat(1.0 * config.scale),
+                west: gridBounds.minLon - metersToLon(1.0 * config.scale, avgLat),
                 east: gridBounds.maxLon + metersToLon(0.5 * config.scale, avgLat)
             };
         } else {
@@ -159,7 +161,11 @@ async function generateZonePNG() {
         const fileExtension = format === 'jpeg' ? '.jpg' : '.png';
 
         loadingMessage.textContent = "Téléchargement et assemblage des fonds de carte...";
-        const { finalCanvas, dynamicMargin } = await zdCreateFinalCanvas(finalBoundingBox, zoom, selectedMap, isCadoExport);
+        
+        // CHANGEMENT LOGIQUE MARGE : Seul le mode UTM nécessite une marge externe blanche
+        const needsExternalMargin = isUtmExport && !isCadoExport;
+        
+        const { finalCanvas, dynamicMargin } = await zdCreateFinalCanvas(finalBoundingBox, zoom, selectedMap, needsExternalMargin);
         const ctx = finalCanvas.getContext('2d');
         
         const nwPixel = zdLatLonToWorldPixels(finalBoundingBox.north, finalBoundingBox.west, zoom);
@@ -196,21 +202,22 @@ async function generateZonePNG() {
                 const cartoucheMetrics = drawZoneCartouche(ctx, "Export de zone", finalBoundingBox, mapLayerName, zoom, dynamicMargin, cartoucheFontSize);
                 drawZoneCompass(ctx, finalCanvas.width, finalCanvas.height, dynamicMargin, cartoucheMetrics);
             } else {
-                // MODE IMAGE SEULE : Boussole discrète + Échelle jaune
+                // Mode Zone/Rien : Boussole + Échelle
+                const compassRadius = Math.max(10, finalCanvas.width * 0.012); 
+                const padding = compassRadius * 0.8; 
+                // Pas de dynamicMargin ici (elle est à 0), donc on utilise directement les bords
+                const compassCenterX = finalCanvas.width - padding - compassRadius;
+                const compassCenterY = padding + compassRadius;
                 
-                // 1. Boussole discrète (plus petite)
-                const compassRadius = Math.max(15, finalCanvas.width * 0.015); // 1.5% de la largeur
-                const padding = compassRadius * 1.5;
-                const compassCenterX = finalCanvas.width - dynamicMargin - padding;
-                const compassCenterY = dynamicMargin + padding;
-                drawSimpleCompass(ctx, compassCenterX, compassCenterY, compassRadius);
+                const compassFontSize = compassRadius * 0.9; 
+                drawSimpleCompass(ctx, compassCenterX, compassCenterY, compassRadius, compassFontSize);
 
-                // 2. Échelle intelligente (en bas à gauche)
-                const realWidthMeters = haversineDistance({lat: north, lon: west}, {lat: north, lon: east});
-                const mapPixelWidth = finalCanvas.width - (2 * dynamicMargin);
-                const metersPerPixel = realWidthMeters / mapPixelWidth;
+                // Échelle intelligente
+                const avgLat = (north + south) / 2;
+                const realWidthMeters = haversineDistance({lat: avgLat, lon: west}, {lat: avgLat, lon: east});
+                const metersPerPixel = realWidthMeters / finalCanvas.width; // Pas de marge
 
-                drawSmartScaleBar(ctx, finalCanvas.width, finalCanvas.height, dynamicMargin, metersPerPixel);
+                drawSmartScaleBar(ctx, finalCanvas.width, finalCanvas.height, 0, metersPerPixel);
             }
         }
         
@@ -264,14 +271,14 @@ async function generateCadoGridForZone() {
     }
 }
 
-async function zdCreateFinalCanvas(boundingBox, zoom, mapConfig, isCadoExport = false) {
+async function zdCreateFinalCanvas(boundingBox, zoom, mapConfig, hasExternalMargin = false) {
     const nwPixel = zdLatLonToWorldPixels(boundingBox.north, boundingBox.west, zoom);
     const sePixel = zdLatLonToWorldPixels(boundingBox.south, boundingBox.east, zoom);
     const imageWidth = Math.abs(sePixel.x - nwPixel.x);
     const imageHeight = Math.abs(sePixel.y - nwPixel.y);
     
     let dynamicMargin = 0;
-    if (!isCadoExport) {
+    if (hasExternalMargin) {
         const cartoucheFontSize = Math.max(10, Math.min(48, imageWidth * 0.007));
         dynamicMargin = Math.ceil(cartoucheFontSize * 4);
     }
@@ -281,7 +288,8 @@ async function zdCreateFinalCanvas(boundingBox, zoom, mapConfig, isCadoExport = 
     finalCanvas.height = imageHeight + dynamicMargin * 2;
     const ctx = finalCanvas.getContext('2d');
 
-    // Fond blanc pour tout le canvas (y compris marges)
+    // On remplit tout en blanc pour gérer les marges UTM si elles existent
+    // Pour CADO/Rien, dynamicMargin = 0, donc ça remplit juste le fond de carte (utile pour PNG transparent)
     ctx.fillStyle = 'white';
     ctx.fillRect(0, 0, finalCanvas.width, finalCanvas.height);
 
@@ -321,9 +329,6 @@ async function zdCreateFinalCanvas(boundingBox, zoom, mapConfig, isCadoExport = 
         });
     }
 
-    // Suppression du cadre noir (boundary limit)
-    // Le code précédent ctx.strokeRect(...) a été supprimé
-
     return { finalCanvas, dynamicMargin };
 }
 
@@ -361,10 +366,11 @@ function drawZoneCompass(ctx, canvasWidth, canvasHeight, margin, cartoucheMetric
     const PADDING = radius * 1.6; 
     const centerX = canvasWidth - margin - PADDING;
     const centerY = margin + PADDING;
-    drawSimpleCompass(ctx, centerX, centerY, radius);
+    const compassFontSize = radius * 0.6;
+    drawSimpleCompass(ctx, centerX, centerY, radius, compassFontSize);
 }
 
-function drawSimpleCompass(ctx, x, y, radius) {
+function drawSimpleCompass(ctx, x, y, radius, fontSize) {
     ctx.beginPath();
     ctx.arc(x, y, radius, 0, 2 * Math.PI);
     ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
@@ -386,8 +392,8 @@ function drawSimpleCompass(ctx, x, y, radius) {
     ctx.lineTo(N_point.x + arrowHeadSize, N_point.y + arrowHeadSize);
     ctx.closePath();
     ctx.fillStyle = 'red'; ctx.fill();
-    const compassNFontSize = radius * 0.6;
-    ctx.font = `bold ${compassNFontSize}px Arial`;
+    
+    ctx.font = `bold ${fontSize}px Arial`;
     ctx.textAlign = 'center'; 
     ctx.textBaseline = 'bottom';
     ctx.strokeStyle = 'white'; 
@@ -398,13 +404,9 @@ function drawSimpleCompass(ctx, x, y, radius) {
 }
 
 function drawSmartScaleBar(ctx, canvasWidth, canvasHeight, margin, metersPerPixel) {
-    // 1. Largeur cible (4% de la largeur image)
     const targetWidthPx = canvasWidth * 0.04;
-    
-    // 2. Convertir en mètres
     const rawMeters = targetWidthPx * metersPerPixel;
     
-    // 3. Arrondir
     const magnitude = Math.pow(10, Math.floor(Math.log10(rawMeters)));
     const residual = rawMeters / magnitude;
     let roundedMeters;
@@ -413,19 +415,15 @@ function drawSmartScaleBar(ctx, canvasWidth, canvasHeight, margin, metersPerPixe
     else if (residual < 7.5) roundedMeters = 5 * magnitude;
     else roundedMeters = 10 * magnitude;
     
-    // 4. Largeur finale en pixels
     const finalBarWidthPx = roundedMeters / metersPerPixel;
-    
-    // 5. Paramètres de dessin
     const barHeight = Math.max(14, canvasHeight * 0.015);
     const fontSize = barHeight * 0.9;
     const padding = barHeight * 0.5;
     
-    // 6. Position: BAS GAUCHE (avec marge et padding)
+    // Position BAS GAUCHE (Marge + Padding)
     const x = margin + padding;
     const y = canvasHeight - margin - barHeight - padding;
     
-    // 7. Dessin
     ctx.fillStyle = 'yellow';
     ctx.strokeStyle = 'black';
     ctx.lineWidth = 2;
@@ -435,7 +433,6 @@ function drawSmartScaleBar(ctx, canvasWidth, canvasHeight, margin, metersPerPixe
     ctx.fill();
     ctx.stroke();
     
-    // 8. Texte
     ctx.fillStyle = 'black';
     ctx.font = `bold ${fontSize}px Arial`;
     ctx.textAlign = 'center';
