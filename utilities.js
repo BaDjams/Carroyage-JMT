@@ -1,11 +1,9 @@
 // utilities.js
 
-// --- CONSTANTES PARTAGÉES ---
 const TILE_SIZE = 256;
 const MAX_ZOOM = 19;
-const R = 6378137; // Rayon de la Terre en mètres
+const R = 6378137; 
 
-// --- FONCTIONS MATHÉMATIQUES ET DE CONVERSION ---
 const toRad = deg => deg * Math.PI / 180;
 const toDeg = rad => rad * 180 / Math.PI;
 
@@ -28,8 +26,6 @@ function numberToLetter(num) {
     return letter;
 }
 
-
-// --- LOGIQUE DE GRILLE PARTAGÉE ---
 function generateIndices(start, end) {
     const indices = [];
     if (start <= end) {
@@ -79,8 +75,6 @@ function calculateAndRotatePoint(colNumber, rowNumber, config, a1Lat, a1Lon) {
     return [finalLon, finalLat];
 }
 
-
-// --- FONCTIONS D'INTERFACE UTILISATEUR (UI) ---
 function downloadFile(blob, fileName) {
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -97,15 +91,14 @@ function showError(message) {
     const errorDiv = document.getElementById("error-message");
     errorDiv.textContent = message;
     errorDiv.classList.remove("hidden");
+    setTimeout(() => errorDiv.classList.add("hidden"), 5000);
 }
 
 function hideError() {
     document.getElementById("error-message").classList.add("hidden");
 }
 
-// =======================================================================
-// --- FONCTIONS DE DESSIN CADO PARTAGÉES ---
-// =======================================================================
+// --- DESSIN CADO PARTAGÉ ---
 
 function drawLabelWithOutline(ctx, text, x, y, config) {
     const darkColorsForWhiteOutline = ['black', 'red', 'blue', 'green', 'violet', 'brown'];
@@ -290,7 +283,7 @@ function drawCadoElementsOnCanvas(ctx, config, latLonToPixels, a1CornerCoords) {
     const cellWidthInPixels = Math.hypot(px_B1_center.x - px_A1_center.x, px_B1_center.y - px_A1_center.y);
     
     const labelFontSize = cellWidthInPixels * 0.75;
-    if (labelFontSize > 5) { // Ne pas dessiner les étiquettes si elles sont illisibles
+    if (labelFontSize > 5) { 
         ctx.font = `bold ${labelFontSize}px Arial`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';

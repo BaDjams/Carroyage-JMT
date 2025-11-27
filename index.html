@@ -30,948 +30,434 @@
     <script src="zoneDownloader.js" defer></script>
 </head>
 
-<body class="p-4 md:p-6">
-    <div class="max-w-5xl mx-auto">
-        <header class="mb-6 text-center">
-             <h1 id="app-title" class="text-2xl md:text-3xl font-bold mb-4 text-content">Générateur de carroyage CADO</h1>
-             <div class="flex flex-wrap justify-center items-center gap-2 mb-4">
-                 <button id="settingsBtn" class="text-2xl px-3 py-1 rounded-full button-outline bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-white transition-colors" title="Gérer les icônes">⚙️</button>
-                 <a href="help.html" target="_blank" id="helpBtn" class="text-2xl px-3 py-1 rounded-full button-outline bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-white no-underline" style="text-decoration: none;">?</a>
-                 <a href="https://www.google.com/maps" target="_blank" class="px-3 py-1 button-outline bg-gray-200 hover:bg-gray-300 rounded dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-white text-sm md:text-base">Ouvrir Google Maps</a>
-                 <a href="https://www.google.com/mymaps" target="_blank" class="px-3 py-1 button-outline bg-gray-200 hover:bg-gray-300 rounded dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-white text-sm md:text-base">Ouvrir Google MyMaps</a>
-                 <a href="https://earth.google.com/web/" target="_blank" class="px-3 py-1 button-outline bg-gray-200 hover:bg-gray-300 rounded dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-white text-sm md:text-base">Ouvrir Google Earth</a>
-                 <div id="mode-selector" class="flex flex-wrap justify-center items-center gap-2 border border-gray-300 dark:border-gray-600 rounded-lg p-1">
-                    <button data-mode="cado" class="mode-btn px-3 py-1 rounded text-sm md:text-base transition-colors duration-200 bg-blue-600 text-white">Carroyage CADO</button>
-                    <button data-mode="zone" class="mode-btn px-3 py-1 rounded text-sm md:text-base transition-colors duration-200 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700">Exporter Zone</button>
-                </div>
-             </div>
-        </header>
+<body class="sidebar-open mode-cado"> 
 
-        <!-- MODAL SETTINGS - FIX Z-INDEX -->
-        <div id="settings-modal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full" style="z-index: 9999;">
-            <div class="relative top-20 mx-auto p-5 border w-11/12 md:w-3/4 lg:w-2/3 shadow-lg rounded-md bg-white dark:bg-gray-800 dark:border-gray-700">
-                <div class="flex justify-between items-center mb-4">
-                    <h3 class="text-xl font-bold text-gray-900 dark:text-white">Gestion des Icônes POI</h3>
-                    <button id="close-settings-btn" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 text-2xl">&times;</button>
-                </div>
-                
-                <div id="drop-zone" class="border-2 border-dashed border-blue-400 rounded-lg p-8 text-center mb-6 bg-blue-50 dark:bg-gray-700 dark:border-blue-500 transition-colors">
-                    <p class="text-gray-600 dark:text-gray-300">Glissez et déposez une image PNG ici pour ajouter une nouvelle icône.</p>
-                    <p class="text-xs text-gray-500 mt-2">(Format recommandé : PNG 32x32 ou 64x64 pixels, transparent)</p>
-                </div>
+    <div id="map-container-wrapper">
+        <div id="main-map" class="full-screen-map"></div>
+    </div>
 
-                <div class="overflow-x-auto max-h-96">
-                    <table class="w-full text-sm text-left text-gray-500 dark:text-gray-400">
-                        <thead class="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400 sticky top-0">
-                            <tr>
-                                <th scope="col" class="px-4 py-3 w-16">Aperçu</th>
-                                <th scope="col" class="px-4 py-3 w-20">Ordre</th>
-                                <th scope="col" class="px-4 py-3">Nom</th>
-                                <th scope="col" class="px-4 py-3">Catégorie</th>
-                                <th scope="col" class="px-4 py-3 text-right">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody id="settings-icons-list">
-                        </tbody>
-                    </table>
-                </div>
-
-                <div class="mt-6 pt-4 border-t dark:border-gray-700">
-                    <div class="flex justify-between items-center">
-                        <div class="flex gap-2">
-                            <button id="export-icons-btn" class="px-3 py-2 bg-gray-500 text-white rounded hover:bg-gray-600 text-xs flex items-center gap-1" title="Sauvegarder ma configuration dans un fichier">
-                                ⬇️ Exporter JSON
-                            </button>
-                            <button id="import-icons-trigger" class="px-3 py-2 bg-gray-500 text-white rounded hover:bg-gray-600 text-xs flex items-center gap-1" title="Charger un fichier de configuration">
-                                ⬆️ Importer JSON
-                            </button>
-                            <input type="file" id="import-icons-input" accept=".json" class="hidden">
-                        </div>
-
-                        <div class="flex gap-2">
-                            <button id="reset-settings-btn" class="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 text-xs">Réinitialiser</button>
-                            <button id="save-settings-btn" class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 text-sm font-bold">OK</button>
-                        </div>
-                    </div>
-                </div>
-            </div>
+    <div id="floating-header">
+        <h1 class="text-sm font-bold text-gray-800 dark:text-white mr-2 hidden md:block" id="app-title">Générateur CADO</h1>
+        
+        <div id="mode-selector" class="flex bg-gray-200 dark:bg-gray-700 rounded p-1">
+            <button data-mode="cado" class="mode-btn px-3 py-1 rounded text-xs font-bold transition-colors duration-200 bg-blue-600 text-white">Point (CADO)</button>
+            <button data-mode="zone" class="mode-btn px-3 py-1 rounded text-xs font-bold transition-colors duration-200 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600">Zone (Export)</button>
         </div>
 
-        <main class="space-y-6">
-            <!-- MODE 1 : CARROYAGE CADO -->
-            <div id="cado-mode-container">
-                <div class="space-y-6">
-                    <div class="card bg-white shadow-md rounded-lg p-4 md:p-6 dark:bg-gray-800 dark:border dark:border-gray-700">
-                        <section>
-                            <h3 class="text-lg font-semibold mb-3 text-content">1. Sélectionner un point de référence sur la carte</h3>
-                            <div class="address-search-container">
-                                <input type="text" id="address-search-input" class="address-search-input input-field px-3 py-2 border rounded shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white text-base" placeholder="Rechercher une adresse..." autocomplete="off">
-                                <ul id="suggestions" class="hidden"></ul>
-                            </div>
-                            <p class="text-sm text-secondary mb-2">Ou cliquez directement sur la carte pour choisir un point.</p>
-                            <div id="cado-interactive-map" class="interactive-map-container"></div>
-                        </section>
+        <div class="flex items-center gap-1 ml-2 border-l pl-2 border-gray-300 dark:border-gray-600">
+             <button id="settingsBtn" class="text-lg p-1 rounded hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors" title="Gérer les icônes">⚙️</button>
+             <a href="help.html" target="_blank" id="helpBtn" class="text-lg p-1 rounded hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors text-gray-700 dark:text-gray-300">❓</a>
+        </div>
+    </div>
+
+    <aside id="sidebar">
+        <button id="sidebar-toggle" title="Replier/Déplier le menu">
+            <svg class="w-4 h-4 text-gray-600 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
+        </button>
+
+        <div id="sidebar-content">
+            
+            <!-- CONTENU MODE 1 : CADO (POINT) -->
+            <div id="cado-mode-container" class="space-y-4">
+                <div class="text-xs text-gray-500 uppercase font-bold tracking-wider mb-2">Mode Point de Référence</div>
+                
+                <div class="card">
+                    <label class="block text-xs font-semibold text-gray-500 uppercase mb-1">Lieu</label>
+                    <div class="address-search-container mb-0">
+                        <input type="text" id="address-search-input" class="input-field px-2 py-1 border rounded text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white" placeholder="Rechercher une adresse..." autocomplete="off">
+                        <ul id="suggestions" class="hidden"></ul>
                     </div>
-                    <div class="card bg-white shadow-md rounded-lg p-4 md:p-6 dark:bg-gray-800 dark:border dark:border-gray-700">
-                        <section class="mb-6">
-                            <h3 class="text-lg font-semibold mb-3 text-content">2. Coordonnées et Configuration</h3>
-                            <div class="space-y-4">
-                                <div class="flex flex-col md:flex-row md:items-center space-y-2 md:space-y-0">
-                                    <label for="decimal-coords" class="md:w-1/3 text-sm md:text-base text-content">Coordonnées GPS (décimal) :</label>
-                                    <div class="md:w-2/3 flex space-x-2">
-                                        <input type="text" id="decimal-coords" class="input-field w-full px-3 py-2 border rounded shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white text-base" placeholder="Rempli par la carte ou manuellement">
-                                        <button id="convert-from-decimal" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-sm md:text-base">Convertir</button>
-                                        <button id="view-on-maps-decimal" class="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-sm md:text-base">Voir sur la carte</button>
-                                    </div>
-                                </div>
-                                <div class="flex justify-start md:justify-end">
-                                    <button id="toggle-coords-btn" type="button" class="text-sm text-blue-600 hover:underline dark:text-blue-400">Options avancées ▼</button>
-                                </div>
-                                <div id="advanced-coords" class="hidden space-y-4 pt-4 border-t border-gray-200 dark:border-gray-700">
-                                    <div class="flex flex-col md:flex-row md:items-center space-y-2 md:space-y-0">
-                                        <label for="dms-coords" class="md:w-1/3 text-sm md:text-base text-content">Coordonnées GPS (DMS) :</label>
-                                        <div class="md:w-2/3 flex space-x-2">
-                                            <input type="text" id="dms-coords" class="input-field w-full px-3 py-2 border rounded shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white text-base" placeholder="ex: 48°51'23.7''N 2°21'07.9''E">
-                                            <button id="convert-from-dms" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-sm md:text-base">Convertir</button>
-                                            <button id="view-on-maps-dms" class="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-sm md:text-base">Voir sur la carte</button>
-                                        </div>
-                                    </div>
-                                    <div class="flex flex-col md:flex-row md:items-center space-y-2 md:space-y-0" hidden>
-                                        <label for="plus-code" class="md:w-1/3 text-sm md:text-base text-content" hidden>Plus Code :</label>
-                                        <div class="md:w-2/3 flex space-x-2" hidden>
-                                            <input type="text" id="plus-code" class="input-field w-full px-3 py-2 border rounded shadow-sm" placeholder="ex: 8FW4V75V+ ou EW47+QV Paris" hidden>
-                                            <button id="convert-from-plus" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-sm md:text-base" hidden>Convertir</button>
-                                            <button id="view-on-maps-plus" class="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-sm md:text-base" hidden>Voir sur la carte</button>
-                                        </div>
-                                    </div>
-                                    <div class="flex flex-col md:flex-row md:items-center space-y-2 md:space-y-0">
-                                        <label for="mercator-coords" class="md:w-1/3 text-sm md:text-base text-content">Coordonnées MERCATOR :</label>
-                                        <div class="md:w-2/3 flex space-x-2">
-                                            <input type="text" id="mercator-coords" class="input-field w-full px-3 py-2 border rounded shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white text-base" placeholder="ex: 263726.05, 6250958.43">
-                                            <button id="convert-from-mercator" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-sm md:text-base">Convertir</button>
-                                            <button id="view-on-maps-mercator" class="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-sm md:text-base">Voir sur la carte</button>
-                                        </div>
-                                    </div>
-                                    <div class="flex flex-col md:flex-row md:items-center space-y-2 md:space-y-0">
-                                        <label for="utm-coords" class="md:w-1/3 text-sm md:text-base text-content">Coordonnées UTM :</label>
-                                        <div class="md:w-2/3 flex space-x-2">
-                                            <input type="text" id="utm-coords" class="input-field w-full px-3 py-2 border rounded shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white text-base" placeholder="Zone Lettre Easting Northing (ex: 31 U 448252 5411943)">
-                                            <button id="convert-from-utm" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-sm md:text-base">Convertir</button>
-                                            <button id="view-on-maps-utm" class="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-sm md:text-base">Voir sur la carte</button>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </section>
-                        <section class="mb-6">
-                            <h3 class="text-lg font-semibold mb-3 text-content">3. Configuration du carroyage CADO</h3>
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
-                                <div class="flex flex-col space-y-3">
-                                    <label for="scale" class="text-sm md:text-base text-content">Échelle (en mètres) :</label>
-                                    <input type="number" id="scale" class="input-field px-3 py-2 border rounded shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white text-base grid-parameter" value="20">
-                                </div>
-                                <div class="flex flex-col space-y-3">
-                                    <label class="text-sm md:text-base text-content">Choisir une couleur :</label>
-                                    <div class="flex flex-wrap gap-2" id="color-options">
-                                        <div class="color-option selected" data-color="#FFFFFF" data-name="white" style="background-color: #FFFFFF; border: 1px solid #ccc;"></div>
-                                        <div class="color-option" data-color="#000000" data-name="black" style="background-color: #000000;"></div>
-                                        <div class="color-option" data-color="#FF0000" data-name="red" style="background-color: #FF0000;"></div>
-                                        <div class="color-option" data-color="#FFA500" data-name="orange" style="background-color: #FFA500;"></div>
-                                        <div class="color-option" data-color="#FFFF00" data-name="yellow" style="background-color: #FFFF00;"></div>
-                                        <div class="color-option" data-color="#008000" data-name="green" style="background-color: #008000;"></div>
-                                        <div class="color-option" data-color="#0000FF" data-name="blue" style="background-color: #0000FF;"></div>
-                                        <div class="color-option" data-color="#800080" data-name="violet" style="background-color: #800080;"></div>
-                                        <div class="color-option" data-color="#A52A2A" data-name="brown" style="background-color: #A52A2A;"></div>
-                                        <div class="color-option" data-color="#808080" data-name="gray" style="background-color: #808080;"></div>
-                                        <div class="color-option" data-color="#00000000" data-name="transparent" title="Grille transparente"></div>
-                                    </div>
-                                    <input type="hidden" id="grid-color" value="#FFFFFF">
-                                    <input type="hidden" id="grid-color-name" value="white" class="grid-parameter">
-                                </div>
-                                <div class="flex flex-col space-y-3 md:col-span-2">
-                                     <label for="grid-name-base" class="text-sm md:text-base text-content">Nom du carroyage :</label>
-                                    <input type="text" id="grid-name-base" class="input-field px-3 py-2 border rounded shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white text-base grid-parameter" value="">
-                                    <input type="hidden" id="grid-name" value="CADO Grid">
-                                    <div id="full-grid-name" class="text-sm text-secondary mt-1 overflow-auto max-h-20 border-l-2 border-blue-500 pl-2 italic">CADO Grid_20m_center_Q12_white</div>
-                                </div>
-                                <div class="flex flex-col space-y-3 md:col-span-2">
-                                    <label class="text-sm md:text-base text-content">Type de grille :</label>
-                                    <div class="flex flex-wrap items-center gap-2">
-                                        <label class="inline-flex items-center"><input type="radio" name="grid-type" value="Q12" class="custom-radio grid-parameter" checked><span class="px-3 py-1 border border-default rounded cursor-pointer text-sm button-outline">Q12 (Format A4)</span></label>
-                                        <label class="inline-flex items-center"><input type="radio" name="grid-type" value="Z18" class="custom-radio grid-parameter"><span class="px-3 py-1 border border-default rounded cursor-pointer text-sm button-outline">Z18 (Format A3)</span></label>
-                                    </div>
-                                </div>
-                                <div class="md:col-span-2 flex justify-start md:justify-end">
-                                    <button id="toggle-grid-config-btn" type="button" class="text-sm text-blue-600 hover:underline dark:text-blue-400">Options avancées ▼</button>
-                                </div>
-                                <div id="advanced-grid-config" class="hidden md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4 pt-4 border-t border-gray-200 dark:border-gray-700">
-                                     <div class="flex flex-col space-y-1">
-                                        <label for="transparency" class="text-sm md:text-base text-content">Transparence :</label>
-                                        <div class="flex space-x-2 items-center">
-                                            <input type="range" id="transparency" class="w-full grid-parameter" min="0" max="100" value="20">
-                                            <span id="transparency-value" class="text-sm text-content">20%</span>
-                                        </div>
-                                    </div>
-                                     <div class="flex flex-col space-y-1">
-                                        <label for="line-thickness" class="text-sm md:text-base text-content">Épaisseur du trait :</label>
-                                        <select id="line-thickness" class="input-field px-3 py-2 border rounded shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white text-base grid-parameter">
-                                            <option value="1">Fine (1px)</option>
-                                            <option value="2" selected>Moyenne (2px)</option>
-                                            <option value="3">Épaisse (3px)</option>
-                                        </select>
-                                    </div>
-                                    <div class="flex space-x-4">
-                                        <div class="flex-1 flex flex-col space-y-1">
-                                            <label for="label-size" class="text-sm md:text-base text-content">Taille du texte :</label>
-                                            <input type="number" id="label-size" class="input-field px-3 py-2 border rounded shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white text-base grid-parameter" value="1.2" min="0.5" max="3" step="0.1">
-                                        </div>
-                                        <div class="flex-1 flex flex-col space-y-1">
-                                            <label for="icon-size" class="text-sm md:text-base text-content">Taille des icônes :</label>
-                                            <input type="number" id="icon-size" class="input-field px-3 py-2 border rounded shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white text-base grid-parameter" value="1.5" min="0.5" max="5" step="0.1">
-                                        </div>
-                                    </div>
-                                    <div class="flex flex-col space-y-1">
-                                        <label class="text-sm md:text-base text-content">Point de référence :</label>
-                                        <div class="flex flex-wrap gap-2">
-                                            <label class="inline-flex items-center"><input type="radio" name="reference-point" value="center" class="custom-radio grid-parameter" checked><span class="px-3 py-1 border border-default rounded cursor-pointer text-sm button-outline">Milieu du carroyage</span></label>
-                                            <label class="inline-flex items-center"><input type="radio" name="reference-point" value="origin" class="custom-radio grid-parameter"><span class="px-3 py-1 border border-default rounded cursor-pointer text-sm button-outline">Origine (A1)</span></label>
-                                        </div>
-                                    </div>
-                                    <div class="flex flex-col space-y-1">
-                                        <label class="text-sm md:text-base text-content">Orientation des lettres :</label>
-                                        <div class="flex gap-2">
-                                            <label class="inline-flex items-center"><input type="radio" name="lettering-direction" value="ascending" class="custom-radio grid-parameter" checked><span class="px-3 py-1 border border-default rounded cursor-pointer text-sm button-outline">Ascendante (Sud→Nord)</span></label>
-                                            <label class="inline-flex items-center"><input type="radio" name="lettering-direction" value="descending" class="custom-radio grid-parameter"><span class="px-3 py-1 border border-default rounded cursor-pointer text-sm button-outline">Descendante (Nord→Sud)</span></label>
-                                        </div>
-                                    </div>
-                                    <div class="flex flex-col space-y-1">
-                                        <div class="flex items-center justify-between"><label for="deviation" class="text-sm md:text-base text-content">Déviation (en degrés) :</label><button id="reset-deviation" class="px-2 py-1 text-xs bg-gray-200 hover:bg-gray-300 rounded dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-white reset-btn">Réinitialiser</button></div>
-                                        <div class="flex space-x-2 items-center"><input type="range" id="deviation" class="w-full grid-parameter" min="-180" max="180" value="0"><span id="deviation-value" class="text-sm text-content">0°</span></div>
-                                    </div>
-                                    <div class="md:col-span-2 flex flex-col space-y-1">
-                                        <label class="text-sm md:text-base text-content">Autres types de grille :</label>
-                                        <div class="flex flex-wrap items-center gap-2">
-                                            <label class="inline-flex items-center"><input type="radio" name="grid-type" value="Q9" class="custom-radio grid-parameter"><span class="px-3 py-1 border border-default rounded cursor-pointer text-sm button-outline">Q9 (17x9)</span></label>
-                                            <label class="inline-flex items-center"><input type="radio" name="grid-type" value="Z14" class="custom-radio grid-parameter"><span class="px-3 py-1 border border-default rounded cursor-pointer text-sm button-outline">Z14 (26x14)</span></label>
-                                            <label class="inline-flex items-center"><input type="radio" name="grid-type" value="Z26" class="custom-radio grid-parameter"><span class="px-3 py-1 border border-default rounded cursor-pointer text-sm button-outline">Z26 (26x26)</span></label>
-                                            <label class="inline-flex items-center"><input type="radio" name="grid-type" value="custom" class="custom-radio grid-parameter"><span class="px-3 py-1 border border-default rounded cursor-pointer text-sm button-outline">Grille custom</span></label>
-                                        </div>
-                                    </div>
-                                    <div id="custom-grid-options" class="hidden md:col-span-2 space-y-3">
-                                        <div class="grid grid-cols-2 gap-2">
-                                            <div class="flex flex-col space-y-1"><label for="start-row" class="text-sm text-content">Début des lignes :</label><input type="number" id="start-row" class="input-field px-3 py-2 border rounded shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white text-base grid-parameter" value="1"></div>
-                                            <div class="flex flex-col space-y-1"><label for="end-row" class="text-sm text-content">Fin des lignes :</label><input type="number" id="end-row" class="input-field px-3 py-2 border rounded shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white text-base grid-parameter" value="26"></div>
-                                            <div class="flex flex-col space-y-1"><label for="start-col" class="text-sm text-content">Début des colonnes :</label><input type="text" id="start-col" class="input-field px-3 py-2 border rounded shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white text-base grid-parameter" value="A"></div>
-                                            <div class="flex flex-col space-y-1"><label for="end-col" class="text-sm text-content">Fin des colonnes :</label><input type="text" id="end-col" class="input-field px-3 py-2 border rounded shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white text-base grid-parameter" value="Z"></div>
-                                        </div>
-									</div>
-                                </div>
-                            </div>
-                        </section>
+                    <p class="text-xs text-gray-400 mt-1">Cliquez sur la carte pour placer le point de référence.</p>
+                </div>
+
+                <div class="card space-y-2">
+                    <label class="block text-xs font-semibold text-gray-500 uppercase">Coordonnées Point</label>
+                    <div class="flex gap-1">
+                        <input type="text" id="decimal-coords" class="input-field px-2 py-1 border rounded text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white" placeholder="Lat, Lon">
+                        <button id="convert-from-decimal" class="px-2 py-1 bg-blue-600 text-white rounded text-xs">Go</button>
+                        <button id="view-on-maps-decimal" class="px-2 py-1 bg-green-600 text-white rounded text-xs">👀</button>
                     </div>
-                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                        <div class="card bg-white shadow-md rounded-lg p-4 md:p-6 dark:bg-gray-800 dark:border dark:border-gray-700 flex flex-col justify-between">
-                            <h3 class="text-lg font-semibold mb-3 text-content text-center">4. Générer l'image</h3>
-                            <div class="flex flex-col items-center justify-center gap-4 mt-4">
-                                <div class="w-full flex flex-col items-center gap-4">
-                                    <div class="flex items-center gap-2 w-full sm:w-auto">
-                                       <label for="map-tile-provider" class="text-sm text-content">Fond de carte :</label>
-                                        <select id="map-tile-provider" class="input-field flex-grow px-2 py-1 border rounded shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white text-sm"></select>
-                                    </div>
-                                    <div class="flex items-center gap-4">
-                                        <label class="inline-flex items-center"><input type="radio" name="image-format-cado" value="png" class="custom-radio" checked><span class="ml-2 text-content">PNG</span></label>
-                                        <label class="inline-flex items-center"><input type="radio" name="image-format-cado" value="jpeg" class="custom-radio"><span class="ml-2 text-content">JPEG</span></label>
-                                    </div>
-                                    <div id="cado-jpeg-quality-container" class="w-full max-w-xs text-center jpeg-quality-slider">
-                                        <label for="cado-jpeg-quality" class="text-sm text-content">Qualité JPEG : <span id="cado-jpeg-quality-value">92%</span></label>
-                                        <input type="range" id="cado-jpeg-quality" class="w-full" min="70" max="100" value="92">
-                                    </div>
-                                </div>
-                                <button id="generate-image-button" class="btn-main btn-image w-full sm:w-auto">Générer l'image</button>
+                    <details class="text-xs">
+                        <summary class="cursor-pointer text-blue-500">Formats avancés</summary>
+                        <div class="mt-2 space-y-2 pl-1 border-l-2 border-gray-200 dark:border-gray-600">
+                            <div class="flex gap-1"><input type="text" id="dms-coords" class="w-full px-2 py-1 border rounded text-xs dark:bg-gray-700" placeholder="DMS"><button id="convert-from-dms" class="px-1 bg-gray-200 rounded text-xs dark:bg-gray-600">Conv</button></div>
+                            <div class="flex gap-1"><input type="text" id="mercator-coords" class="w-full px-2 py-1 border rounded text-xs dark:bg-gray-700" placeholder="Mercator"><button id="convert-from-mercator" class="px-1 bg-gray-200 rounded text-xs dark:bg-gray-600">Conv</button></div>
+                            <div class="flex gap-1"><input type="text" id="utm-coords" class="w-full px-2 py-1 border rounded text-xs dark:bg-gray-700" placeholder="UTM"><button id="convert-from-utm" class="px-1 bg-gray-200 rounded text-xs dark:bg-gray-600">Conv</button></div>
+                            <div class="flex gap-1 hidden"><input type="text" id="plus-code"> <button id="convert-from-plus">Conv</button></div> 
+                        </div>
+                    </details>
+                </div>
+
+                <div class="card space-y-3">
+                    <label class="block text-xs font-semibold text-gray-500 uppercase">Style Carroyage</label>
+                    <div class="flex items-center justify-between">
+                        <span class="text-sm text-gray-700 dark:text-gray-300">Échelle</span>
+                        <input type="number" id="scale" class="w-16 px-1 border rounded text-right text-sm dark:bg-gray-700 dark:text-white grid-parameter" value="20">
+                        <span class="text-sm text-gray-500">m</span>
+                    </div>
+                    <div class="flex items-center justify-between">
+                        <span class="text-sm text-gray-700 dark:text-gray-300">Couleur</span>
+                        <div class="flex flex-wrap gap-1 w-32 justify-end" id="color-options">
+                            <div class="color-option selected" data-color="#FFFFFF" data-name="white" style="background-color: #FFFFFF; border: 1px solid #ccc;"></div>
+                            <div class="color-option" data-color="#000000" data-name="black" style="background-color: #000000;"></div>
+                            <div class="color-option" data-color="#FF0000" data-name="red" style="background-color: #FF0000;"></div>
+                            <div class="color-option" data-color="#FFA500" data-name="orange" style="background-color: #FFA500;"></div>
+                            <div class="color-option" data-color="#FFFF00" data-name="yellow" style="background-color: #FFFF00;"></div>
+                            <div class="color-option" data-color="#008000" data-name="green" style="background-color: #008000;"></div>
+                            <div class="color-option" data-color="#0000FF" data-name="blue" style="background-color: #0000FF;"></div>
+                            <div class="color-option" data-color="#800080" data-name="violet" style="background-color: #800080;"></div>
+                            <div class="color-option" data-color="#A52A2A" data-name="brown" style="background-color: #A52A2A;"></div>
+                            <div class="color-option" data-color="#808080" data-name="gray" style="background-color: #808080;"></div>
+                            <div class="color-option" data-color="#00000000" data-name="transparent" title="Transparent"></div>
+                        </div>
+                        <input type="hidden" id="grid-color" value="#FFFFFF">
+                        <input type="hidden" id="grid-color-name" value="white" class="grid-parameter">
+                    </div>
+                    <input type="text" id="grid-name-base" class="input-field px-2 py-1 border rounded text-sm dark:bg-gray-700 dark:text-white grid-parameter" placeholder="Nom du carroyage">
+                    <input type="hidden" id="grid-name">
+                    <div class="flex gap-2 mt-1">
+                        <label class="inline-flex items-center"><input type="radio" name="grid-type" value="Q12" class="grid-parameter" checked><span class="ml-1 text-sm">Q12 (A4)</span></label>
+                        <label class="inline-flex items-center"><input type="radio" name="grid-type" value="Z18" class="grid-parameter"><span class="ml-1 text-sm">Z18 (A3)</span></label>
+                    </div>
+                    <details class="text-xs">
+                        <summary class="cursor-pointer text-blue-500 mt-1">Plus d'options...</summary>
+                        <div id="advanced-grid-config" class="mt-2 space-y-2 pl-1">
+                             <div class="flex items-center justify-between"><span>Transparence</span><input type="range" id="transparency" class="w-20 grid-parameter" min="0" max="100" value="20"><span id="transparency-value">20%</span></div>
+                             <div class="flex items-center justify-between"><span>Trait</span><select id="line-thickness" class="grid-parameter border rounded text-xs dark:bg-gray-600"><option value="1">Fin</option><option value="2" selected>Moyen</option><option value="3">Épais</option></select></div>
+                             <div class="flex flex-col"><span>Déviation</span><div class="flex items-center gap-1"><input type="range" id="deviation" class="w-full grid-parameter" min="-180" max="180" value="0"><span id="deviation-value">0°</span><button id="reset-deviation" class="text-xs bg-gray-200 px-1 rounded">R</button></div></div>
+                             <div class="flex flex-col space-y-1">
+                                <span class="font-semibold">Sens:</span>
+                                <div><label><input type="radio" name="lettering-direction" value="ascending" class="grid-parameter" checked> Montant</label></div>
+                                <div><label><input type="radio" name="lettering-direction" value="descending" class="grid-parameter"> Descendant</label></div>
+                            </div>
+                             <div class="flex flex-col space-y-1">
+                                <span class="font-semibold">Réf:</span>
+                                <div><label><input type="radio" name="reference-point" value="center" class="grid-parameter" checked> Milieu</label></div>
+                                <div><label><input type="radio" name="reference-point" value="origin" class="grid-parameter"> Origine A1</label></div>
+                            </div>
+                            <div class="hidden">
+                                <input id="start-row" value="1"><input id="end-row" value="26"><input id="start-col" value="A"><input id="end-col" value="Z"><input id="label-size" value="1.2"><input id="icon-size" value="1.5">
                             </div>
                         </div>
-                        <div class="card bg-white shadow-md rounded-lg p-4 md:p-6 dark:bg-gray-800 dark:border dark:border-gray-700 flex flex-col justify-between">
-                            <h3 class="text-lg font-semibold mb-3 text-content text-center">5. Générer le carroyage (CADO)</h3>
-                            <div class="space-y-4">
-                                <div>
-                                    <h4 class="font-medium text-content text-center mb-2">Format du fichier :</h4>
-                                    <div class="flex flex-wrap gap-2 justify-center">
-                                        <label class="inline-flex items-center"><input type="radio" name="file-format" value="KML" class="custom-radio"><span class="px-3 py-1 border border-default rounded cursor-pointer text-sm button-outline w-24 text-center">KML</span></label>
-                                        <label class="inline-flex items-center"><input type="radio" name="file-format" value="KMZ" class="custom-radio" checked><span class="px-3 py-1 border border-default rounded cursor-pointer text-sm button-outline w-24 text-center">KMZ</span></label>
-                                        <label class="inline-flex items-center"><input type="radio" name="file-format" value="GeoJSON" class="custom-radio"><span class="px-3 py-1 border border-default rounded cursor-pointer text-sm button-outline w-24 text-center">GeoJSON</span></label>
-                                        <label class="inline-flex items-center"><input type="radio" name="file-format" value="GPX" class="custom-radio"><span class="px-3 py-1 border border-default rounded cursor-pointer text-sm button-outline w-24 text-center">GPX</span></label>
-                                    </div>
-                                </div>
-                                <div>
-                                    <h4 class="font-medium text-content text-center mb-2">Contenu :</h4>
-                                    <div class="flex flex-wrap gap-2 justify-center">
-                                        <label class="inline-flex items-center"><input type="radio" name="content-type" value="grid-only" class="custom-radio"><span class="px-3 py-1 border border-default rounded cursor-pointer text-sm button-outline w-28 text-center">Grille seule</span></label>
-                                        <label class="inline-flex items-center"><input type="radio" name="content-type" value="points-only" class="custom-radio"><span class="px-3 py-1 border border-default rounded cursor-pointer text-sm button-outline w-28 text-center">Points seuls</span></label>
-                                        <label class="inline-flex items-center"><input type="radio" name="content-type" value="grid-points" class="custom-radio" checked><span class="px-3 py-1 border border-default rounded cursor-pointer text-sm button-outline w-28 text-center">Grille + Points</span></label>
-                                    </div>
-                                </div>
-                            </div>
-                             <div class="flex justify-center mt-4">
-                                <button id="generate-button" class="btn-main btn-grid w-full sm:w-auto">Générer Carroyage</button>
-                            </div>
+                    </details>
+                </div>
+
+                <div class="card bg-blue-50 dark:bg-gray-800 border-blue-200 dark:border-blue-900">
+                    <label class="block text-xs font-semibold text-blue-600 dark:text-blue-400 uppercase mb-2">Générer</label>
+                    <div class="space-y-2">
+                        <select id="map-tile-provider" class="w-full border rounded text-sm px-2 py-1 dark:bg-gray-700 dark:text-white"></select>
+                        <div class="flex gap-2 text-sm justify-center">
+                            <label><input type="radio" name="image-format-cado" value="png" checked> PNG</label>
+                            <label><input type="radio" name="image-format-cado" value="jpeg"> JPEG</label>
                         </div>
+                        <div id="cado-jpeg-quality-container" class="jpeg-quality-slider hidden"><input type="range" id="cado-jpeg-quality" min="70" max="100" value="92" class="w-full"></div>
+                        <button id="generate-image-button" class="btn-main btn-image">Image (PNG/JPG)</button>
                     </div>
                 </div>
+
+                <div class="card bg-green-50 dark:bg-gray-800 border-green-200 dark:border-green-900">
+                    <label class="block text-xs font-semibold text-green-600 dark:text-green-400 uppercase mb-2">Fichier</label>
+                    <div class="flex justify-center gap-2 text-xs mb-2">
+                        <label><input type="radio" name="file-format" value="KMZ" checked> KMZ</label>
+                        <label><input type="radio" name="file-format" value="KML"> KML</label>
+                        <label><input type="radio" name="file-format" value="GPX"> GPX</label>
+                    </div>
+                    <div class="flex justify-center gap-2 text-xs mb-2">
+                        <label><input type="radio" name="content-type" value="grid-points" checked> Tout</label>
+                        <label><input type="radio" name="content-type" value="grid-only"> Grille</label>
+                    </div>
+                    <button id="generate-button" class="btn-main btn-grid">Fichier (KMZ/GPX)</button>
+                </div>
             </div>
+
 
             <!-- MODE 2 : ZONE DOWNLOADER -->
-            <div id="zone-downloader-mode-container" class="hidden space-y-6">
-                <!-- Tuile 1 : Carte -->
-                <div class="card bg-white shadow-md rounded-lg p-4 md:p-6 dark:bg-gray-800 dark:border dark:border-gray-700">
-                    <section>
-                        <h3 class="text-lg font-semibold mb-3 text-content">1. Définir une zone à exporter</h3>
-                        <div class="address-search-container">
-                            <input type="text" id="zone-address-search-input" class="address-search-input input-field px-3 py-2 border rounded shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white text-base" placeholder="Rechercher une adresse pour centrer la carte..." autocomplete="off">
-                            <ul id="zone-suggestions" class="hidden"></ul>
-                        </div>
-                        <p class="text-sm text-secondary mb-2">Utilisez les outils sur la gauche de la carte pour dessiner votre zone rectangulaire, puis zoomez au niveau désiré.</p>
-                        <div id="zone-interactive-map" class="interactive-map-container"></div>
-                    </section>
+            <div id="zone-downloader-mode-container" class="space-y-4 hidden">
+                <div class="text-xs text-gray-500 uppercase font-bold tracking-wider mb-2">Mode Export de Zone</div>
+
+                <div class="card">
+                    <label class="block text-xs font-semibold text-gray-500 uppercase mb-1">Centrer la carte</label>
+                    <div class="address-search-container mb-0">
+                        <input type="text" id="zone-address-search-input" class="input-field px-2 py-1 border rounded text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white" placeholder="Rechercher..." autocomplete="off">
+                        <ul id="zone-suggestions" class="hidden"></ul>
+                    </div>
+                    <div class="text-xs text-gray-500 mt-1">Utilisez l'outil "Carré" en haut à droite pour définir la zone.</div>
                 </div>
 
-                <!-- Tuile 2 : Informations -->
-                <div class="card bg-white shadow-md rounded-lg p-4 md:p-6 dark:bg-gray-800 dark:border dark:border-gray-700">
-                    <section>
-                        <h3 class="text-lg font-semibold mb-3 text-content">2. Informations et options</h3>
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div class="flex flex-col space-y-1">
-                                <label for="zone-title" class="text-sm md:text-base text-content">Titre du carroyage / de l'image :</label>
-                                <input type="text" id="zone-title" class="input-field px-3 py-2 border rounded shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white text-base" value="Export de carte">
-                                <label for="zone-kmz-input" class="text-sm md:text-base text-content mt-3">Importer un KML/KMZ (optionnel) :</label>
-                                <input type="file" id="zone-kmz-input" accept=".kml,.kmz" class="block w-full text-sm text-gray-900 border border-gray-300 rounded-lg cursor-pointer bg-gray-50 dark:text-gray-400 focus:outline-none dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400">
-                            </div>
-                            <div class="flex flex-col space-y-1 bg-gray-100 dark:bg-gray-700 p-3 rounded-lg">
-                                <h4 class="text-sm font-semibold text-content">Informations de la vue actuelle :</h4>
-                                <p class="text-sm text-secondary">Fond de carte : <span id="zone-info-layer" class="font-medium text-content">N/A</span></p>
-                                <p class="text-sm text-secondary">Niveau de zoom : <span id="zone-info-zoom" class="font-medium text-content">N/A</span> - <i>Rendu 1:25000 ≈ Zoom 16</i></p>
-                                <p class="text-sm text-secondary">Tuiles à télécharger : <span id="zone-info-tiles" class="font-medium text-content">N/A</span></p>
-                                <p id="zone-tile-warning" class="text-red-600 font-semibold text-xs hidden">Nombre de tuiles > 2000. Réduisez la zone ou le zoom.</p>
-                                <p id="zone-tile-warning-low" class="text-yellow-500 font-semibold text-xs hidden">Attention qualité d'image trop faible</p>
-                            </div>
-                        </div>
-                        <input type="hidden" id="zone-nw-coords">
-                        <input type="hidden" id="zone-se-coords">
-                    </section>
+                <div class="card space-y-1 text-sm">
+                    <label class="block text-xs font-semibold text-gray-500 uppercase">Infos Zone</label>
+                    <div class="flex justify-between"><span>Zoom:</span> <span id="zone-info-zoom" class="font-bold">N/A</span></div>
+                    <div class="flex justify-between"><span>Tuiles:</span> <span id="zone-info-tiles">N/A</span></div>
+                    <p id="zone-tile-warning" class="text-red-600 font-bold text-xs hidden text-center mt-1">Zone trop grande (>2000 tuiles)</p>
+                    <p id="zone-tile-warning-low" class="text-yellow-600 font-bold text-xs hidden text-center mt-1">Qualité faible</p>
+                    <input type="hidden" id="zone-nw-coords">
+                    <input type="hidden" id="zone-se-coords">
                 </div>
 
-                <!-- Tuile 3 : Points d'intérêt (NOUVEAU - Dynamique) -->
-                <div class="card bg-white shadow-md rounded-lg p-4 md:p-6 dark:bg-gray-800 dark:border dark:border-gray-700">
-                    <section>
-                        <h3 class="text-lg font-semibold mb-3 text-content">3. Points d'intérêt (Optionnel)</h3>
-                        <p class="text-sm text-secondary mb-4">Ajoutez des symboles sur la carte.</p>
-                        
-                        <div class="flex flex-wrap gap-4 items-end mb-4">
-                            <div class="flex flex-col space-y-1">
-                                <label for="poi-type-selector" class="text-sm text-content">Type d'icône :</label>
-                                <!-- Le contenu sera généré par settingsManager.js -->
-                                <select id="poi-type-selector" class="input-field px-2 py-1 border rounded shadow-sm text-sm text-gray-900 dark:bg-gray-600 dark:border-gray-500 dark:text-white">
-                                </select>
-                            </div>
-                            <div class="flex flex-col space-y-1">
-                                <label for="poi-name-input" class="text-sm text-content">Nom du point :</label>
-                                <input type="text" id="poi-name-input" class="input-field px-2 py-1 border rounded shadow-sm text-sm text-gray-900 dark:bg-gray-600 dark:border-gray-500 dark:text-white" placeholder="Nom (facultatif)">
-                            </div>
-                            <button id="add-poi-btn" class="px-4 py-1 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded shadow transition-colors h-[30px]">
-                                + Ajouter un point
-                            </button>
-                        </div>
-
-                        <div id="poi-list-container" class="border rounded p-2 max-h-40 overflow-y-auto hidden dark:border-gray-600">
-                            <table class="w-full text-sm text-left text-gray-500 dark:text-gray-400">
-                                <thead class="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
-                                    <tr>
-                                        <th scope="col" class="px-2 py-1">Type</th>
-                                        <th scope="col" class="px-2 py-1">Nom</th>
-                                        <th scope="col" class="px-2 py-1">Coord</th>
-                                        <th scope="col" class="px-2 py-1 text-right">Action</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="poi-table-body"></tbody>
-                            </table>
-                        </div>
-                    </section>
+                <div class="card space-y-2">
+                    <label class="block text-xs font-semibold text-gray-500 uppercase">Points d'intérêt</label>
+                    <select id="poi-type-selector" class="w-full border rounded text-sm px-2 py-1 dark:bg-gray-700 dark:text-white"></select>
+                    <input type="text" id="poi-name-input" class="w-full border rounded text-sm px-2 py-1 dark:bg-gray-700 dark:text-white" placeholder="Nom du point">
+                    <button id="add-poi-btn" class="w-full bg-blue-600 hover:bg-blue-700 text-white text-sm py-1 rounded transition-colors">+ Ajouter sur carte</button>
+                    <div id="poi-list-container" class="border rounded p-1 max-h-32 overflow-y-auto hidden mt-2 bg-gray-50 dark:bg-gray-800 dark:border-gray-600">
+                        <table class="w-full text-xs text-left"><tbody id="poi-table-body"></tbody></table>
+                    </div>
                 </div>
 
-                <!-- Tuile 4 : Style (Nouvelle palette complète) -->
-                <div class="card bg-white shadow-md rounded-lg p-4 md:p-6 dark:bg-gray-800 dark:border dark:border-gray-700">
-                    <section>
-                        <h3 class="text-lg font-semibold mb-3 text-content">4. Configuration du Style (Commun)</h3>
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <div class="flex flex-col space-y-1">
-                                <label class="text-sm md:text-base text-content">Couleur globale des lignes :</label>
-                                <div class="flex flex-wrap gap-2" id="utm-color-options">
-                                    <div class="color-option selected" data-color="#FFFFFF" data-name="white" style="background-color: #FFFFFF; border: 1px solid #ccc;"></div>
-                                    <div class="color-option" data-color="#000000" data-name="black" style="background-color: #000000;"></div>
-                                    <div class="color-option" data-color="#FF0000" data-name="red" style="background-color: #FF0000;"></div>
-                                    <div class="color-option" data-color="#FFA500" data-name="orange" style="background-color: #FFA500;"></div>
-                                    <div class="color-option" data-color="#FFFF00" data-name="yellow" style="background-color: #FFFF00;"></div>
-                                    <div class="color-option" data-color="#008000" data-name="green" style="background-color: #008000;"></div>
-                                    <div class="color-option" data-color="#0000FF" data-name="blue" style="background-color: #0000FF;"></div>
-                                    <div class="color-option" data-color="#800080" data-name="violet" style="background-color: #800080;"></div>
-                                    <div class="color-option" data-color="#A52A2A" data-name="brown" style="background-color: #A52A2A;"></div>
-                                    <div class="color-option" data-color="#808080" data-name="gray" style="background-color: #808080;"></div>
-                                </div>
-                                <input type="hidden" id="utm-grid-color" value="#FFFFFF">
-                                <input type="hidden" id="utm-grid-color-name" value="white">
-                            </div>
-                            <div class="flex flex-col space-y-1">
-                                <label for="utm-transparency" class="text-sm md:text-base text-content">Transparence :</label>
-                                <div class="flex space-x-2 items-center">
-                                    <input type="range" id="utm-transparency" class="w-full" min="0" max="100" value="30">
-                                    <span id="utm-transparency-value" class="text-sm text-content">30%</span>
-                                </div>
-                            </div>
-                        </div>
-                    </section>
+                <div class="card space-y-2">
+                    <label class="block text-xs font-semibold text-gray-500 uppercase">Style</label>
+                    <div class="flex flex-wrap gap-1" id="utm-color-options">
+                        <!-- Initialized by JS -->
+                        <div class="color-option selected" data-color="#FFFFFF" data-name="white" style="background-color: #FFFFFF; border: 1px solid #ccc;"></div>
+                        <div class="color-option" data-color="#000000" data-name="black" style="background-color: #000000;"></div>
+                        <div class="color-option" data-color="#FF0000" data-name="red" style="background-color: #FF0000;"></div>
+                        <div class="color-option" data-color="#FFA500" data-name="orange" style="background-color: #FFA500;"></div>
+                        <div class="color-option" data-color="#FFFF00" data-name="yellow" style="background-color: #FFFF00;"></div>
+                        <div class="color-option" data-color="#008000" data-name="green" style="background-color: #008000;"></div>
+                        <div class="color-option" data-color="#0000FF" data-name="blue" style="background-color: #0000FF;"></div>
+                        <div class="color-option" data-color="#800080" data-name="violet" style="background-color: #800080;"></div>
+                        <div class="color-option" data-color="#A52A2A" data-name="brown" style="background-color: #A52A2A;"></div>
+                        <div class="color-option" data-color="#808080" data-name="gray" style="background-color: #808080;"></div>
+                    </div>
+                    <input type="hidden" id="utm-grid-color" value="#FFFFFF">
+                    <input type="hidden" id="utm-grid-color-name" value="white">
+                    <div class="flex items-center justify-between">
+                        <span class="text-sm text-gray-600 dark:text-gray-300">Transparence</span>
+                        <input type="range" id="utm-transparency" class="w-24" min="0" max="100" value="30">
+                    </div>
+                </div>
+
+                <div class="card bg-blue-50 dark:bg-gray-800 border-blue-200 dark:border-blue-900">
+                    <label class="block text-xs font-semibold text-blue-600 dark:text-blue-400 uppercase mb-2">Image</label>
+                    <input type="text" id="zone-title" class="w-full border rounded px-2 py-1 text-sm mb-2 dark:bg-gray-700 dark:text-white" value="Export de carte">
+                    <div class="flex flex-col gap-2 mb-2">
+                         <label class="inline-flex items-center text-sm cursor-pointer"><input type="checkbox" id="overlay-utm-grid-checkbox" class="mr-2"> Apposer Grille UTM</label>
+                         <label class="inline-flex items-center text-sm cursor-pointer"><input type="checkbox" id="overlay-cado-grid-checkbox" class="mr-2"> Apposer CADO</label>
+                    </div>
+                    <div id="cado-overlay-options" class="hidden pl-2 border-l-2 border-blue-300 mb-2 text-xs space-y-2">
+                        <div class="flex items-center gap-2"><span>Échelle:</span><input type="number" id="cado-overlay-scale" class="w-12 border rounded px-1" value="50"> m</div>
+                        <div class="flex items-center gap-2"><span>Trait:</span><select id="cado-overlay-thickness" class="border rounded"><option value="1">Fin</option><option value="2">Moyen</option><option value="3">Gros</option></select></div>
+                        <div class="flex gap-2"><label><input type="radio" name="cado-overlay-direction" value="ascending" checked> Montant</label><label><input type="radio" name="cado-overlay-direction" value="descending"> Descendant</label></div>
+                    </div>
+                    <div class="flex gap-4 justify-center text-sm mb-2">
+                        <label><input type="radio" name="image-format-zone" value="png" checked> PNG</label>
+                        <label><input type="radio" name="image-format-zone" value="jpeg"> JPEG</label>
+                    </div>
+                    <div id="zone-jpeg-quality-container" class="hidden"><input type="range" id="zone-jpeg-quality" min="70" max="100" value="92" class="w-full"></div>
+                    <button id="generate-zone-png-button" class="btn-main btn-image">Télécharger</button>
+                </div>
+
+                <div class="card bg-green-50 dark:bg-gray-800 border-green-200 dark:border-green-900 grid grid-cols-2 gap-2">
+                    <div class="flex flex-col">
+                        <input type="text" id="utm-grid-name" class="border rounded px-1 text-xs mb-1 dark:bg-gray-700 dark:text-white" value="Grille_UTM">
+                        <button id="generate-utm-button" class="bg-green-600 text-white rounded py-1 text-xs hover:bg-green-700">KMZ (UTM)</button>
+                    </div>
+                    <div class="flex flex-col">
+                        <div class="text-xs text-center text-gray-500 mb-1">Selon options image</div>
+                        <button id="generate-zone-cado-kmz-button" class="bg-green-600 text-white rounded py-1 text-xs hover:bg-green-700">KMZ (CADO)</button>
+                    </div>
                 </div>
                 
-                <!-- Grille d'actions -->
-                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
-                    <!-- Action 1 : UTM KMZ -->
-                    <div class="card bg-white shadow-md rounded-lg p-4 md:p-6 dark:bg-gray-800 dark:border dark:border-gray-700 flex flex-col justify-between">
-                        <h3 class="text-lg font-semibold mb-3 text-content text-center">Export Grille UTM</h3>
-                        <div class="space-y-4 flex-grow flex flex-col justify-center">
-                            <div class="flex flex-col space-y-1">
-                                <label for="utm-grid-name" class="text-sm md:text-base text-content">Nom du fichier :</label>
-                                <input type="text" id="utm-grid-name" class="input-field px-3 py-2 border rounded shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white text-base" value="Grille_UTM_1km">
-                            </div>
-                            <p class="text-center text-xs text-secondary">Génère un fichier KMZ avec la grille UTM 1km.</p>
-                        </div>
-                        <div class="flex justify-center mt-4">
-                            <button id="generate-utm-button" class="btn-main btn-grid w-full sm:w-auto">Générer KMZ (UTM)</button>
-                        </div>
-                    </div>
-                    
-                    <!-- Action 2 : CADO KMZ -->
-                    <div class="card bg-white shadow-md rounded-lg p-4 md:p-6 dark:bg-gray-800 dark:border dark:border-gray-700 flex flex-col justify-between">
-                        <h3 class="text-lg font-semibold mb-3 text-content text-center">Export Carroyage CADO</h3>
-                        <div class="space-y-4 flex-grow flex flex-col justify-center">
-                            <p class="text-center text-sm text-secondary mb-4">Utilise les options définies dans la colonne "Image" et le "Style Commun".</p>
-                        </div>
-                        <div class="flex justify-center mt-4">
-                            <button id="generate-zone-cado-kmz-button" class="btn-main btn-grid w-full sm:w-auto">Générer KMZ (CADO)</button>
-                        </div>
-                    </div>
-
-                    <!-- Action 3 : Image -->
-                    <div class="card bg-white shadow-md rounded-lg p-4 md:p-6 dark:bg-gray-800 dark:border dark:border-gray-700 flex flex-col justify-between">
-                        <h3 class="text-lg font-semibold mb-3 text-content text-center">Télécharger l'image</h3>
-                         <div class="flex flex-col items-center justify-center gap-4 mt-4">
-                            <div class="flex items-center gap-4">
-                                <label class="inline-flex items-center"><input type="radio" name="image-format-zone" value="png" class="custom-radio" checked><span class="ml-2 text-content">PNG</span></label>
-                                <label class="inline-flex items-center"><input type="radio" name="image-format-zone" value="jpeg" class="custom-radio"><span class="ml-2 text-content">JPEG</span></label>
-                            </div>
-                            <div id="zone-jpeg-quality-container" class="w-full max-w-xs text-center jpeg-quality-slider">
-                                <label for="zone-jpeg-quality" class="text-sm text-content">Qualité JPEG : <span id="zone-jpeg-quality-value">92%</span></label>
-                                <input type="range" id="zone-jpeg-quality" class="w-full" min="70" max="100" value="92">
-                            </div>
-                            <div class="mt-4 space-y-3 w-full">
-								<label class="inline-flex items-center cursor-pointer w-full">
-								  <input type="checkbox" id="overlay-utm-grid-checkbox" class="sr-only peer">
-								  <div class="relative w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
-								  <span class="ms-3 text-sm font-medium text-gray-900 dark:text-gray-300">Apposer le carroyage UTM</span>
-								</label>
-                                <label class="inline-flex items-center cursor-pointer w-full">
-                                  <input type="checkbox" id="overlay-cado-grid-checkbox" class="sr-only peer">
-                                  <div class="relative w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
-                                  <span class="ms-3 text-sm font-medium text-gray-900 dark:text-gray-300">Apposer le carroyage CADO</span>
-                                </label>
-                                <div id="cado-overlay-options" class="hidden pl-8 space-y-3 pt-2">
-                                    <div class="flex flex-col space-y-1">
-                                        <label for="cado-overlay-scale" class="text-sm text-content">Échelle (m) :</label>
-                                        <input type="number" id="cado-overlay-scale" class="input-field px-2 py-1 border rounded shadow-sm text-sm text-gray-900 dark:bg-gray-600 dark:border-gray-500 dark:text-white" value="50">
-                                    </div>
-                                    <div class="flex flex-col space-y-1">
-                                        <label for="cado-overlay-thickness" class="text-sm text-content">Épaisseur du trait :</label>
-                                        <select id="cado-overlay-thickness" class="input-field px-2 py-1 border rounded shadow-sm text-sm text-gray-900 dark:bg-gray-600 dark:border-gray-500 dark:text-white">
-                                            <option value="1" selected>Fine (1px)</option>
-                                            <option value="2">Moyenne (2px)</option>
-                                            <option value="3">Épaisse (3px)</option>
-                                        </select>
-                                    </div>
-                                    <div class="flex flex-col space-y-1">
-                                        <label class="text-sm text-content">Orientation :</label>
-                                        <div class="flex gap-2">
-                                             <label class="inline-flex items-center"><input type="radio" name="cado-overlay-direction" value="ascending" class="custom-radio" checked><span class="px-2 py-1 border border-default rounded cursor-pointer text-xs">Ascendante</span></label>
-                                             <label class="inline-flex items-center"><input type="radio" name="cado-overlay-direction" value="descending" class="custom-radio"><span class="px-2 py-1 border border-default rounded cursor-pointer text-xs">Descendante</span></label>
-                                        </div>
-                                    </div>
-                                </div>
-							</div>
-                        </div>
-                        <div class="flex justify-center mt-4">
-                            <button id="generate-zone-png-button" class="btn-main btn-image w-full sm:w-auto">Télécharger l'image</button>
-                        </div>
-                    </div>
-                 </div>
+                <div class="card space-y-1">
+                    <label class="block text-xs font-semibold text-gray-500 uppercase">Import KML</label>
+                     <input type="file" id="zone-kmz-input" accept=".kml,.kmz" class="block w-full text-xs text-gray-500">
+                </div>
             </div>
-
-            <div id="loading-indicator" class="hidden mt-4 flex flex-col items-center">
-                <div class="loading-spinner mb-2"></div>
-                <p id="loading-message" class="text-sm text-secondary">Génération en cours...</p>
-            </div>
-            <div id="error-message" class="hidden mt-4 p-3 bg-red-100 text-red-700 rounded-lg text-center dark:bg-red-900 dark:text-red-300"></div>
-        </main>
-        <footer class="mt-8 text-center text-xs text-gray-500 dark:text-gray-400">
-            <p>Application développée par Romain JMT.</p>
-            <p>Contact : <a href="mailto:tmj.niamor@gmail.com" class="hover:underline">tmj.niamor@gmail.com</a></p>
-        </footer>
-    </div>
-    
-    <div id="toast-update" class="hidden fixed top-5 right-5 flex items-center w-full max-w-xs p-4 space-x-4 text-gray-500 bg-white divide-x divide-gray-200 rounded-lg shadow-lg dark:text-gray-400 dark:divide-gray-700 space-x dark:bg-gray-800 z-50" role="alert">
-        <div class="text-sm font-normal">
-            <div class="text-sm font-semibold text-gray-900 dark:text-white">Mise à jour effectuée !</div>
-            <div class="text-sm font-normal">Version <span id="toast-version-number" class="font-semibold"></span> installée.</div> 
         </div>
-        <button type="button" class="ms-auto -mx-1.5 -my-1.5 bg-white text-gray-400 hover:text-gray-900 rounded-lg focus:ring-2 focus:ring-gray-300 p-1.5 hover:bg-gray-100 inline-flex items-center justify-center h-8 w-8 dark:text-gray-500 dark:hover:text-white dark:bg-gray-800 dark:hover:bg-gray-700" data-dismiss-target="#toast-update" aria-label="Close">
-            <span class="sr-only">Close</span>
-            <svg class="w-3 h-3" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 14 14"><path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m1 1 6 6m0 0 6 6M7 7l6-6M7 7l-6 6"/></svg>
-        </button>
+    </aside>
+
+    <div id="loading-indicator" class="hidden flex items-center gap-2 shadow-lg"><div class="loading-spinner"></div><span id="loading-message" class="text-sm font-medium text-gray-700 dark:text-gray-300">Traitement...</span></div>
+    <div id="error-message" class="hidden fixed bottom-4 left-1/2 transform -translate-x-1/2 bg-red-600 text-white px-4 py-2 rounded shadow-lg z-[3000]"></div>
+
+    <div id="settings-modal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full" style="z-index: 9999;">
+        <div class="relative top-20 mx-auto p-5 border w-11/12 md:w-3/4 lg:w-2/3 shadow-lg rounded-md bg-white dark:bg-gray-800 dark:border-gray-700">
+            <div class="flex justify-between items-center mb-4"><h3 class="text-xl font-bold text-gray-900 dark:text-white">Gestion des Icônes POI</h3><button id="close-settings-btn" class="text-gray-500 hover:text-gray-700 text-2xl">&times;</button></div>
+            <div id="drop-zone" class="border-2 border-dashed border-blue-400 rounded-lg p-6 text-center mb-4 bg-blue-50 dark:bg-gray-700 dark:border-blue-500"><p class="text-gray-600 dark:text-gray-300">Glissez une image PNG ici.</p></div>
+            <div class="overflow-x-auto max-h-60 mb-4"><table class="w-full text-sm text-left text-gray-500 dark:text-gray-400"><tbody id="settings-icons-list"></tbody></table></div>
+            <div class="flex justify-between items-center border-t pt-4 dark:border-gray-600">
+                <div class="flex gap-2"><button id="export-icons-btn" class="px-2 py-1 bg-gray-500 text-white rounded text-xs">⬇️ Export</button><button id="import-icons-trigger" class="px-2 py-1 bg-gray-500 text-white rounded text-xs">⬆️ Import</button><input type="file" id="import-icons-input" accept=".json" class="hidden"></div>
+                <div class="flex gap-2"><button id="reset-settings-btn" class="px-3 py-1 bg-red-600 text-white rounded text-xs">Reset</button><button id="save-settings-btn" class="px-3 py-1 bg-green-600 text-white rounded text-sm font-bold">OK</button></div>
+            </div>
+        </div>
     </div>
-    
+
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            let cadoMap = null;
-            let zoneMap = null;
-            let clickMarker = null;
-            let debounceTimeout = null;
-            let drawnItems = null;
+            let map, clickMarker, drawnItems;
             const TILE_LIMIT = 2000;
 
             function initializeApp() {
                 setupTheme();
-                initializeCadoMap();
-                initializeZoneMap();
+                initializeMap();
                 populateMapSelectorForPNG();
                 initUI();
                 setupEventListeners();
-                displayAppVersion();
-                setDefaultGridName();
-                registerAndHandleUpdates();
+                
+                document.getElementById('sidebar-toggle').onclick = () => {
+                    document.getElementById('sidebar').classList.toggle('collapsed');
+                    document.body.classList.toggle('sidebar-open');
+                    setTimeout(() => map.invalidateSize(), 350);
+                };
             }
 
             function setupTheme() {
-                if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+                 if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
                     document.documentElement.classList.add('dark');
-                } else {
-                    document.documentElement.classList.remove('dark');
                 }
             }
 
-            function createBaseLayers() {
-				const baseMaps = {};
+            function initializeMap() {
+                map = L.map('main-map', { zoomControl: false }).setView([46.2276, 2.2137], 6);
+                L.control.zoom({ position: 'topright' }).addTo(map);
+
+                const baseMaps = {};
 				MAP_LAYERS.forEach(layerConfig => {
 					let leafletLayer;
 					if (layerConfig.layers.length > 1) {
-						const layerGroupLayers = [];
-						layerConfig.layers.forEach(layerData => {
-							const tileLayer = L.tileLayer(layerData.url, {
-								attribution: layerConfig.name,
-								maxZoom: layerConfig.maxZoom || 20
-							});
-							layerGroupLayers.push(tileLayer);
-						});
-						leafletLayer = L.layerGroup(layerGroupLayers);
-					
+						const group = [];
+						layerConfig.layers.forEach(d => group.push(L.tileLayer(d.url, { maxZoom: 20 })));
+						leafletLayer = L.layerGroup(group);
 					} else {
-						const singleLayerConfig = layerConfig.layers[0];
-						if (singleLayerConfig.type === 'quadkey') {
-							const bingKey = 'Ap_a-1hs_i9aFp32f3D-g1Q_3aT2gq-n_X2gYm-s_Y3sZ_X5c_V3r_A3sZ_X5c';
-							leafletLayer = L.bingLayer(bingKey, {
-								type: 'AerialWithLabels'
-							});
-
-						} else {
-							leafletLayer = L.tileLayer(singleLayerConfig.url, {
-								attribution: layerConfig.name,
-								maxZoom: layerConfig.maxZoom || 20
-							});
-						}
+                        const l = layerConfig.layers[0];
+						leafletLayer = l.type === 'quadkey' 
+                            ? L.bingLayer('Ap_a-1hs_i9aFp32f3D-g1Q_3aT2gq-n_X2gYm-s_Y3sZ_X5c_V3r_A3sZ_X5c', { type: 'AerialWithLabels' }) 
+                            : L.tileLayer(l.url, { maxZoom: 20 });
 					}
-					if (leafletLayer) {
-						baseMaps[layerConfig.name] = leafletLayer;
-					}
+					if (leafletLayer) baseMaps[layerConfig.name] = leafletLayer;
 				});
-				return baseMaps;
-			}
-
-            function initializeCadoMap() {
-                cadoMap = L.map('cado-interactive-map').setView([46.2276, 2.2137], 5);
-                const baseMaps = createBaseLayers();
-                const defaultLayer = baseMaps["Google Hybrid"] || baseMaps[Object.keys(baseMaps)[0]];
-                if(defaultLayer) defaultLayer.addTo(cadoMap);
-                L.control.layers(baseMaps).addTo(cadoMap);
-                cadoMap.on('click', handleCadoMapClick);
-                cadoMap.on('baselayerchange', function(e) {
-                    const selector = document.getElementById('map-tile-provider');
-                    const correspondingMapLayer = MAP_LAYERS.find(layer => layer.name === e.name);
-                    if (correspondingMapLayer) selector.value = correspondingMapLayer.id;
-                });
-            }
-
-            function initializeZoneMap() {
-                zoneMap = L.map('zone-interactive-map').setView([46.2276, 2.2137], 5);
-                const baseMaps = createBaseLayers();
-                const defaultLayer = baseMaps["Google Hybrid"] || baseMaps[Object.keys(baseMaps)[0]];
-                if(defaultLayer) defaultLayer.addTo(zoneMap);
-                L.control.layers(baseMaps).addTo(zoneMap);
+                
+                const defaultLayer = baseMaps["Google Hybrid"] || Object.values(baseMaps)[0];
+                if(defaultLayer) defaultLayer.addTo(map);
+                L.control.layers(baseMaps, null, { position: 'topright' }).addTo(map);
                 
                 drawnItems = new L.FeatureGroup();
-                zoneMap.addLayer(drawnItems);
-                
+                map.addLayer(drawnItems);
                 const drawControl = new L.Control.Draw({
                     draw: { rectangle: { shapeOptions: { color: '#14b8a6' } }, polyline: false, polygon: false, circle: false, marker: false, circlemarker: false },
-                    edit: { featureGroup: drawnItems }
+                    edit: { featureGroup: drawnItems },
+                    position: 'topright'
                 });
-                zoneMap.addControl(drawControl);
-                
-                zoneMap.on(L.Draw.Event.CREATED, (e) => {
+                map.addControl(drawControl);
+
+                map.on('click', (e) => {
+                    if (typeof window.handleMapClickForPOI === 'function' && document.body.classList.contains('mode-zone')) {
+                         window.handleMapClickForPOI(e);
+                         if(window.isAddingPoint) return; 
+                    }
+                    const lat = e.latlng.lat.toFixed(6);
+                    const lon = e.latlng.lng.toFixed(6);
+                    document.getElementById('decimal-coords').value = `${lat}, ${lon}`;
+                    if (!clickMarker) clickMarker = L.marker(e.latlng).addTo(map);
+                    else clickMarker.setLatLng(e.latlng);
+                });
+
+                map.on(L.Draw.Event.CREATED, (e) => {
                     drawnItems.clearLayers();
                     drawnItems.addLayer(e.layer);
-                    updateZoneCoordsFromBounds(e.layer.getBounds());
+                    const b = e.layer.getBounds();
+                    document.getElementById('zone-nw-coords').value = `${b.getNorth().toFixed(6)}, ${b.getWest().toFixed(6)}`;
+                    document.getElementById('zone-se-coords').value = `${b.getSouth().toFixed(6)}, ${b.getEast().toFixed(6)}`;
+                    if(window.updateZoneTileCount) window.updateZoneTileCount();
+                    if(window.updateCadoOverlayDefaults) window.updateCadoOverlayDefaults();
                 });
-                zoneMap.on(L.Draw.Event.EDITED, (e) => e.layers.eachLayer((layer) => updateZoneCoordsFromBounds(layer.getBounds())));
-                zoneMap.on(L.Draw.Event.DELETED, () => {
+                map.on(L.Draw.Event.DELETED, () => {
                     document.getElementById('zone-nw-coords').value = '';
                     document.getElementById('zone-se-coords').value = '';
-                    updateZoneTileCount();
+                    if(window.updateZoneTileCount) window.updateZoneTileCount();
                 });
-                zoneMap.on('zoomend', updateZoneInfo);
-                zoneMap.on('baselayerchange', updateZoneInfo);
-                
-                // Click handler for POI adding
-                zoneMap.on('click', (e) => {
-                    if (typeof handleMapClickForPOI === 'function') {
-                        handleMapClickForPOI(e);
-                    }
+                map.on('baselayerchange', (e) => {
+                    const selector = document.getElementById('map-tile-provider');
+                    const found = MAP_LAYERS.find(l => l.name === e.name);
+                    if (found) selector.value = found.id;
+                    if(window.updateZoneInfo) window.updateZoneInfo();
                 });
-                
-                // Hack pour rendre zoneMap accessible à zoneDownloader.js
-                window.zoneMap = zoneMap;
+                map.on('zoomend', () => { if(window.updateZoneInfo) window.updateZoneInfo(); });
 
-                setTimeout(() => { updateZoneInfo({name: "Google Hybrid"})}, 500);
+                window.mainMap = map;
+                window.cadoMap = map; 
+                window.zoneMap = map; 
                 setupZoneAddressSearch();
-            }
-            
-            function updateCadoOverlayDefaults() {
-                const nwCoordsStr = document.getElementById("zone-nw-coords").value;
-                const seCoordsStr = document.getElementById("zone-se-coords").value;
-
-                if (!nwCoordsStr || !seCoordsStr) return;
-                
-                const [nwLat, nwLon] = nwCoordsStr.split(',').map(c => parseFloat(c.trim()));
-                const [seLat, seLon] = seCoordsStr.split(',').map(c => parseFloat(c.trim()));
-
-                const widthMeters = haversineDistance({lat: nwLat, lon: nwLon}, {lat: nwLat, lon: seLon});
-                
-                if (widthMeters > 0) {
-                    const newScale = Math.round(widthMeters / 26);
-                    document.getElementById('cado-overlay-scale').value = newScale > 0 ? newScale : 1;
-                }
-            }
-
-            function updateZoneCoordsFromBounds(bounds) {
-                const nw = bounds.getNorthWest();
-                const se = bounds.getSouthEast();
-                document.getElementById('zone-nw-coords').value = `${nw.lat.toFixed(6)}, ${nw.lng.toFixed(6)}`;
-                document.getElementById('zone-se-coords').value = `${se.lat.toFixed(6)}, ${se.lng.toFixed(6)}`;
-                updateZoneTileCount();
-                updateCadoOverlayDefaults();
-            }
-            
-            function updateZoneInfo(e) {
-                document.getElementById('zone-info-zoom').textContent = zoneMap.getZoom();
-                let layerName = "N/A";
-                if (e && e.name) {
-                    layerName = e.name;
-                } else {
-                    zoneMap.eachLayer((layer) => { 
-                         if (layer.options && layer.options.attribution) {
-                            layerName = layer.options.attribution;
-                         }
-                    });
-                }
-                document.getElementById('zone-info-layer').textContent = layerName;
-                updateZoneTileCount();
-            }
-            
-            function updateZoneTileCount() {
-                const nwCoordsStr = document.getElementById("zone-nw-coords").value;
-                const seCoordsStr = document.getElementById("zone-se-coords").value;
-                const zoom = zoneMap.getZoom();
-                const tileInfoSpan = document.getElementById('zone-info-tiles');
-                const warningSpan = document.getElementById('zone-tile-warning');
-                const warningLowSpan = document.getElementById('zone-tile-warning-low');
-                const downloadBtn = document.getElementById('generate-zone-png-button');
-                const generateUtmBtn = document.getElementById('generate-utm-button');
-
-
-                if (!nwCoordsStr || !seCoordsStr) {
-                    tileInfoSpan.textContent = 'N/A';
-                    warningSpan.style.display = 'none';
-                    warningLowSpan.style.display = 'none';
-                    downloadBtn.disabled = true;
-                    generateUtmBtn.disabled = true;
-                    return;
-                }
-
-                const [north, west] = nwCoordsStr.split(',').map(c => parseFloat(c.trim()));
-                const [south, east] = seCoordsStr.split(',').map(c => parseFloat(c.trim()));
-                
-                const nwPixel = zdLatLonToWorldPixels(north, west, zoom);
-                const sePixel = zdLatLonToWorldPixels(south, east, zoom);
-
-                const nwTile = { x: Math.floor(nwPixel.x / 256), y: Math.floor(nwPixel.y / 256) };
-                const seTile = { x: Math.floor(sePixel.x / 256), y: Math.floor(sePixel.y / 256) };
-
-                const tileWidth = Math.abs(seTile.x - nwTile.x) + 1;
-                const tileHeight = Math.abs(seTile.y - nwTile.y) + 1;
-                const totalTiles = tileWidth * tileHeight;
-
-                tileInfoSpan.textContent = `${tileWidth} x ${tileHeight} (${totalTiles} au total)`;
-                
-                warningSpan.style.display = 'none';
-                warningLowSpan.style.display = 'none';
-                tileInfoSpan.classList.remove('text-red-500', 'text-yellow-500', 'font-bold');
-
-                if (totalTiles > TILE_LIMIT) {
-                    tileInfoSpan.classList.add('text-red-500', 'font-bold');
-                    warningSpan.style.display = 'block';
-                    downloadBtn.disabled = true;
-                    generateUtmBtn.disabled = true;
-                } else {
-                    downloadBtn.disabled = false;
-                    generateUtmBtn.disabled = false;
-                    if (totalTiles < 12) {
-                        tileInfoSpan.classList.add('text-yellow-500', 'font-bold');
-                        warningLowSpan.style.display = 'block';
-                    }
-                }
             }
 
             function setupZoneAddressSearch() {
-                const searchInput = document.getElementById('zone-address-search-input');
-                const suggestionsList = document.getElementById('zone-suggestions');
-                searchInput.addEventListener('input', () => {
-                    const query = searchInput.value.trim();
-                    if (query.length < 3) { suggestionsList.classList.add('hidden'); return; }
-                    clearTimeout(debounceTimeout);
-                    debounceTimeout = setTimeout(async () => {
-                        try {
-                            const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=5`);
-                            const results = await response.json();
-                            const suggestions = results.map(r => ({ label: r.display_name, lat: parseFloat(r.lat), lon: parseFloat(r.lon) }));
-                            suggestionsList.innerHTML = '';
-                            if (suggestions.length > 0) {
-                                suggestions.forEach(item => {
-                                    const li = document.createElement('li');
-                                    li.textContent = item.label;
-                                    li.addEventListener('click', () => {
-                                        searchInput.value = item.label;
-                                        suggestionsList.classList.add('hidden');
-                                        zoneMap.flyTo([item.lat, item.lon], 15);
-                                    });
-                                    suggestionsList.appendChild(li);
-                                });
-                                suggestionsList.classList.remove('hidden');
-                            }
-                        } catch (error) { console.error("Erreur avec l'API Nominatim:", error); }
-                    }, 300);
-                });
+                 const inp = document.getElementById('address-search-input'); 
+                 const inpZ = document.getElementById('zone-address-search-input'); 
+                 const list = document.getElementById('suggestions');
+                 const listZ = document.getElementById('zone-suggestions');
+                 
+                 const attachSearch = (input, ul) => {
+                     input.addEventListener('input', () => {
+                        if(input.value.length < 3) { ul.classList.add('hidden'); return; }
+                        fetch(`https://api-adresse.data.gouv.fr/search/?q=${encodeURIComponent(input.value)}&limit=5`)
+                        .then(r=>r.json()).then(d=>{
+                            ul.innerHTML='';
+                            d.features.forEach(f=>{
+                                const li=document.createElement('li');
+                                li.textContent=f.properties.label;
+                                li.onclick=()=>{
+                                    window.mainMap.flyTo([f.geometry.coordinates[1], f.geometry.coordinates[0]], 14);
+                                    ul.classList.add('hidden');
+                                    input.value=f.properties.label;
+                                };
+                                ul.appendChild(li);
+                            });
+                            ul.classList.remove('hidden');
+                        });
+                     });
+                 };
+                 attachSearch(inp, list);
+                 attachSearch(inpZ, listZ);
             }
 
-            function handleCadoMapClick(e) {
-                const lat = e.latlng.lat.toFixed(6);
-                const lon = e.latlng.lng.toFixed(6);
-                const decimalCoordsInput = document.getElementById('decimal-coords');
-                decimalCoordsInput.value = `${lat}, ${lon}`;
-                decimalCoordsInput.dispatchEvent(new Event('input'));
-                if (!clickMarker) {
-                    clickMarker = L.marker(e.latlng).addTo(cadoMap);
-                } else {
-                    clickMarker.setLatLng(e.latlng);
-                }
-            }
-
-            const searchInput = document.getElementById('address-search-input');
-            const suggestionsList = document.getElementById('suggestions');
-            searchInput.addEventListener('input', () => {
-                const query = searchInput.value.trim();
-                suggestionsList.innerHTML = '';
-                suggestionsList.classList.add('hidden');
-                if (query.length < 3) return;
-                clearTimeout(debounceTimeout);
-                debounceTimeout = setTimeout(() => { fetchSuggestions(query); }, 300);
-            });
-
-            async function fetchSuggestions(query) {
-                try {
-                    const response = await fetch(`https://api-adresse.data.gouv.fr/search/?q=${encodeURIComponent(query)}&limit=5`);
-                    const data = await response.json();
-                    if (data.features && data.features.length > 0) {
-                        displaySuggestions(data.features.map(f => ({ label: f.properties.label, lat: f.geometry.coordinates[1], lon: f.geometry.coordinates[0] })));
-                        return;
-                    }
-                } catch (error) { console.warn("API Adresse.data.gouv.fr non joignable, bascule sur OSM."); }
-                try {
-                    const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=5`);
-                    const results = await response.json();
-                    displaySuggestions(results.map(r => ({ label: r.display_name, lat: parseFloat(r.lat), lon: parseFloat(r.lon) })));
-                } catch (error) { console.error("Erreur avec l'API Nominatim:", error); }
-            }
-
-            function displaySuggestions(items) {
-                suggestionsList.innerHTML = '';
-                if (items.length === 0) { suggestionsList.classList.add('hidden'); return; }
-                items.forEach(item => {
-                    const li = document.createElement('li');
-                    li.textContent = item.label;
-                    li.addEventListener('click', () => {
-                        searchInput.value = item.label;
-                        suggestionsList.classList.add('hidden');
-                        const position = L.latLng(item.lat, item.lon);
-                        cadoMap.flyTo(position, 17);
-                        handleCadoMapClick({ latlng: position });
-                    });
-                    suggestionsList.appendChild(li);
-                });
-                suggestionsList.classList.remove('hidden');
-            }
-            
-            document.addEventListener('click', (e) => {
-                if (!document.querySelector('.address-search-container').contains(e.target)) {
-                    suggestionsList.classList.add('hidden');
-                }
-            });
-
-            function viewOnMap(type) {
-                try {
-                    if (type !== 'decimal') {
-                        if (type === 'dms') convertFromDMS();
-                        else if (type === 'mercator') convertFromMercator();
-                        else if (type === 'utm') convertFromUTM();
-                    }
-                    const coordsStr = document.getElementById('decimal-coords').value;
-                    if (!coordsStr) throw new Error("Coordonnées non définies.");
-                    const [lat, lon] = coordsStr.split(',').map(c => parseFloat(c.trim()));
-                    if (isNaN(lat) || isNaN(lon)) throw new Error("Format de coordonnées invalide.");
-                    const position = L.latLng(lat, lon);
-                    cadoMap.flyTo(position, 16);
-                    handleCadoMapClick({ latlng: position });
-                    hideError();
-                } catch (err) { showError("Impossible de pointer sur la carte: " + err.message); }
-            }
-
-            function populateMapSelectorForPNG() {
-                const selector = document.getElementById('map-tile-provider');
-                if (selector && typeof MAP_LAYERS !== 'undefined') {
-                    selector.innerHTML = '';
-                    MAP_LAYERS.forEach(map => {
-                        const option = document.createElement('option');
-                        option.value = map.id;
-                        option.textContent = map.name;
-                        selector.appendChild(option);
-                    });
-                    const defaultLayerConfig = MAP_LAYERS.find(m => m.name === "Google Hybrid");
-                    selector.value = defaultLayerConfig ? defaultLayerConfig.id : "osm_standard";
-                }
-            }
-            
-            function setDefaultGridName() {
-                const now = new Date();
-                const dateStr = `${now.getFullYear()}/${String(now.getMonth() + 1).padStart(2, '0')}/${String(now.getDate()).padStart(2, '0')}`;
-                const timeStr = now.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
-                const defaultName = `Carte du ${dateStr} à ${timeStr}`;
-                const gridNameInput = document.getElementById('grid-name-base');
-                if (gridNameInput) {
-                    gridNameInput.value = defaultName;
-                    gridNameInput.dispatchEvent(new Event('input'));
-                }
-            }
-
-            function setupToggle(buttonId, contentId) {
-                const button = document.getElementById(buttonId);
-                const content = document.getElementById(contentId);
-                if (button && content) {
-                    button.addEventListener('click', () => {
-                        const isHidden = content.classList.toggle('hidden');
-                        button.innerHTML = isHidden ? 'Options avancées ▼' : 'Masquer les options ▲';
-                    });
-                }
-            }
-            
-            function initUI() {
-                // Main CADO Color Picker
-                document.querySelectorAll('#color-options .color-option').forEach(option => {
-                    option.addEventListener('click', function() {
-                        document.querySelectorAll('#color-options .color-option').forEach(opt => opt.classList.remove('selected'));
-                        this.classList.add('selected');
-                        document.getElementById('grid-color').value = this.dataset.color;
-                        document.getElementById('grid-color-name').value = this.dataset.name;
-                        updateDynamicGridName();
-                    });
-                });
+             function toggleMode(targetMode) {
+                const cadoSidebar = document.getElementById('cado-mode-container');
+                const zoneSidebar = document.getElementById('zone-downloader-mode-container');
                 
-                // NEW: Zone Mode Shared Color Picker
-                document.querySelectorAll('#utm-color-options .color-option').forEach(option => {
-                    option.addEventListener('click', function() {
-                        document.querySelectorAll('#utm-color-options .color-option').forEach(opt => opt.classList.remove('selected'));
-                        this.classList.add('selected');
-                        document.getElementById('utm-grid-color').value = this.dataset.color;
-                        // Use data-name for CADO compatibility, fallback to empty string if undefined (for UTM)
-                        if (this.dataset.name) {
-                            document.getElementById('utm-grid-color-name').value = this.dataset.name;
-                        }
-                    });
-                });
-
-                document.getElementById('transparency-value').textContent = `${document.getElementById('transparency').value}%`;
-                document.getElementById('deviation-value').textContent = `${document.getElementById('deviation').value}°`;
-                document.getElementById('utm-transparency-value').textContent = `${document.getElementById('utm-transparency').value}%`;
-                document.querySelectorAll('input[name="grid-type"]').forEach(radio => {
-                    radio.addEventListener('change', function() {
-                        document.getElementById('custom-grid-options').classList.toggle('hidden', this.value !== 'custom');
-                        updateDynamicGridName();
-                    });
-                });
-
-                // Initialisation du Settings Manager qui remplit aussi le dropdown
-                if (typeof initSettingsManager === 'function') {
-                    initSettingsManager();
-                }
-            }
-
-            function toggleMode(targetMode) {
-                const containers = { cado: document.getElementById('cado-mode-container'), zone: document.getElementById('zone-downloader-mode-container') };
-                const buttons = document.querySelectorAll('.mode-btn');
-                const appTitle = document.getElementById('app-title');
-
-                Object.values(containers).forEach(c => c.classList.add('hidden'));
-                buttons.forEach(btn => {
+                document.querySelectorAll('.mode-btn').forEach(btn => {
                     btn.classList.remove('bg-blue-600', 'text-white');
-                    btn.classList.add('text-gray-700', 'dark:text-gray-300', 'hover:bg-gray-200', 'dark:hover:bg-gray-700');
+                    btn.classList.add('text-gray-700', 'dark:text-gray-300', 'hover:bg-gray-300');
+                    if(btn.dataset.mode === targetMode) {
+                        btn.classList.add('bg-blue-600', 'text-white');
+                        btn.classList.remove('text-gray-700', 'hover:bg-gray-300');
+                    }
                 });
-                
-                const activeContainer = containers[targetMode];
-                const activeButton = document.querySelector(`.mode-btn[data-mode="${targetMode}"]`);
-                
-                if (activeContainer) activeContainer.classList.remove('hidden');
-                if (activeButton) {
-                    activeButton.classList.add('bg-blue-600', 'text-white');
-                    activeButton.classList.remove('text-gray-700', 'dark:text-gray-300', 'hover:bg-gray-200', 'dark:hover:bg-gray-700');
-                }
 
-                let mapToResize = null;
-                switch (targetMode) {
-                    case 'zone': appTitle.textContent = 'Téléchargeur de Zone et Grille UTM'; mapToResize = zoneMap; break;
-                    case 'cado': default: appTitle.textContent = document.title; mapToResize = cadoMap; break;
+                if (targetMode === 'cado') {
+                    cadoSidebar.classList.remove('hidden');
+                    zoneSidebar.classList.add('hidden');
+                    document.body.classList.add('mode-cado');
+                    document.body.classList.remove('mode-zone');
+                } else {
+                    cadoSidebar.classList.add('hidden');
+                    zoneSidebar.classList.remove('hidden');
+                    document.body.classList.remove('mode-cado');
+                    document.body.classList.add('mode-zone');
                 }
-                if (mapToResize) setTimeout(() => mapToResize.invalidateSize(), 10);
+                setTimeout(() => window.mainMap.invalidateSize(), 100);
+            }
+             
+             function initUI() {
+                if(window.initSettingsManager) window.initSettingsManager();
+                document.querySelectorAll('#color-options .color-option').forEach(el => {
+                    el.onclick = () => {
+                        document.querySelectorAll('#color-options .color-option').forEach(x=>x.classList.remove('selected'));
+                        el.classList.add('selected');
+                        document.getElementById('grid-color').value = el.dataset.color;
+                        document.getElementById('grid-color-name').value = el.dataset.name;
+                    }
+                });
+                 document.querySelectorAll('#utm-color-options .color-option').forEach(el => {
+                    el.onclick = () => {
+                        document.querySelectorAll('#utm-color-options .color-option').forEach(x=>x.classList.remove('selected'));
+                        el.classList.add('selected');
+                        document.getElementById('utm-grid-color').value = el.dataset.color;
+                        document.getElementById('utm-grid-color-name').value = el.dataset.name || 'white';
+                    }
+                });
+                document.getElementById('transparency').oninput = function() { document.getElementById('transparency-value').textContent = this.value + '%'; };
+                document.getElementById('utm-transparency').oninput = function() { document.getElementById('utm-transparency-value').textContent = this.value + '%'; };
+                document.getElementById('deviation').oninput = function() { document.getElementById('deviation-value').textContent = this.value + '°'; };
+                document.getElementById('reset-deviation').onclick = () => { document.getElementById('deviation').value=0; document.getElementById('deviation-value').textContent='0°'; };
             }
 
             function setupEventListeners() {
@@ -979,135 +465,71 @@
                     if (e.target.matches('.mode-btn')) toggleMode(e.target.getAttribute('data-mode'));
                 });
                 setupToggle('toggle-coords-btn', 'advanced-coords');
-                setupToggle('toggle-grid-config-btn', 'advanced-grid-config');
-                document.getElementById('transparency').addEventListener('input', e => { document.getElementById('transparency-value').textContent = `${e.target.value}%`; });
-                document.getElementById('utm-transparency').addEventListener('input', e => { document.getElementById('utm-transparency-value').textContent = `${e.target.value}%`; });
-                document.getElementById('convert-from-decimal').addEventListener('click', convertFromDecimal);
-                document.getElementById('convert-from-dms').addEventListener('click', convertFromDMS);
-                document.getElementById('convert-from-plus').addEventListener('click', convertFromPlusCode);
-                document.getElementById('convert-from-mercator').addEventListener('click', convertFromMercator);
-                document.getElementById('convert-from-utm').addEventListener('click', convertFromUTM);
-                document.getElementById('view-on-maps-decimal').addEventListener('click', () => viewOnMap('decimal'));
-                document.getElementById('view-on-maps-dms').addEventListener('click', () => viewOnMap('dms'));
-                document.getElementById('view-on-maps-plus').addEventListener('click', () => viewOnMap('plus'));
-                document.getElementById('view-on-maps-mercator').addEventListener('click', () => viewOnMap('mercator'));
-                document.getElementById('view-on-maps-utm').addEventListener('click', () => viewOnMap('utm'));
-
-                const deviationInput = document.getElementById('deviation');
-                const deviationValueSpan = document.getElementById('deviation-value');
-                const generateImageButton = document.getElementById('generate-image-button');
-                const resetButton = document.getElementById('reset-deviation');
+                document.getElementById('convert-from-decimal').onclick = convertFromDecimal;
+                document.getElementById('convert-from-dms').onclick = convertFromDMS;
+                document.getElementById('convert-from-plus').onclick = convertFromPlusCode;
+                document.getElementById('convert-from-mercator').onclick = convertFromMercator;
+                document.getElementById('convert-from-utm').onclick = convertFromUTM;
+                document.getElementById('view-on-maps-decimal').onclick = () => viewOnMap('decimal');
+                document.getElementById('view-on-maps-dms').onclick = () => viewOnMap('dms');
+                document.getElementById('view-on-maps-plus').onclick = () => viewOnMap('plus');
+                document.getElementById('view-on-maps-mercator').onclick = () => viewOnMap('mercator');
+                document.getElementById('view-on-maps-utm').onclick = () => viewOnMap('utm');
                 
-                const updateImageButtonState = () => {
-					const isDeviationZero = parseInt(deviationInput.value, 10) === 0;
-					const isPrintableSetup = isDeviationZero;
-					generateImageButton.disabled = !isPrintableSetup;
-				};
+                document.getElementById('overlay-cado-grid-checkbox').onchange = function() {
+                     document.getElementById('cado-overlay-options').classList.toggle('hidden', !this.checked);
+                     if(this.checked) document.getElementById('overlay-utm-grid-checkbox').checked = false;
+                };
+                 document.getElementById('overlay-utm-grid-checkbox').onchange = function() {
+                     if(this.checked) {
+                         document.getElementById('overlay-cado-grid-checkbox').checked = false;
+                         document.getElementById('cado-overlay-options').classList.add('hidden');
+                     }
+                };
                 
-                document.querySelectorAll('.grid-parameter').forEach(el => {
-                    const eventType = (el.tagName === 'INPUT' && ['range', 'number', 'text'].includes(el.type)) ? 'input' : 'change';
-                    el.addEventListener(eventType, () => {
-                        if(typeof updateDynamicGridName === 'function') updateDynamicGridName();
-                        updateImageButtonState();
-                    });
-                });
-                deviationInput.addEventListener('input', () => { deviationValueSpan.textContent = `${deviationInput.value}°`; });
-                resetButton.addEventListener('click', () => {
-                    deviationInput.value = 0;
-                    deviationInput.dispatchEvent(new Event('input'));
-                });
-                document.getElementById('generate-image-button').addEventListener('click', generateImageToPrint);
-                document.getElementById('generate-button').addEventListener('click', generateGrid);
-                document.getElementById('generate-utm-button').addEventListener('click', generateUTMGrid);
-                document.getElementById('generate-zone-png-button').addEventListener('click', generateZonePNG);
-                document.getElementById('zone-kmz-input').addEventListener('change', handleZoneKmzFile);
-                
-                document.getElementById('generate-zone-cado-kmz-button').addEventListener('click', generateCadoGridForZone);
-                const cadoOverlayCheckbox = document.getElementById('overlay-cado-grid-checkbox');
-                const cadoOverlayOptions = document.getElementById('cado-overlay-options');
-                cadoOverlayCheckbox.addEventListener('change', (e) => {
-                    cadoOverlayOptions.classList.toggle('hidden', !e.target.checked);
-                    if (e.target.checked) {
-                        document.getElementById('overlay-utm-grid-checkbox').checked = false;
+                document.getElementById('add-poi-btn').onclick = () => {
+                    if(window.toggleAddPointMode) {
+                        const isAdding = window.toggleAddPointMode();
+                        const btn = document.getElementById('add-poi-btn');
+                        btn.textContent = isAdding ? "Annuler" : "+ Ajouter sur carte";
+                        btn.classList.toggle('bg-red-600', isAdding);
+                        btn.classList.toggle('bg-blue-600', !isAdding);
                     }
-                });
-                document.getElementById('overlay-utm-grid-checkbox').addEventListener('change', (e) => {
-                    if (e.target.checked) {
-                        cadoOverlayCheckbox.checked = false;
-                        cadoOverlayOptions.classList.add('hidden');
-                    }
-                });
-
-                // --- GESTION DES POIS ---
-                const addPoiBtn = document.getElementById('add-poi-btn');
-                addPoiBtn.addEventListener('click', () => {
-                    if (typeof toggleAddPointMode === 'function') {
-                        const isAdding = toggleAddPointMode();
-                        addPoiBtn.textContent = isAdding ? "Annuler l'ajout" : "+ Ajouter un point";
-                        addPoiBtn.classList.toggle('bg-red-600', isAdding);
-                        addPoiBtn.classList.toggle('hover:bg-red-700', isAdding);
-                        addPoiBtn.classList.toggle('bg-blue-600', !isAdding);
-                        addPoiBtn.classList.toggle('hover:bg-blue-700', !isAdding);
-                    }
-                });
-
-				updateImageButtonState();
+                };
                 
-                function handleFormatChange(event) {
-                    const mode = event.target.name.includes('cado') ? 'cado' : 'zone';
-                    const qualityContainer = document.getElementById(`${mode}-jpeg-quality-container`);
-                    qualityContainer.classList.toggle('visible', event.target.value === 'jpeg');
-                }
-
-                document.querySelectorAll('input[name="image-format-cado"]').forEach(radio => radio.addEventListener('change', handleFormatChange));
-                document.querySelectorAll('input[name="image-format-zone"]').forEach(radio => radio.addEventListener('change', handleFormatChange));
-                document.getElementById('cado-jpeg-quality').addEventListener('input', (e) => { document.getElementById('cado-jpeg-quality-value').textContent = `${e.target.value}%`; });
-                document.getElementById('zone-jpeg-quality').addEventListener('input', (e) => { document.getElementById('zone-jpeg-quality-value').textContent = `${e.target.value}%`; });
+                document.getElementById('generate-image-button').onclick = generateImageToPrint;
+                document.getElementById('generate-button').onclick = generateGrid;
+                document.getElementById('generate-zone-png-button').onclick = generateZonePNG;
+                document.getElementById('generate-utm-button').onclick = generateUTMGrid;
+                document.getElementById('generate-zone-cado-kmz-button').onclick = generateCadoGridForZone;
+                document.getElementById('zone-kmz-input').onchange = handleZoneKmzFile;
             }
             
-            function displayAppVersion() {
-                if (typeof APP_VERSION !== 'undefined') {
-                    const displayVersion = `v${APP_VERSION}`;
-                    document.title = `Générateur CADO ${displayVersion}`;
-                    const titleElement = document.getElementById('app-title');
-                    if (titleElement) titleElement.textContent = `Générateur de carroyage CADO ${displayVersion}`;
-                }
+            window.viewOnMap = function(type) { 
+                 const coordsStr = document.getElementById('decimal-coords').value;
+                 if(coordsStr) {
+                     const [lat, lon] = coordsStr.split(',').map(parseFloat);
+                     window.mainMap.flyTo([lat, lon], 15);
+                     if (!clickMarker) clickMarker = L.marker([lat, lon]).addTo(window.mainMap);
+                     else clickMarker.setLatLng([lat, lon]);
+                 }
+            };
+            function populateMapSelectorForPNG() {
+                const sel = document.getElementById('map-tile-provider');
+                MAP_LAYERS.forEach(l => {
+                    const o = document.createElement('option');
+                    o.value = l.id;
+                    o.textContent = l.name;
+                    sel.appendChild(o);
+                });
+                sel.value = "google_hybrid";
+            }
+            function setDefaultGridName() {
+                const now = new Date();
+                const dateStr = `${now.getFullYear()}/${String(now.getMonth() + 1).padStart(2, '0')}/${String(now.getDate()).padStart(2, '0')}`;
+                document.getElementById('grid-name-base').value = `Carte du ${dateStr}`;
             }
 
-            function registerAndHandleUpdates() {
-                if ('serviceWorker' in navigator) {
-                    navigator.serviceWorker.register('/sw.js').catch(error => console.error('Échec SW:', error));
-                    navigator.serviceWorker.addEventListener('message', event => {
-                        if (event.data && event.data.type === 'VERSION_UPDATE') {
-                            showUpdateNotification(event.data.version);
-                            localStorage.setItem('appVersion', event.data.version);
-                        }
-                    });
-                }
-            }
-
-            function showUpdateNotification(newVersion) {
-                const toastElement = document.getElementById('toast-update');
-                const versionSpan = document.getElementById('toast-version-number');
-                if (versionSpan) versionSpan.textContent = `v${newVersion}`;
-                if (toastElement && typeof flowbite !== 'undefined' && flowbite.Toast) new flowbite.Toast(toastElement).show();
-            }
-
-            function showError(message) {
-                const errorDiv = document.getElementById('error-message');
-                if (errorDiv) {
-                    errorDiv.textContent = message;
-                    errorDiv.classList.remove('hidden');
-                }
-            }
-
-            function hideError() {
-                const errorDiv = document.getElementById('error-message');
-                if (errorDiv) {
-                    errorDiv.classList.add('hidden');
-                }
-            }
-            
             initializeApp();
         });
     </script>
