@@ -5,7 +5,7 @@
 const ICON_LIBRARY = [
     {
         id: "target",
-        label: "Target
+        label: "Target",
         url: "icons/target.png",
         scale: 1.0
     },
