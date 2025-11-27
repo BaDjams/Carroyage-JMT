@@ -5,8 +5,8 @@
 const ICON_LIBRARY = [
     {
         id: "target",
-        label: "Cible (Rouge)",
-        url: "https://maps.google.com/mapfiles/kml/shapes/target.png",
+        label: "Target
+        url: "icons/target.png",
         scale: 1.0
     },
     {
