@@ -28,15 +28,16 @@ function handleMapClickForPOI(e) {
     const typeId = document.getElementById('poi-type-selector').value;
     const name = document.getElementById('poi-name-input').value.trim();
 
-    // Récupérer l'URL depuis la librairie
+    // Récupérer l'URL depuis la librairie ou fallback
     const iconConfig = typeof ICON_LIBRARY !== 'undefined' ? ICON_LIBRARY.find(i => i.id === typeId) : null;
+    const url = iconConfig ? iconConfig.url : "https://maps.google.com/mapfiles/kml/pushpin/ylw-pushpin.png";
     
     const poi = { 
         id: Date.now(), 
         lat, lon, 
         type: typeId, 
         name,
-        url: iconConfig ? iconConfig.url : "https://maps.google.com/mapfiles/kml/pushpin/ylw-pushpin.png" 
+        url: url
     };
     
     userPOIs.push(poi);
@@ -44,7 +45,6 @@ function handleMapClickForPOI(e) {
     updatePOIMarkers();
     updatePOIList();
     
-    // Désactiver le mode ajout après un clic
     toggleAddPointMode();
     const addBtn = document.getElementById('add-poi-btn');
     if (addBtn) {
@@ -121,31 +121,87 @@ function updatePOIList() {
         tbody.appendChild(row);
     });
 }
-
-// Exposer removePOI pour le HTML généré dynamiquement
 window.removePOI = removePOI;
 
-// Helper pour charger une image pour le Canvas
-function loadImage(url) {
+// --- FONCTIONS ROBUSTES DE CHARGEMENT D'IMAGE (CORRECTIF BUG) ---
+
+/**
+ * Convertit une URL (locale ou distante) en Base64 ou en Blob pour le KMZ.
+ * Utilise un canvas intermédiaire pour contourner les problèmes de fetch sur file://
+ */
+function getIconData(url) {
     return new Promise((resolve) => {
         const img = new Image();
+        // Astuce: on essaye d'abord avec Anonymous pour les CORS web
+        // Si ça échoue (fichier local), on réessaiera sans.
         img.crossOrigin = "Anonymous";
-        img.onload = () => resolve(img);
-        img.onerror = (e) => {
-            console.warn("Erreur chargement image POI", url);
-            resolve(null);
+        
+        img.onload = () => {
+            const canvas = document.createElement('canvas');
+            canvas.width = img.naturalWidth || 32;
+            canvas.height = img.naturalHeight || 32;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0);
+            // Retourne le dataURL (Base64)
+            try {
+                resolve(canvas.toDataURL('image/png'));
+            } catch (e) {
+                console.warn("Canvas tainted, retrying without CORS for local file...");
+                resolve(null); // Déclenchera le fallback
+            }
         };
+
+        img.onerror = () => {
+            // Fallback pour fichier local : on réessaie sans crossOrigin
+            const localImg = new Image();
+            localImg.onload = () => {
+                const canvas = document.createElement('canvas');
+                canvas.width = localImg.naturalWidth || 32;
+                canvas.height = localImg.naturalHeight || 32;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(localImg, 0, 0);
+                resolve(canvas.toDataURL('image/png'));
+            };
+            localImg.onerror = () => {
+                console.error("Impossible de charger l'image:", url);
+                resolve(null);
+            };
+            localImg.src = url;
+        };
+
         img.src = url;
     });
 }
 
+// Helper pour charger une image DOM pour le Canvas d'export (similaire à ci-dessus)
+function loadImageForCanvas(url) {
+    return new Promise((resolve) => {
+        const loadWithCors = (useCors) => {
+            const img = new Image();
+            if (useCors) img.crossOrigin = "Anonymous";
+            img.onload = () => resolve(img);
+            img.onerror = () => {
+                if (useCors) {
+                    // Retry without CORS (local file case)
+                    loadWithCors(false);
+                } else {
+                    console.warn("Erreur chargement image pour Canvas", url);
+                    resolve(null);
+                }
+            };
+            img.src = url;
+        };
+        loadWithCors(true);
+    });
+}
+
 async function drawUserPOIsOnCanvas(ctx, latLonToPixels) {
-    // Pré-charger les images uniques
+    // Pré-charger les images
     const uniqueUrls = [...new Set(userPOIs.map(p => p.url))];
     const imageCache = {};
     
     await Promise.all(uniqueUrls.map(async (url) => {
-        const img = await loadImage(url);
+        const img = await loadImageForCanvas(url);
         if (img) imageCache[url] = img;
     }));
 
@@ -158,7 +214,7 @@ async function drawUserPOIsOnCanvas(ctx, latLonToPixels) {
             const h = 32;
             ctx.drawImage(img, px.x - w/2, px.y - h/2, w, h);
         } else {
-            // Fallback
+            // Fallback point rouge si l'image n'a vraiment pas pu être chargée
             ctx.beginPath(); ctx.arc(px.x, px.y, 8, 0, 2*Math.PI); 
             ctx.fillStyle = 'red'; ctx.fill();
             ctx.stroke();
@@ -172,10 +228,10 @@ async function drawUserPOIsOnCanvas(ctx, latLonToPixels) {
             
             ctx.strokeStyle = "white";
             ctx.lineWidth = 3;
-            ctx.strokeText(poi.name, px.x, px.y - 20); // Au dessus
+            ctx.strokeText(poi.name, px.x, px.y + 18); 
             
             ctx.fillStyle = "black";
-            ctx.fillText(poi.name, px.x, px.y - 20);
+            ctx.fillText(poi.name, px.x, px.y + 18);
         }
     });
 }
@@ -290,7 +346,7 @@ function getZoneCadoConfigAndBounds() {
     return { config, gridBounds, a1CornerLat, a1CornerLon };
 }
 
-// --- GENERATION DE L'IMAGE ---
+// --- Fonctions de Génération Principales ---
 
 async function generateZonePNG() {
     const loadingIndicator = document.getElementById("loading-indicator");
@@ -359,7 +415,7 @@ async function generateZonePNG() {
             drawZoneKmlFeatures(ctx, zoom, loadedZoneKmlFeatures, latLonToCanvasPixels);
         }
 
-        // Dessiner les POIs (attendre le chargement des images)
+        // DESSIN DES POIS UTILISATEUR
         if (userPOIs.length > 0) {
             loadingMessage.textContent = "Dessin des points d'intérêt...";
             await drawUserPOIsOnCanvas(ctx, latLonToCanvasPixels);
@@ -424,8 +480,6 @@ async function generateZonePNG() {
     }
 }
 
-// --- GENERATION KMZ CADO ---
-
 async function generateCadoGridForZone() {
     const loadingIndicator = document.getElementById("loading-indicator");
     const loadingMessage = document.getElementById("loading-message");
@@ -439,18 +493,40 @@ async function generateCadoGridForZone() {
         const gridData = calculateGridData(config);
         
         let kmlContent = generateKML(config, gridData);
+        const zip = new JSZip(); // Création du zip principal
         
-        // Injection manuelle des POIs dans le KML
+        // 1. Injection manuelle des POIs dans le KML ET gestion des fichiers locaux
         if (userPOIs.length > 0) {
             let poiKml = "";
-            userPOIs.forEach(poi => {
+            const imagesToZip = new Map(); // Pour stocker les images à ajouter au ZIP
+            
+            // Boucle asynchrone pour traiter les images
+            for (const [index, poi] of userPOIs.entries()) {
                 let iconUrl = "https://maps.google.com/mapfiles/kml/paddle/wht-blank.png";
-                // Tenter de récupérer l'URL depuis la librairie si le POI contient juste l'ID
+                let iconFilename = "";
+                
+                // Déterminer l'URL de base
                 if (typeof ICON_LIBRARY !== 'undefined') {
                      const iconDef = ICON_LIBRARY.find(i => i.id === poi.type);
                      if(iconDef) iconUrl = iconDef.url;
                 }
-                if(poi.url) iconUrl = poi.url; // Priorité à l'URL stockée dans l'objet
+                if(poi.url) iconUrl = poi.url;
+
+                // Si c'est une image locale ou base64, il faut l'intégrer au ZIP
+                if (!iconUrl.startsWith('http')) {
+                    // Nom de fichier unique dans le zip
+                    iconFilename = `icon_${index}.png`;
+                    const zipPath = `files/${iconFilename}`;
+                    
+                    // Récupérer les données de l'image
+                    const base64Data = await getIconData(iconUrl);
+                    if (base64Data) {
+                        // Enlever l'en-tête data:image/png;base64,
+                        const cleanBase64 = base64Data.split(',')[1];
+                        imagesToZip.set(zipPath, cleanBase64);
+                        iconUrl = zipPath; // Le KML pointera vers le fichier interne
+                    }
+                }
 
                 poiKml += `
                 <Placemark>
@@ -458,12 +534,51 @@ async function generateCadoGridForZone() {
                     <Style><IconStyle><scale>1.2</scale><Icon><href>${iconUrl}</href></Icon></IconStyle></Style>
                     <Point><coordinates>${poi.lon},${poi.lat},0</coordinates></Point>
                 </Placemark>`;
-            });
+            }
+            
+            // Ajouter les images au ZIP
+            for (const [path, data] of imagesToZip) {
+                zip.file(path, data, {base64: true});
+            }
             
             kmlContent = kmlContent.replace('</Document>', `<Folder><name>Points d'intérêt</name>${poiKml}</Folder></Document>`);
         }
 
-        const kmzBlob = await generateKMZ(config, gridData, kmlContent, 'application/vnd.google-earth.kmz');
+        // Ajouter le fichier KML principal
+        zip.file("doc.kml", kmlContent);
+
+        // Si generateKMZ ajoute déjà des icônes (lettres A1, B2...), on doit gérer ça.
+        // La fonction generateKMZ existante crée un zip. Il faut fusionner ou refaire.
+        // Pour simplifier et vu que generateKMZ retourne un BLOB final, on va réutiliser generateKMZ
+        // mais on lui injecte le KML modifié. 
+        // NOTE: generateKMZ génère lui-même ses icônes de grille.
+        // Solution : On reprend la logique de generateKMZ ici pour avoir le contrôle total sur le ZIP.
+
+        // --- REPRODUCTION LOGIQUE ZIP ---
+        if (config.includePoints) {
+            const iconsFolder = zip.folder("icons");
+            const canvas = document.createElement("canvas");
+            canvas.setAttribute("width", 64);
+            canvas.setAttribute("height", 64);
+            const ctx = canvas.getContext("2d");
+            ctx.font = "bold 24px Arial";
+            ctx.fillStyle = config.gridColor;
+            ctx.textAlign = "center";
+            ctx.textBaseline =  "middle";
+
+            for (const point of gridData.points) {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                ctx.fillText(point.name, 32, 32);
+                if (config.gridColor.toUpperCase() === "#FFFFFF") {
+                    ctx.strokeText(point.name, 32, 32);
+                }
+                const dataUrl = canvas.toDataURL("image/png");
+                iconsFolder.file(`${point.name}.png`, dataUrl.split(',')[1], { base64: true });
+            }
+        }
+        // --- FIN REPRODUCTION ---
+
+        const kmzBlob = await zip.generateAsync({ type: "blob", mimeType: 'application/vnd.google-earth.kmz' });
         
         const letteringStr = config.letteringDirection === 'descending' ? '_descendant' : '';
         const fileName = `${config.gridNameBase}_${config.scale}m_zone${letteringStr}_${config.colorName}_origine=${a1CornerLat.toFixed(6)},${a1CornerLon.toFixed(6)}.kmz`;
@@ -625,6 +740,7 @@ function drawSmartScaleBar(ctx, canvasWidth, canvasHeight, margin, metersPerPixe
     const fontSize = barHeight * 0.9;
     const padding = barHeight * 0.5;
     
+    // Position BAS GAUCHE (Marge + Padding)
     const x = margin + padding;
     const y = canvasHeight - margin - barHeight - padding;
     
