@@ -318,10 +318,10 @@
                     </div>
                 </div>
             </div>
-
-            <!-- MODE 2 : ZONE DOWNLOADER -->
-            <div id="zone-downloader-mode-container" class="hidden space-y-6">
-                <!-- Tuile 1 : Carte -->
+<!-- MODE 2 : ZONE DOWNLOADER -->
+<div id="zone-downloader-mode-container" class="hidden space-y-6">
+                
+                <!-- Tuile 1 : Carte (inchangée) -->
                 <div class="card bg-white shadow-md rounded-lg p-4 md:p-6 dark:bg-gray-800 dark:border dark:border-gray-700">
                     <section>
                         <h3 class="text-lg font-semibold mb-3 text-content">1. Définir une zone à exporter</h3>
@@ -334,7 +334,7 @@
                     </section>
                 </div>
 
-                <!-- Tuile 2 : Informations -->
+                <!-- Tuile 2 : Informations (inchangée) -->
                 <div class="card bg-white shadow-md rounded-lg p-4 md:p-6 dark:bg-gray-800 dark:border dark:border-gray-700">
                     <section>
                         <h3 class="text-lg font-semibold mb-3 text-content">2. Informations et options</h3>
@@ -359,33 +359,52 @@
                     </section>
                 </div>
 
-                <!-- Tuile 3 : Points d'intérêt (NOUVEAU - Dynamique) -->
+                <!-- Tuile 3 : Points d'intérêt (INTERFACE MISE À JOUR) -->
                 <div class="card bg-white shadow-md rounded-lg p-4 md:p-6 dark:bg-gray-800 dark:border dark:border-gray-700">
                     <section>
                         <h3 class="text-lg font-semibold mb-3 text-content">3. Points d'intérêt (Optionnel)</h3>
-                        <p class="text-sm text-secondary mb-4">Ajoutez des symboles sur la carte.</p>
                         
-                        <div class="flex flex-wrap gap-4 items-end mb-4">
-                            <div class="flex flex-col space-y-1">
-                                <label for="poi-type-selector" class="text-sm text-content">Type d'icône :</label>
-                                <!-- Le contenu sera généré par settingsManager.js -->
-                                <select id="poi-type-selector" class="input-field px-2 py-1 border rounded shadow-sm text-sm text-gray-900 dark:bg-gray-600 dark:border-gray-500 dark:text-white">
-                                </select>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                            <!-- Colonne gauche : Sélection -->
+                            <div class="flex flex-col space-y-3">
+                                <!-- Filtre Catégorie -->
+                                <div class="flex flex-col space-y-1">
+                                    <label for="poi-category-filter" class="text-sm text-content">Filtrer par catégorie :</label>
+                                    <select id="poi-category-filter" class="input-field px-2 py-1 border rounded shadow-sm text-sm text-gray-900 dark:bg-gray-600 dark:border-gray-500 dark:text-white">
+                                        <option value="all">Toutes</option>
+                                        <!-- Peuplé par JS -->
+                                    </select>
+                                </div>
+
+                                <!-- Grille visuelle des icônes -->
+                                <div class="flex flex-col space-y-1">
+                                    <label class="text-sm text-content">Choisir une icône :</label>
+                                    <div id="poi-visual-selector" class="icon-grid-container custom-scrollbar">
+                                        <!-- Peuplé par JS -->
+                                    </div>
+                                    <input type="hidden" id="poi-type-selector" value="target">
+                                </div>
                             </div>
-                            <div class="flex flex-col space-y-1">
-                                <label for="poi-name-input" class="text-sm text-content">Nom du point :</label>
-                                <input type="text" id="poi-name-input" class="input-field px-2 py-1 border rounded shadow-sm text-sm text-gray-900 dark:bg-gray-600 dark:border-gray-500 dark:text-white" placeholder="Nom (facultatif)">
+
+                            <!-- Colonne droite : Nom et Ajout -->
+                            <div class="flex flex-col space-y-3 justify-end">
+                                <div class="flex flex-col space-y-1">
+                                    <label for="poi-name-input" class="text-sm text-content">Nom du point :</label>
+                                    <input type="text" id="poi-name-input" class="input-field px-2 py-1 border rounded shadow-sm text-sm text-gray-900 dark:bg-gray-600 dark:border-gray-500 dark:text-white" placeholder="Nom (facultatif)">
+                                </div>
+                                <button id="add-poi-btn" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded shadow transition-colors w-full">
+                                    + Activer l'ajout sur la carte
+                                </button>
+                                <p class="text-xs text-secondary italic text-center mt-1">Cliquez sur le bouton puis sur la carte.</p>
                             </div>
-                            <button id="add-poi-btn" class="px-4 py-1 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded shadow transition-colors h-[30px]">
-                                + Ajouter un point
-                            </button>
                         </div>
 
+                        <!-- Tableau liste des points -->
                         <div id="poi-list-container" class="border rounded p-2 max-h-40 overflow-y-auto hidden dark:border-gray-600">
                             <table class="w-full text-sm text-left text-gray-500 dark:text-gray-400">
                                 <thead class="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
                                     <tr>
-                                        <th scope="col" class="px-2 py-1">Type</th>
+                                        <th scope="col" class="px-2 py-1">Icone</th>
                                         <th scope="col" class="px-2 py-1">Nom</th>
                                         <th scope="col" class="px-2 py-1">Coord</th>
                                         <th scope="col" class="px-2 py-1 text-right">Action</th>
@@ -397,7 +416,7 @@
                     </section>
                 </div>
 
-                <!-- Tuile 4 : Style (Nouvelle palette complète) -->
+                <!-- Tuile 4 : Style (inchangée) -->
                 <div class="card bg-white shadow-md rounded-lg p-4 md:p-6 dark:bg-gray-800 dark:border dark:border-gray-700">
                     <section>
                         <h3 class="text-lg font-semibold mb-3 text-content">4. Configuration du Style (Commun)</h3>
@@ -430,7 +449,7 @@
                     </section>
                 </div>
                 
-                <!-- Grille d'actions -->
+                <!-- Grille d'actions (inchangée) -->
                 <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
                     <!-- Action 1 : UTM KMZ -->
                     <div class="card bg-white shadow-md rounded-lg p-4 md:p-6 dark:bg-gray-800 dark:border dark:border-gray-700 flex flex-col justify-between">
@@ -508,7 +527,7 @@
                             <button id="generate-zone-png-button" class="btn-main btn-image w-full sm:w-auto">Télécharger l'image</button>
                         </div>
                     </div>
-                 </div>
+                </div>
             </div>
 
             <div id="loading-indicator" class="hidden mt-4 flex flex-col items-center">

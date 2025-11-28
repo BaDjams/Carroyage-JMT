@@ -295,6 +295,9 @@ function updateAppDropdowns() {
     if (selectedValue && currentIconLibrary.find(i => i.id === selectedValue)) {
         poiSelect.value = selectedValue;
     }
+    if (typeof window.refreshZoneIconSelector === 'function') {
+        window.refreshZoneIconSelector();
+    }
 }
 
 // Exporter la librairie pour que zoneDownloader.js l'utilise

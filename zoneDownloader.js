@@ -9,13 +9,80 @@ let userPOIs = [];
 let isAddingPoint = false;
 let poiMarkersLayer = null;
 
-// Helper CRUCIAL : Récupère toujours la liste à jour (Settings ou fichier base)
+// Helper CRUCIAL : Récupère toujours la liste à jour
 function getIcons() {
     if (typeof window.getIconLibrary === 'function') {
         return window.getIconLibrary();
     }
     return typeof ICON_LIBRARY !== 'undefined' ? ICON_LIBRARY : [];
 }
+
+// --- LOGIQUE DE SELECTION VISUELLE ---
+function initVisualIconSelector() {
+    const categoryFilter = document.getElementById('poi-category-filter');
+    const visualContainer = document.getElementById('poi-visual-selector');
+    const hiddenInput = document.getElementById('poi-type-selector');
+    
+    if (!categoryFilter || !visualContainer || !hiddenInput) return;
+
+    const allIcons = getIcons();
+
+    // 1. Peupler le filtre de catégories
+    const categories = ['all', ...new Set(allIcons.map(i => i.category || 'Général'))];
+    categoryFilter.innerHTML = '';
+    
+    // Mapping pour afficher "Toutes" proprement
+    categories.forEach(cat => {
+        const option = document.createElement('option');
+        option.value = cat;
+        option.textContent = cat === 'all' ? 'Toutes' : cat;
+        categoryFilter.appendChild(option);
+    });
+
+    // 2. Fonction de rendu de la grille
+    const renderGrid = (filterCat) => {
+        visualContainer.innerHTML = '';
+        
+        const filteredIcons = allIcons.filter(icon => 
+            filterCat === 'all' || (icon.category || 'Général') === filterCat
+        );
+
+        // Trier par ordre
+        filteredIcons.sort((a, b) => (a.order || 0) - (b.order || 0));
+
+        filteredIcons.forEach(icon => {
+            const div = document.createElement('div');
+            div.className = 'icon-selection-item';
+            if (hiddenInput.value === icon.id) div.classList.add('selected');
+            
+            div.innerHTML = `
+                <img src="${icon.url}" alt="${icon.label}">
+                <span title="${icon.label}">${icon.label}</span>
+            `;
+            
+            div.addEventListener('click', () => {
+                // Mise à jour visuelle
+                document.querySelectorAll('.icon-selection-item').forEach(el => el.classList.remove('selected'));
+                div.classList.add('selected');
+                // Mise à jour valeur
+                hiddenInput.value = icon.id;
+            });
+            
+            visualContainer.appendChild(div);
+        });
+    };
+
+    // Initialiser
+    renderGrid('all');
+
+    // Listener filtre
+    categoryFilter.addEventListener('change', (e) => {
+        renderGrid(e.target.value);
+    });
+}
+
+// Appelé par settingsManager quand les icônes changent
+window.refreshZoneIconSelector = initVisualIconSelector;
 
 function toggleAddPointMode() {
     isAddingPoint = !isAddingPoint;
@@ -33,10 +100,10 @@ function handleMapClickForPOI(e) {
 
     const lat = e.latlng.lat;
     const lon = e.latlng.lng;
-    const typeId = document.getElementById('poi-type-selector').value;
+    // On lit l'input caché
+    const typeId = document.getElementById('poi-type-selector').value; 
     const name = document.getElementById('poi-name-input').value.trim();
 
-    // Correction : Utilise getIcons() pour trouver les customs
     const iconConfig = getIcons().find(i => i.id === typeId);
     const url = iconConfig ? iconConfig.url : "https://maps.google.com/mapfiles/kml/pushpin/ylw-pushpin.png";
     
@@ -113,7 +180,6 @@ function updatePOIList() {
     tbody.innerHTML = '';
 
     userPOIs.forEach(poi => {
-        // Correction : Utilise getIcons() ici aussi
         const iconDef = getIcons().find(i => i.id === poi.type);
         const label = iconDef ? iconDef.label : poi.type;
         
@@ -132,7 +198,7 @@ function updatePOIList() {
 }
 window.removePOI = removePOI;
 
-// --- FONCTIONS ROBUSTES DE CHARGEMENT D'IMAGE ---
+// --- FONCTIONS ROBUSTES DE CHARGEMENT D'IMAGE (POUR EXPORT) ---
 
 function getIconData(url) {
     return new Promise((resolve) => {
@@ -140,8 +206,6 @@ function getIconData(url) {
             resolve(url);
             return;
         }
-
-        // Essai via fetch (meilleur pour Blob/CORS)
         fetch(url)
             .then(response => response.blob())
             .then(blob => {
@@ -150,7 +214,6 @@ function getIconData(url) {
                 reader.readAsDataURL(blob);
             })
             .catch(e => {
-                // Fallback image classique (pour certains contextes locaux)
                 const img = new Image();
                 img.crossOrigin = "Anonymous";
                 img.onload = () => {
@@ -183,10 +246,12 @@ function loadImageForCanvas(url) {
         }
 
         img.onload = () => resolve(img);
+        
         img.onerror = () => {
             console.warn("Image ignorée pour l'export (Erreur CORS ou 404):", url);
             resolve(null);
         };
+        
         img.src = safeUrl;
     });
 }
@@ -344,8 +409,6 @@ function getZoneCadoConfigAndBounds() {
     return { config, gridBounds, a1CornerLat, a1CornerLon };
 }
 
-// --- GENERATION DE L'IMAGE ---
-
 async function generateZonePNG() {
     const loadingIndicator = document.getElementById("loading-indicator");
     const loadingMessage = document.getElementById("loading-message");
@@ -477,8 +540,6 @@ async function generateZonePNG() {
     }
 }
 
-// --- GENERATION KMZ CADO ---
-
 async function generateCadoGridForZone() {
     const loadingIndicator = document.getElementById("loading-indicator");
     const loadingMessage = document.getElementById("loading-message");
@@ -494,7 +555,6 @@ async function generateCadoGridForZone() {
         let kmlContent = generateKML(config, gridData);
         const zip = new JSZip(); 
         
-        // 1. Injection manuelle des POIs
         if (userPOIs.length > 0) {
             let poiKml = "";
             const imagesToZip = new Map();
@@ -503,12 +563,12 @@ async function generateCadoGridForZone() {
                 let iconUrl = "https://maps.google.com/mapfiles/kml/paddle/wht-blank.png";
                 let iconFilename = "";
                 
-                // Correction : Utilise getIcons() ici aussi
+                // --- CORRECTION MAJEURE ICI ---
+                // Utilisation correcte de getIcons()
                 const iconDef = getIcons().find(i => i.id === poi.type);
                 if(iconDef) iconUrl = iconDef.url;
                 if(poi.url) iconUrl = poi.url;
 
-                // Si image locale (base64 ou path), on l'ajoute au zip
                 if (!iconUrl.startsWith('http')) {
                     iconFilename = `icon_${index}.png`;
                     const zipPath = `files/${iconFilename}`;
