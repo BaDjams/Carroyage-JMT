@@ -1,10 +1,317 @@
 // zoneDownloader.js
 
 const ZD_TILE_SIZE = 256;
-let loadedZoneKmlFeatures = []; // Pour stocker les données du KMZ
-let kmlResources = { images: {} }; // Pour stocker les icônes chargées depuis le KMZ
+let loadedZoneKmlFeatures = [];
+let kmlResources = { images: {} };
 
-// --- Fonctions de projection (partagées) ---
+// --- GESTION DES POIS UTILISATEUR ---
+let userPOIs = [];
+let isAddingPoint = false;
+let poiMarkersLayer = null;
+
+// Helper CRUCIAL : Récupère toujours la liste à jour
+function getIcons() {
+    if (typeof window.getIconLibrary === 'function') {
+        return window.getIconLibrary();
+    }
+    return typeof ICON_LIBRARY !== 'undefined' ? ICON_LIBRARY : [];
+}
+
+// --- LOGIQUE DE SELECTION VISUELLE ---
+function initVisualIconSelector() {
+    const categoryFilter = document.getElementById('poi-category-filter');
+    const visualContainer = document.getElementById('poi-visual-selector');
+    const hiddenInput = document.getElementById('poi-type-selector');
+    
+    if (!categoryFilter || !visualContainer || !hiddenInput) return;
+
+    const allIcons = getIcons();
+
+    // 1. Peupler le filtre de catégories
+    const categories = ['all', ...new Set(allIcons.map(i => i.category || 'Général'))];
+    categoryFilter.innerHTML = '';
+    
+    // Mapping pour afficher "Toutes" proprement
+    categories.forEach(cat => {
+        const option = document.createElement('option');
+        option.value = cat;
+        option.textContent = cat === 'all' ? 'Toutes' : cat;
+        categoryFilter.appendChild(option);
+    });
+
+    // 2. Fonction de rendu de la grille
+    const renderGrid = (filterCat) => {
+        visualContainer.innerHTML = '';
+        
+        const filteredIcons = allIcons.filter(icon => 
+            filterCat === 'all' || (icon.category || 'Général') === filterCat
+        );
+
+        // Trier par ordre
+        filteredIcons.sort((a, b) => (a.order || 0) - (b.order || 0));
+
+        filteredIcons.forEach(icon => {
+            const div = document.createElement('div');
+            div.className = 'icon-selection-item';
+            if (hiddenInput.value === icon.id) div.classList.add('selected');
+            
+            div.innerHTML = `
+                <img src="${icon.url}" alt="${icon.label}">
+                <span title="${icon.label}">${icon.label}</span>
+            `;
+            
+            div.addEventListener('click', () => {
+                // Mise à jour visuelle
+                document.querySelectorAll('.icon-selection-item').forEach(el => el.classList.remove('selected'));
+                div.classList.add('selected');
+                // Mise à jour valeur
+                hiddenInput.value = icon.id;
+            });
+            
+            visualContainer.appendChild(div);
+        });
+    };
+
+    // Initialiser
+    renderGrid('all');
+
+    // Listener filtre
+    categoryFilter.addEventListener('change', (e) => {
+        renderGrid(e.target.value);
+    });
+}
+
+// Appelé par settingsManager quand les icônes changent
+window.refreshZoneIconSelector = initVisualIconSelector;
+
+function toggleAddPointMode() {
+    isAddingPoint = !isAddingPoint;
+    const mapContainer = document.getElementById('zone-interactive-map');
+    if (isAddingPoint) {
+        mapContainer.style.cursor = 'crosshair';
+    } else {
+        mapContainer.style.cursor = '';
+    }
+    return isAddingPoint;
+}
+
+function handleMapClickForPOI(e) {
+    if (!isAddingPoint) return;
+
+    const lat = e.latlng.lat;
+    const lon = e.latlng.lng;
+    // On lit l'input caché
+    const typeId = document.getElementById('poi-type-selector').value; 
+    const name = document.getElementById('poi-name-input').value.trim();
+
+    const iconConfig = getIcons().find(i => i.id === typeId);
+    const url = iconConfig ? iconConfig.url : "https://maps.google.com/mapfiles/kml/pushpin/ylw-pushpin.png";
+    
+    const poi = { 
+        id: Date.now(), 
+        lat, lon, 
+        type: typeId, 
+        name,
+        url: url
+    };
+    
+    userPOIs.push(poi);
+    
+    updatePOIMarkers();
+    updatePOIList();
+    
+    toggleAddPointMode();
+    const addBtn = document.getElementById('add-poi-btn');
+    if (addBtn) {
+        addBtn.textContent = "+ Ajouter un point";
+        addBtn.classList.remove('bg-red-600', 'hover:bg-red-700');
+        addBtn.classList.add('bg-blue-600', 'hover:bg-blue-700');
+    }
+}
+
+function updatePOIMarkers() {
+    const map = window.zoneMap; 
+    if (!map) return;
+
+    if (!poiMarkersLayer) {
+        poiMarkersLayer = L.layerGroup().addTo(map);
+    }
+    poiMarkersLayer.clearLayers();
+
+    userPOIs.forEach(poi => {
+        const customIcon = L.icon({
+            iconUrl: poi.url,
+            iconSize: [32, 32],
+            iconAnchor: [16, 16], 
+            popupAnchor: [0, -16]
+        });
+
+        const marker = L.marker([poi.lat, poi.lon], { icon: customIcon });
+        
+        if (poi.name) {
+            marker.bindTooltip(poi.name, { permanent: true, direction: 'top', offset: [0, -20] });
+        }
+        
+        marker.on('click', () => {
+            if (confirm(`Supprimer le point "${poi.name || poi.type}" ?`)) {
+                removePOI(poi.id);
+            }
+        });
+
+        poiMarkersLayer.addLayer(marker);
+    });
+}
+
+function removePOI(id) {
+    userPOIs = userPOIs.filter(p => p.id !== id);
+    updatePOIMarkers();
+    updatePOIList();
+}
+
+function updatePOIList() {
+    const tbody = document.getElementById('poi-table-body');
+    const container = document.getElementById('poi-list-container');
+    
+    if (userPOIs.length === 0) {
+        container.classList.add('hidden');
+        return;
+    }
+    container.classList.remove('hidden');
+    tbody.innerHTML = '';
+
+    userPOIs.forEach(poi => {
+        const iconDef = getIcons().find(i => i.id === poi.type);
+        const label = iconDef ? iconDef.label : poi.type;
+        
+        const row = document.createElement('tr');
+        row.className = "bg-white border-b dark:bg-gray-800 dark:border-gray-700";
+        row.innerHTML = `
+            <td class="px-2 py-1 font-medium text-gray-900 whitespace-nowrap dark:text-white text-xs text-center"><img src="${poi.url}" class="w-6 h-6 inline-block object-contain"></td>
+            <td class="px-2 py-1 text-xs">${poi.name || label}</td>
+            <td class="px-2 py-1 text-xs">${poi.lat.toFixed(4)}, ${poi.lon.toFixed(4)}</td>
+            <td class="px-2 py-1 text-right">
+                <button onclick="window.removePOI(${poi.id})" class="font-medium text-red-600 dark:text-red-500 hover:underline text-xs">X</button>
+            </td>
+        `;
+        tbody.appendChild(row);
+    });
+}
+window.removePOI = removePOI;
+
+// --- FONCTIONS ROBUSTES DE CHARGEMENT D'IMAGE (POUR EXPORT) ---
+
+function getIconData(url) {
+    return new Promise((resolve) => {
+        if (url.startsWith('data:image')) {
+            resolve(url);
+            return;
+        }
+        fetch(url)
+            .then(response => response.blob())
+            .then(blob => {
+                const reader = new FileReader();
+                reader.onloadend = () => resolve(reader.result);
+                reader.readAsDataURL(blob);
+            })
+            .catch(e => {
+                const img = new Image();
+                img.crossOrigin = "Anonymous";
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    canvas.width = img.naturalWidth || 32;
+                    canvas.height = img.naturalHeight || 32;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0);
+                    try {
+                        resolve(canvas.toDataURL('image/png'));
+                    } catch (err) {
+                        console.warn("Impossible d'extraire l'image pour le KMZ (Tainted):", url);
+                        resolve(null);
+                    }
+                };
+                img.onerror = () => resolve(null);
+                img.src = url;
+            });
+    });
+}
+
+function loadImageForCanvas(url) {
+    return new Promise((resolve) => {
+        const img = new Image();
+        img.crossOrigin = "Anonymous"; 
+        
+        let safeUrl = url;
+        if (url.startsWith('http')) {
+            safeUrl = url + (url.includes('?') ? '&' : '?') + 't=' + Date.now();
+        }
+
+        img.onload = () => resolve(img);
+        
+        img.onerror = () => {
+            console.warn("Image ignorée pour l'export (Erreur CORS ou 404):", url);
+            resolve(null);
+        };
+        
+        img.src = safeUrl;
+    });
+}
+
+async function drawUserPOIsOnCanvas(ctx, latLonToPixels) {
+    const uniqueUrls = [...new Set(userPOIs.map(p => p.url))];
+    const imageCache = {};
+    
+    await Promise.all(uniqueUrls.map(async (url) => {
+        const img = await loadImageForCanvas(url);
+        if (img) imageCache[url] = img;
+    }));
+
+    userPOIs.forEach(poi => {
+        const px = latLonToPixels(poi.lat, poi.lon);
+        const img = imageCache[poi.url];
+        
+        if (img) {
+            const w = 32; 
+            const h = 32;
+            ctx.drawImage(img, px.x - w/2, px.y - h/2, w, h);
+        } else {
+            ctx.save();
+            ctx.shadowColor = "rgba(0,0,0,0.5)";
+            ctx.shadowBlur = 4;
+            ctx.beginPath(); ctx.arc(px.x, px.y, 8, 0, 2*Math.PI); 
+            ctx.fillStyle = 'red'; ctx.fill();
+            ctx.strokeStyle = 'white'; ctx.lineWidth = 2; ctx.stroke();
+            ctx.restore();
+        }
+        
+        if (poi.name) {
+            ctx.shadowColor = "transparent";
+            ctx.font = "bold 14px Arial";
+            ctx.textAlign = "center";
+            ctx.textBaseline = "top";
+            
+            ctx.strokeStyle = "white";
+            ctx.lineWidth = 3;
+            ctx.strokeText(poi.name, px.x, px.y + 18); 
+            
+            ctx.fillStyle = "black";
+            ctx.fillText(poi.name, px.x, px.y + 18);
+        }
+    });
+}
+
+// --- FONCTIONS UTILITAIRES GÉOGRAPHIQUES ---
+
+function haversineDistance(p1, p2) {
+    const R = 6371e3;
+    const lat1Rad = toRad(p1.lat);
+    const lat2Rad = toRad(p2.lat);
+    const deltaLatRad = toRad(p2.lat - p1.lat);
+    const deltaLonRad = toRad(p2.lon - p1.lon);
+    const a = Math.sin(deltaLatRad / 2) * Math.sin(deltaLatRad / 2) + Math.cos(lat1Rad) * Math.cos(lat2Rad) * Math.sin(deltaLonRad / 2) * Math.sin(deltaLonRad / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
+}
+
 function zdCoordsToQuadKey(x, y, zoom) {
     let quadKey = '';
     for (let i = zoom; i > 0; i--) {
@@ -26,29 +333,120 @@ function zdLatLonToWorldPixels(lat, lon, zoom) {
     return { x: x * mapSize, y: y * mapSize };
 }
 
-/**
- * Fonction principale qui orchestre la création de l'image de la zone.
- */
+function getZoneCadoConfigAndBounds() {
+    const nwCoordsStr = document.getElementById("zone-nw-coords").value;
+    const seCoordsStr = document.getElementById("zone-se-coords").value;
+    if (!nwCoordsStr || !seCoordsStr) throw new Error("Veuillez d'abord dessiner une zone rectangulaire.");
+    
+    const [nwLat, nwLon] = nwCoordsStr.split(',').map(c => parseFloat(c.trim()));
+    const [seLat, seLon] = seCoordsStr.split(',').map(c => parseFloat(c.trim()));
+
+    const scale = parseFloat(document.getElementById('cado-overlay-scale').value);
+    if (isNaN(scale) || scale <= 0) throw new Error("L'échelle doit être un nombre positif.");
+
+    const widthMeters = haversineDistance({lat: nwLat, lon: nwLon}, {lat: nwLat, lon: seLon});
+    const heightMeters = haversineDistance({lat: nwLat, lon: nwLon}, {lat: seLat, lon: nwLon});
+    const numCols = Math.ceil(widthMeters / scale);
+    const numRows = Math.ceil(heightMeters / scale);
+
+    if (numCols > 100 || numRows > 100) {
+        throw new Error(`Le nombre de cases (${numCols}x${numRows}) est trop élevé (>100). Augmentez l'échelle ou réduisez la zone.`);
+    }
+
+    const refLat = (nwLat + seLat) / 2;
+    const refLon = (nwLon + seLon) / 2;
+    
+    const metersToLatDegrees = (meters) => meters / 111320;
+    const metersToLonDegrees = (meters, lat) => meters / (111320 * Math.cos(toRad(lat)));
+    
+    const xOffsetMeters = (numCols / 2) * scale;
+    const yOffsetMeters = (numRows / 2) * scale;
+    
+    const letteringDirection = document.querySelector('input[name="cado-overlay-direction"]:checked').value;
+    
+    const a1CornerLon = refLon - metersToLonDegrees(xOffsetMeters, refLat);
+    let a1CornerLat;
+    if (letteringDirection === 'ascending') {
+        a1CornerLat = refLat - metersToLatDegrees(yOffsetMeters);
+    } else {
+        a1CornerLat = refLat + metersToLatDegrees(yOffsetMeters);
+    }
+    
+    const config = {
+        latitude: refLat,
+        longitude: refLon,
+        scale: scale,
+        lineWidth: parseInt(document.getElementById('cado-overlay-thickness').value, 10),
+        letteringDirection: letteringDirection,
+        gridColor: document.getElementById('utm-grid-color').value,
+        colorName: document.getElementById('utm-grid-color-name').value,
+        colorOpacity: (100 - parseInt(document.getElementById('utm-transparency').value)) / 100,
+        gridNameBase: document.getElementById("zone-title").value || "Carroyage CADO de Zone",
+        deviation: 0,
+        labelSize: parseFloat(document.getElementById('label-size').value),
+        iconSize: parseFloat(document.getElementById('icon-size').value || 2),
+        referencePointChoice: 'no_cross', 
+        startRow: 1, endRow: numRows,
+        startCol: 'A', endCol: numberToLetter(numCols),
+        includeGrid: true, includePoints: true,
+        outputFormat: 'KMZ'
+    };
+
+    const gridCorners = [
+        calculateAndRotatePoint(config.startRow, 1, config, a1CornerLat, a1CornerLon),
+        calculateAndRotatePoint(numCols + 1, 1, config, a1CornerLat, a1CornerLon),
+        calculateAndRotatePoint(1, numRows + 1, config, a1CornerLat, a1CornerLon),
+        calculateAndRotatePoint(numCols + 1, numRows + 1, config, a1CornerLat, a1CornerLon)
+    ].map(p => ({ lon: p[0], lat: p[1] }));
+
+    const gridBounds = {
+        minLat: Math.min(...gridCorners.map(c => c.lat)),
+        maxLat: Math.max(...gridCorners.map(c => c.lat)),
+        minLon: Math.min(...gridCorners.map(c => c.lon)),
+        maxLon: Math.max(...gridCorners.map(c => c.lon))
+    };
+
+    return { config, gridBounds, a1CornerLat, a1CornerLon };
+}
+
 async function generateZonePNG() {
     const loadingIndicator = document.getElementById("loading-indicator");
     const loadingMessage = document.getElementById("loading-message");
-
+    
     loadingMessage.textContent = "Préparation de l'export de la zone...";
     loadingIndicator.classList.remove("hidden");
     hideError();
 
     try {
+        const isCadoExport = document.getElementById('overlay-cado-grid-checkbox').checked;
+        const isUtmExport = document.getElementById('overlay-utm-grid-checkbox').checked;
+        let cadoData = null;
+        let finalBoundingBox;
+
         const nwCoordsStr = document.getElementById("zone-nw-coords").value;
         const seCoordsStr = document.getElementById("zone-se-coords").value;
-        if (!nwCoordsStr || !seCoordsStr) throw new Error("Veuillez d'abord dessiner une zone rectangulaire sur la carte.");
-
         const [north, west] = nwCoordsStr.split(',').map(c => parseFloat(c.trim()));
         const [south, east] = seCoordsStr.split(',').map(c => parseFloat(c.trim()));
+        
+        if(isCadoExport) {
+            cadoData = getZoneCadoConfigAndBounds();
+            const { config, gridBounds } = cadoData;
+            const avgLat = (gridBounds.minLat + gridBounds.maxLat) / 2;
+            const metersToLat = (meters) => meters / 111320;
+            const metersToLon = (meters, lat) => meters / (111320 * Math.cos(toRad(lat)));
 
-        const title = document.getElementById("zone-title").value || "Export de zone";
+            finalBoundingBox = {
+                north: gridBounds.maxLat + metersToLat(0.5 * config.scale),
+                south: gridBounds.minLat - metersToLat(1.0 * config.scale),
+                west: gridBounds.minLon - metersToLon(1.0 * config.scale, avgLat),
+                east: gridBounds.maxLon + metersToLon(0.5 * config.scale, avgLat)
+            };
+        } else {
+            finalBoundingBox = { north, west, south, east };
+        }
+
         const zoom = parseInt(document.getElementById("zone-info-zoom").textContent, 10);
         const mapLayerName = document.getElementById("zone-info-layer").textContent;
-        
         const selectedMap = MAP_LAYERS.find(m => m.name === mapLayerName);
         if (!selectedMap) throw new Error("Impossible de trouver la configuration du fond de carte.");
         
@@ -57,28 +455,81 @@ async function generateZonePNG() {
         const mimeType = format === 'jpeg' ? 'image/jpeg' : 'image/png';
         const fileExtension = format === 'jpeg' ? '.jpg' : '.png';
 
-        const boundingBox = { north, west, south, east };
-
-        loadingMessage.textContent = "Téléchargement des fonds de carte...";
-        const { finalCanvas } = await zdCreateFinalCanvas(boundingBox, zoom, selectedMap);
+        loadingMessage.textContent = "Téléchargement et assemblage des fonds de carte...";
+        
+        const needsExternalMargin = isUtmExport && !isCadoExport;
+        
+        const { finalCanvas, dynamicMargin } = await zdCreateFinalCanvas(finalBoundingBox, zoom, selectedMap, needsExternalMargin);
         const ctx = finalCanvas.getContext('2d');
-        // --- NOUVELLE ÉTAPE : DESSIN DU KML ---
+        
+        const nwPixel = zdLatLonToWorldPixels(finalBoundingBox.north, finalBoundingBox.west, zoom);
+        const latLonToCanvasPixels = (lat, lon) => {
+            const worldPixels = zdLatLonToWorldPixels(lat, lon, zoom);
+            return {
+                x: worldPixels.x - nwPixel.x + dynamicMargin,
+                y: worldPixels.y - nwPixel.y + dynamicMargin
+            };
+        };
+
         if (loadedZoneKmlFeatures.length > 0) {
             loadingMessage.textContent = "Dessin des éléments KML...";
-            drawZoneKmlFeatures(ctx, boundingBox, zoom, loadedZoneKmlFeatures);
+            drawZoneKmlFeatures(ctx, zoom, loadedZoneKmlFeatures, latLonToCanvasPixels);
         }
-        // --- FIN DE LA NOUVELLE ÉTAPE ---
-		loadingMessage.textContent = "Finalisation de l'image...";
-		drawZoneCartouche(ctx, title, boundingBox, mapLayerName, zoom);
-        drawZoneCompass(ctx, finalCanvas.width, finalCanvas.height);
 
-        const fileName = `${title.replace(/[^a-z0-9]/gi, '_')}_${mapLayerName}_z${zoom}${fileExtension}`;
-        finalCanvas.toBlob((blob) => {
-            if (blob) {
-                downloadFile(blob, fileName);
+        if (userPOIs.length > 0) {
+            loadingMessage.textContent = "Dessin des points d'intérêt...";
+            await drawUserPOIsOnCanvas(ctx, latLonToCanvasPixels);
+        }
+
+        if (isUtmExport) {
+            loadingMessage.textContent = "Dessin de la grille UTM...";
+            const cartoucheFontSize = Math.max(10, Math.min(48, finalCanvas.width * 0.007));
+            await drawUtmGridOnCanvas(ctx, finalBoundingBox, latLonToCanvasPixels, dynamicMargin, cartoucheFontSize);
+        }
+        
+        if (isCadoExport && cadoData) {
+            loadingMessage.textContent = "Dessin du carroyage CADO...";
+            const { config, a1CornerLat, a1CornerLon } = cadoData;
+            drawCadoElementsOnCanvas(ctx, config, latLonToCanvasPixels, [a1CornerLon, a1CornerLat]);
+        }
+
+        if (!isCadoExport) {
+            loadingMessage.textContent = "Finalisation de l'image...";
+            
+            if (isUtmExport) {
+                const cartoucheFontSize = Math.max(10, Math.min(48, finalCanvas.width * 0.007));
+                const cartoucheMetrics = drawZoneCartouche(ctx, "Export de zone", finalBoundingBox, mapLayerName, zoom, dynamicMargin, cartoucheFontSize);
+                drawZoneCompass(ctx, finalCanvas.width, finalCanvas.height, dynamicMargin, cartoucheMetrics);
             } else {
-                showError("Erreur lors de la création du fichier image.");
+                const compassRadius = Math.max(10, finalCanvas.width * 0.012); 
+                const padding = compassRadius * 0.8; 
+                const compassCenterX = finalCanvas.width - dynamicMargin - padding - compassRadius;
+                const compassCenterY = dynamicMargin + padding + compassRadius;
+                const compassFontSize = compassRadius * 0.9; 
+                drawSimpleCompass(ctx, compassCenterX, compassCenterY, compassRadius, compassFontSize);
+
+                const avgLat = (north + south) / 2;
+                const realWidthMeters = haversineDistance({lat: avgLat, lon: west}, {lat: avgLat, lon: east});
+                const mapPixelWidth = finalCanvas.width - (2 * dynamicMargin);
+                const metersPerPixel = realWidthMeters / mapPixelWidth;
+
+                drawSmartScaleBar(ctx, finalCanvas.width, finalCanvas.height, 0, metersPerPixel);
             }
+        }
+        
+        let fileName;
+        if (isCadoExport && cadoData) {
+            const { config, a1CornerLat, a1CornerLon } = cadoData;
+            const letteringStr = config.letteringDirection === 'descending' ? '_descendant' : '';
+            fileName = `${config.gridNameBase}_${config.scale}m_zone${letteringStr}_${config.colorName}_origine=${a1CornerLat.toFixed(6)},${a1CornerLon.toFixed(6)}${fileExtension}`;
+        } else {
+            const title = document.getElementById("zone-title").value || "Export de zone";
+            fileName = `${title.replace(/[^a-z0-9]/gi, '_')}_${mapLayerName}_z${zoom}${fileExtension}`;
+        }
+
+        finalCanvas.toBlob((blob) => {
+            if (blob) { downloadFile(blob, fileName); } 
+            else { showError("Erreur lors de la création du fichier image."); }
         }, mimeType, quality);
 
     } catch (error) {
@@ -89,20 +540,120 @@ async function generateZonePNG() {
     }
 }
 
-/**
- * Crée le canevas final et y assemble les tuiles pour la zone sélectionnée.
- */
-async function zdCreateFinalCanvas(boundingBox, zoom, mapConfig) {
+async function generateCadoGridForZone() {
+    const loadingIndicator = document.getElementById("loading-indicator");
+    const loadingMessage = document.getElementById("loading-message");
+    
+    loadingMessage.textContent = "Génération du carroyage CADO (KMZ)...";
+    loadingIndicator.classList.remove("hidden");
+    hideError();
+
+    try {
+        const { config, a1CornerLat, a1CornerLon } = getZoneCadoConfigAndBounds();
+        const gridData = calculateGridData(config);
+        
+        let kmlContent = generateKML(config, gridData);
+        const zip = new JSZip(); 
+        
+        if (userPOIs.length > 0) {
+            let poiKml = "";
+            const imagesToZip = new Map();
+            
+            for (const [index, poi] of userPOIs.entries()) {
+                let iconUrl = "https://maps.google.com/mapfiles/kml/paddle/wht-blank.png";
+                let iconFilename = "";
+                
+                // --- CORRECTION MAJEURE ICI ---
+                // Utilisation correcte de getIcons()
+                const iconDef = getIcons().find(i => i.id === poi.type);
+                if(iconDef) iconUrl = iconDef.url;
+                if(poi.url) iconUrl = poi.url;
+
+                if (!iconUrl.startsWith('http')) {
+                    iconFilename = `icon_${index}.png`;
+                    const zipPath = `files/${iconFilename}`;
+                    
+                    const base64Data = await getIconData(iconUrl);
+                    if (base64Data) {
+                        const cleanBase64 = base64Data.split(',')[1];
+                        imagesToZip.set(zipPath, cleanBase64);
+                        iconUrl = zipPath; 
+                    }
+                }
+
+                poiKml += `
+                <Placemark>
+                    <name>${poi.name || poi.type}</name>
+                    <Style><IconStyle><scale>1.2</scale><Icon><href>${iconUrl}</href></Icon></IconStyle></Style>
+                    <Point><coordinates>${poi.lon},${poi.lat},0</coordinates></Point>
+                </Placemark>`;
+            }
+            
+            for (const [path, data] of imagesToZip) {
+                zip.file(path, data, {base64: true});
+            }
+            
+            kmlContent = kmlContent.replace('</Document>', `<Folder><name>Points d'intérêt</name>${poiKml}</Folder></Document>`);
+        }
+
+        zip.file("doc.kml", kmlContent);
+
+        if (config.includePoints) {
+            const iconsFolder = zip.folder("icons");
+            const canvas = document.createElement("canvas");
+            canvas.setAttribute("width", 64);
+            canvas.setAttribute("height", 64);
+            const ctx = canvas.getContext("2d");
+            ctx.font = "bold 24px Arial";
+            ctx.fillStyle = config.gridColor;
+            ctx.textAlign = "center";
+            ctx.textBaseline =  "middle";
+
+            for (const point of gridData.points) {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                ctx.fillText(point.name, 32, 32);
+                if (config.gridColor.toUpperCase() === "#FFFFFF") {
+                    ctx.strokeText(point.name, 32, 32);
+                }
+                const dataUrl = canvas.toDataURL("image/png");
+                iconsFolder.file(`${point.name}.png`, dataUrl.split(',')[1], { base64: true });
+            }
+        }
+
+        const kmzBlob = await zip.generateAsync({ type: "blob", mimeType: 'application/vnd.google-earth.kmz' });
+        
+        const letteringStr = config.letteringDirection === 'descending' ? '_descendant' : '';
+        const fileName = `${config.gridNameBase}_${config.scale}m_zone${letteringStr}_${config.colorName}_origine=${a1CornerLat.toFixed(6)},${a1CornerLon.toFixed(6)}.kmz`;
+
+        downloadFile(kmzBlob, fileName);
+
+    } catch (error) {
+        console.error("Erreur lors de la génération du KMZ CADO:", error);
+        showError(error.message);
+    } finally {
+        loadingIndicator.classList.add("hidden");
+    }
+}
+
+async function zdCreateFinalCanvas(boundingBox, zoom, mapConfig, hasExternalMargin = false) {
     const nwPixel = zdLatLonToWorldPixels(boundingBox.north, boundingBox.west, zoom);
     const sePixel = zdLatLonToWorldPixels(boundingBox.south, boundingBox.east, zoom);
-
-    const canvasWidth = Math.abs(sePixel.x - nwPixel.x);
-    const canvasHeight = Math.abs(sePixel.y - nwPixel.y);
+    const imageWidth = Math.abs(sePixel.x - nwPixel.x);
+    const imageHeight = Math.abs(sePixel.y - nwPixel.y);
+    
+    let dynamicMargin = 0;
+    if (hasExternalMargin) {
+        const cartoucheFontSize = Math.max(10, Math.min(48, imageWidth * 0.007));
+        dynamicMargin = Math.ceil(cartoucheFontSize * 4);
+    }
 
     const finalCanvas = document.createElement('canvas');
-    finalCanvas.width = canvasWidth;
-    finalCanvas.height = canvasHeight;
+    finalCanvas.width = imageWidth + dynamicMargin * 2;
+    finalCanvas.height = imageHeight + dynamicMargin * 2;
     const ctx = finalCanvas.getContext('2d');
+
+    ctx.fillStyle = 'white';
+    ctx.fillRect(0, 0, finalCanvas.width, finalCanvas.height);
 
     const nwTile = { x: Math.floor(nwPixel.x / ZD_TILE_SIZE), y: Math.floor(nwPixel.y / ZD_TILE_SIZE) };
     const seTile = { x: Math.floor(sePixel.x / ZD_TILE_SIZE), y: Math.floor(sePixel.y / ZD_TILE_SIZE) };
@@ -120,12 +671,14 @@ async function zdCreateFinalCanvas(boundingBox, zoom, mapConfig) {
                     tileUrl = layer.url.replace('{z}', zoom).replace('{x}', x).replace('{y}', y);
                 }
                 
+                const safeUrl = tileUrl + (tileUrl.includes('?') ? '&' : '?') + 't=' + Date.now();
+
                 const promise = new Promise((resolve) => {
                     const img = new Image();
-                    img.crossOrigin = "Anonymous";
+                    img.crossOrigin = "Anonymous"; 
                     img.onload = () => resolve({ img, x, y, success: true });
                     img.onerror = () => resolve({ success: false });
-                    img.src = tileUrl;
+                    img.src = safeUrl;
                 });
                 tilePromises.push(promise);
             }
@@ -133,96 +686,78 @@ async function zdCreateFinalCanvas(boundingBox, zoom, mapConfig) {
         const resolvedTiles = await Promise.all(tilePromises);
         resolvedTiles.forEach(tileResult => {
             if (tileResult.success) {
-                const tileX = (tileResult.x * ZD_TILE_SIZE) - nwPixel.x;
-                const tileY = (tileResult.y * ZD_TILE_SIZE) - nwPixel.y;
+                const tileX = (tileResult.x * ZD_TILE_SIZE) - nwPixel.x + dynamicMargin;
+                const tileY = (tileResult.y * ZD_TILE_SIZE) - nwPixel.y + dynamicMargin;
                 ctx.drawImage(tileResult.img, Math.round(tileX), Math.round(tileY));
             }
         });
     }
 
-    return { finalCanvas };
+    return { finalCanvas, dynamicMargin };
 }
 
-/**
- * Dessine le cartouche d'information pour l'export de zone.
- */
-function drawZoneCartouche(ctx, title, bbox, layerName, zoom) {
-    // [MODIFIÉ] Taille de la police augmentée d'un facteur 1.5.
-    const FONT_SIZE = Math.max(10, Math.min(48, ctx.canvas.width * 0.007));
-    const PADDING = FONT_SIZE;
-    const lineSpacing = FONT_SIZE * 1.3;
-
-    const texts = [
-        title,
-        `Point NO: ${bbox.north.toFixed(5)}, ${bbox.west.toFixed(5)}`,
-        `Point SE: ${bbox.south.toFixed(5)}, ${bbox.east.toFixed(5)}`,
-        `Fond: ${layerName} (Zoom ${zoom})`
-    ];
-
-    ctx.font = `${FONT_SIZE}px Arial`;
+function drawZoneCartouche(ctx, title, bbox, layerName, zoom, margin, fontSize) {
+    const PADDING = fontSize;
+    const lineSpacing = fontSize * 1.3;
+    const utmNW = WGS84_to_UTM.fromLatLon(bbox.north, bbox.west);
+    const utmSE = WGS84_to_UTM.fromLatLon(bbox.south, bbox.east);
+    const utmNW_string = `${utmNW.zoneNumber}${utmNW.zoneLetter} ${Math.round(utmNW.easting)} E ${Math.round(utmNW.northing)} N`;
+    const utmSE_string = `${utmSE.zoneNumber}${utmSE.zoneLetter} ${Math.round(utmSE.easting)} E ${Math.round(utmSE.northing)} N`;
+    const texts = [ title, `UTM NO: ${utmNW_string}`, `UTM SE: ${utmSE_string}`, `Fond: ${layerName} (Zoom ${zoom})`];
+    ctx.font = `${fontSize}px Arial`;
     const cartoucheWidth = Math.max(...texts.map(text => ctx.measureText(text).width)) + (PADDING * 2);
-    const cartoucheHeight = (lineSpacing * texts.length) - (lineSpacing - FONT_SIZE) + (PADDING * 2);
-
-    const cartoucheX = PADDING;
-    const cartoucheY = PADDING;
-
+    const cartoucheHeight = (lineSpacing * texts.length) - (lineSpacing - fontSize) + (PADDING * 2);
+    const cartoucheX = margin + PADDING;
+    const cartoucheY = margin + PADDING;
     ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
     ctx.fillRect(cartoucheX, cartoucheY, cartoucheWidth, cartoucheHeight);
     ctx.strokeStyle = 'black';
     ctx.lineWidth = 1;
     ctx.strokeRect(cartoucheX, cartoucheY, cartoucheWidth, cartoucheHeight);
-    
     ctx.fillStyle = 'black';
     ctx.textAlign = 'left';
     ctx.textBaseline = 'top';
-    
     let textY = cartoucheY + PADDING;
     for (const text of texts) {
         ctx.fillText(text, cartoucheX + PADDING, textY);
         textY += lineSpacing;
     }
+    return { fontSize, cartoucheHeight };
 }
 
-/**
- * Dessine une boussole simple (flèche Nord).
- */
-function drawZoneCompass(ctx, canvasWidth, canvasHeight) {
-    // [MODIFIÉ] Taille de la boussole augmentée d'un facteur 1.5.
-    const radius = Math.max(30, Math.min(90, canvasWidth * 0.0200));
-    // [MODIFIÉ] Marge augmentée pour éloigner la boussole du bord.
-    const PADDING = radius * 1.8;
+function drawZoneCompass(ctx, canvasWidth, canvasHeight, margin, cartoucheMetrics) {
+    const radius = Math.max(20, (cartoucheMetrics.cartoucheHeight * 0.75) / 2);
+    const PADDING = radius * 1.6; 
+    const centerX = canvasWidth - margin - PADDING;
+    const centerY = margin + PADDING;
+    const compassFontSize = radius * 0.6;
+    drawSimpleCompass(ctx, centerX, centerY, radius, compassFontSize);
+}
 
-    const centerX = canvasWidth - PADDING;
-    const centerY = PADDING;
-    
-    // Cercle de fond
+function drawSimpleCompass(ctx, x, y, radius, fontSize) {
     ctx.beginPath();
-    ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
-    ctx.fillStyle = 'rgba(200, 200, 200, 0.7)';
+    ctx.arc(x, y, radius, 0, 2 * Math.PI);
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+    ctx.strokeStyle = 'rgba(0, 0, 0, 0.7)';
+    ctx.lineWidth = 1;
     ctx.fill();
-
-    // Flèche
+    ctx.stroke();
     const arrowLength = radius / 1.2;
-    const N_point = { x: centerX, y: centerY - arrowLength };
-    const base_point = { x: centerX, y: centerY + (arrowLength * 0.3) };
-
+    const N_point = { x: x, y: y - arrowLength };
+    const base_point = { x: x, y: y + (arrowLength * 0.3) };
     ctx.beginPath();
     ctx.moveTo(base_point.x, base_point.y);
     ctx.lineTo(N_point.x, N_point.y);
     ctx.strokeStyle = 'red'; ctx.lineWidth = 3; ctx.stroke();
-
     ctx.beginPath();
     ctx.moveTo(N_point.x, N_point.y);
-    // Les dimensions de la tête de flèche sont relatives au rayon pour bien s'adapter
     const arrowHeadSize = radius * 0.25;
     ctx.lineTo(N_point.x - arrowHeadSize, N_point.y + arrowHeadSize);
     ctx.lineTo(N_point.x + arrowHeadSize, N_point.y + arrowHeadSize);
     ctx.closePath();
     ctx.fillStyle = 'red'; ctx.fill();
-
-    // Lettre 'N'
-    const compassNFontSize = radius * 0.6;
-    ctx.font = `bold ${compassNFontSize}px Arial`;
+    
+    ctx.font = `bold ${fontSize}px Arial`;
     ctx.textAlign = 'center'; 
     ctx.textBaseline = 'bottom';
     ctx.strokeStyle = 'white'; 
@@ -232,14 +767,45 @@ function drawZoneCompass(ctx, canvasWidth, canvasHeight) {
     ctx.fillText('N', N_point.x, N_point.y);
 }
 
-// =======================================================================
-// SECTION 1 : FONCTIONS DE PARSING KML (FORTEMENT AMÉLIORÉES)
-// =======================================================================
+function drawSmartScaleBar(ctx, canvasWidth, canvasHeight, margin, metersPerPixel) {
+    const targetWidthPx = canvasWidth * 0.04;
+    const rawMeters = targetWidthPx * metersPerPixel;
+    
+    const magnitude = Math.pow(10, Math.floor(Math.log10(rawMeters)));
+    const residual = rawMeters / magnitude;
+    let roundedMeters;
+    if (residual < 1.5) roundedMeters = 1 * magnitude;
+    else if (residual < 3.5) roundedMeters = 2 * magnitude;
+    else if (residual < 7.5) roundedMeters = 5 * magnitude;
+    else roundedMeters = 10 * magnitude;
+    
+    const finalBarWidthPx = roundedMeters / metersPerPixel;
+    const barHeight = Math.max(14, canvasHeight * 0.015);
+    const fontSize = barHeight * 0.9;
+    const padding = barHeight * 0.5;
+    
+    const x = margin + padding;
+    const y = canvasHeight - margin - barHeight - padding;
+    
+    ctx.fillStyle = 'yellow';
+    ctx.strokeStyle = 'black';
+    ctx.lineWidth = 2;
+    
+    ctx.beginPath();
+    ctx.rect(x, y, finalBarWidthPx, barHeight);
+    ctx.fill();
+    ctx.stroke();
+    
+    ctx.fillStyle = 'black';
+    ctx.font = `bold ${fontSize}px Arial`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    const label = roundedMeters >= 1000 ? `${roundedMeters/1000} km` : `${roundedMeters} m`;
+    ctx.fillText(label, x + (finalBarWidthPx / 2), y + (barHeight / 2));
+}
 
-/**
- * Orchestrateur principal pour la gestion du fichier KML/KMZ.
- * @param {Event} event L'événement de changement du champ de fichier.
- */
+// --- Fonctions utilitaires / KML (inchangées) ---
+
 async function handleZoneKmzFile(event) {
     const file = event.target.files[0];
     loadedZoneKmlFeatures = [];
@@ -260,13 +826,9 @@ async function handleZoneKmzFile(event) {
         const parser = new DOMParser();
         const kmlDoc = parser.parseFromString(kmlText, "text/xml");
 
-        // Étape 1: Parser tous les styles partagés du document
         const sharedStyles = parseSharedKmlStyles(kmlDoc);
-
-        // Étape 2: Parser les placemarks en utilisant les styles partagés
         const placemarksData = parseKmlPlacemarksFromDoc(kmlDoc, sharedStyles);
 
-        // Étape 3: Charger les icônes requises depuis le fichier KMZ
         if (zip) {
             loadingMessage.textContent = "Chargement des icônes...";
             await loadKmlIcons(placemarksData, zip);
@@ -285,11 +847,6 @@ async function handleZoneKmzFile(event) {
     }
 }
 
-/**
- * Parse les balises <Style> et <StyleMap> partagées dans le document KML.
- * @param {XMLDocument} kmlDoc
- * @returns {Object} Un dictionnaire des styles partagés.
- */
 function parseSharedKmlStyles(kmlDoc) {
     const styles = {};
     const styleElements = kmlDoc.querySelectorAll('Document > Style, Document > StyleMap');
@@ -302,7 +859,6 @@ function parseSharedKmlStyles(kmlDoc) {
             );
             const styleUrl = normalPair?.querySelector('styleUrl')?.textContent;
             if (styleUrl) {
-                // Pour l'instant, on lie juste le StyleMap à l'URL du style normal
                  styles[styleId] = { isMap: true, normalUrl: styleUrl };
             }
         } else {
@@ -310,7 +866,6 @@ function parseSharedKmlStyles(kmlDoc) {
         }
     });
 
-    // Résoudre les références des StyleMap
     Object.values(styles).forEach(style => {
         if (style.isMap && styles[style.normalUrl]) {
             Object.assign(style, styles[style.normalUrl]);
@@ -320,11 +875,6 @@ function parseSharedKmlStyles(kmlDoc) {
     return styles;
 }
 
-/**
- * Parse une seule balise <Style> et retourne un objet de style.
- * @param {Element} styleEl L'élément <Style> à parser.
- * @returns {Object} Un objet contenant les propriétés de style.
- */
 function parseStyleElement(styleEl) {
     const style = {};
     const iconStyle = styleEl.querySelector('IconStyle');
@@ -341,25 +891,17 @@ function parseStyleElement(styleEl) {
         style.labelScale = parseFloat(labelStyle.querySelector('scale')?.textContent || 1.0);
     }
     if (lineStyle) {
-        style.lineColor = kmlColorToCss(lineStyle.querySelector('color')?.textContent || 'ff0000ff'); // Rouge par défaut
+        style.lineColor = kmlColorToCss(lineStyle.querySelector('color')?.textContent || 'ff0000ff');
         style.lineWidth = parseFloat(lineStyle.querySelector('width')?.textContent || 2);
     }
     if (polyStyle) {
-        style.polyColor = kmlColorToCss(polyStyle.querySelector('color')?.textContent || 'ff0000ff'); // Rouge par défaut
-        // La balise <fill> contient 1 (vrai) or 0 (faux)
+        style.polyColor = kmlColorToCss(polyStyle.querySelector('color')?.textContent || 'ff0000ff');
         style.polyFill = polyStyle.querySelector('fill')?.textContent !== '0';
-        // La balise <outline> contient 1 (vrai) or 0 (faux)
         style.polyOutline = polyStyle.querySelector('outline')?.textContent !== '0';
     }
     return style;
 }
 
-/**
- * Extrait les Placemarks et leur associe leur style (partagé ou en ligne).
- * @param {XMLDocument} kmlDoc
- * @param {Object} sharedStyles
- * @returns {Array}
- */
 function parseKmlPlacemarksFromDoc(kmlDoc, sharedStyles) {
     const features = [];
     kmlDoc.querySelectorAll('Placemark').forEach(placemark => {
@@ -375,9 +917,9 @@ function parseKmlPlacemarksFromDoc(kmlDoc, sharedStyles) {
             style = parseStyleElement(inlineStyleEl);
         }
 
-        // ... (le reste du parsing de géométrie reste identique)
         const point = placemark.getElementsByTagName('Point')[0];
-        // ... (idem pour LineString et Polygon)
+        const lineString = placemark.getElementsByTagName('LineString')[0];
+        const polygon = placemark.getElementsByTagName('Polygon')[0];
 
         if (point) {
             const coordsStr = point.getElementsByTagName('coordinates')[0]?.textContent.trim();
@@ -385,17 +927,23 @@ function parseKmlPlacemarksFromDoc(kmlDoc, sharedStyles) {
                 const [lon, lat] = coordsStr.split(',').map(parseFloat);
                 features.push({ type: 'Point', name, style, coordinates: [lon, lat] });
             }
-        } 
-        // ...
+        } else if (lineString) {
+            const coordsStr = lineString.getElementsByTagName('coordinates')[0]?.textContent.trim();
+            if (coordsStr) {
+                const coordinates = coordsStr.split(' ').filter(c => c).map(c => c.split(',').map(parseFloat));
+                features.push({ type: 'LineString', name, style, coordinates });
+            }
+        } else if (polygon) {
+            const outerBoundary = polygon.querySelector('outerBoundaryIs > LinearRing > coordinates')?.textContent.trim();
+            if (outerBoundary) {
+                const coordinates = outerBoundary.split(' ').filter(c => c).map(c => c.split(',').map(parseFloat));
+                features.push({ type: 'Polygon', name, style, coordinates });
+            }
+        }
     });
     return features;
 }
 
-/**
- * Charge les images des icônes depuis le fichier ZIP.
- * @param {Array} placemarksData
- * @param {JSZip} zip
- */
 async function loadKmlIcons(placemarksData, zip) {
     const iconPromises = [];
     const loadedUrls = new Set();
@@ -407,12 +955,9 @@ async function loadKmlIcons(placemarksData, zip) {
 
             let promise;
 
-            // NOUVEAU : Gère les URL web et les chemins locaux différemment
             if (iconUrl.startsWith('http')) {
-                // C'est une URL web
                 promise = new Promise((resolve) => {
                     const img = new Image();
-                    // Indispensable pour que le canvas ne soit pas "contaminé" par une ressource externe
                     img.crossOrigin = "Anonymous";
                     img.onload = () => {
                         kmlResources.images[iconUrl] = img;
@@ -420,12 +965,11 @@ async function loadKmlIcons(placemarksData, zip) {
                     };
                     img.onerror = () => {
                         console.warn(`Impossible de charger l'icône depuis l'URL: ${iconUrl}`);
-                        resolve(); // On résout pour ne pas bloquer les autres images
+                        resolve();
                     };
                     img.src = iconUrl;
                 });
             } else if (zip) {
-                // C'est un chemin local dans le KMZ
                 const iconFile = zip.file(iconUrl);
                 if (iconFile) {
                     promise = iconFile.async('base64').then(base64 => {
@@ -450,12 +994,6 @@ async function loadKmlIcons(placemarksData, zip) {
     await Promise.all(iconPromises);
 }
 
-
-/**
- * Convertit une couleur KML (aabbggrr) en format CSS (rgba).
- * @param {string} kmlColor
- * @returns {string}
- */
 function kmlColorToCss(kmlColor) {
     if (!kmlColor || kmlColor.length !== 8) return 'rgba(255,255,255,1)';
     const a = parseInt(kmlColor.substring(0, 2), 16) / 255;
@@ -466,43 +1004,17 @@ function kmlColorToCss(kmlColor) {
 }
 
 function getContrastingOutlineColor(rgbaColor) {
-    // Si la couleur n'est pas valide, retourne du noir par sécurité
     if (!rgbaColor || !rgbaColor.startsWith('rgba')) return 'black';
-
-    // Extrait les composantes r, g, b de la chaîne "rgba(r, g, b, a)"
     try {
         const [r, g, b] = rgbaColor.match(/\d+/g).map(Number);
-        
-        // Calcule la "luminance" de la couleur. C'est une mesure de sa clarté perçue.
-        // La formule utilise des poids standards pour chaque couleur.
         const luminance = (0.299 * r + 0.587 * g + 0.114 * b);
-
-        // Si la luminance est supérieure à un certain seuil (ici 186), la couleur est considérée
-        // comme claire, donc on utilise un contour noir. Sinon, un contour blanc.
         return luminance > 186 ? 'black' : 'white';
-
     } catch (e) {
-        return 'black'; // Fallback
+        return 'black';
     }
 }
-// =======================================================================
-// SECTION 2 : FONCTION DE DESSIN SUR CANVAS (FORTEMENT AMÉLIORÉE)
-// =======================================================================
 
-/**
- * Dessine les features KML sur le canvas fourni, en utilisant les styles extraits.
- * @param {CanvasRenderingContext2D} ctx Le contexte 2D du canvas.
- * @param {object} boundingBox La bounding box de la zone {north, west, south, east}.
- * @param {number} zoom Le niveau de zoom de la carte.
- * @param {Array} features Les features KML à dessiner.
- */
-function drawZoneKmlFeatures(ctx, boundingBox, zoom, features) {
-    const nwPixel = zdLatLonToWorldPixels(boundingBox.north, boundingBox.west, zoom);
-    const latLonToCanvasPixels = (lat, lon) => {
-        const worldPixels = zdLatLonToWorldPixels(lat, lon, zoom);
-        return { x: worldPixels.x - nwPixel.x, y: worldPixels.y - nwPixel.y };
-    };
-
+function drawZoneKmlFeatures(ctx, zoom, features, latLonToCanvasPixels) {
     features.forEach(feature => {
         const style = feature.style || {};
 
@@ -510,16 +1022,15 @@ function drawZoneKmlFeatures(ctx, boundingBox, zoom, features) {
             const center = latLonToCanvasPixels(feature.coordinates[1], feature.coordinates[0]);
             const iconImg = style.iconUrl ? kmlResources.images[style.iconUrl] : null;
 
-            let iconHeight = 32; // Hauteur par défaut pour le positionnement du texte
+            let iconHeight = 32;
 
             if (iconImg && iconImg.complete && iconImg.naturalWidth > 0) {
                 const scale = style.iconScale || 1.0;
                 const w = iconImg.naturalWidth * scale;
                 const h = iconImg.naturalHeight * scale;
-                iconHeight = h; // Utilise la hauteur réelle de l'icône
+                iconHeight = h;
                 ctx.drawImage(iconImg, center.x - w / 2, center.y - h / 2, w, h);
             } else {
-                // Fallback
                 ctx.beginPath();
                 ctx.arc(center.x, center.y, 6, 0, 2 * Math.PI, false);
                 ctx.fillStyle = '#f0e100';
@@ -530,7 +1041,7 @@ function drawZoneKmlFeatures(ctx, boundingBox, zoom, features) {
             }
 
             if (feature.name) {
-                const textYOffset = (iconHeight / 2) + 5; // Positionne le texte juste sous l'icône
+                const textYOffset = (iconHeight / 2) + 5;
                 const labelColor = style.labelColor || 'rgba(0, 0, 0, 1)'; 
                 const outlineColor = getContrastingOutlineColor(labelColor);
 
@@ -545,12 +1056,9 @@ function drawZoneKmlFeatures(ctx, boundingBox, zoom, features) {
                 ctx.fillStyle = labelColor;
                 ctx.fillText(feature.name, center.x, center.y + textYOffset);
             }
-         
-
         } 
-		// --- PARTIE 2 : LIGNES ---
         else if (feature.type === 'LineString' && feature.coordinates.length > 1) {
-            ctx.strokeStyle = style.lineColor || 'rgba(255, 0, 0, 1)'; // Rouge par défaut
+            ctx.strokeStyle = style.lineColor || 'rgba(255, 0, 0, 1)';
             ctx.lineWidth = style.lineWidth || 2;
             ctx.beginPath();
             feature.coordinates.forEach((coord, index) => {
@@ -560,8 +1068,6 @@ function drawZoneKmlFeatures(ctx, boundingBox, zoom, features) {
             });
             ctx.stroke();
         } 
-        
-        // --- PARTIE 3 : POLYGONES ---
         else if (feature.type === 'Polygon' && feature.coordinates.length > 2) {
             ctx.beginPath();
             feature.coordinates.forEach((coord, index) => {
@@ -571,18 +1077,90 @@ function drawZoneKmlFeatures(ctx, boundingBox, zoom, features) {
             });
             ctx.closePath();
 
-            // Remplissage du polygone (si activé dans le KML)
-            if (style.polyFill !== false) { // Vrai par défaut
+            if (style.polyFill !== false) {
                 ctx.fillStyle = style.polyColor || 'rgba(255, 0, 0, 0.5)';
                 ctx.fill();
             }
 
-            // Contour du polygone (si activé dans le KML)
-            if (style.polyOutline !== false) { // Vrai par défaut
+            if (style.polyOutline !== false) {
                 ctx.strokeStyle = style.lineColor || 'rgba(255, 0, 0, 1)';
                 ctx.lineWidth = style.lineWidth || 2;
                 ctx.stroke();
             }
         }
     });
+}
+
+async function drawUtmGridOnCanvas(ctx, boundingBox, latLonToCanvasPixels, margin, cartoucheFontSize) {
+    const color = document.getElementById('utm-grid-color').value;
+    const opacity = (100 - parseInt(document.getElementById('utm-transparency').value)) / 100;
+    const r = parseInt(color.slice(1, 3), 16), g = parseInt(color.slice(3, 5), 16), b = parseInt(color.slice(5, 7), 16);
+    const gridLineColor = `rgba(${r}, ${g}, ${b}, ${opacity})`;
+    const nwLat = boundingBox.north, nwLon = boundingBox.west, seLat = boundingBox.south, seLon = boundingBox.east;
+    const drawingBox = { x: margin, y: margin, width: ctx.canvas.width - margin * 2, height: ctx.canvas.height - margin * 2 };
+    const startZone = WGS84_to_UTM.fromLatLon(nwLat, nwLon).zoneNumber;
+    const endZone = WGS84_to_UTM.fromLatLon(seLat, seLon).zoneNumber;
+    const labelFontSize = cartoucheFontSize * 0.75;
+    const labelPadding = 5;
+    const labelsToDraw = [];
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(drawingBox.x, drawingBox.y, drawingBox.width, drawingBox.height);
+    ctx.clip();
+    for (let zone = startZone; zone <= endZone; zone++) {
+        const zoneBoundaryLeft = (zone - 1) * 6 - 180;
+        const clipLonStart = Math.max(nwLon, zoneBoundaryLeft);
+        const clipLonEnd = Math.min(seLon, zone * 6 - 180);
+        if (clipLonStart >= clipLonEnd) continue;
+        const latPadding = (nwLat - seLat) * 0.1;
+        const gridData = calculateGridForZoneStrip(nwLat + latPadding, clipLonStart, seLat - latPadding, clipLonEnd, zone);
+        const allLines = [...gridData.eastingLines, ...gridData.northingLines];
+        const utmInfo = WGS84_to_UTM.fromLatLon((nwLat + seLat) / 2, clipLonStart);
+        const zoneDesignator = `${zone}${utmInfo.zoneLetter}`;
+        for (const line of allLines) {
+            ctx.lineWidth = (parseInt(line.name.split(' ')[1], 10) % 5 === 0) ? 2 : 1;
+            ctx.strokeStyle = gridLineColor;
+            ctx.beginPath();
+            let firstCanvasPoint = null, lastCanvasPoint = null;
+            for (let i = 0; i < line.coordinates.length; i++) {
+                const p = latLonToCanvasPixels(line.coordinates[i][1], line.coordinates[i][0]);
+                if (i === 0) { ctx.moveTo(p.x, p.y); firstCanvasPoint = p; } 
+                else { ctx.lineTo(p.x, p.y); }
+                lastCanvasPoint = p;
+            }
+            ctx.stroke();
+            if (firstCanvasPoint && lastCanvasPoint) {
+                const coordValue = line.name.split(' ')[1];
+                const labelText = `${zoneDesignator} ${coordValue}`;
+                if (line.name.startsWith('E')) {
+                    labelsToDraw.push({ type: 'top', anchor: { x: lastCanvasPoint.x, y: drawingBox.y }, text: labelText });
+                    labelsToDraw.push({ type: 'bottom', anchor: { x: firstCanvasPoint.x, y: drawingBox.y + drawingBox.height }, text: labelText });
+                } else {
+                    labelsToDraw.push({ type: 'left', anchor: { x: drawingBox.x, y: firstCanvasPoint.y }, text: labelText });
+                    labelsToDraw.push({ type: 'right', anchor: { x: drawingBox.x + drawingBox.width, y: lastCanvasPoint.y }, text: labelText });
+                }
+            }
+        }
+    }
+    ctx.restore();
+
+    ctx.fillStyle = 'white';
+    ctx.fillRect(0, 0, ctx.canvas.width, margin);
+    ctx.fillRect(0, ctx.canvas.height - margin, ctx.canvas.width, margin);
+    ctx.fillRect(0, 0, margin, ctx.canvas.height);
+    ctx.fillRect(ctx.canvas.width - margin, 0, margin, ctx.canvas.height);
+
+    ctx.fillStyle = 'black';
+    ctx.font = `bold ${labelFontSize}px Arial`;
+    for (const label of labelsToDraw) {
+        ctx.save();
+        ctx.translate(label.anchor.x, label.anchor.y);
+        switch(label.type) {
+            case 'top': ctx.rotate(-Math.PI / 2); ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.fillText(label.text, labelPadding, 0); break;
+            case 'bottom': ctx.rotate(-Math.PI / 2); ctx.textAlign = 'right'; ctx.textBaseline = 'middle'; ctx.fillText(label.text, -labelPadding, 0); break;
+            case 'left': ctx.textAlign = 'right'; ctx.textBaseline = 'middle'; ctx.fillText(label.text, -labelPadding, 0); break;
+            case 'right': ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.fillText(label.text, labelPadding, 0); break;
+        }
+        ctx.restore();
+    }
 }

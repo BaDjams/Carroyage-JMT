@@ -20,23 +20,37 @@ if (workbox && typeof APP_VERSION !== 'undefined') {
   // C'est ici que la magie opère. Workbox va mettre en cache tous ces fichiers.
   // Lors d'une mise à jour, il ne téléchargera QUE les fichiers dont le contenu a changé.
   workbox.precaching.precacheAndRoute([
-    { url: '/', revision: APP_VERSION },
+    // Fichiers principaux
     { url: 'index.html', revision: APP_VERSION },
-    { url: 'utilities.js', revision: APP_VERSION },
-    { url: 'style.css', revision: APP_VERSION },
     { url: 'help.html', revision: APP_VERSION },
-    { url: 'imagetoprint.js', revision: APP_VERSION },
-    { url: 'carroyageUTM.js', revision: APP_VERSION },
+    { url: 'manifest.json', revision: APP_VERSION },
+    
+    // Styles
+    { url: 'style.css', revision: APP_VERSION },
+    { url: 'tailwind.min.css', revision: APP_VERSION }, // Version locale
+    { url: 'flowbite.min.css', revision: APP_VERSION }, // Version locale
+    { url: 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css', revision: null },
+    { url: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.css', revision: null },
+
+    // Scripts JavaScript
+    { url: 'version.js', revision: APP_VERSION },
+    { url: 'utilities.js', revision: APP_VERSION },
     { url: 'carroyageCado.js', revision: APP_VERSION },
-    { url: 'zoneDowloader.js', revision: APP_VERSION },
+    { url: 'carroyageUTM.js', revision: APP_VERSION },
+    { url: 'imagetoprint.js', revision: APP_VERSION },
+    { url: 'zoneDownloader.js', revision: APP_VERSION }, // Correction de la faute de frappe
     { url: 'map-layers.js', revision: APP_VERSION },
-    // Fichiers CDN - Attention, le pre-caching de ressources externes peut être moins fiable.
-    // Assurez-vous que ces ressources ont le header CORS approprié.
-    { url: 'https://cdn.tailwindcss.com/3.3.3/tailwind.min.css', revision: null },
-    { url: 'https://unpkg.com/flowbite@1.8.1/dist/flowbite.min.css', revision: null },
-    { url: 'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js', revision: null },
-    { url: 'https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js', revision: null },
-    { url: 'https://cdn.jsdelivr.net/npm/openlocationcode@1.0.3/openlocationcode.min.js', revision: null }
+    { url: 'wms-layers.js', revision: APP_VERSION }, // Fichier ajouté
+    
+    // Bibliothèques tierces (locales)
+    { url: 'jszip.min.js', revision: APP_VERSION }, // Fichier ajouté
+    { url: 'FileSaver.min.js', revision: APP_VERSION }, // Fichier ajouté
+    { url: 'openlocationcode.min.js', revision: APP_VERSION }, // Fichier ajouté
+    { url: 'flowbite.min.js', revision: APP_VERSION }, // Fichier ajouté
+
+    // Icônes pour la PWA
+    { url: 'icons/icon-192x192.png', revision: null },
+    { url: 'icons/icon-512x512.png', revision: null }
   ]);
 
   // 4. Logique de communication vers la page

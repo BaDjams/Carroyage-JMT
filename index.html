@@ -21,6 +21,8 @@
     <script src="flowbite.min.js" defer></script>
     <script src="map-layers.js" defer></script>
 	<script src="wms-layers.js" defer></script>
+    <script src="icons.js" defer></script>
+    <script src="settingsManager.js" defer></script>
 	<script src="utilities.js"></script>
     <script src="carroyageUTM.js" defer></script>
     <script src="carroyageCado.js" defer></script>
@@ -33,6 +35,7 @@
         <header class="mb-6 text-center">
              <h1 id="app-title" class="text-2xl md:text-3xl font-bold mb-4 text-content">Générateur de carroyage CADO</h1>
              <div class="flex flex-wrap justify-center items-center gap-2 mb-4">
+                 <button id="settingsBtn" class="text-2xl px-3 py-1 rounded-full button-outline bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-white transition-colors" title="Gérer les icônes">⚙️</button>
                  <a href="help.html" target="_blank" id="helpBtn" class="text-2xl px-3 py-1 rounded-full button-outline bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-white no-underline" style="text-decoration: none;">?</a>
                  <a href="https://www.google.com/maps" target="_blank" class="px-3 py-1 button-outline bg-gray-200 hover:bg-gray-300 rounded dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-white text-sm md:text-base">Ouvrir Google Maps</a>
                  <a href="https://www.google.com/mymaps" target="_blank" class="px-3 py-1 button-outline bg-gray-200 hover:bg-gray-300 rounded dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-white text-sm md:text-base">Ouvrir Google MyMaps</a>
@@ -44,7 +47,58 @@
              </div>
         </header>
 
+        <!-- MODAL SETTINGS - FIX Z-INDEX -->
+        <div id="settings-modal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full" style="z-index: 9999;">
+            <div class="relative top-20 mx-auto p-5 border w-11/12 md:w-3/4 lg:w-2/3 shadow-lg rounded-md bg-white dark:bg-gray-800 dark:border-gray-700">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-xl font-bold text-gray-900 dark:text-white">Gestion des Icônes POI</h3>
+                    <button id="close-settings-btn" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 text-2xl">&times;</button>
+                </div>
+                
+                <div id="drop-zone" class="border-2 border-dashed border-blue-400 rounded-lg p-8 text-center mb-6 bg-blue-50 dark:bg-gray-700 dark:border-blue-500 transition-colors">
+                    <p class="text-gray-600 dark:text-gray-300">Glissez et déposez une image PNG ici pour ajouter une nouvelle icône.</p>
+                    <p class="text-xs text-gray-500 mt-2">(Format recommandé : PNG 32x32 ou 64x64 pixels, transparent)</p>
+                </div>
+
+                <div class="overflow-x-auto max-h-96">
+                    <table class="w-full text-sm text-left text-gray-500 dark:text-gray-400">
+                        <thead class="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400 sticky top-0">
+                            <tr>
+                                <th scope="col" class="px-4 py-3 w-16">Aperçu</th>
+                                <th scope="col" class="px-4 py-3 w-20">Ordre</th>
+                                <th scope="col" class="px-4 py-3">Nom</th>
+                                <th scope="col" class="px-4 py-3">Catégorie</th>
+                                <th scope="col" class="px-4 py-3 text-right">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="settings-icons-list">
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="mt-6 pt-4 border-t dark:border-gray-700">
+                    <div class="flex justify-between items-center">
+                        <div class="flex gap-2">
+                            <button id="export-icons-btn" class="px-3 py-2 bg-gray-500 text-white rounded hover:bg-gray-600 text-xs flex items-center gap-1" title="Sauvegarder ma configuration dans un fichier">
+                                ⬇️ Exporter JSON
+                            </button>
+                            <button id="import-icons-trigger" class="px-3 py-2 bg-gray-500 text-white rounded hover:bg-gray-600 text-xs flex items-center gap-1" title="Charger un fichier de configuration">
+                                ⬆️ Importer JSON
+                            </button>
+                            <input type="file" id="import-icons-input" accept=".json" class="hidden">
+                        </div>
+
+                        <div class="flex gap-2">
+                            <button id="reset-settings-btn" class="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 text-xs">Réinitialiser</button>
+                            <button id="save-settings-btn" class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 text-sm font-bold">OK</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <main class="space-y-6">
+            <!-- MODE 1 : CARROYAGE CADO -->
             <div id="cado-mode-container">
                 <div class="space-y-6">
                     <div class="card bg-white shadow-md rounded-lg p-4 md:p-6 dark:bg-gray-800 dark:border dark:border-gray-700">
@@ -143,18 +197,8 @@
                                 <div class="flex flex-col space-y-3 md:col-span-2">
                                     <label class="text-sm md:text-base text-content">Type de grille :</label>
                                     <div class="flex flex-wrap items-center gap-2">
-                                        <label class="inline-flex items-center">
-                                            <input type="radio" name="grid-type" value="Q12" class="custom-radio grid-parameter" checked>
-                                            <span class="px-3 py-1 border border-default rounded cursor-pointer text-sm button-outline">Q12 (Format A4)</span>
-                                        </label>
-                                        <button data-tooltip-target="tooltip-q12" type="button" class="text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">?</button>
-                                        <div id="tooltip-q12" role="tooltip" class="absolute z-10 invisible inline-block px-3 py-2 text-sm font-medium text-white transition-opacity duration-300 bg-gray-900 rounded-lg shadow-sm opacity-0 tooltip dark:bg-gray-700"> Colonnes: A à Q (17) <br> Lignes: 1 à 12 <div class="tooltip-arrow" data-popper-arrow></div></div>
-                                        <label class="inline-flex items-center">
-                                            <input type="radio" name="grid-type" value="Z18" class="custom-radio grid-parameter">
-                                            <span class="px-3 py-1 border border-default rounded cursor-pointer text-sm button-outline">Z18 (Format A3)</span>
-                                        </label>
-                                        <button data-tooltip-target="tooltip-z18" type="button" class="text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">?</button>
-                                        <div id="tooltip-z18" role="tooltip" class="absolute z-10 invisible inline-block px-3 py-2 text-sm font-medium text-white transition-opacity duration-300 bg-gray-900 rounded-lg shadow-sm opacity-0 tooltip dark:bg-gray-700"> Colonnes: A à Z (26) <br> Lignes: 1 à 18 <div class="tooltip-arrow" data-popper-arrow></div></div>
+                                        <label class="inline-flex items-center"><input type="radio" name="grid-type" value="Q12" class="custom-radio grid-parameter" checked><span class="px-3 py-1 border border-default rounded cursor-pointer text-sm button-outline">Q12 (Format A4)</span></label>
+                                        <label class="inline-flex items-center"><input type="radio" name="grid-type" value="Z18" class="custom-radio grid-parameter"><span class="px-3 py-1 border border-default rounded cursor-pointer text-sm button-outline">Z18 (Format A3)</span></label>
                                     </div>
                                 </div>
                                 <div class="md:col-span-2 flex justify-start md:justify-end">
@@ -189,86 +233,37 @@
                                     <div class="flex flex-col space-y-1">
                                         <label class="text-sm md:text-base text-content">Point de référence :</label>
                                         <div class="flex flex-wrap gap-2">
-                                            <label class="inline-flex items-center">
-                                                <input type="radio" name="reference-point" value="center" class="custom-radio grid-parameter" checked>
-                                                <span class="px-3 py-1 border border-default rounded cursor-pointer text-sm button-outline">Milieu du carroyage</span>
-                                            </label>
-                                            <label class="inline-flex items-center">
-                                                <input type="radio" name="reference-point" value="origin" class="custom-radio grid-parameter">
-                                                <span class="px-3 py-1 border border-default rounded cursor-pointer text-sm button-outline">Origine (A1)</span>
-                                            </label>
+                                            <label class="inline-flex items-center"><input type="radio" name="reference-point" value="center" class="custom-radio grid-parameter" checked><span class="px-3 py-1 border border-default rounded cursor-pointer text-sm button-outline">Milieu du carroyage</span></label>
+                                            <label class="inline-flex items-center"><input type="radio" name="reference-point" value="origin" class="custom-radio grid-parameter"><span class="px-3 py-1 border border-default rounded cursor-pointer text-sm button-outline">Origine (A1)</span></label>
                                         </div>
                                     </div>
                                     <div class="flex flex-col space-y-1">
                                         <label class="text-sm md:text-base text-content">Orientation des lettres :</label>
                                         <div class="flex gap-2">
-                                            <label class="inline-flex items-center">
-                                                <input type="radio" name="lettering-direction" value="ascending" class="custom-radio grid-parameter" checked>
-                                                <span class="px-3 py-1 border border-default rounded cursor-pointer text-sm button-outline">Ascendante (Sud→Nord)</span>
-                                            </label>
-                                            <label class="inline-flex items-center">
-                                                <input type="radio" name="lettering-direction" value="descending" class="custom-radio grid-parameter">
-                                                <span class="px-3 py-1 border border-default rounded cursor-pointer text-sm button-outline">Descendante (Nord→Sud)</span>
-                                            </label>
+                                            <label class="inline-flex items-center"><input type="radio" name="lettering-direction" value="ascending" class="custom-radio grid-parameter" checked><span class="px-3 py-1 border border-default rounded cursor-pointer text-sm button-outline">Ascendante (Sud→Nord)</span></label>
+                                            <label class="inline-flex items-center"><input type="radio" name="lettering-direction" value="descending" class="custom-radio grid-parameter"><span class="px-3 py-1 border border-default rounded cursor-pointer text-sm button-outline">Descendante (Nord→Sud)</span></label>
                                         </div>
                                     </div>
                                     <div class="flex flex-col space-y-1">
-                                        <div class="flex items-center justify-between">
-                                            <label for="deviation" class="text-sm md:text-base text-content">Déviation (en degrés) :</label>
-                                            <button id="reset-deviation" class="px-2 py-1 text-xs bg-gray-200 hover:bg-gray-300 rounded dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-white reset-btn">Réinitialiser</button>
-                                        </div>
-                                        <div class="flex space-x-2 items-center">
-                                            <input type="range" id="deviation" class="w-full grid-parameter" min="-180" max="180" value="0">
-                                            <span id="deviation-value" class="text-sm text-content">0°</span>
-                                        </div>
+                                        <div class="flex items-center justify-between"><label for="deviation" class="text-sm md:text-base text-content">Déviation (en degrés) :</label><button id="reset-deviation" class="px-2 py-1 text-xs bg-gray-200 hover:bg-gray-300 rounded dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-white reset-btn">Réinitialiser</button></div>
+                                        <div class="flex space-x-2 items-center"><input type="range" id="deviation" class="w-full grid-parameter" min="-180" max="180" value="0"><span id="deviation-value" class="text-sm text-content">0°</span></div>
                                     </div>
                                     <div class="md:col-span-2 flex flex-col space-y-1">
                                         <label class="text-sm md:text-base text-content">Autres types de grille :</label>
                                         <div class="flex flex-wrap items-center gap-2">
-                                            <label class="inline-flex items-center">
-                                                <input type="radio" name="grid-type" value="Q9" class="custom-radio grid-parameter">
-                                                <span class="px-3 py-1 border border-default rounded cursor-pointer text-sm button-outline">Q9 (17x9)</span>
-                                            </label>
-                                            <button data-tooltip-target="tooltip-q9" type="button" class="text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">?</button>
-                                            <div id="tooltip-q9" role="tooltip" class="absolute z-10 invisible inline-block px-3 py-2 text-sm font-medium text-white transition-opacity duration-300 bg-gray-900 rounded-lg shadow-sm opacity-0 tooltip dark:bg-gray-700"> Colonnes: A à Q (17) <br> Lignes: 1 à 9 <div class="tooltip-arrow" data-popper-arrow></div></div>
-                                            <label class="inline-flex items-center">
-                                                <input type="radio" name="grid-type" value="Z14" class="custom-radio grid-parameter">
-                                                <span class="px-3 py-1 border border-default rounded cursor-pointer text-sm button-outline">Z14 (26x14)</span>
-                                            </label>
-                                            <button data-tooltip-target="tooltip-z14" type="button" class="text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">?</button>
-                                            <div id="tooltip-z14" role="tooltip" class="absolute z-10 invisible inline-block px-3 py-2 text-sm font-medium text-white transition-opacity duration-300 bg-gray-900 rounded-lg shadow-sm opacity-0 tooltip dark:bg-gray-700"> Colonnes: A à Z (26) <br> Lignes: 1 à 14 <div class="tooltip-arrow" data-popper-arrow></div></div>
-                                            <label class="inline-flex items-center">
-                                                <input type="radio" name="grid-type" value="Z26" class="custom-radio grid-parameter">
-                                                <span class="px-3 py-1 border border-default rounded cursor-pointer text-sm button-outline">Z26 (26x26)</span>
-                                            </label>
-                                            <button data-tooltip-target="tooltip-z26" type="button" class="text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">?</button>
-                                            <div id="tooltip-z26" role="tooltip" class="absolute z-10 invisible inline-block px-3 py-2 text-sm font-medium text-white transition-opacity duration-300 bg-gray-900 rounded-lg shadow-sm opacity-0 tooltip dark:bg-gray-700"> Colonnes: A à Z (26) <br> Lignes: 1 à 26 <div class="tooltip-arrow" data-popper-arrow></div></div>
-                                            <label class="inline-flex items-center">
-                                                <input type="radio" name="grid-type" value="custom" class="custom-radio grid-parameter">
-                                                <span class="px-3 py-1 border border-default rounded cursor-pointer text-sm button-outline">Grille custom</span>
-                                            </label>
+                                            <label class="inline-flex items-center"><input type="radio" name="grid-type" value="Q9" class="custom-radio grid-parameter"><span class="px-3 py-1 border border-default rounded cursor-pointer text-sm button-outline">Q9 (17x9)</span></label>
+                                            <label class="inline-flex items-center"><input type="radio" name="grid-type" value="Z14" class="custom-radio grid-parameter"><span class="px-3 py-1 border border-default rounded cursor-pointer text-sm button-outline">Z14 (26x14)</span></label>
+                                            <label class="inline-flex items-center"><input type="radio" name="grid-type" value="Z26" class="custom-radio grid-parameter"><span class="px-3 py-1 border border-default rounded cursor-pointer text-sm button-outline">Z26 (26x26)</span></label>
+                                            <label class="inline-flex items-center"><input type="radio" name="grid-type" value="custom" class="custom-radio grid-parameter"><span class="px-3 py-1 border border-default rounded cursor-pointer text-sm button-outline">Grille custom</span></label>
                                         </div>
                                     </div>
                                     <div id="custom-grid-options" class="hidden md:col-span-2 space-y-3">
                                         <div class="grid grid-cols-2 gap-2">
-                                            <div class="flex flex-col space-y-1">
-                                                <label for="start-row" class="text-sm text-content">Début des lignes (nombres) :</label>
-                                                <input type="number" id="start-row" class="input-field px-3 py-2 border rounded shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white text-base grid-parameter" value="1">
-                                            </div>
-                                            <div class="flex flex-col space-y-1">
-                                                <label for="end-row" class="text-sm text-content">Fin des lignes (nombres) :</label>
-                                                <input type="number" id="end-row" class="input-field px-3 py-2 border rounded shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white text-base grid-parameter" value="26">
-                                            </div>
-                                            <div class="flex flex-col space-y-1">
-                                                <label for="start-col" class="text-sm text-content">Début des colonnes (lettres) :</label>
-                                                <input type="text" id="start-col" class="input-field px-3 py-2 border rounded shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white text-base grid-parameter" value="A">
-                                            </div>
-                                            <div class="flex flex-col space-y-1">
-                                                <label for="end-col" class="text-sm text-content">Fin des colonnes (lettres) :</label>
-                                                <input type="text" id="end-col" class="input-field px-3 py-2 border rounded shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white text-base grid-parameter" value="Z">
-                                            </div>
+                                            <div class="flex flex-col space-y-1"><label for="start-row" class="text-sm text-content">Début des lignes :</label><input type="number" id="start-row" class="input-field px-3 py-2 border rounded shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white text-base grid-parameter" value="1"></div>
+                                            <div class="flex flex-col space-y-1"><label for="end-row" class="text-sm text-content">Fin des lignes :</label><input type="number" id="end-row" class="input-field px-3 py-2 border rounded shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white text-base grid-parameter" value="26"></div>
+                                            <div class="flex flex-col space-y-1"><label for="start-col" class="text-sm text-content">Début des colonnes :</label><input type="text" id="start-col" class="input-field px-3 py-2 border rounded shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white text-base grid-parameter" value="A"></div>
+                                            <div class="flex flex-col space-y-1"><label for="end-col" class="text-sm text-content">Fin des colonnes :</label><input type="text" id="end-col" class="input-field px-3 py-2 border rounded shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white text-base grid-parameter" value="Z"></div>
                                         </div>
-                                        <p class="text-xs text-secondary">* Note : Il n'y a pas de ligne ou de colonne "0" dans la grille générée.</p>
 									</div>
                                 </div>
                             </div>
@@ -323,10 +318,12 @@
                     </div>
                 </div>
             </div>
-
-            <div id="zone-downloader-mode-container" class="hidden">
+<!-- MODE 2 : ZONE DOWNLOADER -->
+<div id="zone-downloader-mode-container" class="hidden space-y-6">
+                
+                <!-- Tuile 1 : Carte (inchangée) -->
                 <div class="card bg-white shadow-md rounded-lg p-4 md:p-6 dark:bg-gray-800 dark:border dark:border-gray-700">
-                    <section class="mb-6">
+                    <section>
                         <h3 class="text-lg font-semibold mb-3 text-content">1. Définir une zone à exporter</h3>
                         <div class="address-search-container">
                             <input type="text" id="zone-address-search-input" class="address-search-input input-field px-3 py-2 border rounded shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white text-base" placeholder="Rechercher une adresse pour centrer la carte..." autocomplete="off">
@@ -335,12 +332,15 @@
                         <p class="text-sm text-secondary mb-2">Utilisez les outils sur la gauche de la carte pour dessiner votre zone rectangulaire, puis zoomez au niveau désiré.</p>
                         <div id="zone-interactive-map" class="interactive-map-container"></div>
                     </section>
+                </div>
 
-                    <section class="mb-6">
+                <!-- Tuile 2 : Informations (inchangée) -->
+                <div class="card bg-white shadow-md rounded-lg p-4 md:p-6 dark:bg-gray-800 dark:border dark:border-gray-700">
+                    <section>
                         <h3 class="text-lg font-semibold mb-3 text-content">2. Informations et options</h3>
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div class="flex flex-col space-y-1">
-                                <label for="zone-title" class="text-sm md:text-base text-content">Titre de l'image :</label>
+                                <label for="zone-title" class="text-sm md:text-base text-content">Titre du carroyage / de l'image :</label>
                                 <input type="text" id="zone-title" class="input-field px-3 py-2 border rounded shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white text-base" value="Export de carte">
                                 <label for="zone-kmz-input" class="text-sm md:text-base text-content mt-3">Importer un KML/KMZ (optionnel) :</label>
                                 <input type="file" id="zone-kmz-input" accept=".kml,.kmz" class="block w-full text-sm text-gray-900 border border-gray-300 rounded-lg cursor-pointer bg-gray-50 dark:text-gray-400 focus:outline-none dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400">
@@ -348,81 +348,183 @@
                             <div class="flex flex-col space-y-1 bg-gray-100 dark:bg-gray-700 p-3 rounded-lg">
                                 <h4 class="text-sm font-semibold text-content">Informations de la vue actuelle :</h4>
                                 <p class="text-sm text-secondary">Fond de carte : <span id="zone-info-layer" class="font-medium text-content">N/A</span></p>
-                                <p class="text-sm text-secondary">Niveau de zoom : <span id="zone-info-zoom" class="font-medium text-content">N/A</span> - <i>Rendu 1:25000 = Zoom 16</i></p>
+                                <p class="text-sm text-secondary">Niveau de zoom : <span id="zone-info-zoom" class="font-medium text-content">N/A</span> - <i>Rendu 1:25000 ≈ Zoom 16</i></p>
                                 <p class="text-sm text-secondary">Tuiles à télécharger : <span id="zone-info-tiles" class="font-medium text-content">N/A</span></p>
-                                <p id="zone-tile-warning">Nombre de tuiles maximal : 2000</p>
+                                <p id="zone-tile-warning" class="text-red-600 font-semibold text-xs hidden">Nombre de tuiles > 2000. Réduisez la zone ou le zoom.</p>
+                                <p id="zone-tile-warning-low" class="text-yellow-500 font-semibold text-xs hidden">Attention qualité d'image trop faible</p>
                             </div>
                         </div>
                         <input type="hidden" id="zone-nw-coords">
                         <input type="hidden" id="zone-se-coords">
                     </section>
+                </div>
 
-                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
-                        <!-- COLONNE DE GAUCHE : Génération de la grille UTM (KMZ) -->
-                        <div class="card bg-white shadow-md rounded-lg p-4 md:p-6 dark:bg-gray-800 dark:border dark:border-gray-700 flex flex-col justify-between">
-                            <h3 class="text-lg font-semibold mb-3 text-content text-center">Générer une grille UTM (KMZ)</h3>
-                            <div class="space-y-4">
+                <!-- Tuile 3 : Points d'intérêt (INTERFACE MISE À JOUR) -->
+                <div class="card bg-white shadow-md rounded-lg p-4 md:p-6 dark:bg-gray-800 dark:border dark:border-gray-700">
+                    <section>
+                        <h3 class="text-lg font-semibold mb-3 text-content">3. Points d'intérêt (Optionnel)</h3>
+                        
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                            <!-- Colonne gauche : Sélection -->
+                            <div class="flex flex-col space-y-3">
+                                <!-- Filtre Catégorie -->
                                 <div class="flex flex-col space-y-1">
-                                    <label for="utm-grid-name" class="text-sm md:text-base text-content">Nom du fichier :</label>
-                                    <input type="text" id="utm-grid-name" class="input-field px-3 py-2 border rounded shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white text-base" value="Grille_UTM_1km">
+                                    <label for="poi-category-filter" class="text-sm text-content">Filtrer par catégorie :</label>
+                                    <select id="poi-category-filter" class="input-field px-2 py-1 border rounded shadow-sm text-sm text-gray-900 dark:bg-gray-600 dark:border-gray-500 dark:text-white">
+                                        <option value="all">Toutes</option>
+                                        <!-- Peuplé par JS -->
+                                    </select>
                                 </div>
+
+                                <!-- Grille visuelle des icônes -->
                                 <div class="flex flex-col space-y-1">
-                                    <label class="text-sm md:text-base text-content">Couleur des lignes :</label>
-                                    <div class="flex flex-wrap gap-2" id="utm-color-options">
-                                        <div class="color-option" data-color="#FFFFFF" style="background-color: #FFFFFF; border: 1px solid #ccc;"></div>
-                                        <div class="color-option" data-color="#000000" style="background-color: #000000;"></div>
-                                        <div class="color-option selected" data-color="#FF0000" style="background-color: #FF0000;"></div>
-                                        <div class="color-option" data-color="#FFA500" style="background-color: #FFA500;"></div>
-                                        <div class="color-option" data-color="#FFFF00" style="background-color: #FFFF00;"></div>
-                                        <div class="color-option" data-color="#008000" style="background-color: #008000;"></div>
-                                        <div class="color-option" data-color="#0000FF" style="background-color: #0000FF;"></div>
-                                        <div class="color-option" data-color="#800080" style="background-color: #800080;"></div>
+                                    <label class="text-sm text-content">Choisir une icône :</label>
+                                    <div id="poi-visual-selector" class="icon-grid-container custom-scrollbar">
+                                        <!-- Peuplé par JS -->
                                     </div>
-                                    <input type="hidden" id="utm-grid-color" value="#FF0000">
-                                </div>
-                                <div class="flex flex-col space-y-1">
-                                    <label for="utm-transparency" class="text-sm md:text-base text-content">Transparence des lignes :</label>
-                                    <div class="flex space-x-2 items-center">
-                                        <input type="range" id="utm-transparency" class="w-full" min="0" max="100" value="30">
-                                        <span id="utm-transparency-value" class="text-sm text-content">30%</span>
-                                    </div>
+                                    <input type="hidden" id="poi-type-selector" value="target">
                                 </div>
                             </div>
-                            <div class="flex justify-center mt-4">
-                                <button id="generate-utm-button" class="btn-main btn-grid w-full sm:w-auto">Générer Grille KMZ</button>
+
+                            <!-- Colonne droite : Nom et Ajout -->
+                            <div class="flex flex-col space-y-3 justify-end">
+                                <div class="flex flex-col space-y-1">
+                                    <label for="poi-name-input" class="text-sm text-content">Nom du point :</label>
+                                    <input type="text" id="poi-name-input" class="input-field px-2 py-1 border rounded shadow-sm text-sm text-gray-900 dark:bg-gray-600 dark:border-gray-500 dark:text-white" placeholder="Nom (facultatif)">
+                                </div>
+                                <button id="add-poi-btn" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded shadow transition-colors w-full">
+                                    + Activer l'ajout sur la carte
+                                </button>
+                                <p class="text-xs text-secondary italic text-center mt-1">Cliquez sur le bouton puis sur la carte.</p>
                             </div>
                         </div>
 
-                        <!-- COLONNE DE DROITE : Téléchargement de l'image de la zone -->
-                        <div class="card bg-white shadow-md rounded-lg p-4 md:p-6 dark:bg-gray-800 dark:border dark:border-gray-700 flex flex-col justify-between">
-                            <h3 class="text-lg font-semibold mb-3 text-content text-center">Télécharger les images de la zone</h3>
-                             <div class="flex flex-col items-center justify-center gap-4 mt-4">
-                                <div class="flex items-center gap-4">
-                                    <label class="inline-flex items-center"><input type="radio" name="image-format-zone" value="png" class="custom-radio" checked><span class="ml-2 text-content">PNG</span></label>
-                                    <label class="inline-flex items-center"><input type="radio" name="image-format-zone" value="jpeg" class="custom-radio"><span class="ml-2 text-content">JPEG</span></label>
+                        <!-- Tableau liste des points -->
+                        <div id="poi-list-container" class="border rounded p-2 max-h-40 overflow-y-auto hidden dark:border-gray-600">
+                            <table class="w-full text-sm text-left text-gray-500 dark:text-gray-400">
+                                <thead class="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
+                                    <tr>
+                                        <th scope="col" class="px-2 py-1">Icone</th>
+                                        <th scope="col" class="px-2 py-1">Nom</th>
+                                        <th scope="col" class="px-2 py-1">Coord</th>
+                                        <th scope="col" class="px-2 py-1 text-right">Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="poi-table-body"></tbody>
+                            </table>
+                        </div>
+                    </section>
+                </div>
+
+                <!-- Tuile 4 : Style (inchangée) -->
+                <div class="card bg-white shadow-md rounded-lg p-4 md:p-6 dark:bg-gray-800 dark:border dark:border-gray-700">
+                    <section>
+                        <h3 class="text-lg font-semibold mb-3 text-content">4. Configuration du Style (Commun)</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div class="flex flex-col space-y-1">
+                                <label class="text-sm md:text-base text-content">Couleur globale des lignes :</label>
+                                <div class="flex flex-wrap gap-2" id="utm-color-options">
+                                    <div class="color-option selected" data-color="#FFFFFF" data-name="white" style="background-color: #FFFFFF; border: 1px solid #ccc;"></div>
+                                    <div class="color-option" data-color="#000000" data-name="black" style="background-color: #000000;"></div>
+                                    <div class="color-option" data-color="#FF0000" data-name="red" style="background-color: #FF0000;"></div>
+                                    <div class="color-option" data-color="#FFA500" data-name="orange" style="background-color: #FFA500;"></div>
+                                    <div class="color-option" data-color="#FFFF00" data-name="yellow" style="background-color: #FFFF00;"></div>
+                                    <div class="color-option" data-color="#008000" data-name="green" style="background-color: #008000;"></div>
+                                    <div class="color-option" data-color="#0000FF" data-name="blue" style="background-color: #0000FF;"></div>
+                                    <div class="color-option" data-color="#800080" data-name="violet" style="background-color: #800080;"></div>
+                                    <div class="color-option" data-color="#A52A2A" data-name="brown" style="background-color: #A52A2A;"></div>
+                                    <div class="color-option" data-color="#808080" data-name="gray" style="background-color: #808080;"></div>
                                 </div>
-                                <div id="zone-jpeg-quality-container" class="w-full max-w-xs text-center jpeg-quality-slider">
-                                    <label for="zone-jpeg-quality" class="text-sm text-content">Qualité JPEG : <span id="zone-jpeg-quality-value">92%</span></label>
-                                    <input type="range" id="zone-jpeg-quality" class="w-full" min="70" max="100" value="92">
+                                <input type="hidden" id="utm-grid-color" value="#FFFFFF">
+                                <input type="hidden" id="utm-grid-color-name" value="white">
+                            </div>
+                            <div class="flex flex-col space-y-1">
+                                <label for="utm-transparency" class="text-sm md:text-base text-content">Transparence :</label>
+                                <div class="flex space-x-2 items-center">
+                                    <input type="range" id="utm-transparency" class="w-full" min="0" max="100" value="30">
+                                    <span id="utm-transparency-value" class="text-sm text-content">30%</span>
                                 </div>
-                                <div class="mt-4 space-y-2">
-									<label class="inline-flex items-center cursor-pointer">
-									  <input type="checkbox" id="overlay-utm-grid-checkbox" class="sr-only peer">
-									  <div class="relative w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
-									  <span class="ms-3 text-sm font-medium text-gray-900 dark:text-gray-300">Apposer le carroyage UTM sur la zone</span>
-									</label>
-									
-									<!-- NOUVELLE CASE À COCHER À AJOUTER JUSTE EN DESSOUS 
-									<label class="inline-flex items-center cursor-pointer">
-									  <input type="checkbox" id="force-ign-scale-checkbox" class="sr-only peer">
-									  <div class="relative w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
-									  <span class="ms-3 text-sm font-medium text-gray-900 dark:text-gray-300">Forcer IGN 1:25000e</span>
-									</label>-->
-								</div>
                             </div>
-                            <div class="flex justify-center mt-4">
-                                <button id="generate-zone-png-button" class="btn-main btn-image w-full sm:w-auto">Télécharger la Zone</button>
+                        </div>
+                    </section>
+                </div>
+                
+                <!-- Grille d'actions (inchangée) -->
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
+                    <!-- Action 1 : UTM KMZ -->
+                    <div class="card bg-white shadow-md rounded-lg p-4 md:p-6 dark:bg-gray-800 dark:border dark:border-gray-700 flex flex-col justify-between">
+                        <h3 class="text-lg font-semibold mb-3 text-content text-center">Export Grille UTM</h3>
+                        <div class="space-y-4 flex-grow flex flex-col justify-center">
+                            <div class="flex flex-col space-y-1">
+                                <label for="utm-grid-name" class="text-sm md:text-base text-content">Nom du fichier :</label>
+                                <input type="text" id="utm-grid-name" class="input-field px-3 py-2 border rounded shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white text-base" value="Grille_UTM_1km">
                             </div>
+                            <p class="text-center text-xs text-secondary">Génère un fichier KMZ avec la grille UTM 1km.</p>
+                        </div>
+                        <div class="flex justify-center mt-4">
+                            <button id="generate-utm-button" class="btn-main btn-grid w-full sm:w-auto">Générer KMZ (UTM)</button>
+                        </div>
+                    </div>
+                    
+                    <!-- Action 2 : CADO KMZ -->
+                    <div class="card bg-white shadow-md rounded-lg p-4 md:p-6 dark:bg-gray-800 dark:border dark:border-gray-700 flex flex-col justify-between">
+                        <h3 class="text-lg font-semibold mb-3 text-content text-center">Export Carroyage CADO</h3>
+                        <div class="space-y-4 flex-grow flex flex-col justify-center">
+                            <p class="text-center text-sm text-secondary mb-4">Utilise les options définies dans la colonne "Image" et le "Style Commun".</p>
+                        </div>
+                        <div class="flex justify-center mt-4">
+                            <button id="generate-zone-cado-kmz-button" class="btn-main btn-grid w-full sm:w-auto">Générer KMZ (CADO)</button>
+                        </div>
+                    </div>
+
+                    <!-- Action 3 : Image -->
+                    <div class="card bg-white shadow-md rounded-lg p-4 md:p-6 dark:bg-gray-800 dark:border dark:border-gray-700 flex flex-col justify-between">
+                        <h3 class="text-lg font-semibold mb-3 text-content text-center">Télécharger l'image</h3>
+                         <div class="flex flex-col items-center justify-center gap-4 mt-4">
+                            <div class="flex items-center gap-4">
+                                <label class="inline-flex items-center"><input type="radio" name="image-format-zone" value="png" class="custom-radio" checked><span class="ml-2 text-content">PNG</span></label>
+                                <label class="inline-flex items-center"><input type="radio" name="image-format-zone" value="jpeg" class="custom-radio"><span class="ml-2 text-content">JPEG</span></label>
+                            </div>
+                            <div id="zone-jpeg-quality-container" class="w-full max-w-xs text-center jpeg-quality-slider">
+                                <label for="zone-jpeg-quality" class="text-sm text-content">Qualité JPEG : <span id="zone-jpeg-quality-value">92%</span></label>
+                                <input type="range" id="zone-jpeg-quality" class="w-full" min="70" max="100" value="92">
+                            </div>
+                            <div class="mt-4 space-y-3 w-full">
+								<label class="inline-flex items-center cursor-pointer w-full">
+								  <input type="checkbox" id="overlay-utm-grid-checkbox" class="sr-only peer">
+								  <div class="relative w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
+								  <span class="ms-3 text-sm font-medium text-gray-900 dark:text-gray-300">Apposer le carroyage UTM</span>
+								</label>
+                                <label class="inline-flex items-center cursor-pointer w-full">
+                                  <input type="checkbox" id="overlay-cado-grid-checkbox" class="sr-only peer">
+                                  <div class="relative w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
+                                  <span class="ms-3 text-sm font-medium text-gray-900 dark:text-gray-300">Apposer le carroyage CADO</span>
+                                </label>
+                                <div id="cado-overlay-options" class="hidden pl-8 space-y-3 pt-2">
+                                    <div class="flex flex-col space-y-1">
+                                        <label for="cado-overlay-scale" class="text-sm text-content">Échelle (m) :</label>
+                                        <input type="number" id="cado-overlay-scale" class="input-field px-2 py-1 border rounded shadow-sm text-sm text-gray-900 dark:bg-gray-600 dark:border-gray-500 dark:text-white" value="50">
+                                    </div>
+                                    <div class="flex flex-col space-y-1">
+                                        <label for="cado-overlay-thickness" class="text-sm text-content">Épaisseur du trait :</label>
+                                        <select id="cado-overlay-thickness" class="input-field px-2 py-1 border rounded shadow-sm text-sm text-gray-900 dark:bg-gray-600 dark:border-gray-500 dark:text-white">
+                                            <option value="1" selected>Fine (1px)</option>
+                                            <option value="2">Moyenne (2px)</option>
+                                            <option value="3">Épaisse (3px)</option>
+                                        </select>
+                                    </div>
+                                    <div class="flex flex-col space-y-1">
+                                        <label class="text-sm text-content">Orientation :</label>
+                                        <div class="flex gap-2">
+                                             <label class="inline-flex items-center"><input type="radio" name="cado-overlay-direction" value="ascending" class="custom-radio" checked><span class="px-2 py-1 border border-default rounded cursor-pointer text-xs">Ascendante</span></label>
+                                             <label class="inline-flex items-center"><input type="radio" name="cado-overlay-direction" value="descending" class="custom-radio"><span class="px-2 py-1 border border-default rounded cursor-pointer text-xs">Descendante</span></label>
+                                        </div>
+                                    </div>
+                                </div>
+							</div>
+                        </div>
+                        <div class="flex justify-center mt-4">
+                            <button id="generate-zone-png-button" class="btn-main btn-image w-full sm:w-auto">Télécharger l'image</button>
                         </div>
                     </div>
                 </div>
@@ -439,6 +541,7 @@
             <p>Contact : <a href="mailto:tmj.niamor@gmail.com" class="hover:underline">tmj.niamor@gmail.com</a></p>
         </footer>
     </div>
+    
     <div id="toast-update" class="hidden fixed top-5 right-5 flex items-center w-full max-w-xs p-4 space-x-4 text-gray-500 bg-white divide-x divide-gray-200 rounded-lg shadow-lg dark:text-gray-400 dark:divide-gray-700 space-x dark:bg-gray-800 z-50" role="alert">
         <div class="text-sm font-normal">
             <div class="text-sm font-semibold text-gray-900 dark:text-white">Mise à jour effectuée !</div>
@@ -453,16 +556,16 @@
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             let cadoMap = null;
-            let zoneMap = null; // utmMap est fusionné dans zoneMap
+            let zoneMap = null;
             let clickMarker = null;
             let debounceTimeout = null;
-            let drawnItems = null; // Pour stocker les objets dessinés sur zoneMap
+            let drawnItems = null;
             const TILE_LIMIT = 2000;
 
             function initializeApp() {
                 setupTheme();
                 initializeCadoMap();
-                initializeZoneMap(); // Initialise la carte pour la zone et UTM
+                initializeZoneMap();
                 populateMapSelectorForPNG();
                 initUI();
                 setupEventListeners();
@@ -481,10 +584,8 @@
 
             function createBaseLayers() {
 				const baseMaps = {};
-
 				MAP_LAYERS.forEach(layerConfig => {
 					let leafletLayer;
-
 					if (layerConfig.layers.length > 1) {
 						const layerGroupLayers = [];
 						layerConfig.layers.forEach(layerData => {
@@ -498,7 +599,6 @@
 					
 					} else {
 						const singleLayerConfig = layerConfig.layers[0];
-
 						if (singleLayerConfig.type === 'quadkey') {
 							const bingKey = 'Ap_a-1hs_i9aFp32f3D-g1Q_3aT2gq-n_X2gYm-s_Y3sZ_X5c_V3r_A3sZ_X5c';
 							leafletLayer = L.bingLayer(bingKey, {
@@ -512,12 +612,10 @@
 							});
 						}
 					}
-
 					if (leafletLayer) {
 						baseMaps[layerConfig.name] = leafletLayer;
 					}
 				});
-
 				return baseMaps;
 			}
 
@@ -534,8 +632,6 @@
                     if (correspondingMapLayer) selector.value = correspondingMapLayer.id;
                 });
             }
-            
-            // initializeUtmMap est supprimé car fusionné avec initializeZoneMap
 
             function initializeZoneMap() {
                 zoneMap = L.map('zone-interactive-map').setView([46.2276, 2.2137], 5);
@@ -544,7 +640,7 @@
                 if(defaultLayer) defaultLayer.addTo(zoneMap);
                 L.control.layers(baseMaps).addTo(zoneMap);
                 
-                drawnItems = new L.FeatureGroup(); // Utiliser la variable globale
+                drawnItems = new L.FeatureGroup();
                 zoneMap.addLayer(drawnItems);
                 
                 const drawControl = new L.Control.Draw({
@@ -566,11 +662,37 @@
                 });
                 zoneMap.on('zoomend', updateZoneInfo);
                 zoneMap.on('baselayerchange', updateZoneInfo);
+                
+                // Click handler for POI adding
+                zoneMap.on('click', (e) => {
+                    if (typeof handleMapClickForPOI === 'function') {
+                        handleMapClickForPOI(e);
+                    }
+                });
+                
+                // Hack pour rendre zoneMap accessible à zoneDownloader.js
+                window.zoneMap = zoneMap;
+
                 setTimeout(() => { updateZoneInfo({name: "Google Hybrid"})}, 500);
                 setupZoneAddressSearch();
             }
+            
+            function updateCadoOverlayDefaults() {
+                const nwCoordsStr = document.getElementById("zone-nw-coords").value;
+                const seCoordsStr = document.getElementById("zone-se-coords").value;
 
-            // updateUtmCoordsFromBounds est supprimé car fusionné dans updateZoneCoordsFromBounds
+                if (!nwCoordsStr || !seCoordsStr) return;
+                
+                const [nwLat, nwLon] = nwCoordsStr.split(',').map(c => parseFloat(c.trim()));
+                const [seLat, seLon] = seCoordsStr.split(',').map(c => parseFloat(c.trim()));
+
+                const widthMeters = haversineDistance({lat: nwLat, lon: nwLon}, {lat: nwLat, lon: seLon});
+                
+                if (widthMeters > 0) {
+                    const newScale = Math.round(widthMeters / 26);
+                    document.getElementById('cado-overlay-scale').value = newScale > 0 ? newScale : 1;
+                }
+            }
 
             function updateZoneCoordsFromBounds(bounds) {
                 const nw = bounds.getNorthWest();
@@ -578,6 +700,7 @@
                 document.getElementById('zone-nw-coords').value = `${nw.lat.toFixed(6)}, ${nw.lng.toFixed(6)}`;
                 document.getElementById('zone-se-coords').value = `${se.lat.toFixed(6)}, ${se.lng.toFixed(6)}`;
                 updateZoneTileCount();
+                updateCadoOverlayDefaults();
             }
             
             function updateZoneInfo(e) {
@@ -602,6 +725,7 @@
                 const zoom = zoneMap.getZoom();
                 const tileInfoSpan = document.getElementById('zone-info-tiles');
                 const warningSpan = document.getElementById('zone-tile-warning');
+                const warningLowSpan = document.getElementById('zone-tile-warning-low');
                 const downloadBtn = document.getElementById('generate-zone-png-button');
                 const generateUtmBtn = document.getElementById('generate-utm-button');
 
@@ -609,8 +733,9 @@
                 if (!nwCoordsStr || !seCoordsStr) {
                     tileInfoSpan.textContent = 'N/A';
                     warningSpan.style.display = 'none';
+                    warningLowSpan.style.display = 'none';
                     downloadBtn.disabled = true;
-                    generateUtmBtn.disabled = true; // Désactiver aussi le bouton UTM KMZ
+                    generateUtmBtn.disabled = true;
                     return;
                 }
 
@@ -629,16 +754,22 @@
 
                 tileInfoSpan.textContent = `${tileWidth} x ${tileHeight} (${totalTiles} au total)`;
                 
+                warningSpan.style.display = 'none';
+                warningLowSpan.style.display = 'none';
+                tileInfoSpan.classList.remove('text-red-500', 'text-yellow-500', 'font-bold');
+
                 if (totalTiles > TILE_LIMIT) {
                     tileInfoSpan.classList.add('text-red-500', 'font-bold');
                     warningSpan.style.display = 'block';
                     downloadBtn.disabled = true;
                     generateUtmBtn.disabled = true;
                 } else {
-                    tileInfoSpan.classList.remove('text-red-500', 'font-bold');
-                    warningSpan.style.display = 'none';
                     downloadBtn.disabled = false;
                     generateUtmBtn.disabled = false;
+                    if (totalTiles < 12) {
+                        tileInfoSpan.classList.add('text-yellow-500', 'font-bold');
+                        warningLowSpan.style.display = 'block';
+                    }
                 }
             }
 
@@ -794,6 +925,7 @@
             }
             
             function initUI() {
+                // Main CADO Color Picker
                 document.querySelectorAll('#color-options .color-option').forEach(option => {
                     option.addEventListener('click', function() {
                         document.querySelectorAll('#color-options .color-option').forEach(opt => opt.classList.remove('selected'));
@@ -803,13 +935,20 @@
                         updateDynamicGridName();
                     });
                 });
+                
+                // NEW: Zone Mode Shared Color Picker
                 document.querySelectorAll('#utm-color-options .color-option').forEach(option => {
                     option.addEventListener('click', function() {
                         document.querySelectorAll('#utm-color-options .color-option').forEach(opt => opt.classList.remove('selected'));
                         this.classList.add('selected');
                         document.getElementById('utm-grid-color').value = this.dataset.color;
+                        // Use data-name for CADO compatibility, fallback to empty string if undefined (for UTM)
+                        if (this.dataset.name) {
+                            document.getElementById('utm-grid-color-name').value = this.dataset.name;
+                        }
                     });
                 });
+
                 document.getElementById('transparency-value').textContent = `${document.getElementById('transparency').value}%`;
                 document.getElementById('deviation-value').textContent = `${document.getElementById('deviation').value}°`;
                 document.getElementById('utm-transparency-value').textContent = `${document.getElementById('utm-transparency').value}%`;
@@ -819,6 +958,11 @@
                         updateDynamicGridName();
                     });
                 });
+
+                // Initialisation du Settings Manager qui remplit aussi le dropdown
+                if (typeof initSettingsManager === 'function') {
+                    initSettingsManager();
+                }
             }
 
             function toggleMode(targetMode) {
@@ -875,7 +1019,7 @@
                 
                 const updateImageButtonState = () => {
 					const isDeviationZero = parseInt(deviationInput.value, 10) === 0;
-					const isPrintableSetup = isDeviationZero; // Simplifié, car d'autres conditions ont été levées
+					const isPrintableSetup = isDeviationZero;
 					generateImageButton.disabled = !isPrintableSetup;
 				};
                 
@@ -893,9 +1037,39 @@
                 });
                 document.getElementById('generate-image-button').addEventListener('click', generateImageToPrint);
                 document.getElementById('generate-button').addEventListener('click', generateGrid);
-                document.getElementById('generate-utm-button').addEventListener('click', generateUTMGrid); // Ce bouton est maintenant dans le mode Zone
+                document.getElementById('generate-utm-button').addEventListener('click', generateUTMGrid);
                 document.getElementById('generate-zone-png-button').addEventListener('click', generateZonePNG);
                 document.getElementById('zone-kmz-input').addEventListener('change', handleZoneKmzFile);
+                
+                document.getElementById('generate-zone-cado-kmz-button').addEventListener('click', generateCadoGridForZone);
+                const cadoOverlayCheckbox = document.getElementById('overlay-cado-grid-checkbox');
+                const cadoOverlayOptions = document.getElementById('cado-overlay-options');
+                cadoOverlayCheckbox.addEventListener('change', (e) => {
+                    cadoOverlayOptions.classList.toggle('hidden', !e.target.checked);
+                    if (e.target.checked) {
+                        document.getElementById('overlay-utm-grid-checkbox').checked = false;
+                    }
+                });
+                document.getElementById('overlay-utm-grid-checkbox').addEventListener('change', (e) => {
+                    if (e.target.checked) {
+                        cadoOverlayCheckbox.checked = false;
+                        cadoOverlayOptions.classList.add('hidden');
+                    }
+                });
+
+                // --- GESTION DES POIS ---
+                const addPoiBtn = document.getElementById('add-poi-btn');
+                addPoiBtn.addEventListener('click', () => {
+                    if (typeof toggleAddPointMode === 'function') {
+                        const isAdding = toggleAddPointMode();
+                        addPoiBtn.textContent = isAdding ? "Annuler l'ajout" : "+ Ajouter un point";
+                        addPoiBtn.classList.toggle('bg-red-600', isAdding);
+                        addPoiBtn.classList.toggle('hover:bg-red-700', isAdding);
+                        addPoiBtn.classList.toggle('bg-blue-600', !isAdding);
+                        addPoiBtn.classList.toggle('hover:bg-blue-700', !isAdding);
+                    }
+                });
+
 				updateImageButtonState();
                 
                 function handleFormatChange(event) {
