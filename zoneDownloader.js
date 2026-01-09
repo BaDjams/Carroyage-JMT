@@ -459,17 +459,25 @@ async function generateZonePNG() {
         
         const needsExternalMargin = isUtmExport && !isCadoExport;
         
-        const { finalCanvas, dynamicMargin } = await zdCreateFinalCanvas(finalBoundingBox, zoom, selectedMap, needsExternalMargin);
+        // Récupération du scaleFactor en plus du canvas
+        const { finalCanvas, dynamicMargin, scaleFactor } = await zdCreateFinalCanvas(finalBoundingBox, zoom, selectedMap, needsExternalMargin);
         const ctx = finalCanvas.getContext('2d');
         
         const nwPixel = zdLatLonToWorldPixels(finalBoundingBox.north, finalBoundingBox.west, zoom);
+        
+        // latLonToCanvasPixels prend en compte le scaleFactor
         const latLonToCanvasPixels = (lat, lon) => {
             const worldPixels = zdLatLonToWorldPixels(lat, lon, zoom);
             return {
-                x: worldPixels.x - nwPixel.x + dynamicMargin,
-                y: worldPixels.y - nwPixel.y + dynamicMargin
+                x: (worldPixels.x - nwPixel.x) * scaleFactor + dynamicMargin,
+                y: (worldPixels.y - nwPixel.y) * scaleFactor + dynamicMargin
             };
         };
+        
+        // Ajustement temporaire de l'épaisseur du trait CADO si upscaling
+        if (cadoData) {
+            cadoData.config.lineWidth = cadoData.config.lineWidth * scaleFactor;
+        }
 
         if (loadedZoneKmlFeatures.length > 0) {
             loadingMessage.textContent = "Dessin des éléments KML...";
@@ -483,7 +491,8 @@ async function generateZonePNG() {
 
         if (isUtmExport) {
             loadingMessage.textContent = "Dessin de la grille UTM...";
-            const cartoucheFontSize = Math.max(10, Math.min(48, finalCanvas.width * 0.007));
+            // Taille de police proportionnelle à la largeur de l'image (qui est potentiellement upscalée)
+            const cartoucheFontSize = Math.max(10 * scaleFactor, Math.min(48 * scaleFactor, finalCanvas.width * 0.007));
             await drawUtmGridOnCanvas(ctx, finalBoundingBox, latLonToCanvasPixels, dynamicMargin, cartoucheFontSize);
         }
         
@@ -491,17 +500,19 @@ async function generateZonePNG() {
             loadingMessage.textContent = "Dessin du carroyage CADO...";
             const { config, a1CornerLat, a1CornerLon } = cadoData;
             drawCadoElementsOnCanvas(ctx, config, latLonToCanvasPixels, [a1CornerLon, a1CornerLat]);
+            // Rétablissement de l'épaisseur originale
+            config.lineWidth = config.lineWidth / scaleFactor;
         }
 
         if (!isCadoExport) {
             loadingMessage.textContent = "Finalisation de l'image...";
             
             if (isUtmExport) {
-                const cartoucheFontSize = Math.max(10, Math.min(48, finalCanvas.width * 0.007));
+                const cartoucheFontSize = Math.max(10 * scaleFactor, Math.min(48 * scaleFactor, finalCanvas.width * 0.007));
                 const cartoucheMetrics = drawZoneCartouche(ctx, "Export de zone", finalBoundingBox, mapLayerName, zoom, dynamicMargin, cartoucheFontSize);
                 drawZoneCompass(ctx, finalCanvas.width, finalCanvas.height, dynamicMargin, cartoucheMetrics);
             } else {
-                const compassRadius = Math.max(10, finalCanvas.width * 0.012); 
+                const compassRadius = Math.max(10 * scaleFactor, finalCanvas.width * 0.012); 
                 const padding = compassRadius * 0.8; 
                 const compassCenterX = finalCanvas.width - dynamicMargin - padding - compassRadius;
                 const compassCenterY = dynamicMargin + padding + compassRadius;
@@ -511,7 +522,7 @@ async function generateZonePNG() {
                 const avgLat = (north + south) / 2;
                 const realWidthMeters = haversineDistance({lat: avgLat, lon: west}, {lat: avgLat, lon: east});
                 const mapPixelWidth = finalCanvas.width - (2 * dynamicMargin);
-                const metersPerPixel = realWidthMeters / mapPixelWidth;
+                const metersPerPixel = realWidthMeters / mapPixelWidth; // metersPerPixel s'ajuste auto car mapPixelWidth augmente avec le scaleFactor
 
                 drawSmartScaleBar(ctx, finalCanvas.width, finalCanvas.height, 0, metersPerPixel);
             }
@@ -563,8 +574,6 @@ async function generateCadoGridForZone() {
                 let iconUrl = "https://maps.google.com/mapfiles/kml/paddle/wht-blank.png";
                 let iconFilename = "";
                 
-                // --- CORRECTION MAJEURE ICI ---
-                // Utilisation correcte de getIcons()
                 const iconDef = getIcons().find(i => i.id === poi.type);
                 if(iconDef) iconUrl = iconDef.url;
                 if(poi.url) iconUrl = poi.url;
@@ -635,29 +644,67 @@ async function generateCadoGridForZone() {
     }
 }
 
+// --- MODIFICATION : Logique d'upscaling renforcée (2160p) ---
 async function zdCreateFinalCanvas(boundingBox, zoom, mapConfig, hasExternalMargin = false) {
     const nwPixel = zdLatLonToWorldPixels(boundingBox.north, boundingBox.west, zoom);
     const sePixel = zdLatLonToWorldPixels(boundingBox.south, boundingBox.east, zoom);
-    const imageWidth = Math.abs(sePixel.x - nwPixel.x);
-    const imageHeight = Math.abs(sePixel.y - nwPixel.y);
     
+    // Dimensions natives
+    const naturalWidth = Math.abs(sePixel.x - nwPixel.x);
+    const naturalHeight = Math.abs(sePixel.y - nwPixel.y);
+    
+    // --- LOGIQUE D'UPSCALING ---
+    // On vise une image dont la plus grande dimension fait au moins 3840px (4K standard)
+    const TARGET_LONG_EDGE = 3840;
+    let scaleFactor = 1;
+
+    const longEdge = Math.max(naturalWidth, naturalHeight);
+
+    // Si l'image est plus petite que la cible (peu importe le zoom), on upscale
+    if (longEdge < TARGET_LONG_EDGE) {
+        scaleFactor = TARGET_LONG_EDGE / longEdge;
+        // Optionnel : Plafonner à 8x pour éviter les crashs navigateur sur des zones minuscules
+        scaleFactor = Math.min(scaleFactor, 8);
+        console.log(`ZoneDownloader Upscaling: Native ${Math.round(naturalWidth)}x${Math.round(naturalHeight)} -> Target ~2160p (Facteur x${scaleFactor.toFixed(2)})`);
+    }
+
+    // Calcul des dimensions finales (Map Content)
+    const scaledWidth = Math.round(naturalWidth * scaleFactor);
+    const scaledHeight = Math.round(naturalHeight * scaleFactor);
+
+    // Marge dynamique calculée sur la taille finale
     let dynamicMargin = 0;
     if (hasExternalMargin) {
-        const cartoucheFontSize = Math.max(10, Math.min(48, imageWidth * 0.007));
+        const cartoucheFontSize = Math.max(10 * scaleFactor, Math.min(48 * scaleFactor, scaledWidth * 0.007));
         dynamicMargin = Math.ceil(cartoucheFontSize * 4);
     }
 
+    // Canvas Temporaire (Taille Native pour assemblage)
+    const tempCanvas = document.createElement('canvas');
+    tempCanvas.width = naturalWidth;
+    tempCanvas.height = naturalHeight;
+    const tempCtx = tempCanvas.getContext('2d');
+
+    // Canvas Final (Taille Scalée + Marges)
     const finalCanvas = document.createElement('canvas');
-    finalCanvas.width = imageWidth + dynamicMargin * 2;
-    finalCanvas.height = imageHeight + dynamicMargin * 2;
+    finalCanvas.width = scaledWidth + dynamicMargin * 2;
+    finalCanvas.height = scaledHeight + dynamicMargin * 2;
     const ctx = finalCanvas.getContext('2d');
 
+    // Fond blanc
     ctx.fillStyle = 'white';
     ctx.fillRect(0, 0, finalCanvas.width, finalCanvas.height);
+    
+    // Lissage haute qualité pour l'upscale
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
 
     const nwTile = { x: Math.floor(nwPixel.x / ZD_TILE_SIZE), y: Math.floor(nwPixel.y / ZD_TILE_SIZE) };
     const seTile = { x: Math.floor(sePixel.x / ZD_TILE_SIZE), y: Math.floor(sePixel.y / ZD_TILE_SIZE) };
     
+    const totalTilesToDownload = (seTile.x - nwTile.x + 1) * (seTile.y - nwTile.y + 1) * mapConfig.layers.length;
+    let downloadedCount = 0;
+
     for (const layer of mapConfig.layers) {
         const tilePromises = [];
         for (let x = nwTile.x; x <= seTile.x; x++) {
@@ -676,7 +723,10 @@ async function zdCreateFinalCanvas(boundingBox, zoom, mapConfig, hasExternalMarg
                 const promise = new Promise((resolve) => {
                     const img = new Image();
                     img.crossOrigin = "Anonymous"; 
-                    img.onload = () => resolve({ img, x, y, success: true });
+                    img.onload = () => {
+                         downloadedCount++;
+                         resolve({ img, x, y, success: true });
+                    }
                     img.onerror = () => resolve({ success: false });
                     img.src = safeUrl;
                 });
@@ -686,14 +736,19 @@ async function zdCreateFinalCanvas(boundingBox, zoom, mapConfig, hasExternalMarg
         const resolvedTiles = await Promise.all(tilePromises);
         resolvedTiles.forEach(tileResult => {
             if (tileResult.success) {
-                const tileX = (tileResult.x * ZD_TILE_SIZE) - nwPixel.x + dynamicMargin;
-                const tileY = (tileResult.y * ZD_TILE_SIZE) - nwPixel.y + dynamicMargin;
-                ctx.drawImage(tileResult.img, Math.round(tileX), Math.round(tileY));
+                // Dessin sur Canvas Temporaire (Natif)
+                const tileX = (tileResult.x * ZD_TILE_SIZE) - nwPixel.x;
+                const tileY = (tileResult.y * ZD_TILE_SIZE) - nwPixel.y;
+                tempCtx.drawImage(tileResult.img, Math.round(tileX), Math.round(tileY));
             }
         });
     }
 
-    return { finalCanvas, dynamicMargin };
+    // Dessin du Canvas Temporaire sur le Canvas Final avec redimensionnement et marge
+    // destinationX, destinationY, dWidth, dHeight
+    ctx.drawImage(tempCanvas, dynamicMargin, dynamicMargin, scaledWidth, scaledHeight);
+
+    return { finalCanvas, dynamicMargin, scaleFactor };
 }
 
 function drawZoneCartouche(ctx, title, bbox, layerName, zoom, margin, fontSize) {
@@ -1163,4 +1218,74 @@ async function drawUtmGridOnCanvas(ctx, boundingBox, latLonToCanvasPixels, margi
         }
         ctx.restore();
     }
+}
+
+function setupZoneAddressSearch() {
+    const searchInput = document.getElementById('zone-address-search-input');
+    const suggestionsList = document.getElementById('zone-suggestions');
+    let debounceTimeout = null;
+
+    searchInput.addEventListener('input', () => {
+        const query = searchInput.value.trim();
+        if (query.length < 3) { suggestionsList.classList.add('hidden'); return; }
+        clearTimeout(debounceTimeout);
+        debounceTimeout = setTimeout(async () => {
+            suggestionsList.innerHTML = '';
+            
+            // 1. Essayer l'API Adresse.data.gouv.fr (Format propre)
+            let foundInBan = false;
+            try {
+                const response = await fetch(`https://api-adresse.data.gouv.fr/search/?q=${encodeURIComponent(query)}&limit=5`);
+                const data = await response.json();
+                if (data.features && data.features.length > 0) {
+                    foundInBan = true;
+                    data.features.forEach(f => {
+                        const li = document.createElement('li');
+                        // Utilise le label court de l'API Gouv (Numéro Rue, CP Ville)
+                        li.textContent = f.properties.label; 
+                        li.addEventListener('click', () => {
+                            searchInput.value = f.properties.label;
+                            suggestionsList.classList.add('hidden');
+                            window.zoneMap.flyTo([f.geometry.coordinates[1], f.geometry.coordinates[0]], 15);
+                        });
+                        suggestionsList.appendChild(li);
+                    });
+                }
+            } catch (e) {
+                console.warn("Erreur API BAN:", e);
+            }
+
+            // 2. Fallback Nominatim si BAN ne donne rien (ou hors France)
+            if (!foundInBan) {
+                try {
+                    const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=5`);
+                    const results = await response.json();
+                    results.forEach(r => {
+                        const li = document.createElement('li');
+                        li.textContent = r.display_name;
+                        li.addEventListener('click', () => {
+                            searchInput.value = r.display_name;
+                            suggestionsList.classList.add('hidden');
+                            window.zoneMap.flyTo([parseFloat(r.lat), parseFloat(r.lon)], 15);
+                        });
+                        suggestionsList.appendChild(li);
+                    });
+                } catch (error) { console.error("Erreur avec l'API Nominatim:", error); }
+            }
+            
+            if (suggestionsList.children.length > 0) {
+                suggestionsList.classList.remove('hidden');
+            } else {
+                suggestionsList.classList.add('hidden');
+            }
+
+        }, 300);
+    });
+    
+    // Fermer si clic dehors
+    document.addEventListener('click', (e) => {
+        if (!document.querySelector('.address-search-container').contains(e.target)) {
+            suggestionsList.classList.add('hidden');
+        }
+    });
 }

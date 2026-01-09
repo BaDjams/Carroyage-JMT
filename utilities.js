@@ -110,8 +110,14 @@ function hideError() {
 function drawLabelWithOutline(ctx, text, x, y, config) {
     const darkColorsForWhiteOutline = ['black', 'red', 'blue', 'green', 'violet', 'brown'];
     const outlineColor = darkColorsForWhiteOutline.includes(config.colorName) ? 'white' : 'black';
+    
     ctx.strokeStyle = outlineColor;
-    ctx.lineWidth = 3;
+    
+    // CORRECTION : L'épaisseur de l'outline dépend de l'épaisseur du trait de grille.
+    // On s'assure d'un minimum de 3px pour la lisibilité, mais on augmente si la grille est épaisse (upscaling).
+    const baseLineWidth = config.lineWidth || 1;
+    ctx.lineWidth = Math.max(3, baseLineWidth * 2.5);
+    
     ctx.strokeText(text, x, y);
     ctx.fillStyle = config.gridColor;
     ctx.fillText(text, x, y);
@@ -147,15 +153,28 @@ function drawSubdivisionKey(ctx, latLonToPixels, config, a1CornerCoords) {
     ctx.stroke();
 }
 
-function drawReferenceCross(ctx, latLonToPixels, config) {
+function drawReferenceCross(ctx, latLonToPixels, config, cellWidthInPixels) {
     if (config.referencePointChoice !== 'center') return;
     const refPointCoords = { lat: config.latitude, lon: config.longitude };
     const center = latLonToPixels(refPointCoords.lat, refPointCoords.lon);
-    const crossSize = 15;
+    
+    // CORRECTION : La taille de la croix dépend de la largeur de la case (1/3).
+    // Si la largeur de case n'est pas dispo (cas rare), fallback à 20px * scale (approx).
+    const crossSize = cellWidthInPixels ? (cellWidthInPixels / 5) : 20;
+
     ctx.strokeStyle = '#FF0000';
-    ctx.lineWidth = 3;
-    ctx.beginPath(); ctx.moveTo(center.x, center.y - crossSize); ctx.lineTo(center.x, center.y + crossSize); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(center.x - crossSize, center.y); ctx.lineTo(center.x + crossSize, center.y); ctx.stroke();
+    // L'épaisseur de la croix est aussi proportionnelle à la grille pour rester visible
+    ctx.lineWidth = Math.max(3, (config.lineWidth || 1) * 2);
+
+    ctx.beginPath(); 
+    ctx.moveTo(center.x, center.y - crossSize); 
+    ctx.lineTo(center.x, center.y + crossSize); 
+    ctx.stroke();
+    
+    ctx.beginPath(); 
+    ctx.moveTo(center.x - crossSize, center.y); 
+    ctx.lineTo(center.x + crossSize, center.y); 
+    ctx.stroke();
 }
 
 function drawCartouche(ctx, latLonToPixels, config, a1CornerCoords, cellWidthInPixels) {
@@ -311,5 +330,6 @@ function drawCadoElementsOnCanvas(ctx, config, latLonToPixels, a1CornerCoords) {
     drawSubdivisionKey(ctx, latLonToPixels, config, a1CornerCoords);
     drawCartouche(ctx, latLonToPixels, config, a1CornerCoords, cellWidthInPixels);
     drawCompass(ctx, latLonToPixels, config, a1CornerCoords, cellWidthInPixels);
-    drawReferenceCross(ctx, latLonToPixels, config);
+    // On passe cellWidthInPixels pour dimensionner la croix
+    drawReferenceCross(ctx, latLonToPixels, config, cellWidthInPixels);
 }

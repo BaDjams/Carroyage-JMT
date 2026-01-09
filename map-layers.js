@@ -5,7 +5,7 @@ const MAP_LAYERS = [
     {
         "id": "ign_google_hybrid",
         "name": "Ortho IGN + Routes Google",
-        "maxZoom": 20, // On se limite au zoom max de la couche IGN
+        "maxZoom": 19, // CORRECTION : Limité à 19 pour correspondre au service WMTS IGN
         "layers": [
             // Couche 1: Le fond de carte Ortho-imagerie de l'IGN (souvent en JPEG)
             {
@@ -44,7 +44,7 @@ const MAP_LAYERS = [
     {
         "id": "esri_hybrid",
         "name": "Satellite Esri + Routes Google",
-        "maxZoom": 21, // Correspond au zoom élevé des deux sources
+        "maxZoom": 21,
         "layers": [
             // Couche 1: Le fond de carte satellite Esri (fiable)
             {
@@ -54,11 +54,11 @@ const MAP_LAYERS = [
             // Couche 2: La surcouche de routes/étiquettes OSM sur fond transparent (par CARTO)
             {
                 "url": "https://mt0.google.com/vt/lyrs=h&hl=fr&x={x}&y={y}&z={z}&apistyle=s.t%3a2|s.e%3al|p.v%3aoff",
-				"type": "xyz"
+                "type": "xyz"
             }
         ]
     },
-	{
+    {
         "id": "ign_public_hybrid",
         "name": "Plan IGN",
         "maxZoom": 20,
@@ -69,7 +69,7 @@ const MAP_LAYERS = [
             }
         ]
     },
-	{
+    {
         "id": "osm_FR",
         "name": "OSM Français",
         "maxZoom": 19,
@@ -79,20 +79,5 @@ const MAP_LAYERS = [
                 "type": "xyz"
             }
         ]
-    }/*,
-	{
-        id: "ign_scan25",
-        name: "IGN Scan 25",
-        maxZoom: 18,
-        type: 'wms', // Le type qui déclenchera la logique du plugin
-        url: 'https://data.geopf.fr/wms-r/wms',
-        wmsParams: {
-            apikey: IGN_API_KEY,
-            layers: 'SCAN25TOUR_PYR-JPEG_WLD_WM', // Notez 'layers' au lieu de 'LAYERS' pour le plugin
-            format: 'image/jpeg',
-            transparent: false,
-            version: '1.3.0',
-            crs: 'EPSG:4326'
-        }
-    }*/
+    }
 ];
