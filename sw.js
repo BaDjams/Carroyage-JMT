@@ -40,6 +40,7 @@ if (workbox && typeof APP_VERSION !== 'undefined') {
     { url: 'imagetoprint.js', revision: APP_VERSION },
     { url: 'zoneDownloader.js', revision: APP_VERSION }, // Correction de la faute de frappe
     { url: 'map-layers.js', revision: APP_VERSION },
+    { url: 'settingsManager.js', revision: APP_VERSION },
     { url: 'wms-layers.js', revision: APP_VERSION }, // Fichier ajouté
     
     // Bibliothèques tierces (locales)
