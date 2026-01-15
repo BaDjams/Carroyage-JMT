@@ -226,3 +226,111 @@ input[type="radio"].custom-radio:checked + span {
     white-space: nowrap;
     width: 100%;
 }
+/* --- Tree View Styles (Arborescence) --- */
+
+.tree-view-container {
+    border: 1px solid var(--light-border);
+    background-color: var(--light-card-bg);
+    border-radius: 0.5rem;
+    padding: 0.5rem;
+    max-height: 250px;
+    overflow-y: auto;
+    font-size: 0.85rem;
+}
+
+.dark .tree-view-container {
+    border-color: var(--dark-border);
+    background-color: #1f2937; /* Plus sombre pour le contraste */
+}
+
+/* Reset des listes */
+.tree-view-container ul {
+    list-style: none;
+    margin: 0;
+    padding-left: 1rem; /* Indentation */
+}
+.tree-view-container > ul {
+    padding-left: 0; /* Pas d'indentation pour la racine */
+}
+
+/* Dossiers */
+.tree-view-container details {
+    margin-bottom: 2px;
+}
+
+.tree-view-container summary {
+    cursor: pointer;
+    padding: 4px 8px;
+    border-radius: 4px;
+    user-select: none;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    transition: background-color 0.2s;
+}
+
+.tree-view-container summary:hover {
+    background-color: rgba(0,0,0,0.05);
+}
+.dark .tree-view-container summary:hover {
+    background-color: rgba(255,255,255,0.1);
+}
+
+/* Changement icône dossier ouvert/fermé via CSS */
+.tree-view-container details[open] > summary .folder-icon::after {
+    content: ""; /* Hack pour forcer le refresh si besoin */
+}
+.tree-view-container details[open] > summary {
+    font-weight: 600;
+}
+
+/* Éléments Fichiers (Icônes) */
+.file-item {
+    display: flex;
+    align-items: center;
+    padding: 4px 8px;
+    margin-left: 8px;
+    border-radius: 4px;
+    cursor: pointer;
+    border: 1px solid transparent;
+    transition: all 0.15s;
+}
+
+.file-item:hover {
+    background-color: #e5e7eb;
+}
+.dark .file-item:hover {
+    background-color: #374151;
+}
+
+/* État sélectionné */
+.file-item.selected {
+    background-color: rgba(59, 130, 246, 0.15); /* Bleu léger */
+    border-color: var(--primary-color);
+}
+.dark .file-item.selected {
+    background-color: rgba(59, 130, 246, 0.3);
+}
+
+.icon-preview-wrapper {
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 8px;
+    background-color: rgba(255,255,255,0.8); /* Fond blanc semi-transparent pour voir les PNG noirs */
+    border-radius: 4px;
+    border: 1px solid #ddd;
+}
+
+.icon-preview-wrapper img {
+    max-width: 100%;
+    max-height: 100%;
+}
+
+.icon-label {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}

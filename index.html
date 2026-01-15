@@ -22,6 +22,7 @@
 <script src="wms-layers.js" defer></script>
 <script src="icons.js" defer></script>
 <script src="settingsManager.js" defer></script>
+<script src="icons-catalog.js" defer></script>
 <script src="utilities.js"></script>
 <script src="carroyageUTM.js" defer></script>
 <script src="carroyageCado.js" defer></script>
@@ -166,7 +167,7 @@
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
                             <div class="flex flex-col space-y-3">
                                 <label for="scale" class="text-sm md:text-base text-content">Échelle (en mètres) :</label>
-                                <input type="number" id="scale" class="input-field px-3 py-2 border rounded shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white text-base grid-parameter" value="20">
+                                <input type="number" id="scale" class="input-field px-3 py-2 border rounded shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white text-base grid-parameter" value="10">
                             </div>
                             <div class="flex flex-col space-y-3">
                                 <label class="text-sm md:text-base text-content">Choisir une couleur :</label>
@@ -213,8 +214,8 @@
                                  <div class="flex flex-col space-y-1">
                                     <label for="line-thickness" class="text-sm md:text-base text-content">Épaisseur du trait :</label>
                                     <select id="line-thickness" class="input-field px-3 py-2 border rounded shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white text-base grid-parameter">
-                                        <option value="1">Fine (1px)</option>
-                                        <option value="2" selected>Moyenne (2px)</option>
+                                        <option value="1" selected>Fine (1px)</option>
+                                        <option value="2">Moyenne (2px)</option>
                                         <option value="3">Épaisse (3px)</option>
                                     </select>
                                 </div>
@@ -620,7 +621,7 @@
         function initializeCadoMap() {
             cadoMap = L.map('cado-interactive-map').setView([46.2276, 2.2137], 5);
             const baseMaps = createBaseLayers();
-            const defaultLayer = baseMaps["Google Hybrid"] || baseMaps[Object.keys(baseMaps)[0]];
+            const defaultLayer = baseMaps["Ortho IGN + Routes Google"] || baseMaps["Google Hybrid"];
             if(defaultLayer) defaultLayer.addTo(cadoMap);
             L.control.layers(baseMaps).addTo(cadoMap);
             cadoMap.on('click', handleCadoMapClick);
@@ -634,7 +635,7 @@
         function initializeZoneMap() {
             zoneMap = L.map('zone-interactive-map').setView([46.2276, 2.2137], 5);
             const baseMaps = createBaseLayers();
-            const defaultLayer = baseMaps["Google Hybrid"] || baseMaps[Object.keys(baseMaps)[0]];
+            const defaultLayer = baseMaps["Ortho IGN + Routes Google"] || baseMaps["Google Hybrid"];
             if(defaultLayer) defaultLayer.addTo(zoneMap);
             L.control.layers(baseMaps).addTo(zoneMap);
             
@@ -671,7 +672,7 @@
             // Hack pour rendre zoneMap accessible à zoneDownloader.js
             window.zoneMap = zoneMap;
 
-            setTimeout(() => { updateZoneInfo({name: "Google Hybrid"})}, 500);
+            setTimeout(() => { updateZoneInfo({name: "Ortho IGN + Routes Google"})}, 500);
             setupZoneAddressSearch();
         }
         
@@ -894,7 +895,7 @@
                     option.textContent = map.name;
                     selector.appendChild(option);
                 });
-                const defaultLayerConfig = MAP_LAYERS.find(m => m.name === "Google Hybrid");
+                const defaultLayerConfig = MAP_LAYERS.find(m => m.name === "Ortho IGN + Routes Google");
                 selector.value = defaultLayerConfig ? defaultLayerConfig.id : "osm_standard";
             }
         }

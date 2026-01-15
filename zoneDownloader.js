@@ -4,85 +4,253 @@ const ZD_TILE_SIZE = 256;
 let loadedZoneKmlFeatures = [];
 let kmlResources = { images: {} };
 
+// Cache pour la librairie chargée dynamiquement (JSON)
+let cachedIconLibrary = null;
+
 // --- GESTION DES POIS UTILISATEUR ---
 let userPOIs = [];
 let isAddingPoint = false;
 let poiMarkersLayer = null;
 
-// Helper CRUCIAL : Récupère toujours la liste à jour
-function getIcons() {
-    if (typeof window.getIconLibrary === 'function') {
-        return window.getIconLibrary();
+// =============================================================================
+// GESTION DE LA BIBLIOTHEQUE D'ICONES (SYSTEME + CATALOGUE + CUSTOM)
+// =============================================================================
+
+/**
+ * Récupère la liste complète des icônes.
+ * Fusionne : 
+ * 1. localStorage (User Custom)
+ * 2. ICON_LIBRARY (icons.js - Base)
+ * 3. ICON_CATALOG (icons-catalog.js - Pro généré par Python)
+ */
+function getIconsSync() {
+    let finalIcons = [];
+
+    // 1. Icônes Perso (LocalStorage) - Priorité 1 (Préfixe 00_ pour tri visuel)
+    const storedCustom = localStorage.getItem('userIcons');
+    if (storedCustom) {
+        try {
+            const customIcons = JSON.parse(storedCustom);
+            customIcons.forEach(icon => { icon.path = ['00_Mes Icônes (Uploads)']; });
+            finalIcons = finalIcons.concat(customIcons);
+        } catch(e) { console.error("Erreur lecture localstorage icons:", e); }
     }
-    return typeof ICON_LIBRARY !== 'undefined' ? ICON_LIBRARY : [];
+
+    // 2. Icônes de base (icons.js) - Priorité 2 (Préfixe 01_ pour tri visuel)
+    if (typeof ICON_LIBRARY !== 'undefined') {
+        const sysIcons = JSON.parse(JSON.stringify(ICON_LIBRARY));
+        sysIcons.forEach(icon => { 
+            icon.path = ['01_Icônes Application']; 
+            icon.category = 'Application';
+        });
+        finalIcons = finalIcons.concat(sysIcons);
+    }
+
+    // 3. Icônes Pro (Variable globale issue de icons-catalog.js) - Priorité 3
+    if (typeof ICON_CATALOG !== 'undefined') {
+        finalIcons = finalIcons.concat(ICON_CATALOG);
+    } else {
+        console.warn("ICON_CATALOG non trouvé. Vérifiez que icons-catalog.js est bien chargé.");
+    }
+
+    return finalIcons;
 }
 
-// --- LOGIQUE DE SELECTION VISUELLE ---
+/**
+ * API pour settingsManager.js
+ */
+window.getIconLibrary = getIconsSync;
+
+// =============================================================================
+// LOGIQUE DE SELECTION VISUELLE (ARBORESCENCE & FILTRES)
+// =============================================================================
+
+// Fonction appelée par l'interface ou settingsManager
 function initVisualIconSelector() {
-    const categoryFilter = document.getElementById('poi-category-filter');
     const visualContainer = document.getElementById('poi-visual-selector');
     const hiddenInput = document.getElementById('poi-type-selector');
+    const categoryFilter = document.getElementById('poi-category-filter');
     
-    if (!categoryFilter || !visualContainer || !hiddenInput) return;
+    if (!visualContainer || !hiddenInput) return;
 
-    const allIcons = getIcons();
-
-    // 1. Peupler le filtre de catégories
-    const categories = ['all', ...new Set(allIcons.map(i => i.category || 'Général'))];
-    categoryFilter.innerHTML = '';
+    // Récupération synchrone
+    const allIcons = getIconsSync();
     
-    // Mapping pour afficher "Toutes" proprement
-    categories.forEach(cat => {
-        const option = document.createElement('option');
-        option.value = cat;
-        option.textContent = cat === 'all' ? 'Toutes' : cat;
-        categoryFilter.appendChild(option);
+    visualContainer.innerHTML = '';
+    visualContainer.className = 'tree-view-container custom-scrollbar'; 
+    
+    if (allIcons.length === 0) {
+        visualContainer.innerHTML = '<p class="text-sm text-gray-500 text-center p-4">Aucune icône disponible.</p>';
+        return;
+    }
+
+    // --- Gestion du Select (Filtre plat) ---
+    if (categoryFilter) {
+        const categories = new Set();
+        allIcons.forEach(icon => {
+            const catStr = Array.isArray(icon.path) ? icon.path.join(' > ') : (icon.category || 'Divers');
+            const cleanCat = catStr.replace(/\d+_/, ''); // Enlève les préfixes de tri
+            categories.add(cleanCat);
+        });
+
+        // Reconstruit le select
+        categoryFilter.innerHTML = '<option value="all">Toutes les catégories</option>';
+        Array.from(categories).sort().forEach(cat => {
+            const opt = document.createElement('option');
+            opt.value = cat;
+            opt.textContent = cat;
+            categoryFilter.appendChild(opt);
+        });
+
+        categoryFilter.onchange = (e) => {
+            const val = e.target.value;
+            if (val === 'all') {
+                renderFullTree(allIcons, visualContainer, hiddenInput);
+            } else {
+                renderFilteredGrid(allIcons, val, visualContainer, hiddenInput);
+            }
+        };
+    }
+
+    // Affichage initial (Arbre complet)
+    renderFullTree(allIcons, visualContainer, hiddenInput);
+}
+
+function renderFullTree(icons, container, inputElement) {
+    container.innerHTML = ''; 
+    const treeData = buildTreeFromFlatList(icons);
+    const rootUl = document.createElement('ul');
+    rootUl.className = 'tree-root';
+    renderTreeNodes(treeData, rootUl, inputElement);
+    container.appendChild(rootUl);
+}
+
+function renderFilteredGrid(icons, categoryString, container, inputElement) {
+    container.innerHTML = '';
+    const gridDiv = document.createElement('div');
+    gridDiv.className = 'icon-grid-container'; 
+    
+    const filtered = icons.filter(icon => {
+        const catStr = Array.isArray(icon.path) ? icon.path.join(' > ') : (icon.category || '');
+        return catStr.replace(/\d+_/, '') === categoryString;
     });
 
-    // 2. Fonction de rendu de la grille
-    const renderGrid = (filterCat) => {
-        visualContainer.innerHTML = '';
-        
-        const filteredIcons = allIcons.filter(icon => 
-            filterCat === 'all' || (icon.category || 'Général') === filterCat
-        );
+    filtered.forEach(icon => {
+        const item = document.createElement('div');
+        item.className = 'icon-selection-item';
+        if (inputElement.value === icon.id) item.classList.add('selected');
+        item.innerHTML = `<img src="${icon.url}" loading="lazy"><span>${icon.label}</span>`;
+        item.onclick = () => {
+            document.querySelectorAll('.icon-selection-item').forEach(el => el.classList.remove('selected'));
+            item.classList.add('selected');
+            inputElement.value = icon.id;
+        };
+        gridDiv.appendChild(item);
+    });
+    container.appendChild(gridDiv);
+}
 
-        // Trier par ordre
-        filteredIcons.sort((a, b) => (a.order || 0) - (b.order || 0));
+// Construction de la structure de données en arbre
+function buildTreeFromFlatList(icons) {
+    const root = {};
+    icons.forEach(icon => {
+        let pathParts = [];
+        if (Array.isArray(icon.path)) {
+            pathParts = icon.path;
+        } else if (icon.category) {
+            pathParts = icon.category.replace(/\\/g, '/').split('/');
+        } else {
+            pathParts = ['Divers'];
+        }
 
-        filteredIcons.forEach(icon => {
-            const div = document.createElement('div');
-            div.className = 'icon-selection-item';
-            if (hiddenInput.value === icon.id) div.classList.add('selected');
-            
-            div.innerHTML = `
-                <img src="${icon.url}" alt="${icon.label}">
-                <span title="${icon.label}">${icon.label}</span>
-            `;
-            
-            div.addEventListener('click', () => {
-                // Mise à jour visuelle
-                document.querySelectorAll('.icon-selection-item').forEach(el => el.classList.remove('selected'));
-                div.classList.add('selected');
-                // Mise à jour valeur
-                hiddenInput.value = icon.id;
-            });
-            
-            visualContainer.appendChild(div);
+        let currentLevel = root;
+        pathParts.forEach((part, index) => {
+            const cleanPart = part.trim();
+            if (!currentLevel[cleanPart]) {
+                currentLevel[cleanPart] = { __name: cleanPart, __children: {}, __files: [] };
+            }
+            if (index === pathParts.length - 1) {
+                currentLevel[cleanPart].__files.push(icon);
+            } else {
+                currentLevel = currentLevel[cleanPart].__children;
+            }
         });
-    };
+    });
+    return root;
+}
 
-    // Initialiser
-    renderGrid('all');
+// Rendu HTML Récursif de l'arbre
+function renderTreeNodes(nodeDict, parentElement, inputElement) {
+    const sortedKeys = Object.keys(nodeDict).sort();
 
-    // Listener filtre
-    categoryFilter.addEventListener('change', (e) => {
-        renderGrid(e.target.value);
+    sortedKeys.forEach(key => {
+        const node = nodeDict[key];
+        const li = document.createElement('li');
+        const details = document.createElement('details');
+        
+        if (key === 'Racine' && parentElement.className.includes('tree-root')) {
+            details.open = true;
+        }
+
+        const displayName = node.__name.replace(/^\d+_/, '');
+        const summary = document.createElement('summary');
+        summary.innerHTML = `<span class="folder-icon">📁</span> <span class="folder-name">${displayName}</span>`;
+        
+        // Accordéon
+        summary.addEventListener('click', function(e) {
+            if (!details.open) {
+                const siblings = parentElement.querySelectorAll(':scope > li > details[open]');
+                siblings.forEach(sib => {
+                    if (sib !== details) sib.removeAttribute('open');
+                });
+            }
+        });
+
+        details.appendChild(summary);
+        const ul = document.createElement('ul');
+
+        if (Object.keys(node.__children).length > 0) {
+            renderTreeNodes(node.__children, ul, inputElement);
+        }
+
+        if (node.__files.length > 0) {
+            node.__files.sort((a, b) => a.label.localeCompare(b.label));
+            
+            node.__files.forEach(icon => {
+                const fileLi = document.createElement('li');
+                fileLi.className = 'file-item';
+                if (inputElement.value === icon.id) fileLi.classList.add('selected');
+
+                fileLi.innerHTML = `
+                    <div class="icon-preview-wrapper">
+                        <img src="${icon.url}" loading="lazy" alt="${icon.label}" title="${icon.label}">
+                    </div>
+                    <span class="icon-label">${icon.label}</span>
+                `;
+
+                fileLi.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    document.querySelectorAll('.tree-view-container .file-item.selected').forEach(el => el.classList.remove('selected'));
+                    fileLi.classList.add('selected');
+                    inputElement.value = icon.id;
+                });
+                ul.appendChild(fileLi);
+            });
+        }
+
+        if (ul.hasChildNodes()) {
+            details.appendChild(ul);
+            li.appendChild(details);
+            parentElement.appendChild(li);
+        }
     });
 }
 
-// Appelé par settingsManager quand les icônes changent
 window.refreshZoneIconSelector = initVisualIconSelector;
+
+// =============================================================================
+// GESTION INTERACTION CARTE (POI)
+// =============================================================================
 
 function toggleAddPointMode() {
     isAddingPoint = !isAddingPoint;
@@ -100,11 +268,13 @@ function handleMapClickForPOI(e) {
 
     const lat = e.latlng.lat;
     const lon = e.latlng.lng;
-    // On lit l'input caché
     const typeId = document.getElementById('poi-type-selector').value; 
     const name = document.getElementById('poi-name-input').value.trim();
 
-    const iconConfig = getIcons().find(i => i.id === typeId);
+    const allIcons = getIconsSync();
+    const iconConfig = allIcons.find(i => i.id === typeId);
+    
+    // Fallback
     const url = iconConfig ? iconConfig.url : "https://maps.google.com/mapfiles/kml/pushpin/ylw-pushpin.png";
     
     const poi = { 
@@ -116,7 +286,6 @@ function handleMapClickForPOI(e) {
     };
     
     userPOIs.push(poi);
-    
     updatePOIMarkers();
     updatePOIList();
     
@@ -141,23 +310,21 @@ function updatePOIMarkers() {
     userPOIs.forEach(poi => {
         const customIcon = L.icon({
             iconUrl: poi.url,
-            iconSize: [32, 32],
-            iconAnchor: [16, 16], 
-            popupAnchor: [0, -16]
+            // CORRECTION: Taille augmentée (48x48)
+            iconSize: [48, 48],
+            iconAnchor: [24, 24], 
+            popupAnchor: [0, -24]
         });
 
         const marker = L.marker([poi.lat, poi.lon], { icon: customIcon });
-        
         if (poi.name) {
             marker.bindTooltip(poi.name, { permanent: true, direction: 'top', offset: [0, -20] });
         }
-        
         marker.on('click', () => {
             if (confirm(`Supprimer le point "${poi.name || poi.type}" ?`)) {
                 removePOI(poi.id);
             }
         });
-
         poiMarkersLayer.addLayer(marker);
     });
 }
@@ -179,14 +346,18 @@ function updatePOIList() {
     container.classList.remove('hidden');
     tbody.innerHTML = '';
 
+    const allIcons = getIconsSync();
+
     userPOIs.forEach(poi => {
-        const iconDef = getIcons().find(i => i.id === poi.type);
+        const iconDef = allIcons.find(i => i.id === poi.type);
         const label = iconDef ? iconDef.label : poi.type;
         
         const row = document.createElement('tr');
         row.className = "bg-white border-b dark:bg-gray-800 dark:border-gray-700";
         row.innerHTML = `
-            <td class="px-2 py-1 font-medium text-gray-900 whitespace-nowrap dark:text-white text-xs text-center"><img src="${poi.url}" class="w-6 h-6 inline-block object-contain"></td>
+            <td class="px-2 py-1 font-medium text-gray-900 whitespace-nowrap dark:text-white text-xs text-center">
+                <img src="${poi.url}" class="w-6 h-6 inline-block object-contain">
+            </td>
             <td class="px-2 py-1 text-xs">${poi.name || label}</td>
             <td class="px-2 py-1 text-xs">${poi.lat.toFixed(4)}, ${poi.lon.toFixed(4)}</td>
             <td class="px-2 py-1 text-right">
@@ -198,108 +369,128 @@ function updatePOIList() {
 }
 window.removePOI = removePOI;
 
-// --- FONCTIONS ROBUSTES DE CHARGEMENT D'IMAGE (POUR EXPORT) ---
+// =============================================================================
+// FONCTIONS UTILITAIRES / EXPORT / DESSIN
+// =============================================================================
 
+/**
+ * Récupère les données d'une image pour l'intégration dans un ZIP (KMZ).
+ * CORRECTION : Utilisation de fetch en priorité, puis fallback sans mode CORS strict pour le local.
+ */
 function getIconData(url) {
     return new Promise((resolve) => {
-        if (url.startsWith('data:image')) {
-            resolve(url);
-            return;
-        }
+        // 1. Si déjà base64
+        if (url.startsWith('data:image')) { resolve(url); return; }
+        
+        // 2. Essai via Fetch (Standard)
         fetch(url)
-            .then(response => response.blob())
-            .then(blob => {
+            .then(r => { 
+                if(!r.ok) throw new Error(r.status); 
+                return r.blob(); 
+            })
+            .then(b => {
                 const reader = new FileReader();
-                reader.onloadend = () => resolve(reader.result);
-                reader.readAsDataURL(blob);
+                reader.onloadend = () => resolve(reader.result); // DataURI
+                reader.readAsDataURL(b);
             })
             .catch(e => {
+                // 3. Fallback Canvas (Si fetch échoue - ex: file:// sans serveur)
                 const img = new Image();
-                img.crossOrigin = "Anonymous";
+                // CORRECTION : Pas de crossOrigin pour les fichiers locaux, sinon ça bloque
+                if (url.startsWith('http')) {
+                    img.crossOrigin = "Anonymous";
+                }
+                
                 img.onload = () => {
                     const canvas = document.createElement('canvas');
                     canvas.width = img.naturalWidth || 32;
                     canvas.height = img.naturalHeight || 32;
                     const ctx = canvas.getContext('2d');
                     ctx.drawImage(img, 0, 0);
-                    try {
-                        resolve(canvas.toDataURL('image/png'));
-                    } catch (err) {
-                        console.warn("Impossible d'extraire l'image pour le KMZ (Tainted):", url);
-                        resolve(null);
+                    try { 
+                        resolve(canvas.toDataURL('image/png')); 
+                    } catch(err) { 
+                        // Si le canvas est "tainted" (sécurité locale stricte), on ne peut rien faire en JS pur sans serveur
+                        console.warn("Impossible d'exporter l'image (Canvas Tainted):", url);
+                        resolve(null); 
                     }
                 };
-                img.onerror = () => resolve(null);
+                img.onerror = () => {
+                    console.error("Image introuvable:", url);
+                    resolve(null);
+                };
                 img.src = url;
             });
     });
 }
 
+/**
+ * Charge une image pour l'utiliser dans un Canvas HTML5 (Génération PNG).
+ */
 function loadImageForCanvas(url) {
     return new Promise((resolve) => {
         const img = new Image();
-        img.crossOrigin = "Anonymous"; 
         
         let safeUrl = url;
+        // CORRECTION : crossOrigin seulement pour le web distant
         if (url.startsWith('http')) {
+            img.crossOrigin = "Anonymous"; 
             safeUrl = url + (url.includes('?') ? '&' : '?') + 't=' + Date.now();
         }
-
-        img.onload = () => resolve(img);
         
+        img.onload = () => resolve(img);
         img.onerror = () => {
-            console.warn("Image ignorée pour l'export (Erreur CORS ou 404):", url);
+            console.warn("Image ignorée pour le canvas (erreur chargement):", url);
             resolve(null);
         };
-        
         img.src = safeUrl;
     });
 }
 
-async function drawUserPOIsOnCanvas(ctx, latLonToPixels) {
+// Dessin des POIs sur le Canvas final (Image PNG)
+async function drawUserPOIsOnCanvas(ctx, latLonToCanvasPixels) {
     const uniqueUrls = [...new Set(userPOIs.map(p => p.url))];
     const imageCache = {};
     
+    // Préchargement parallèle
     await Promise.all(uniqueUrls.map(async (url) => {
         const img = await loadImageForCanvas(url);
         if (img) imageCache[url] = img;
     }));
 
     userPOIs.forEach(poi => {
-        const px = latLonToPixels(poi.lat, poi.lon);
+        const px = latLonToCanvasPixels(poi.lat, poi.lon);
         const img = imageCache[poi.url];
         
+        // CORRECTION : Taille augmentée pour l'export aussi (48x48)
+        const size = 48;
+
         if (img) {
-            const w = 32; 
-            const h = 32;
-            ctx.drawImage(img, px.x - w/2, px.y - h/2, w, h);
+            ctx.drawImage(img, px.x - size/2, px.y - size/2, size, size);
         } else {
-            ctx.save();
-            ctx.shadowColor = "rgba(0,0,0,0.5)";
-            ctx.shadowBlur = 4;
-            ctx.beginPath(); ctx.arc(px.x, px.y, 8, 0, 2*Math.PI); 
+            // Fallback (Point rouge si image non chargée)
+            ctx.beginPath(); ctx.arc(px.x, px.y, 10, 0, 2*Math.PI); 
             ctx.fillStyle = 'red'; ctx.fill();
-            ctx.strokeStyle = 'white'; ctx.lineWidth = 2; ctx.stroke();
-            ctx.restore();
         }
         
         if (poi.name) {
-            ctx.shadowColor = "transparent";
             ctx.font = "bold 14px Arial";
             ctx.textAlign = "center";
             ctx.textBaseline = "top";
             
             ctx.strokeStyle = "white";
             ctx.lineWidth = 3;
-            ctx.strokeText(poi.name, px.x, px.y + 18); 
+            ctx.strokeText(poi.name, px.x, px.y + (size/2) + 2); 
             
             ctx.fillStyle = "black";
-            ctx.fillText(poi.name, px.x, px.y + 18);
+            ctx.fillText(poi.name, px.x, px.y + (size/2) + 2);
         }
     });
 }
 
-// --- FONCTIONS UTILITAIRES GÉOGRAPHIQUES ---
+// =============================================================================
+// LOGIQUE GEOGRAPHIQUE (UTM / CADO / PIXELS)
+// =============================================================================
 
 function haversineDistance(p1, p2) {
     const R = 6371e3;
@@ -409,6 +600,10 @@ function getZoneCadoConfigAndBounds() {
     return { config, gridBounds, a1CornerLat, a1CornerLon };
 }
 
+// =============================================================================
+// FONCTIONS PRINCIPALES (GENERATEURS)
+// =============================================================================
+
 async function generateZonePNG() {
     const loadingIndicator = document.getElementById("loading-indicator");
     const loadingMessage = document.getElementById("loading-message");
@@ -459,13 +654,13 @@ async function generateZonePNG() {
         
         const needsExternalMargin = isUtmExport && !isCadoExport;
         
-        // Récupération du scaleFactor en plus du canvas
+        // --- Création Canvas avec Upscaling 4K ---
         const { finalCanvas, dynamicMargin, scaleFactor } = await zdCreateFinalCanvas(finalBoundingBox, zoom, selectedMap, needsExternalMargin);
         const ctx = finalCanvas.getContext('2d');
         
         const nwPixel = zdLatLonToWorldPixels(finalBoundingBox.north, finalBoundingBox.west, zoom);
         
-        // latLonToCanvasPixels prend en compte le scaleFactor
+        // Fonction de conversion qui intègre le scaleFactor
         const latLonToCanvasPixels = (lat, lon) => {
             const worldPixels = zdLatLonToWorldPixels(lat, lon, zoom);
             return {
@@ -486,12 +681,12 @@ async function generateZonePNG() {
 
         if (userPOIs.length > 0) {
             loadingMessage.textContent = "Dessin des points d'intérêt...";
+            // Appel à drawUserPOIsOnCanvas qui utilise maintenant loadImageForCanvas asynchrone
             await drawUserPOIsOnCanvas(ctx, latLonToCanvasPixels);
         }
 
         if (isUtmExport) {
             loadingMessage.textContent = "Dessin de la grille UTM...";
-            // Taille de police proportionnelle à la largeur de l'image (qui est potentiellement upscalée)
             const cartoucheFontSize = Math.max(10 * scaleFactor, Math.min(48 * scaleFactor, finalCanvas.width * 0.007));
             await drawUtmGridOnCanvas(ctx, finalBoundingBox, latLonToCanvasPixels, dynamicMargin, cartoucheFontSize);
         }
@@ -569,21 +764,23 @@ async function generateCadoGridForZone() {
         if (userPOIs.length > 0) {
             let poiKml = "";
             const imagesToZip = new Map();
+            const allIcons = getIconsSync();
             
             for (const [index, poi] of userPOIs.entries()) {
                 let iconUrl = "https://maps.google.com/mapfiles/kml/paddle/wht-blank.png";
-                let iconFilename = "";
                 
-                const iconDef = getIcons().find(i => i.id === poi.type);
+                const iconDef = allIcons.find(i => i.id === poi.type);
                 if(iconDef) iconUrl = iconDef.url;
                 if(poi.url) iconUrl = poi.url;
 
+                // Si image non HTTP (dataURI ou locale), on l'embarque
                 if (!iconUrl.startsWith('http')) {
-                    iconFilename = `icon_${index}.png`;
+                    const iconFilename = `icon_${index}.png`;
                     const zipPath = `files/${iconFilename}`;
                     
                     const base64Data = await getIconData(iconUrl);
                     if (base64Data) {
+                        // DataURI -> Base64 string
                         const cleanBase64 = base64Data.split(',')[1];
                         imagesToZip.set(zipPath, cleanBase64);
                         iconUrl = zipPath; 
@@ -644,7 +841,8 @@ async function generateCadoGridForZone() {
     }
 }
 
-// --- MODIFICATION : Logique d'upscaling renforcée (2160p) ---
+// --- CREATION CANVAS FINAL (TUILES + UPSCALING) ---
+
 async function zdCreateFinalCanvas(boundingBox, zoom, mapConfig, hasExternalMargin = false) {
     const nwPixel = zdLatLonToWorldPixels(boundingBox.north, boundingBox.west, zoom);
     const sePixel = zdLatLonToWorldPixels(boundingBox.south, boundingBox.east, zoom);
@@ -859,7 +1057,74 @@ function drawSmartScaleBar(ctx, canvasWidth, canvasHeight, margin, metersPerPixe
     ctx.fillText(label, x + (finalBarWidthPx / 2), y + (barHeight / 2));
 }
 
-// --- Fonctions utilitaires / KML (inchangées) ---
+// --- RECHERCHE ADRESSE API BAN ---
+
+function setupZoneAddressSearch() {
+    const input = document.getElementById('zone-address-search-input');
+    const list = document.getElementById('zone-suggestions');
+    let timer;
+
+    input.addEventListener('input', () => {
+        if (input.value.trim().length < 3) { list.classList.add('hidden'); return; }
+        clearTimeout(timer);
+        timer = setTimeout(async () => {
+            list.innerHTML = '';
+            let found = false;
+            // API BAN (Priorité France)
+            try {
+                const r = await fetch(`https://api-adresse.data.gouv.fr/search/?q=${encodeURIComponent(input.value)}&limit=5`);
+                const d = await r.json();
+                if (d.features?.length) {
+                    found = true;
+                    d.features.forEach(f => {
+                        const li = document.createElement('li');
+                        li.textContent = f.properties.label;
+                        li.onclick = () => {
+                            input.value = f.properties.label;
+                            list.classList.add('hidden');
+                            window.zoneMap.flyTo([f.geometry.coordinates[1], f.geometry.coordinates[0]], 15);
+                        };
+                        list.appendChild(li);
+                    });
+                }
+            } catch(e){}
+
+            // Fallback Nominatim (Monde)
+            if (!found) {
+                try {
+                    const r = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(input.value)}&limit=5`);
+                    const d = await r.json();
+                    d.forEach(f => {
+                        const li = document.createElement('li');
+                        li.textContent = f.display_name;
+                        li.onclick = () => {
+                            input.value = f.display_name;
+                            list.classList.add('hidden');
+                            window.zoneMap.flyTo([parseFloat(f.lat), parseFloat(f.lon)], 15);
+                        };
+                        list.appendChild(li);
+                    });
+                } catch(e){}
+            }
+            
+            if (list.children.length > 0) {
+                list.classList.remove('hidden');
+            } else {
+                list.classList.add('hidden');
+            }
+
+        }, 300);
+    });
+    
+    // Fermer si clic dehors
+    document.addEventListener('click', (e) => {
+        if (!document.querySelector('.address-search-container').contains(e.target)) {
+            list.classList.add('hidden');
+        }
+    });
+}
+
+// --- GESTION IMPORT KML ---
 
 async function handleZoneKmzFile(event) {
     const file = event.target.files[0];
@@ -1218,74 +1483,4 @@ async function drawUtmGridOnCanvas(ctx, boundingBox, latLonToCanvasPixels, margi
         }
         ctx.restore();
     }
-}
-
-function setupZoneAddressSearch() {
-    const searchInput = document.getElementById('zone-address-search-input');
-    const suggestionsList = document.getElementById('zone-suggestions');
-    let debounceTimeout = null;
-
-    searchInput.addEventListener('input', () => {
-        const query = searchInput.value.trim();
-        if (query.length < 3) { suggestionsList.classList.add('hidden'); return; }
-        clearTimeout(debounceTimeout);
-        debounceTimeout = setTimeout(async () => {
-            suggestionsList.innerHTML = '';
-            
-            // 1. Essayer l'API Adresse.data.gouv.fr (Format propre)
-            let foundInBan = false;
-            try {
-                const response = await fetch(`https://api-adresse.data.gouv.fr/search/?q=${encodeURIComponent(query)}&limit=5`);
-                const data = await response.json();
-                if (data.features && data.features.length > 0) {
-                    foundInBan = true;
-                    data.features.forEach(f => {
-                        const li = document.createElement('li');
-                        // Utilise le label court de l'API Gouv (Numéro Rue, CP Ville)
-                        li.textContent = f.properties.label; 
-                        li.addEventListener('click', () => {
-                            searchInput.value = f.properties.label;
-                            suggestionsList.classList.add('hidden');
-                            window.zoneMap.flyTo([f.geometry.coordinates[1], f.geometry.coordinates[0]], 15);
-                        });
-                        suggestionsList.appendChild(li);
-                    });
-                }
-            } catch (e) {
-                console.warn("Erreur API BAN:", e);
-            }
-
-            // 2. Fallback Nominatim si BAN ne donne rien (ou hors France)
-            if (!foundInBan) {
-                try {
-                    const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=5`);
-                    const results = await response.json();
-                    results.forEach(r => {
-                        const li = document.createElement('li');
-                        li.textContent = r.display_name;
-                        li.addEventListener('click', () => {
-                            searchInput.value = r.display_name;
-                            suggestionsList.classList.add('hidden');
-                            window.zoneMap.flyTo([parseFloat(r.lat), parseFloat(r.lon)], 15);
-                        });
-                        suggestionsList.appendChild(li);
-                    });
-                } catch (error) { console.error("Erreur avec l'API Nominatim:", error); }
-            }
-            
-            if (suggestionsList.children.length > 0) {
-                suggestionsList.classList.remove('hidden');
-            } else {
-                suggestionsList.classList.add('hidden');
-            }
-
-        }, 300);
-    });
-    
-    // Fermer si clic dehors
-    document.addEventListener('click', (e) => {
-        if (!document.querySelector('.address-search-container').contains(e.target)) {
-            suggestionsList.classList.add('hidden');
-        }
-    });
 }
