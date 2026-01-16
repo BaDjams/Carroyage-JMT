@@ -50,7 +50,7 @@ function getIconsSync() {
     if (typeof ICON_CATALOG !== 'undefined') {
         finalIcons = finalIcons.concat(ICON_CATALOG);
     } else {
-        // Silencieux si pas chargé pour éviter le spam console
+        // Silencieux
     }
 
     return finalIcons;
@@ -70,6 +70,9 @@ function initVisualIconSelector() {
     const hiddenInput = document.getElementById('poi-type-selector');
     const categoryFilter = document.getElementById('poi-category-filter');
     
+    // Initialisation du scaler d'icônes
+    initIconScaler();
+
     if (!visualContainer || !hiddenInput) return;
 
     const allIcons = getIconsSync();
@@ -87,7 +90,7 @@ function initVisualIconSelector() {
         const categories = new Set();
         allIcons.forEach(icon => {
             const catStr = Array.isArray(icon.path) ? icon.path.join(' > ') : (icon.category || 'Divers');
-            const cleanCat = catStr.replace(/^\d+_/, ''); // Enlève les préfixes de tri
+            const cleanCat = catStr.replace(/\d+_/, ''); 
             categories.add(cleanCat);
         });
 
@@ -112,6 +115,24 @@ function initVisualIconSelector() {
 
     // Affichage initial (Arbre complet)
     renderFullTree(allIcons, visualContainer, hiddenInput);
+}
+
+// Initialise l'écouteur sur le slider de taille
+function initIconScaler() {
+    const slider = document.getElementById('poi-icon-scale');
+    const label = document.getElementById('poi-icon-scale-label');
+    
+    if (slider && label) {
+        // Enlever les anciens écouteurs pour éviter les doublons (via clônage simple)
+        const newSlider = slider.cloneNode(true);
+        slider.parentNode.replaceChild(newSlider, slider);
+        
+        newSlider.addEventListener('input', (e) => {
+            label.textContent = `${e.target.value}x`;
+            // Met à jour les marqueurs Leaflet en temps réel
+            updatePOIMarkers();
+        });
+    }
 }
 
 function renderFullTree(icons, container, inputElement) {
@@ -295,6 +316,8 @@ function handleMapClickForPOI(e) {
     }
 }
 
+// Mise à jour des marqueurs sur la carte Leaflet
+// MODIFIE POUR UTILISER LE SLIDER
 function updatePOIMarkers() {
     const map = window.zoneMap; 
     if (!map) return;
@@ -304,18 +327,26 @@ function updatePOIMarkers() {
     }
     poiMarkersLayer.clearLayers();
 
+    // Récupération de la taille utilisateur
+    const scaleInput = document.getElementById('poi-icon-scale');
+    const userScale = scaleInput ? parseFloat(scaleInput.value) : 1.0;
+    
+    // Base 48px
+    const finalSize = 48 * userScale;
+    const anchorPos = finalSize / 2;
+
     userPOIs.forEach(poi => {
         const customIcon = L.icon({
             iconUrl: poi.url,
-            // Taille augmentée sur la carte (48x48)
-            iconSize: [48, 48],
-            iconAnchor: [24, 24], 
-            popupAnchor: [0, -24]
+            // Taille dynamique
+            iconSize: [finalSize, finalSize],
+            iconAnchor: [anchorPos, anchorPos], 
+            popupAnchor: [0, -anchorPos]
         });
 
         const marker = L.marker([poi.lat, poi.lon], { icon: customIcon });
         if (poi.name) {
-            marker.bindTooltip(poi.name, { permanent: true, direction: 'top', offset: [0, -20] });
+            marker.bindTooltip(poi.name, { permanent: true, direction: 'top', offset: [0, -(anchorPos + 5)] });
         }
         marker.on('click', () => {
             if (confirm(`Supprimer le point "${poi.name || poi.type}" ?`)) {
@@ -370,9 +401,6 @@ window.removePOI = removePOI;
 // FONCTIONS UTILITAIRES / EXPORT / DESSIN
 // =============================================================================
 
-/**
- * Récupère les données d'une image pour l'intégration dans un ZIP (KMZ).
- */
 function getIconData(url) {
     return new Promise((resolve) => {
         if (url.startsWith('data:image')) { resolve(url); return; }
@@ -402,9 +430,6 @@ function getIconData(url) {
     });
 }
 
-/**
- * Charge une image pour l'utiliser dans un Canvas HTML5 (Génération PNG).
- */
 function loadImageForCanvas(url) {
     return new Promise((resolve) => {
         const img = new Image();
@@ -428,12 +453,10 @@ function loadImageForCanvas(url) {
 }
 
 // Dessin des POIs sur le Canvas final (Image PNG)
-// AJOUT: scaleFactor pour redimensionner les icônes en fonction de l'upscaling
 async function drawUserPOIsOnCanvas(ctx, latLonToCanvasPixels, scaleFactor = 1) {
     const uniqueUrls = [...new Set(userPOIs.map(p => p.url))];
     const imageCache = {};
     
-    // Préchargement parallèle
     await Promise.all(uniqueUrls.map(async (url) => {
         const img = await loadImageForCanvas(url);
         if (img) imageCache[url] = img;
@@ -443,14 +466,18 @@ async function drawUserPOIsOnCanvas(ctx, latLonToCanvasPixels, scaleFactor = 1) 
         const px = latLonToCanvasPixels(poi.lat, poi.lon);
         const img = imageCache[poi.url];
         
-        // Taille de base (48px) multipliée par le facteur d'échelle
-        const baseSize = 48;
-        const size = baseSize * scaleFactor;
+        // Taille de base (48px) multipliée par le facteur d'échelle global (upscaling)
+        // ET multipliée par le facteur d'échelle utilisateur (slider)
+        
+        // On doit retrouver le facteur utilisateur, mais il est déjà inclus 
+        // dans le paramètre 'scaleFactor' passé par generateZonePNG si on l'appelle correctement.
+        // VOIR generateZonePNG pour l'appel.
+        
+        const size = 48 * scaleFactor;
 
         if (img) {
             ctx.drawImage(img, px.x - size/2, px.y - size/2, size, size);
         } else {
-            // Fallback
             ctx.beginPath(); 
             ctx.arc(px.x, px.y, 10 * scaleFactor, 0, 2*Math.PI); 
             ctx.fillStyle = 'red'; 
@@ -477,7 +504,7 @@ async function drawUserPOIsOnCanvas(ctx, latLonToCanvasPixels, scaleFactor = 1) 
 }
 
 // =============================================================================
-// LOGIQUE GEOGRAPHIQUE (UTM / CADO / PIXELS)
+// LOGIQUE GEOGRAPHIQUE
 // =============================================================================
 
 function haversineDistance(p1, p2) {
@@ -669,8 +696,13 @@ async function generateZonePNG() {
 
         if (userPOIs.length > 0) {
             loadingMessage.textContent = "Dessin des points d'intérêt...";
-            // Appel avec le scaleFactor
-            await drawUserPOIsOnCanvas(ctx, latLonToCanvasPixels, scaleFactor);
+            
+            // MODIFICATION: Récupération du facteur utilisateur
+            const userScaleInput = document.getElementById('poi-icon-scale');
+            const userScalePreference = userScaleInput ? parseFloat(userScaleInput.value) : 1.0;
+            
+            // On combine les deux facteurs : (Upscaling Technique * Préférence Utilisateur)
+            await drawUserPOIsOnCanvas(ctx, latLonToCanvasPixels, scaleFactor * userScalePreference);
         }
 
         if (isUtmExport) {
