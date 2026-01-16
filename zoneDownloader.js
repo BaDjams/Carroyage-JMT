@@ -50,7 +50,7 @@ function getIconsSync() {
     if (typeof ICON_CATALOG !== 'undefined') {
         finalIcons = finalIcons.concat(ICON_CATALOG);
     } else {
-        console.warn("ICON_CATALOG non trouvé. Vérifiez que icons-catalog.js est bien chargé.");
+        // Silencieux si pas chargé pour éviter le spam console
     }
 
     return finalIcons;
@@ -65,7 +65,6 @@ window.getIconLibrary = getIconsSync;
 // LOGIQUE DE SELECTION VISUELLE (ARBORESCENCE & FILTRES)
 // =============================================================================
 
-// Fonction appelée par l'interface ou settingsManager
 function initVisualIconSelector() {
     const visualContainer = document.getElementById('poi-visual-selector');
     const hiddenInput = document.getElementById('poi-type-selector');
@@ -73,7 +72,6 @@ function initVisualIconSelector() {
     
     if (!visualContainer || !hiddenInput) return;
 
-    // Récupération synchrone
     const allIcons = getIconsSync();
     
     visualContainer.innerHTML = '';
@@ -89,7 +87,7 @@ function initVisualIconSelector() {
         const categories = new Set();
         allIcons.forEach(icon => {
             const catStr = Array.isArray(icon.path) ? icon.path.join(' > ') : (icon.category || 'Divers');
-            const cleanCat = catStr.replace(/\d+_/, ''); // Enlève les préfixes de tri
+            const cleanCat = catStr.replace(/^\d+_/, ''); // Enlève les préfixes de tri
             categories.add(cleanCat);
         });
 
@@ -150,7 +148,6 @@ function renderFilteredGrid(icons, categoryString, container, inputElement) {
     container.appendChild(gridDiv);
 }
 
-// Construction de la structure de données en arbre
 function buildTreeFromFlatList(icons) {
     const root = {};
     icons.forEach(icon => {
@@ -179,7 +176,6 @@ function buildTreeFromFlatList(icons) {
     return root;
 }
 
-// Rendu HTML Récursif de l'arbre
 function renderTreeNodes(nodeDict, parentElement, inputElement) {
     const sortedKeys = Object.keys(nodeDict).sort();
 
@@ -196,12 +192,13 @@ function renderTreeNodes(nodeDict, parentElement, inputElement) {
         const summary = document.createElement('summary');
         summary.innerHTML = `<span class="folder-icon">📁</span> <span class="folder-name">${displayName}</span>`;
         
-        // Accordéon
         summary.addEventListener('click', function(e) {
             if (!details.open) {
                 const siblings = parentElement.querySelectorAll(':scope > li > details[open]');
                 siblings.forEach(sib => {
-                    if (sib !== details) sib.removeAttribute('open');
+                    if (sib !== details) {
+                        sib.removeAttribute('open');
+                    }
                 });
             }
         });
@@ -310,7 +307,7 @@ function updatePOIMarkers() {
     userPOIs.forEach(poi => {
         const customIcon = L.icon({
             iconUrl: poi.url,
-            // CORRECTION: Taille augmentée (48x48)
+            // Taille augmentée sur la carte (48x48)
             iconSize: [48, 48],
             iconAnchor: [24, 24], 
             popupAnchor: [0, -24]
@@ -375,50 +372,31 @@ window.removePOI = removePOI;
 
 /**
  * Récupère les données d'une image pour l'intégration dans un ZIP (KMZ).
- * CORRECTION : Utilisation de fetch en priorité, puis fallback sans mode CORS strict pour le local.
  */
 function getIconData(url) {
     return new Promise((resolve) => {
-        // 1. Si déjà base64
         if (url.startsWith('data:image')) { resolve(url); return; }
         
-        // 2. Essai via Fetch (Standard)
         fetch(url)
-            .then(r => { 
-                if(!r.ok) throw new Error(r.status); 
-                return r.blob(); 
-            })
+            .then(r => { if(!r.ok) throw new Error(r.status); return r.blob(); })
             .then(b => {
                 const reader = new FileReader();
-                reader.onloadend = () => resolve(reader.result); // DataURI
+                reader.onloadend = () => resolve(reader.result); // Retourne DataURI
                 reader.readAsDataURL(b);
             })
             .catch(e => {
-                // 3. Fallback Canvas (Si fetch échoue - ex: file:// sans serveur)
                 const img = new Image();
-                // CORRECTION : Pas de crossOrigin pour les fichiers locaux, sinon ça bloque
-                if (url.startsWith('http')) {
+                if (!url.startsWith('data:')) {
                     img.crossOrigin = "Anonymous";
                 }
-                
                 img.onload = () => {
-                    const canvas = document.createElement('canvas');
-                    canvas.width = img.naturalWidth || 32;
-                    canvas.height = img.naturalHeight || 32;
-                    const ctx = canvas.getContext('2d');
-                    ctx.drawImage(img, 0, 0);
-                    try { 
-                        resolve(canvas.toDataURL('image/png')); 
-                    } catch(err) { 
-                        // Si le canvas est "tainted" (sécurité locale stricte), on ne peut rien faire en JS pur sans serveur
-                        console.warn("Impossible d'exporter l'image (Canvas Tainted):", url);
-                        resolve(null); 
-                    }
+                    const c = document.createElement('canvas');
+                    c.width = img.naturalWidth || 32; c.height = img.naturalHeight || 32;
+                    const ctx = c.getContext('2d');
+                    ctx.drawImage(img,0,0);
+                    try { resolve(c.toDataURL('image/png')); } catch(err) { resolve(null); }
                 };
-                img.onerror = () => {
-                    console.error("Image introuvable:", url);
-                    resolve(null);
-                };
+                img.onerror = () => resolve(null);
                 img.src = url;
             });
     });
@@ -431,16 +409,18 @@ function loadImageForCanvas(url) {
     return new Promise((resolve) => {
         const img = new Image();
         
-        let safeUrl = url;
-        // CORRECTION : crossOrigin seulement pour le web distant
-        if (url.startsWith('http')) {
+        if (!url.startsWith('data:')) {
             img.crossOrigin = "Anonymous"; 
-            safeUrl = url + (url.includes('?') ? '&' : '?') + 't=' + Date.now();
         }
         
+        let safeUrl = url;
+        if (url.startsWith('http')) {
+            safeUrl = url + (url.includes('?') ? '&' : '?') + 't=' + Date.now();
+        }
+
         img.onload = () => resolve(img);
         img.onerror = () => {
-            console.warn("Image ignorée pour le canvas (erreur chargement):", url);
+            console.warn("Image ignorée pour le canvas (erreur chargement/CORS):", url);
             resolve(null);
         };
         img.src = safeUrl;
@@ -448,7 +428,8 @@ function loadImageForCanvas(url) {
 }
 
 // Dessin des POIs sur le Canvas final (Image PNG)
-async function drawUserPOIsOnCanvas(ctx, latLonToCanvasPixels) {
+// AJOUT: scaleFactor pour redimensionner les icônes en fonction de l'upscaling
+async function drawUserPOIsOnCanvas(ctx, latLonToCanvasPixels, scaleFactor = 1) {
     const uniqueUrls = [...new Set(userPOIs.map(p => p.url))];
     const imageCache = {};
     
@@ -462,28 +443,35 @@ async function drawUserPOIsOnCanvas(ctx, latLonToCanvasPixels) {
         const px = latLonToCanvasPixels(poi.lat, poi.lon);
         const img = imageCache[poi.url];
         
-        // CORRECTION : Taille augmentée pour l'export aussi (48x48)
-        const size = 48;
+        // Taille de base (48px) multipliée par le facteur d'échelle
+        const baseSize = 48;
+        const size = baseSize * scaleFactor;
 
         if (img) {
             ctx.drawImage(img, px.x - size/2, px.y - size/2, size, size);
         } else {
-            // Fallback (Point rouge si image non chargée)
-            ctx.beginPath(); ctx.arc(px.x, px.y, 10, 0, 2*Math.PI); 
-            ctx.fillStyle = 'red'; ctx.fill();
+            // Fallback
+            ctx.beginPath(); 
+            ctx.arc(px.x, px.y, 10 * scaleFactor, 0, 2*Math.PI); 
+            ctx.fillStyle = 'red'; 
+            ctx.fill();
         }
         
         if (poi.name) {
-            ctx.font = "bold 14px Arial";
+            const fontSize = 14 * scaleFactor;
+            const textOffset = (size / 2) + (2 * scaleFactor);
+            const lineWidth = 3 * scaleFactor;
+
+            ctx.font = `bold ${fontSize}px Arial`;
             ctx.textAlign = "center";
             ctx.textBaseline = "top";
             
             ctx.strokeStyle = "white";
-            ctx.lineWidth = 3;
-            ctx.strokeText(poi.name, px.x, px.y + (size/2) + 2); 
+            ctx.lineWidth = lineWidth;
+            ctx.strokeText(poi.name, px.x, px.y + textOffset); 
             
             ctx.fillStyle = "black";
-            ctx.fillText(poi.name, px.x, px.y + (size/2) + 2);
+            ctx.fillText(poi.name, px.x, px.y + textOffset);
         }
     });
 }
@@ -681,8 +669,8 @@ async function generateZonePNG() {
 
         if (userPOIs.length > 0) {
             loadingMessage.textContent = "Dessin des points d'intérêt...";
-            // Appel à drawUserPOIsOnCanvas qui utilise maintenant loadImageForCanvas asynchrone
-            await drawUserPOIsOnCanvas(ctx, latLonToCanvasPixels);
+            // Appel avec le scaleFactor
+            await drawUserPOIsOnCanvas(ctx, latLonToCanvasPixels, scaleFactor);
         }
 
         if (isUtmExport) {
@@ -735,12 +723,18 @@ async function generateZonePNG() {
 
         finalCanvas.toBlob((blob) => {
             if (blob) { downloadFile(blob, fileName); } 
-            else { showError("Erreur lors de la création du fichier image."); }
+            else { 
+                showError("Erreur lors de la création du fichier image (Canvas Tainted?). Vérifiez la console."); 
+            }
         }, mimeType, quality);
 
     } catch (error) {
         console.error("Erreur lors de la génération de l'image de zone :", error);
-        showError(error.message);
+        let msg = error.message;
+        if (msg.includes("Tainted")) {
+            msg = "Erreur de sécurité navigateur (Tainted Canvas). Impossible d'exporter. Si vous utilisez des images locales, vous DEVEZ utiliser un serveur local (ex: Live Server) et non ouvrir le fichier directement.";
+        }
+        showError(msg);
     } finally {
         loadingIndicator.classList.add("hidden");
     }
@@ -920,6 +914,7 @@ async function zdCreateFinalCanvas(boundingBox, zoom, mapConfig, hasExternalMarg
 
                 const promise = new Promise((resolve) => {
                     const img = new Image();
+                    // CORRECTION : Toujours demander l'anonymat pour les tuiles aussi
                     img.crossOrigin = "Anonymous"; 
                     img.onload = () => {
                          downloadedCount++;
