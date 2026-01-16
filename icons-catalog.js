@@ -8,7 +8,7 @@ const ICON_CATALOG = [
       "JUDICIAIRE"
     ],
     "category": "ADVERSAIRE / JUDICIAIRE",
-    "url": "icons/sticks/ADVERSAIRE/JUDICIAIRE/ARME.png",
+    "url": "icons/sticker/ADVERSAIRE/JUDICIAIRE/ARME.png",
     "scale": 1.0,
     "order": 0
   },
@@ -20,7 +20,7 @@ const ICON_CATALOG = [
       "JUDICIAIRE"
     ],
     "category": "ADVERSAIRE / JUDICIAIRE",
-    "url": "icons/sticks/ADVERSAIRE/JUDICIAIRE/DANGER.png",
+    "url": "icons/sticker/ADVERSAIRE/JUDICIAIRE/DANGER.png",
     "scale": 1.0,
     "order": 1
   },
@@ -32,7 +32,7 @@ const ICON_CATALOG = [
       "JUDICIAIRE"
     ],
     "category": "ADVERSAIRE / JUDICIAIRE",
-    "url": "icons/sticks/ADVERSAIRE/JUDICIAIRE/DROGUE.png",
+    "url": "icons/sticker/ADVERSAIRE/JUDICIAIRE/DROGUE.png",
     "scale": 1.0,
     "order": 2
   },
@@ -44,7 +44,7 @@ const ICON_CATALOG = [
       "JUDICIAIRE"
     ],
     "category": "ADVERSAIRE / JUDICIAIRE",
-    "url": "icons/sticks/ADVERSAIRE/JUDICIAIRE/INDIVIDU_ARME.png",
+    "url": "icons/sticker/ADVERSAIRE/JUDICIAIRE/INDIVIDU_ARME.png",
     "scale": 1.0,
     "order": 3
   },
@@ -56,7 +56,7 @@ const ICON_CATALOG = [
       "JUDICIAIRE"
     ],
     "category": "ADVERSAIRE / JUDICIAIRE",
-    "url": "icons/sticks/ADVERSAIRE/JUDICIAIRE/MALFAITEUR.png",
+    "url": "icons/sticker/ADVERSAIRE/JUDICIAIRE/MALFAITEUR.png",
     "scale": 1.0,
     "order": 4
   },
@@ -68,7 +68,7 @@ const ICON_CATALOG = [
       "JUDICIAIRE"
     ],
     "category": "ADVERSAIRE / JUDICIAIRE",
-    "url": "icons/sticks/ADVERSAIRE/JUDICIAIRE/SCENE_CRIME.png",
+    "url": "icons/sticker/ADVERSAIRE/JUDICIAIRE/SCENE_CRIME.png",
     "scale": 1.0,
     "order": 5
   },
@@ -80,7 +80,7 @@ const ICON_CATALOG = [
       "JUDICIAIRE"
     ],
     "category": "ADVERSAIRE / JUDICIAIRE",
-    "url": "icons/sticks/ADVERSAIRE/JUDICIAIRE/VIDE.png",
+    "url": "icons/sticker/ADVERSAIRE/JUDICIAIRE/VIDE.png",
     "scale": 1.0,
     "order": 6
   },
@@ -92,7 +92,7 @@ const ICON_CATALOG = [
       "ORDRE PUBLIC"
     ],
     "category": "ADVERSAIRE / ORDRE PUBLIC",
-    "url": "icons/sticks/ADVERSAIRE/ORDRE PUBLIC/ACTIVISTES_ECOLO.png",
+    "url": "icons/sticker/ADVERSAIRE/ORDRE PUBLIC/ACTIVISTES_ECOLO.png",
     "scale": 1.0,
     "order": 7
   },
@@ -104,7 +104,7 @@ const ICON_CATALOG = [
       "ORDRE PUBLIC"
     ],
     "category": "ADVERSAIRE / ORDRE PUBLIC",
-    "url": "icons/sticks/ADVERSAIRE/ORDRE PUBLIC/BARRICADE.png",
+    "url": "icons/sticker/ADVERSAIRE/ORDRE PUBLIC/BARRICADE.png",
     "scale": 1.0,
     "order": 8
   },
@@ -116,7 +116,7 @@ const ICON_CATALOG = [
       "ORDRE PUBLIC"
     ],
     "category": "ADVERSAIRE / ORDRE PUBLIC",
-    "url": "icons/sticks/ADVERSAIRE/ORDRE PUBLIC/CASSEURS.png",
+    "url": "icons/sticker/ADVERSAIRE/ORDRE PUBLIC/CASSEURS.png",
     "scale": 1.0,
     "order": 9
   },
@@ -128,7 +128,7 @@ const ICON_CATALOG = [
       "ORDRE PUBLIC"
     ],
     "category": "ADVERSAIRE / ORDRE PUBLIC",
-    "url": "icons/sticks/ADVERSAIRE/ORDRE PUBLIC/DANGER.png",
+    "url": "icons/sticker/ADVERSAIRE/ORDRE PUBLIC/DANGER.png",
     "scale": 1.0,
     "order": 10
   },
@@ -140,7 +140,7 @@ const ICON_CATALOG = [
       "ORDRE PUBLIC"
     ],
     "category": "ADVERSAIRE / ORDRE PUBLIC",
-    "url": "icons/sticks/ADVERSAIRE/ORDRE PUBLIC/EMEUTE.png",
+    "url": "icons/sticker/ADVERSAIRE/ORDRE PUBLIC/EMEUTE.png",
     "scale": 1.0,
     "order": 11
   },
@@ -152,7 +152,7 @@ const ICON_CATALOG = [
       "ORDRE PUBLIC"
     ],
     "category": "ADVERSAIRE / ORDRE PUBLIC",
-    "url": "icons/sticks/ADVERSAIRE/ORDRE PUBLIC/FESTIF_MUSICAL.png",
+    "url": "icons/sticker/ADVERSAIRE/ORDRE PUBLIC/FESTIF_MUSICAL.png",
     "scale": 1.0,
     "order": 12
   },
@@ -164,7 +164,7 @@ const ICON_CATALOG = [
       "ORDRE PUBLIC"
     ],
     "category": "ADVERSAIRE / ORDRE PUBLIC",
-    "url": "icons/sticks/ADVERSAIRE/ORDRE PUBLIC/GRAND_RASSEMBLEMENT.png",
+    "url": "icons/sticker/ADVERSAIRE/ORDRE PUBLIC/GRAND_RASSEMBLEMENT.png",
     "scale": 1.0,
     "order": 13
   },
@@ -176,7 +176,7 @@ const ICON_CATALOG = [
       "ORDRE PUBLIC"
     ],
     "category": "ADVERSAIRE / ORDRE PUBLIC",
-    "url": "icons/sticks/ADVERSAIRE/ORDRE PUBLIC/MANIFESTANTS.png",
+    "url": "icons/sticker/ADVERSAIRE/ORDRE PUBLIC/MANIFESTANTS.png",
     "scale": 1.0,
     "order": 14
   },
@@ -188,7 +188,7 @@ const ICON_CATALOG = [
       "ORDRE PUBLIC"
     ],
     "category": "ADVERSAIRE / ORDRE PUBLIC",
-    "url": "icons/sticks/ADVERSAIRE/ORDRE PUBLIC/REFUGIE_ESI.png",
+    "url": "icons/sticker/ADVERSAIRE/ORDRE PUBLIC/REFUGIE_ESI.png",
     "scale": 1.0,
     "order": 15
   },
@@ -200,7 +200,7 @@ const ICON_CATALOG = [
       "ORDRE PUBLIC"
     ],
     "category": "ADVERSAIRE / ORDRE PUBLIC",
-    "url": "icons/sticks/ADVERSAIRE/ORDRE PUBLIC/VOITURE_BRULEE.png",
+    "url": "icons/sticker/ADVERSAIRE/ORDRE PUBLIC/VOITURE_BRULEE.png",
     "scale": 1.0,
     "order": 16
   },
@@ -212,7 +212,7 @@ const ICON_CATALOG = [
       "ORDRE PUBLIC"
     ],
     "category": "ADVERSAIRE / ORDRE PUBLIC",
-    "url": "icons/sticks/ADVERSAIRE/ORDRE PUBLIC/ZONE_PIEGEE_DANGEREUSE.png",
+    "url": "icons/sticker/ADVERSAIRE/ORDRE PUBLIC/ZONE_PIEGEE_DANGEREUSE.png",
     "scale": 1.0,
     "order": 17
   },
@@ -224,7 +224,7 @@ const ICON_CATALOG = [
       "TERRORISME"
     ],
     "category": "ADVERSAIRE / TERRORISME",
-    "url": "icons/sticks/ADVERSAIRE/TERRORISME/ALERTE_BOMBE.png",
+    "url": "icons/sticker/ADVERSAIRE/TERRORISME/ALERTE_BOMBE.png",
     "scale": 1.0,
     "order": 18
   },
@@ -236,7 +236,7 @@ const ICON_CATALOG = [
       "TERRORISME"
     ],
     "category": "ADVERSAIRE / TERRORISME",
-    "url": "icons/sticks/ADVERSAIRE/TERRORISME/ZONE_PIEGEE_DANGEREUSE.png",
+    "url": "icons/sticker/ADVERSAIRE/TERRORISME/ZONE_PIEGEE_DANGEREUSE.png",
     "scale": 1.0,
     "order": 19
   },
@@ -249,7 +249,7 @@ const ICON_CATALOG = [
       "OTAGE"
     ],
     "category": "ADVERSAIRE / TERRORISME / OTAGE",
-    "url": "icons/sticks/ADVERSAIRE/TERRORISME/OTAGE/4 - Otage.png",
+    "url": "icons/sticker/ADVERSAIRE/TERRORISME/OTAGE/4 - Otage.png",
     "scale": 1.0,
     "order": 20
   },
@@ -262,7 +262,7 @@ const ICON_CATALOG = [
       "OTAGE"
     ],
     "category": "ADVERSAIRE / TERRORISME / OTAGE",
-    "url": "icons/sticks/ADVERSAIRE/TERRORISME/OTAGE/OTAGE 2.png",
+    "url": "icons/sticker/ADVERSAIRE/TERRORISME/OTAGE/OTAGE 2.png",
     "scale": 1.0,
     "order": 21
   },
@@ -275,7 +275,7 @@ const ICON_CATALOG = [
       "OTAGE"
     ],
     "category": "ADVERSAIRE / TERRORISME / OTAGE",
-    "url": "icons/sticks/ADVERSAIRE/TERRORISME/OTAGE/otage 3.png",
+    "url": "icons/sticker/ADVERSAIRE/TERRORISME/OTAGE/otage 3.png",
     "scale": 1.0,
     "order": 22
   },
@@ -288,7 +288,7 @@ const ICON_CATALOG = [
       "OTAGE"
     ],
     "category": "ADVERSAIRE / TERRORISME / OTAGE",
-    "url": "icons/sticks/ADVERSAIRE/TERRORISME/OTAGE/PRISE_D_OTAGES.png",
+    "url": "icons/sticker/ADVERSAIRE/TERRORISME/OTAGE/PRISE_D_OTAGES.png",
     "scale": 1.0,
     "order": 23
   },
@@ -301,7 +301,7 @@ const ICON_CATALOG = [
       "TERRORISTE"
     ],
     "category": "ADVERSAIRE / TERRORISME / TERRORISTE",
-    "url": "icons/sticks/ADVERSAIRE/TERRORISME/TERRORISTE/3 - Terroriste.png",
+    "url": "icons/sticker/ADVERSAIRE/TERRORISME/TERRORISTE/3 - Terroriste.png",
     "scale": 1.0,
     "order": 24
   },
@@ -314,7 +314,7 @@ const ICON_CATALOG = [
       "TERRORISTE"
     ],
     "category": "ADVERSAIRE / TERRORISME / TERRORISTE",
-    "url": "icons/sticks/ADVERSAIRE/TERRORISME/TERRORISTE/TERRORISTE.png",
+    "url": "icons/sticker/ADVERSAIRE/TERRORISME/TERRORISTE/TERRORISTE.png",
     "scale": 1.0,
     "order": 25
   },
@@ -326,7 +326,7 @@ const ICON_CATALOG = [
       "RISQUE_NATUREL"
     ],
     "category": "ADVERSITE / RISQUE_NATUREL",
-    "url": "icons/sticks/ADVERSITE/RISQUE_NATUREL/AVALANCHE.png",
+    "url": "icons/sticker/ADVERSITE/RISQUE_NATUREL/AVALANCHE.png",
     "scale": 1.0,
     "order": 26
   },
@@ -338,7 +338,7 @@ const ICON_CATALOG = [
       "RISQUE_NATUREL"
     ],
     "category": "ADVERSITE / RISQUE_NATUREL",
-    "url": "icons/sticks/ADVERSITE/RISQUE_NATUREL/CANICULE.png",
+    "url": "icons/sticker/ADVERSITE/RISQUE_NATUREL/CANICULE.png",
     "scale": 1.0,
     "order": 27
   },
@@ -350,7 +350,7 @@ const ICON_CATALOG = [
       "RISQUE_NATUREL"
     ],
     "category": "ADVERSITE / RISQUE_NATUREL",
-    "url": "icons/sticks/ADVERSITE/RISQUE_NATUREL/CHUTE_PIERRES.png",
+    "url": "icons/sticker/ADVERSITE/RISQUE_NATUREL/CHUTE_PIERRES.png",
     "scale": 1.0,
     "order": 28
   },
@@ -362,7 +362,7 @@ const ICON_CATALOG = [
       "RISQUE_NATUREL"
     ],
     "category": "ADVERSITE / RISQUE_NATUREL",
-    "url": "icons/sticks/ADVERSITE/RISQUE_NATUREL/CRUE.png",
+    "url": "icons/sticker/ADVERSITE/RISQUE_NATUREL/CRUE.png",
     "scale": 1.0,
     "order": 29
   },
@@ -374,7 +374,7 @@ const ICON_CATALOG = [
       "RISQUE_NATUREL"
     ],
     "category": "ADVERSITE / RISQUE_NATUREL",
-    "url": "icons/sticks/ADVERSITE/RISQUE_NATUREL/DANGER.png",
+    "url": "icons/sticker/ADVERSITE/RISQUE_NATUREL/DANGER.png",
     "scale": 1.0,
     "order": 30
   },
@@ -386,7 +386,7 @@ const ICON_CATALOG = [
       "RISQUE_NATUREL"
     ],
     "category": "ADVERSITE / RISQUE_NATUREL",
-    "url": "icons/sticks/ADVERSITE/RISQUE_NATUREL/DECRUE.png",
+    "url": "icons/sticker/ADVERSITE/RISQUE_NATUREL/DECRUE.png",
     "scale": 1.0,
     "order": 31
   },
@@ -398,7 +398,7 @@ const ICON_CATALOG = [
       "RISQUE_NATUREL"
     ],
     "category": "ADVERSITE / RISQUE_NATUREL",
-    "url": "icons/sticks/ADVERSITE/RISQUE_NATUREL/FEU_FORET.png",
+    "url": "icons/sticker/ADVERSITE/RISQUE_NATUREL/FEU_FORET.png",
     "scale": 1.0,
     "order": 32
   },
@@ -410,7 +410,7 @@ const ICON_CATALOG = [
       "RISQUE_NATUREL"
     ],
     "category": "ADVERSITE / RISQUE_NATUREL",
-    "url": "icons/sticks/ADVERSITE/RISQUE_NATUREL/FEU_INCENDIE.png",
+    "url": "icons/sticker/ADVERSITE/RISQUE_NATUREL/FEU_INCENDIE.png",
     "scale": 1.0,
     "order": 33
   },
@@ -422,7 +422,7 @@ const ICON_CATALOG = [
       "RISQUE_NATUREL"
     ],
     "category": "ADVERSITE / RISQUE_NATUREL",
-    "url": "icons/sticks/ADVERSITE/RISQUE_NATUREL/GLISSEMENT_TERRAIN.png",
+    "url": "icons/sticker/ADVERSITE/RISQUE_NATUREL/GLISSEMENT_TERRAIN.png",
     "scale": 1.0,
     "order": 34
   },
@@ -434,7 +434,7 @@ const ICON_CATALOG = [
       "RISQUE_NATUREL"
     ],
     "category": "ADVERSITE / RISQUE_NATUREL",
-    "url": "icons/sticks/ADVERSITE/RISQUE_NATUREL/GRAND_FROID.png",
+    "url": "icons/sticker/ADVERSITE/RISQUE_NATUREL/GRAND_FROID.png",
     "scale": 1.0,
     "order": 35
   },
@@ -446,7 +446,7 @@ const ICON_CATALOG = [
       "RISQUE_NATUREL"
     ],
     "category": "ADVERSITE / RISQUE_NATUREL",
-    "url": "icons/sticks/ADVERSITE/RISQUE_NATUREL/GRELE.png",
+    "url": "icons/sticker/ADVERSITE/RISQUE_NATUREL/GRELE.png",
     "scale": 1.0,
     "order": 36
   },
@@ -458,7 +458,7 @@ const ICON_CATALOG = [
       "RISQUE_NATUREL"
     ],
     "category": "ADVERSITE / RISQUE_NATUREL",
-    "url": "icons/sticks/ADVERSITE/RISQUE_NATUREL/INONDATION.png",
+    "url": "icons/sticker/ADVERSITE/RISQUE_NATUREL/INONDATION.png",
     "scale": 1.0,
     "order": 37
   },
@@ -470,7 +470,7 @@ const ICON_CATALOG = [
       "RISQUE_NATUREL"
     ],
     "category": "ADVERSITE / RISQUE_NATUREL",
-    "url": "icons/sticks/ADVERSITE/RISQUE_NATUREL/NEIGE.png",
+    "url": "icons/sticker/ADVERSITE/RISQUE_NATUREL/NEIGE.png",
     "scale": 1.0,
     "order": 38
   },
@@ -482,7 +482,7 @@ const ICON_CATALOG = [
       "RISQUE_NATUREL"
     ],
     "category": "ADVERSITE / RISQUE_NATUREL",
-    "url": "icons/sticks/ADVERSITE/RISQUE_NATUREL/NEIGE_VERGLAS.png",
+    "url": "icons/sticker/ADVERSITE/RISQUE_NATUREL/NEIGE_VERGLAS.png",
     "scale": 1.0,
     "order": 39
   },
@@ -494,7 +494,7 @@ const ICON_CATALOG = [
       "RISQUE_NATUREL"
     ],
     "category": "ADVERSITE / RISQUE_NATUREL",
-    "url": "icons/sticks/ADVERSITE/RISQUE_NATUREL/ORAGE.png",
+    "url": "icons/sticker/ADVERSITE/RISQUE_NATUREL/ORAGE.png",
     "scale": 1.0,
     "order": 40
   },
@@ -506,7 +506,7 @@ const ICON_CATALOG = [
       "RISQUE_NATUREL"
     ],
     "category": "ADVERSITE / RISQUE_NATUREL",
-    "url": "icons/sticks/ADVERSITE/RISQUE_NATUREL/PLUIE.png",
+    "url": "icons/sticker/ADVERSITE/RISQUE_NATUREL/PLUIE.png",
     "scale": 1.0,
     "order": 41
   },
@@ -518,7 +518,7 @@ const ICON_CATALOG = [
       "RISQUE_NATUREL"
     ],
     "category": "ADVERSITE / RISQUE_NATUREL",
-    "url": "icons/sticks/ADVERSITE/RISQUE_NATUREL/PLUIE_INONDATION.png",
+    "url": "icons/sticker/ADVERSITE/RISQUE_NATUREL/PLUIE_INONDATION.png",
     "scale": 1.0,
     "order": 42
   },
@@ -530,7 +530,7 @@ const ICON_CATALOG = [
       "RISQUE_NATUREL"
     ],
     "category": "ADVERSITE / RISQUE_NATUREL",
-    "url": "icons/sticks/ADVERSITE/RISQUE_NATUREL/SECHERESSE.png",
+    "url": "icons/sticker/ADVERSITE/RISQUE_NATUREL/SECHERESSE.png",
     "scale": 1.0,
     "order": 43
   },
@@ -542,7 +542,7 @@ const ICON_CATALOG = [
       "RISQUE_NATUREL"
     ],
     "category": "ADVERSITE / RISQUE_NATUREL",
-    "url": "icons/sticks/ADVERSITE/RISQUE_NATUREL/SEISME.png",
+    "url": "icons/sticker/ADVERSITE/RISQUE_NATUREL/SEISME.png",
     "scale": 1.0,
     "order": 44
   },
@@ -554,7 +554,7 @@ const ICON_CATALOG = [
       "RISQUE_NATUREL"
     ],
     "category": "ADVERSITE / RISQUE_NATUREL",
-    "url": "icons/sticks/ADVERSITE/RISQUE_NATUREL/TORNADE_CYCLONE.png",
+    "url": "icons/sticker/ADVERSITE/RISQUE_NATUREL/TORNADE_CYCLONE.png",
     "scale": 1.0,
     "order": 45
   },
@@ -566,7 +566,7 @@ const ICON_CATALOG = [
       "RISQUE_NATUREL"
     ],
     "category": "ADVERSITE / RISQUE_NATUREL",
-    "url": "icons/sticks/ADVERSITE/RISQUE_NATUREL/TSUNAMI.png",
+    "url": "icons/sticker/ADVERSITE/RISQUE_NATUREL/TSUNAMI.png",
     "scale": 1.0,
     "order": 46
   },
@@ -578,7 +578,7 @@ const ICON_CATALOG = [
       "RISQUE_NATUREL"
     ],
     "category": "ADVERSITE / RISQUE_NATUREL",
-    "url": "icons/sticks/ADVERSITE/RISQUE_NATUREL/VENT_VIOLENT.png",
+    "url": "icons/sticker/ADVERSITE/RISQUE_NATUREL/VENT_VIOLENT.png",
     "scale": 1.0,
     "order": 47
   },
@@ -590,7 +590,7 @@ const ICON_CATALOG = [
       "RISQUE_NATUREL"
     ],
     "category": "ADVERSITE / RISQUE_NATUREL",
-    "url": "icons/sticks/ADVERSITE/RISQUE_NATUREL/VIDE.png",
+    "url": "icons/sticker/ADVERSITE/RISQUE_NATUREL/VIDE.png",
     "scale": 1.0,
     "order": 48
   },
@@ -602,7 +602,7 @@ const ICON_CATALOG = [
       "RISQUE_NATUREL"
     ],
     "category": "ADVERSITE / RISQUE_NATUREL",
-    "url": "icons/sticks/ADVERSITE/RISQUE_NATUREL/VOLCAN.png",
+    "url": "icons/sticker/ADVERSITE/RISQUE_NATUREL/VOLCAN.png",
     "scale": 1.0,
     "order": 49
   },
@@ -614,7 +614,7 @@ const ICON_CATALOG = [
       "RISQUE_TECHNOLOGIQUE"
     ],
     "category": "ADVERSITE / RISQUE_TECHNOLOGIQUE",
-    "url": "icons/sticks/ADVERSITE/RISQUE_TECHNOLOGIQUE/BIOLOGIQUE.png",
+    "url": "icons/sticker/ADVERSITE/RISQUE_TECHNOLOGIQUE/BIOLOGIQUE.png",
     "scale": 1.0,
     "order": 50
   },
@@ -626,7 +626,7 @@ const ICON_CATALOG = [
       "RISQUE_TECHNOLOGIQUE"
     ],
     "category": "ADVERSITE / RISQUE_TECHNOLOGIQUE",
-    "url": "icons/sticks/ADVERSITE/RISQUE_TECHNOLOGIQUE/CHIMIQUE.png",
+    "url": "icons/sticker/ADVERSITE/RISQUE_TECHNOLOGIQUE/CHIMIQUE.png",
     "scale": 1.0,
     "order": 51
   },
@@ -638,7 +638,7 @@ const ICON_CATALOG = [
       "RISQUE_TECHNOLOGIQUE"
     ],
     "category": "ADVERSITE / RISQUE_TECHNOLOGIQUE",
-    "url": "icons/sticks/ADVERSITE/RISQUE_TECHNOLOGIQUE/DANGER.png",
+    "url": "icons/sticker/ADVERSITE/RISQUE_TECHNOLOGIQUE/DANGER.png",
     "scale": 1.0,
     "order": 52
   },
@@ -650,7 +650,7 @@ const ICON_CATALOG = [
       "RISQUE_TECHNOLOGIQUE"
     ],
     "category": "ADVERSITE / RISQUE_TECHNOLOGIQUE",
-    "url": "icons/sticks/ADVERSITE/RISQUE_TECHNOLOGIQUE/DEPOTS_PETROLIERS.png",
+    "url": "icons/sticker/ADVERSITE/RISQUE_TECHNOLOGIQUE/DEPOTS_PETROLIERS.png",
     "scale": 1.0,
     "order": 53
   },
@@ -662,7 +662,7 @@ const ICON_CATALOG = [
       "RISQUE_TECHNOLOGIQUE"
     ],
     "category": "ADVERSITE / RISQUE_TECHNOLOGIQUE",
-    "url": "icons/sticks/ADVERSITE/RISQUE_TECHNOLOGIQUE/EXPLOSIF.png",
+    "url": "icons/sticker/ADVERSITE/RISQUE_TECHNOLOGIQUE/EXPLOSIF.png",
     "scale": 1.0,
     "order": 54
   },
@@ -674,7 +674,7 @@ const ICON_CATALOG = [
       "RISQUE_TECHNOLOGIQUE"
     ],
     "category": "ADVERSITE / RISQUE_TECHNOLOGIQUE",
-    "url": "icons/sticks/ADVERSITE/RISQUE_TECHNOLOGIQUE/NUCLEAIRE.png",
+    "url": "icons/sticker/ADVERSITE/RISQUE_TECHNOLOGIQUE/NUCLEAIRE.png",
     "scale": 1.0,
     "order": 55
   },
@@ -686,7 +686,7 @@ const ICON_CATALOG = [
       "RISQUE_TECHNOLOGIQUE"
     ],
     "category": "ADVERSITE / RISQUE_TECHNOLOGIQUE",
-    "url": "icons/sticks/ADVERSITE/RISQUE_TECHNOLOGIQUE/POLLUTION.png",
+    "url": "icons/sticker/ADVERSITE/RISQUE_TECHNOLOGIQUE/POLLUTION.png",
     "scale": 1.0,
     "order": 56
   },
@@ -698,7 +698,7 @@ const ICON_CATALOG = [
       "RISQUE_TECHNOLOGIQUE"
     ],
     "category": "ADVERSITE / RISQUE_TECHNOLOGIQUE",
-    "url": "icons/sticks/ADVERSITE/RISQUE_TECHNOLOGIQUE/RADIOLOGIQUE.png",
+    "url": "icons/sticker/ADVERSITE/RISQUE_TECHNOLOGIQUE/RADIOLOGIQUE.png",
     "scale": 1.0,
     "order": 57
   },
@@ -710,7 +710,7 @@ const ICON_CATALOG = [
       "RISQUE_TECHNOLOGIQUE"
     ],
     "category": "ADVERSITE / RISQUE_TECHNOLOGIQUE",
-    "url": "icons/sticks/ADVERSITE/RISQUE_TECHNOLOGIQUE/RUPTURE_BARRAGE.png",
+    "url": "icons/sticker/ADVERSITE/RISQUE_TECHNOLOGIQUE/RUPTURE_BARRAGE.png",
     "scale": 1.0,
     "order": 58
   },
@@ -722,7 +722,7 @@ const ICON_CATALOG = [
       "RISQUE_TECHNOLOGIQUE"
     ],
     "category": "ADVERSITE / RISQUE_TECHNOLOGIQUE",
-    "url": "icons/sticks/ADVERSITE/RISQUE_TECHNOLOGIQUE/VIDE.png",
+    "url": "icons/sticker/ADVERSITE/RISQUE_TECHNOLOGIQUE/VIDE.png",
     "scale": 1.0,
     "order": 59
   },
@@ -734,7 +734,7 @@ const ICON_CATALOG = [
       "TRANSPORT"
     ],
     "category": "ADVERSITE / TRANSPORT",
-    "url": "icons/sticks/ADVERSITE/TRANSPORT/AVION.png",
+    "url": "icons/sticker/ADVERSITE/TRANSPORT/AVION.png",
     "scale": 1.0,
     "order": 60
   },
@@ -746,7 +746,7 @@ const ICON_CATALOG = [
       "TRANSPORT"
     ],
     "category": "ADVERSITE / TRANSPORT",
-    "url": "icons/sticks/ADVERSITE/TRANSPORT/BATEAU.png",
+    "url": "icons/sticker/ADVERSITE/TRANSPORT/BATEAU.png",
     "scale": 1.0,
     "order": 61
   },
@@ -758,7 +758,7 @@ const ICON_CATALOG = [
       "TRANSPORT"
     ],
     "category": "ADVERSITE / TRANSPORT",
-    "url": "icons/sticks/ADVERSITE/TRANSPORT/BOUCHON.png",
+    "url": "icons/sticker/ADVERSITE/TRANSPORT/BOUCHON.png",
     "scale": 1.0,
     "order": 62
   },
@@ -770,7 +770,7 @@ const ICON_CATALOG = [
       "TRANSPORT"
     ],
     "category": "ADVERSITE / TRANSPORT",
-    "url": "icons/sticks/ADVERSITE/TRANSPORT/BUS.png",
+    "url": "icons/sticker/ADVERSITE/TRANSPORT/BUS.png",
     "scale": 1.0,
     "order": 63
   },
@@ -782,7 +782,7 @@ const ICON_CATALOG = [
       "TRANSPORT"
     ],
     "category": "ADVERSITE / TRANSPORT",
-    "url": "icons/sticks/ADVERSITE/TRANSPORT/CAMION.png",
+    "url": "icons/sticker/ADVERSITE/TRANSPORT/CAMION.png",
     "scale": 1.0,
     "order": 64
   },
@@ -794,7 +794,7 @@ const ICON_CATALOG = [
       "TRANSPORT"
     ],
     "category": "ADVERSITE / TRANSPORT",
-    "url": "icons/sticks/ADVERSITE/TRANSPORT/HELICOPTERE.png",
+    "url": "icons/sticker/ADVERSITE/TRANSPORT/HELICOPTERE.png",
     "scale": 1.0,
     "order": 65
   },
@@ -806,7 +806,7 @@ const ICON_CATALOG = [
       "TRANSPORT"
     ],
     "category": "ADVERSITE / TRANSPORT",
-    "url": "icons/sticks/ADVERSITE/TRANSPORT/SCOLAIRE.png",
+    "url": "icons/sticker/ADVERSITE/TRANSPORT/SCOLAIRE.png",
     "scale": 1.0,
     "order": 66
   },
@@ -818,7 +818,7 @@ const ICON_CATALOG = [
       "TRANSPORT"
     ],
     "category": "ADVERSITE / TRANSPORT",
-    "url": "icons/sticks/ADVERSITE/TRANSPORT/TRAIN.png",
+    "url": "icons/sticker/ADVERSITE/TRANSPORT/TRAIN.png",
     "scale": 1.0,
     "order": 67
   },
@@ -830,7 +830,7 @@ const ICON_CATALOG = [
       "TRANSPORT"
     ],
     "category": "ADVERSITE / TRANSPORT",
-    "url": "icons/sticks/ADVERSITE/TRANSPORT/VIDE.png",
+    "url": "icons/sticker/ADVERSITE/TRANSPORT/VIDE.png",
     "scale": 1.0,
     "order": 68
   },
@@ -842,7 +842,7 @@ const ICON_CATALOG = [
       "TRANSPORT"
     ],
     "category": "ADVERSITE / TRANSPORT",
-    "url": "icons/sticks/ADVERSITE/TRANSPORT/VOITURE.png",
+    "url": "icons/sticker/ADVERSITE/TRANSPORT/VOITURE.png",
     "scale": 1.0,
     "order": 69
   },
@@ -854,7 +854,7 @@ const ICON_CATALOG = [
       "AERIEN"
     ],
     "category": "AMIS / AERIEN",
-    "url": "icons/sticks/AMIS/AERIEN/ARMEES_GENERIQUE_CARRE.png",
+    "url": "icons/sticker/AMIS/AERIEN/ARMEES_GENERIQUE_CARRE.png",
     "scale": 1.0,
     "order": 70
   },
@@ -866,7 +866,7 @@ const ICON_CATALOG = [
       "AERIEN"
     ],
     "category": "AMIS / AERIEN",
-    "url": "icons/sticks/AMIS/AERIEN/BROUILLEUR.png",
+    "url": "icons/sticker/AMIS/AERIEN/BROUILLEUR.png",
     "scale": 1.0,
     "order": 71
   },
@@ -878,7 +878,7 @@ const ICON_CATALOG = [
       "AERIEN"
     ],
     "category": "AMIS / AERIEN",
-    "url": "icons/sticks/AMIS/AERIEN/BROUILLEUR_ARMEES.png",
+    "url": "icons/sticker/AMIS/AERIEN/BROUILLEUR_ARMEES.png",
     "scale": 1.0,
     "order": 72
   },
@@ -890,7 +890,7 @@ const ICON_CATALOG = [
       "AERIEN"
     ],
     "category": "AMIS / AERIEN",
-    "url": "icons/sticks/AMIS/AERIEN/BROUILLEUR_GEND.png",
+    "url": "icons/sticker/AMIS/AERIEN/BROUILLEUR_GEND.png",
     "scale": 1.0,
     "order": 73
   },
@@ -902,7 +902,7 @@ const ICON_CATALOG = [
       "AERIEN"
     ],
     "category": "AMIS / AERIEN",
-    "url": "icons/sticks/AMIS/AERIEN/BROUILLEUR_POLICE.png",
+    "url": "icons/sticker/AMIS/AERIEN/BROUILLEUR_POLICE.png",
     "scale": 1.0,
     "order": 74
   },
@@ -914,7 +914,7 @@ const ICON_CATALOG = [
       "AERIEN"
     ],
     "category": "AMIS / AERIEN",
-    "url": "icons/sticks/AMIS/AERIEN/DRONE MILITAIRE.png",
+    "url": "icons/sticker/AMIS/AERIEN/DRONE MILITAIRE.png",
     "scale": 1.0,
     "order": 75
   },
@@ -926,7 +926,7 @@ const ICON_CATALOG = [
       "AERIEN"
     ],
     "category": "AMIS / AERIEN",
-    "url": "icons/sticks/AMIS/AERIEN/DRONE.png",
+    "url": "icons/sticker/AMIS/AERIEN/DRONE.png",
     "scale": 1.0,
     "order": 76
   },
@@ -938,7 +938,7 @@ const ICON_CATALOG = [
       "AERIEN"
     ],
     "category": "AMIS / AERIEN",
-    "url": "icons/sticks/AMIS/AERIEN/DRONE_ DGSCGC.png",
+    "url": "icons/sticker/AMIS/AERIEN/DRONE_ DGSCGC.png",
     "scale": 1.0,
     "order": 77
   },
@@ -950,7 +950,7 @@ const ICON_CATALOG = [
       "AERIEN"
     ],
     "category": "AMIS / AERIEN",
-    "url": "icons/sticks/AMIS/AERIEN/DRONE_ARMEES.png",
+    "url": "icons/sticker/AMIS/AERIEN/DRONE_ARMEES.png",
     "scale": 1.0,
     "order": 78
   },
@@ -962,7 +962,7 @@ const ICON_CATALOG = [
       "AERIEN"
     ],
     "category": "AMIS / AERIEN",
-    "url": "icons/sticks/AMIS/AERIEN/DRONE_GEND_LOURD.png",
+    "url": "icons/sticker/AMIS/AERIEN/DRONE_GEND_LOURD.png",
     "scale": 1.0,
     "order": 79
   },
@@ -974,7 +974,7 @@ const ICON_CATALOG = [
       "AERIEN"
     ],
     "category": "AMIS / AERIEN",
-    "url": "icons/sticks/AMIS/AERIEN/ELT_ARMEES.png",
+    "url": "icons/sticker/AMIS/AERIEN/ELT_ARMEES.png",
     "scale": 1.0,
     "order": 80
   },
@@ -986,7 +986,7 @@ const ICON_CATALOG = [
       "AERIEN"
     ],
     "category": "AMIS / AERIEN",
-    "url": "icons/sticks/AMIS/AERIEN/ELT_ARMEES_DRONE.png",
+    "url": "icons/sticker/AMIS/AERIEN/ELT_ARMEES_DRONE.png",
     "scale": 1.0,
     "order": 81
   },
@@ -998,7 +998,7 @@ const ICON_CATALOG = [
       "AERIEN"
     ],
     "category": "AMIS / AERIEN",
-    "url": "icons/sticks/AMIS/AERIEN/ELT_DRONE.png",
+    "url": "icons/sticker/AMIS/AERIEN/ELT_DRONE.png",
     "scale": 1.0,
     "order": 82
   },
@@ -1010,7 +1010,7 @@ const ICON_CATALOG = [
       "AERIEN"
     ],
     "category": "AMIS / AERIEN",
-    "url": "icons/sticks/AMIS/AERIEN/ELT_DRONE_DGSCGC3.png",
+    "url": "icons/sticker/AMIS/AERIEN/ELT_DRONE_DGSCGC3.png",
     "scale": 1.0,
     "order": 83
   },
@@ -1022,7 +1022,7 @@ const ICON_CATALOG = [
       "AERIEN"
     ],
     "category": "AMIS / AERIEN",
-    "url": "icons/sticks/AMIS/AERIEN/ELT_HELICOPTERE.png",
+    "url": "icons/sticker/AMIS/AERIEN/ELT_HELICOPTERE.png",
     "scale": 1.0,
     "order": 84
   },
@@ -1034,7 +1034,7 @@ const ICON_CATALOG = [
       "AERIEN"
     ],
     "category": "AMIS / AERIEN",
-    "url": "icons/sticks/AMIS/AERIEN/ELT_HELICOPTERE_DGSCGC2.png",
+    "url": "icons/sticker/AMIS/AERIEN/ELT_HELICOPTERE_DGSCGC2.png",
     "scale": 1.0,
     "order": 85
   },
@@ -1046,7 +1046,7 @@ const ICON_CATALOG = [
       "AERIEN"
     ],
     "category": "AMIS / AERIEN",
-    "url": "icons/sticks/AMIS/AERIEN/ELT_ZONE_POSE_HELICO.png",
+    "url": "icons/sticker/AMIS/AERIEN/ELT_ZONE_POSE_HELICO.png",
     "scale": 1.0,
     "order": 86
   },
@@ -1058,7 +1058,7 @@ const ICON_CATALOG = [
       "AERIEN"
     ],
     "category": "AMIS / AERIEN",
-    "url": "icons/sticks/AMIS/AERIEN/HELICO.png",
+    "url": "icons/sticker/AMIS/AERIEN/HELICO.png",
     "scale": 1.0,
     "order": 87
   },
@@ -1070,7 +1070,7 @@ const ICON_CATALOG = [
       "AERIEN"
     ],
     "category": "AMIS / AERIEN",
-    "url": "icons/sticks/AMIS/AERIEN/HELICO_ DGSCGC.png",
+    "url": "icons/sticker/AMIS/AERIEN/HELICO_ DGSCGC.png",
     "scale": 1.0,
     "order": 88
   },
@@ -1082,7 +1082,7 @@ const ICON_CATALOG = [
       "AERIEN"
     ],
     "category": "AMIS / AERIEN",
-    "url": "icons/sticks/AMIS/AERIEN/SC2.png",
+    "url": "icons/sticker/AMIS/AERIEN/SC2.png",
     "scale": 1.0,
     "order": 89
   },
@@ -1094,7 +1094,7 @@ const ICON_CATALOG = [
       "COMMANDEMENT"
     ],
     "category": "AMIS / COMMANDEMENT",
-    "url": "icons/sticks/AMIS/COMMANDEMENT/DET_CPGC.png",
+    "url": "icons/sticker/AMIS/COMMANDEMENT/DET_CPGC.png",
     "scale": 1.0,
     "order": 90
   },
@@ -1106,7 +1106,7 @@ const ICON_CATALOG = [
       "COMMANDEMENT"
     ],
     "category": "AMIS / COMMANDEMENT",
-    "url": "icons/sticks/AMIS/COMMANDEMENT/ELT_CPGC.png",
+    "url": "icons/sticker/AMIS/COMMANDEMENT/ELT_CPGC.png",
     "scale": 1.0,
     "order": 91
   },
@@ -1118,7 +1118,7 @@ const ICON_CATALOG = [
       "COMMANDEMENT"
     ],
     "category": "AMIS / COMMANDEMENT",
-    "url": "icons/sticks/AMIS/COMMANDEMENT/ELT_DGGN.png",
+    "url": "icons/sticker/AMIS/COMMANDEMENT/ELT_DGGN.png",
     "scale": 1.0,
     "order": 92
   },
@@ -1130,7 +1130,7 @@ const ICON_CATALOG = [
       "COMMANDEMENT"
     ],
     "category": "AMIS / COMMANDEMENT",
-    "url": "icons/sticks/AMIS/COMMANDEMENT/ELT_GCA.png",
+    "url": "icons/sticker/AMIS/COMMANDEMENT/ELT_GCA.png",
     "scale": 1.0,
     "order": 93
   },
@@ -1142,7 +1142,7 @@ const ICON_CATALOG = [
       "COMMANDEMENT"
     ],
     "category": "AMIS / COMMANDEMENT",
-    "url": "icons/sticks/AMIS/COMMANDEMENT/ELT_GEB.png",
+    "url": "icons/sticker/AMIS/COMMANDEMENT/ELT_GEB.png",
     "scale": 1.0,
     "order": 94
   },
@@ -1154,7 +1154,7 @@ const ICON_CATALOG = [
       "COMMANDEMENT"
     ],
     "category": "AMIS / COMMANDEMENT",
-    "url": "icons/sticks/AMIS/COMMANDEMENT/ELT_GED.png",
+    "url": "icons/sticker/AMIS/COMMANDEMENT/ELT_GED.png",
     "scale": 1.0,
     "order": 95
   },
@@ -1166,7 +1166,7 @@ const ICON_CATALOG = [
       "COMMANDEMENT"
     ],
     "category": "AMIS / COMMANDEMENT",
-    "url": "icons/sticks/AMIS/COMMANDEMENT/ELT_MINISTERIEL.png",
+    "url": "icons/sticker/AMIS/COMMANDEMENT/ELT_MINISTERIEL.png",
     "scale": 1.0,
     "order": 96
   },
@@ -1178,7 +1178,7 @@ const ICON_CATALOG = [
       "COMMANDEMENT"
     ],
     "category": "AMIS / COMMANDEMENT",
-    "url": "icons/sticks/AMIS/COMMANDEMENT/ELT_PC.png",
+    "url": "icons/sticker/AMIS/COMMANDEMENT/ELT_PC.png",
     "scale": 1.0,
     "order": 97
   },
@@ -1190,7 +1190,7 @@ const ICON_CATALOG = [
       "COMMANDEMENT"
     ],
     "category": "AMIS / COMMANDEMENT",
-    "url": "icons/sticks/AMIS/COMMANDEMENT/MINISTERE_GENERIQUE_CARRE.png",
+    "url": "icons/sticker/AMIS/COMMANDEMENT/MINISTERE_GENERIQUE_CARRE.png",
     "scale": 1.0,
     "order": 98
   },
@@ -1202,7 +1202,7 @@ const ICON_CATALOG = [
       "COMMANDEMENT"
     ],
     "category": "AMIS / COMMANDEMENT",
-    "url": "icons/sticks/AMIS/COMMANDEMENT/MINISTERE_GENERIQUE_ROND.png",
+    "url": "icons/sticker/AMIS/COMMANDEMENT/MINISTERE_GENERIQUE_ROND.png",
     "scale": 1.0,
     "order": 99
   },
@@ -1214,7 +1214,7 @@ const ICON_CATALOG = [
       "COMMANDEMENT"
     ],
     "category": "AMIS / COMMANDEMENT",
-    "url": "icons/sticks/AMIS/COMMANDEMENT/PC SECOURS.png",
+    "url": "icons/sticker/AMIS/COMMANDEMENT/PC SECOURS.png",
     "scale": 1.0,
     "order": 100
   },
@@ -1226,7 +1226,7 @@ const ICON_CATALOG = [
       "COMMANDEMENT"
     ],
     "category": "AMIS / COMMANDEMENT",
-    "url": "icons/sticks/AMIS/COMMANDEMENT/PCIA.png",
+    "url": "icons/sticker/AMIS/COMMANDEMENT/PCIA.png",
     "scale": 1.0,
     "order": 101
   },
@@ -1238,7 +1238,7 @@ const ICON_CATALOG = [
       "COMMANDEMENT"
     ],
     "category": "AMIS / COMMANDEMENT",
-    "url": "icons/sticks/AMIS/COMMANDEMENT/PCIS.png",
+    "url": "icons/sticker/AMIS/COMMANDEMENT/PCIS.png",
     "scale": 1.0,
     "order": 102
   },
@@ -1250,7 +1250,7 @@ const ICON_CATALOG = [
       "COMMANDEMENT"
     ],
     "category": "AMIS / COMMANDEMENT",
-    "url": "icons/sticks/AMIS/COMMANDEMENT/PC_GEND.png",
+    "url": "icons/sticker/AMIS/COMMANDEMENT/PC_GEND.png",
     "scale": 1.0,
     "order": 103
   },
@@ -1262,7 +1262,7 @@ const ICON_CATALOG = [
       "COMMANDEMENT"
     ],
     "category": "AMIS / COMMANDEMENT",
-    "url": "icons/sticks/AMIS/COMMANDEMENT/PC_JUD.png",
+    "url": "icons/sticker/AMIS/COMMANDEMENT/PC_JUD.png",
     "scale": 1.0,
     "order": 104
   },
@@ -1274,7 +1274,7 @@ const ICON_CATALOG = [
       "COMMANDEMENT"
     ],
     "category": "AMIS / COMMANDEMENT",
-    "url": "icons/sticks/AMIS/COMMANDEMENT/PC_LOG.png",
+    "url": "icons/sticker/AMIS/COMMANDEMENT/PC_LOG.png",
     "scale": 1.0,
     "order": 105
   },
@@ -1286,7 +1286,7 @@ const ICON_CATALOG = [
       "COMMUNICATION"
     ],
     "category": "AMIS / COMMUNICATION",
-    "url": "icons/sticks/AMIS/COMMUNICATION/CPMGN ou SIRPA.png",
+    "url": "icons/sticker/AMIS/COMMUNICATION/CPMGN ou SIRPA.png",
     "scale": 1.0,
     "order": 106
   },
@@ -1298,7 +1298,7 @@ const ICON_CATALOG = [
       "COMMUNICATION"
     ],
     "category": "AMIS / COMMUNICATION",
-    "url": "icons/sticks/AMIS/COMMUNICATION/ELT_CPMGN.png",
+    "url": "icons/sticker/AMIS/COMMUNICATION/ELT_CPMGN.png",
     "scale": 1.0,
     "order": 107
   },
@@ -1310,7 +1310,7 @@ const ICON_CATALOG = [
       "COMMUNICATION"
     ],
     "category": "AMIS / COMMUNICATION",
-    "url": "icons/sticks/AMIS/COMMUNICATION/ELT_OFF_COM.png",
+    "url": "icons/sticker/AMIS/COMMUNICATION/ELT_OFF_COM.png",
     "scale": 1.0,
     "order": 108
   },
@@ -1322,7 +1322,7 @@ const ICON_CATALOG = [
       "COMMUNICATION"
     ],
     "category": "AMIS / COMMUNICATION",
-    "url": "icons/sticks/AMIS/COMMUNICATION/OFF_COM.png",
+    "url": "icons/sticker/AMIS/COMMUNICATION/OFF_COM.png",
     "scale": 1.0,
     "order": 109
   },
@@ -1334,7 +1334,7 @@ const ICON_CATALOG = [
       "FLUVIALE_NAUTIQUE"
     ],
     "category": "AMIS / FLUVIALE_NAUTIQUE",
-    "url": "icons/sticks/AMIS/FLUVIALE_NAUTIQUE/ELT_FLUVIAL.png",
+    "url": "icons/sticker/AMIS/FLUVIALE_NAUTIQUE/ELT_FLUVIAL.png",
     "scale": 1.0,
     "order": 110
   },
@@ -1346,7 +1346,7 @@ const ICON_CATALOG = [
       "FLUVIALE_NAUTIQUE"
     ],
     "category": "AMIS / FLUVIALE_NAUTIQUE",
-    "url": "icons/sticks/AMIS/FLUVIALE_NAUTIQUE/ELT_JET_SKI.png",
+    "url": "icons/sticker/AMIS/FLUVIALE_NAUTIQUE/ELT_JET_SKI.png",
     "scale": 1.0,
     "order": 111
   },
@@ -1358,7 +1358,7 @@ const ICON_CATALOG = [
       "FLUVIALE_NAUTIQUE"
     ],
     "category": "AMIS / FLUVIALE_NAUTIQUE",
-    "url": "icons/sticks/AMIS/FLUVIALE_NAUTIQUE/ELT_NAUTIQUE.png",
+    "url": "icons/sticker/AMIS/FLUVIALE_NAUTIQUE/ELT_NAUTIQUE.png",
     "scale": 1.0,
     "order": 112
   },
@@ -1370,7 +1370,7 @@ const ICON_CATALOG = [
       "FLUVIALE_NAUTIQUE"
     ],
     "category": "AMIS / FLUVIALE_NAUTIQUE",
-    "url": "icons/sticks/AMIS/FLUVIALE_NAUTIQUE/ELT_PLONGEURS.png",
+    "url": "icons/sticker/AMIS/FLUVIALE_NAUTIQUE/ELT_PLONGEURS.png",
     "scale": 1.0,
     "order": 113
   },
@@ -1382,7 +1382,7 @@ const ICON_CATALOG = [
       "FLUVIALE_NAUTIQUE"
     ],
     "category": "AMIS / FLUVIALE_NAUTIQUE",
-    "url": "icons/sticks/AMIS/FLUVIALE_NAUTIQUE/JET_SKI.png",
+    "url": "icons/sticker/AMIS/FLUVIALE_NAUTIQUE/JET_SKI.png",
     "scale": 1.0,
     "order": 114
   },
@@ -1394,7 +1394,7 @@ const ICON_CATALOG = [
       "FLUVIALE_NAUTIQUE"
     ],
     "category": "AMIS / FLUVIALE_NAUTIQUE",
-    "url": "icons/sticks/AMIS/FLUVIALE_NAUTIQUE/VEDETTE.png",
+    "url": "icons/sticker/AMIS/FLUVIALE_NAUTIQUE/VEDETTE.png",
     "scale": 1.0,
     "order": 115
   },
@@ -1406,7 +1406,7 @@ const ICON_CATALOG = [
       "GARDE_REPUBLICAINE"
     ],
     "category": "AMIS / GARDE_REPUBLICAINE",
-    "url": "icons/sticks/AMIS/GARDE_REPUBLICAINE/ELT_CAV_GD.png",
+    "url": "icons/sticker/AMIS/GARDE_REPUBLICAINE/ELT_CAV_GD.png",
     "scale": 1.0,
     "order": 116
   },
@@ -1418,7 +1418,7 @@ const ICON_CATALOG = [
       "GARDE_REPUBLICAINE"
     ],
     "category": "AMIS / GARDE_REPUBLICAINE",
-    "url": "icons/sticks/AMIS/GARDE_REPUBLICAINE/ELT_MOTOCYCLISTE_GD.png",
+    "url": "icons/sticker/AMIS/GARDE_REPUBLICAINE/ELT_MOTOCYCLISTE_GD.png",
     "scale": 1.0,
     "order": 117
   },
@@ -1430,7 +1430,7 @@ const ICON_CATALOG = [
       "GARDE_REPUBLICAINE"
     ],
     "category": "AMIS / GARDE_REPUBLICAINE",
-    "url": "icons/sticks/AMIS/GARDE_REPUBLICAINE/ELT_MOTOCYCLISTE_GR.png",
+    "url": "icons/sticker/AMIS/GARDE_REPUBLICAINE/ELT_MOTOCYCLISTE_GR.png",
     "scale": 1.0,
     "order": 118
   },
@@ -1442,7 +1442,7 @@ const ICON_CATALOG = [
       "GARDE_REPUBLICAINE"
     ],
     "category": "AMIS / GARDE_REPUBLICAINE",
-    "url": "icons/sticks/AMIS/GARDE_REPUBLICAINE/ESCOUADE_GD.png",
+    "url": "icons/sticker/AMIS/GARDE_REPUBLICAINE/ESCOUADE_GD.png",
     "scale": 1.0,
     "order": 119
   },
@@ -1454,7 +1454,7 @@ const ICON_CATALOG = [
       "GARDE_REPUBLICAINE"
     ],
     "category": "AMIS / GARDE_REPUBLICAINE",
-    "url": "icons/sticks/AMIS/GARDE_REPUBLICAINE/ESCOUADE_GR.png",
+    "url": "icons/sticker/AMIS/GARDE_REPUBLICAINE/ESCOUADE_GR.png",
     "scale": 1.0,
     "order": 120
   },
@@ -1466,7 +1466,7 @@ const ICON_CATALOG = [
       "GEND_SPECIALISEES"
     ],
     "category": "AMIS / GEND_SPECIALISEES",
-    "url": "icons/sticks/AMIS/GEND_SPECIALISEES/ELT_GEND_AIR.png",
+    "url": "icons/sticker/AMIS/GEND_SPECIALISEES/ELT_GEND_AIR.png",
     "scale": 1.0,
     "order": 121
   },
@@ -1478,7 +1478,7 @@ const ICON_CATALOG = [
       "GEND_SPECIALISEES"
     ],
     "category": "AMIS / GEND_SPECIALISEES",
-    "url": "icons/sticks/AMIS/GEND_SPECIALISEES/ELT_GEND_ARM.png",
+    "url": "icons/sticker/AMIS/GEND_SPECIALISEES/ELT_GEND_ARM.png",
     "scale": 1.0,
     "order": 122
   },
@@ -1490,7 +1490,7 @@ const ICON_CATALOG = [
       "GEND_SPECIALISEES"
     ],
     "category": "AMIS / GEND_SPECIALISEES",
-    "url": "icons/sticks/AMIS/GEND_SPECIALISEES/ELT_GEND_MAR.png",
+    "url": "icons/sticker/AMIS/GEND_SPECIALISEES/ELT_GEND_MAR.png",
     "scale": 1.0,
     "order": 123
   },
@@ -1502,7 +1502,7 @@ const ICON_CATALOG = [
       "GEND_SPECIALISEES"
     ],
     "category": "AMIS / GEND_SPECIALISEES",
-    "url": "icons/sticks/AMIS/GEND_SPECIALISEES/ELT_GSAN.png",
+    "url": "icons/sticker/AMIS/GEND_SPECIALISEES/ELT_GSAN.png",
     "scale": 1.0,
     "order": 124
   },
@@ -1514,7 +1514,7 @@ const ICON_CATALOG = [
       "GEND_SPECIALISEES"
     ],
     "category": "AMIS / GEND_SPECIALISEES",
-    "url": "icons/sticks/AMIS/GEND_SPECIALISEES/ELT_GTA.png",
+    "url": "icons/sticker/AMIS/GEND_SPECIALISEES/ELT_GTA.png",
     "scale": 1.0,
     "order": 125
   },
@@ -1526,7 +1526,7 @@ const ICON_CATALOG = [
       "GEND_SPECIALISEES"
     ],
     "category": "AMIS / GEND_SPECIALISEES",
-    "url": "icons/sticks/AMIS/GEND_SPECIALISEES/GEND_AIR.png",
+    "url": "icons/sticker/AMIS/GEND_SPECIALISEES/GEND_AIR.png",
     "scale": 1.0,
     "order": 126
   },
@@ -1538,7 +1538,7 @@ const ICON_CATALOG = [
       "GEND_SPECIALISEES"
     ],
     "category": "AMIS / GEND_SPECIALISEES",
-    "url": "icons/sticks/AMIS/GEND_SPECIALISEES/GEND_ARM.png",
+    "url": "icons/sticker/AMIS/GEND_SPECIALISEES/GEND_ARM.png",
     "scale": 1.0,
     "order": 127
   },
@@ -1550,7 +1550,7 @@ const ICON_CATALOG = [
       "GEND_SPECIALISEES"
     ],
     "category": "AMIS / GEND_SPECIALISEES",
-    "url": "icons/sticks/AMIS/GEND_SPECIALISEES/GEND_MAR.png",
+    "url": "icons/sticker/AMIS/GEND_SPECIALISEES/GEND_MAR.png",
     "scale": 1.0,
     "order": 128
   },
@@ -1562,7 +1562,7 @@ const ICON_CATALOG = [
       "GEND_SPECIALISEES"
     ],
     "category": "AMIS / GEND_SPECIALISEES",
-    "url": "icons/sticks/AMIS/GEND_SPECIALISEES/GSAN.png",
+    "url": "icons/sticker/AMIS/GEND_SPECIALISEES/GSAN.png",
     "scale": 1.0,
     "order": 129
   },
@@ -1574,7 +1574,7 @@ const ICON_CATALOG = [
       "GEND_SPECIALISEES"
     ],
     "category": "AMIS / GEND_SPECIALISEES",
-    "url": "icons/sticks/AMIS/GEND_SPECIALISEES/GTA.png",
+    "url": "icons/sticker/AMIS/GEND_SPECIALISEES/GTA.png",
     "scale": 1.0,
     "order": 130
   },
@@ -1586,7 +1586,7 @@ const ICON_CATALOG = [
       "INTERVENTION"
     ],
     "category": "AMIS / INTERVENTION",
-    "url": "icons/sticks/AMIS/INTERVENTION/AGIGN-OM.png",
+    "url": "icons/sticker/AMIS/INTERVENTION/AGIGN-OM.png",
     "scale": 1.0,
     "order": 131
   },
@@ -1598,7 +1598,7 @@ const ICON_CATALOG = [
       "INTERVENTION"
     ],
     "category": "AMIS / INTERVENTION",
-    "url": "icons/sticks/AMIS/INTERVENTION/AGIGN.png",
+    "url": "icons/sticker/AMIS/INTERVENTION/AGIGN.png",
     "scale": 1.0,
     "order": 132
   },
@@ -1610,7 +1610,7 @@ const ICON_CATALOG = [
       "INTERVENTION"
     ],
     "category": "AMIS / INTERVENTION",
-    "url": "icons/sticks/AMIS/INTERVENTION/C2NRBCE.png",
+    "url": "icons/sticker/AMIS/INTERVENTION/C2NRBCE.png",
     "scale": 1.0,
     "order": 133
   },
@@ -1622,7 +1622,7 @@ const ICON_CATALOG = [
       "INTERVENTION"
     ],
     "category": "AMIS / INTERVENTION",
-    "url": "icons/sticks/AMIS/INTERVENTION/EGMNRBC.png",
+    "url": "icons/sticker/AMIS/INTERVENTION/EGMNRBC.png",
     "scale": 1.0,
     "order": 134
   },
@@ -1634,7 +1634,7 @@ const ICON_CATALOG = [
       "INTERVENTION"
     ],
     "category": "AMIS / INTERVENTION",
-    "url": "icons/sticks/AMIS/INTERVENTION/ELT_AGIGN-OM.png",
+    "url": "icons/sticker/AMIS/INTERVENTION/ELT_AGIGN-OM.png",
     "scale": 1.0,
     "order": 135
   },
@@ -1646,7 +1646,7 @@ const ICON_CATALOG = [
       "INTERVENTION"
     ],
     "category": "AMIS / INTERVENTION",
-    "url": "icons/sticks/AMIS/INTERVENTION/ELT_AGIGN.png",
+    "url": "icons/sticker/AMIS/INTERVENTION/ELT_AGIGN.png",
     "scale": 1.0,
     "order": 136
   },
@@ -1658,7 +1658,7 @@ const ICON_CATALOG = [
       "INTERVENTION"
     ],
     "category": "AMIS / INTERVENTION",
-    "url": "icons/sticks/AMIS/INTERVENTION/ELT_C2NRBCE.png",
+    "url": "icons/sticker/AMIS/INTERVENTION/ELT_C2NRBCE.png",
     "scale": 1.0,
     "order": 137
   },
@@ -1670,7 +1670,7 @@ const ICON_CATALOG = [
       "INTERVENTION"
     ],
     "category": "AMIS / INTERVENTION",
-    "url": "icons/sticks/AMIS/INTERVENTION/ELT_EQUIPE_CYNO.png",
+    "url": "icons/sticker/AMIS/INTERVENTION/ELT_EQUIPE_CYNO.png",
     "scale": 1.0,
     "order": 138
   },
@@ -1682,7 +1682,7 @@ const ICON_CATALOG = [
       "INTERVENTION"
     ],
     "category": "AMIS / INTERVENTION",
-    "url": "icons/sticks/AMIS/INTERVENTION/ELT_EQUIPE_CYNO_ASSAUT.png",
+    "url": "icons/sticker/AMIS/INTERVENTION/ELT_EQUIPE_CYNO_ASSAUT.png",
     "scale": 1.0,
     "order": 139
   },
@@ -1694,7 +1694,7 @@ const ICON_CATALOG = [
       "INTERVENTION"
     ],
     "category": "AMIS / INTERVENTION",
-    "url": "icons/sticks/AMIS/INTERVENTION/ELT_GIGN.png",
+    "url": "icons/sticker/AMIS/INTERVENTION/ELT_GIGN.png",
     "scale": 1.0,
     "order": 140
   },
@@ -1706,7 +1706,7 @@ const ICON_CATALOG = [
       "INTERVENTION"
     ],
     "category": "AMIS / INTERVENTION",
-    "url": "icons/sticks/AMIS/INTERVENTION/ELT_GIGN_OR.png",
+    "url": "icons/sticker/AMIS/INTERVENTION/ELT_GIGN_OR.png",
     "scale": 1.0,
     "order": 141
   },
@@ -1718,7 +1718,7 @@ const ICON_CATALOG = [
       "INTERVENTION"
     ],
     "category": "AMIS / INTERVENTION",
-    "url": "icons/sticks/AMIS/INTERVENTION/ELT_PI_GM.png",
+    "url": "icons/sticker/AMIS/INTERVENTION/ELT_PI_GM.png",
     "scale": 1.0,
     "order": 142
   },
@@ -1730,7 +1730,7 @@ const ICON_CATALOG = [
       "INTERVENTION"
     ],
     "category": "AMIS / INTERVENTION",
-    "url": "icons/sticks/AMIS/INTERVENTION/ELT_PROTEC.png",
+    "url": "icons/sticker/AMIS/INTERVENTION/ELT_PROTEC.png",
     "scale": 1.0,
     "order": 143
   },
@@ -1742,7 +1742,7 @@ const ICON_CATALOG = [
       "INTERVENTION"
     ],
     "category": "AMIS / INTERVENTION",
-    "url": "icons/sticks/AMIS/INTERVENTION/ELT_PSPG.png",
+    "url": "icons/sticker/AMIS/INTERVENTION/ELT_PSPG.png",
     "scale": 1.0,
     "order": 144
   },
@@ -1754,7 +1754,7 @@ const ICON_CATALOG = [
       "INTERVENTION"
     ],
     "category": "AMIS / INTERVENTION",
-    "url": "icons/sticks/AMIS/INTERVENTION/GIGN.png",
+    "url": "icons/sticker/AMIS/INTERVENTION/GIGN.png",
     "scale": 1.0,
     "order": 145
   },
@@ -1766,7 +1766,7 @@ const ICON_CATALOG = [
       "INTERVENTION"
     ],
     "category": "AMIS / INTERVENTION",
-    "url": "icons/sticks/AMIS/INTERVENTION/GIGN_OR.png",
+    "url": "icons/sticker/AMIS/INTERVENTION/GIGN_OR.png",
     "scale": 1.0,
     "order": 146
   },
@@ -1778,7 +1778,7 @@ const ICON_CATALOG = [
       "INTERVENTION"
     ],
     "category": "AMIS / INTERVENTION",
-    "url": "icons/sticks/AMIS/INTERVENTION/NEGO.png",
+    "url": "icons/sticker/AMIS/INTERVENTION/NEGO.png",
     "scale": 1.0,
     "order": 147
   },
@@ -1790,7 +1790,7 @@ const ICON_CATALOG = [
       "INTERVENTION"
     ],
     "category": "AMIS / INTERVENTION",
-    "url": "icons/sticks/AMIS/INTERVENTION/PI.png",
+    "url": "icons/sticker/AMIS/INTERVENTION/PI.png",
     "scale": 1.0,
     "order": 148
   },
@@ -1802,7 +1802,7 @@ const ICON_CATALOG = [
       "INTERVENTION"
     ],
     "category": "AMIS / INTERVENTION",
-    "url": "icons/sticks/AMIS/INTERVENTION/PROTEC.png",
+    "url": "icons/sticker/AMIS/INTERVENTION/PROTEC.png",
     "scale": 1.0,
     "order": 149
   },
@@ -1814,7 +1814,7 @@ const ICON_CATALOG = [
       "INTERVENTION"
     ],
     "category": "AMIS / INTERVENTION",
-    "url": "icons/sticks/AMIS/INTERVENTION/PROTEC_MODIFIABLE.png",
+    "url": "icons/sticker/AMIS/INTERVENTION/PROTEC_MODIFIABLE.png",
     "scale": 1.0,
     "order": 150
   },
@@ -1826,7 +1826,7 @@ const ICON_CATALOG = [
       "INTERVENTION"
     ],
     "category": "AMIS / INTERVENTION",
-    "url": "icons/sticks/AMIS/INTERVENTION/PSIG.png",
+    "url": "icons/sticker/AMIS/INTERVENTION/PSIG.png",
     "scale": 1.0,
     "order": 151
   },
@@ -1838,7 +1838,7 @@ const ICON_CATALOG = [
       "INTERVENTION"
     ],
     "category": "AMIS / INTERVENTION",
-    "url": "icons/sticks/AMIS/INTERVENTION/PSPG.png",
+    "url": "icons/sticker/AMIS/INTERVENTION/PSPG.png",
     "scale": 1.0,
     "order": 152
   },
@@ -1850,7 +1850,7 @@ const ICON_CATALOG = [
       "INTERVENTION"
     ],
     "category": "AMIS / INTERVENTION",
-    "url": "icons/sticks/AMIS/INTERVENTION/TE.png",
+    "url": "icons/sticker/AMIS/INTERVENTION/TE.png",
     "scale": 1.0,
     "order": 153
   },
@@ -1862,7 +1862,7 @@ const ICON_CATALOG = [
       "INTERVENTION"
     ],
     "category": "AMIS / INTERVENTION",
-    "url": "icons/sticks/AMIS/INTERVENTION/TE_OR.png",
+    "url": "icons/sticker/AMIS/INTERVENTION/TE_OR.png",
     "scale": 1.0,
     "order": 154
   },
@@ -1874,7 +1874,7 @@ const ICON_CATALOG = [
       "MAINTIEN DE L'ORDRE"
     ],
     "category": "AMIS / MAINTIEN DE L'ORDRE",
-    "url": "icons/sticks/AMIS/MAINTIEN DE L'ORDRE/(DEMI_)EGM_4X4.png",
+    "url": "icons/sticker/AMIS/MAINTIEN DE L'ORDRE/(DEMI_)EGM_4X4.png",
     "scale": 1.0,
     "order": 155
   },
@@ -1886,7 +1886,7 @@ const ICON_CATALOG = [
       "MAINTIEN DE L'ORDRE"
     ],
     "category": "AMIS / MAINTIEN DE L'ORDRE",
-    "url": "icons/sticks/AMIS/MAINTIEN DE L'ORDRE/(DEMI_)EGM_4X4_OR.png",
+    "url": "icons/sticker/AMIS/MAINTIEN DE L'ORDRE/(DEMI_)EGM_4X4_OR.png",
     "scale": 1.0,
     "order": 156
   },
@@ -1898,7 +1898,7 @@ const ICON_CATALOG = [
       "MAINTIEN DE L'ORDRE"
     ],
     "category": "AMIS / MAINTIEN DE L'ORDRE",
-    "url": "icons/sticks/AMIS/MAINTIEN DE L'ORDRE/ARMEES_GENERIQUE_ROND.png",
+    "url": "icons/sticker/AMIS/MAINTIEN DE L'ORDRE/ARMEES_GENERIQUE_ROND.png",
     "scale": 1.0,
     "order": 157
   },
@@ -1910,7 +1910,7 @@ const ICON_CATALOG = [
       "MAINTIEN DE L'ORDRE"
     ],
     "category": "AMIS / MAINTIEN DE L'ORDRE",
-    "url": "icons/sticks/AMIS/MAINTIEN DE L'ORDRE/CBH.png",
+    "url": "icons/sticker/AMIS/MAINTIEN DE L'ORDRE/CBH.png",
     "scale": 1.0,
     "order": 158
   },
@@ -1922,7 +1922,7 @@ const ICON_CATALOG = [
       "MAINTIEN DE L'ORDRE"
     ],
     "category": "AMIS / MAINTIEN DE L'ORDRE",
-    "url": "icons/sticks/AMIS/MAINTIEN DE L'ORDRE/CIOP-CNOEIL.png",
+    "url": "icons/sticker/AMIS/MAINTIEN DE L'ORDRE/CIOP-CNOEIL.png",
     "scale": 1.0,
     "order": 159
   },
@@ -1934,7 +1934,7 @@ const ICON_CATALOG = [
       "MAINTIEN DE L'ORDRE"
     ],
     "category": "AMIS / MAINTIEN DE L'ORDRE",
-    "url": "icons/sticks/AMIS/MAINTIEN DE L'ORDRE/CNAMO.png",
+    "url": "icons/sticker/AMIS/MAINTIEN DE L'ORDRE/CNAMO.png",
     "scale": 1.0,
     "order": 160
   },
@@ -1946,7 +1946,7 @@ const ICON_CATALOG = [
       "MAINTIEN DE L'ORDRE"
     ],
     "category": "AMIS / MAINTIEN DE L'ORDRE",
-    "url": "icons/sticks/AMIS/MAINTIEN DE L'ORDRE/DRAP ou BARRE-PONT.png",
+    "url": "icons/sticker/AMIS/MAINTIEN DE L'ORDRE/DRAP ou BARRE-PONT.png",
     "scale": 1.0,
     "order": 161
   },
@@ -1958,7 +1958,7 @@ const ICON_CATALOG = [
       "MAINTIEN DE L'ORDRE"
     ],
     "category": "AMIS / MAINTIEN DE L'ORDRE",
-    "url": "icons/sticks/AMIS/MAINTIEN DE L'ORDRE/EGAME.png",
+    "url": "icons/sticker/AMIS/MAINTIEN DE L'ORDRE/EGAME.png",
     "scale": 1.0,
     "order": 162
   },
@@ -1970,7 +1970,7 @@ const ICON_CATALOG = [
       "MAINTIEN DE L'ORDRE"
     ],
     "category": "AMIS / MAINTIEN DE L'ORDRE",
-    "url": "icons/sticks/AMIS/MAINTIEN DE L'ORDRE/ELT_4x4_GD.png",
+    "url": "icons/sticker/AMIS/MAINTIEN DE L'ORDRE/ELT_4x4_GD.png",
     "scale": 1.0,
     "order": 163
   },
@@ -1982,7 +1982,7 @@ const ICON_CATALOG = [
       "MAINTIEN DE L'ORDRE"
     ],
     "category": "AMIS / MAINTIEN DE L'ORDRE",
-    "url": "icons/sticks/AMIS/MAINTIEN DE L'ORDRE/ELT_4x4_GM.png",
+    "url": "icons/sticker/AMIS/MAINTIEN DE L'ORDRE/ELT_4x4_GM.png",
     "scale": 1.0,
     "order": 164
   },
@@ -1994,7 +1994,7 @@ const ICON_CATALOG = [
       "MAINTIEN DE L'ORDRE"
     ],
     "category": "AMIS / MAINTIEN DE L'ORDRE",
-    "url": "icons/sticks/AMIS/MAINTIEN DE L'ORDRE/ELT_CBH.png",
+    "url": "icons/sticker/AMIS/MAINTIEN DE L'ORDRE/ELT_CBH.png",
     "scale": 1.0,
     "order": 165
   },
@@ -2006,7 +2006,7 @@ const ICON_CATALOG = [
       "MAINTIEN DE L'ORDRE"
     ],
     "category": "AMIS / MAINTIEN DE L'ORDRE",
-    "url": "icons/sticks/AMIS/MAINTIEN DE L'ORDRE/ELT_CEN_GM_2.png",
+    "url": "icons/sticker/AMIS/MAINTIEN DE L'ORDRE/ELT_CEN_GM_2.png",
     "scale": 1.0,
     "order": 166
   },
@@ -2018,7 +2018,7 @@ const ICON_CATALOG = [
       "MAINTIEN DE L'ORDRE"
     ],
     "category": "AMIS / MAINTIEN DE L'ORDRE",
-    "url": "icons/sticks/AMIS/MAINTIEN DE L'ORDRE/ELT_CNAMO.png",
+    "url": "icons/sticker/AMIS/MAINTIEN DE L'ORDRE/ELT_CNAMO.png",
     "scale": 1.0,
     "order": 167
   },
@@ -2030,7 +2030,7 @@ const ICON_CATALOG = [
       "MAINTIEN DE L'ORDRE"
     ],
     "category": "AMIS / MAINTIEN DE L'ORDRE",
-    "url": "icons/sticks/AMIS/MAINTIEN DE L'ORDRE/ELT_CNE_GM.png",
+    "url": "icons/sticker/AMIS/MAINTIEN DE L'ORDRE/ELT_CNE_GM.png",
     "scale": 1.0,
     "order": 168
   },
@@ -2042,7 +2042,7 @@ const ICON_CATALOG = [
       "MAINTIEN DE L'ORDRE"
     ],
     "category": "AMIS / MAINTIEN DE L'ORDRE",
-    "url": "icons/sticks/AMIS/MAINTIEN DE L'ORDRE/ELT_COL_GM_2.png",
+    "url": "icons/sticker/AMIS/MAINTIEN DE L'ORDRE/ELT_COL_GM_2.png",
     "scale": 1.0,
     "order": 169
   },
@@ -2054,7 +2054,7 @@ const ICON_CATALOG = [
       "MAINTIEN DE L'ORDRE"
     ],
     "category": "AMIS / MAINTIEN DE L'ORDRE",
-    "url": "icons/sticks/AMIS/MAINTIEN DE L'ORDRE/ELT_EGAME.png",
+    "url": "icons/sticker/AMIS/MAINTIEN DE L'ORDRE/ELT_EGAME.png",
     "scale": 1.0,
     "order": 170
   },
@@ -2066,7 +2066,7 @@ const ICON_CATALOG = [
       "MAINTIEN DE L'ORDRE"
     ],
     "category": "AMIS / MAINTIEN DE L'ORDRE",
-    "url": "icons/sticks/AMIS/MAINTIEN DE L'ORDRE/ELT_FOURGON_POMPE.png",
+    "url": "icons/sticker/AMIS/MAINTIEN DE L'ORDRE/ELT_FOURGON_POMPE.png",
     "scale": 1.0,
     "order": 171
   },
@@ -2078,7 +2078,7 @@ const ICON_CATALOG = [
       "MAINTIEN DE L'ORDRE"
     ],
     "category": "AMIS / MAINTIEN DE L'ORDRE",
-    "url": "icons/sticks/AMIS/MAINTIEN DE L'ORDRE/ELT_GENDARMERIE.png",
+    "url": "icons/sticker/AMIS/MAINTIEN DE L'ORDRE/ELT_GENDARMERIE.png",
     "scale": 1.0,
     "order": 172
   },
@@ -2090,7 +2090,7 @@ const ICON_CATALOG = [
       "MAINTIEN DE L'ORDRE"
     ],
     "category": "AMIS / MAINTIEN DE L'ORDRE",
-    "url": "icons/sticks/AMIS/MAINTIEN DE L'ORDRE/ELT_GM.png",
+    "url": "icons/sticker/AMIS/MAINTIEN DE L'ORDRE/ELT_GM.png",
     "scale": 1.0,
     "order": 173
   },
@@ -2102,7 +2102,7 @@ const ICON_CATALOG = [
       "MAINTIEN DE L'ORDRE"
     ],
     "category": "AMIS / MAINTIEN DE L'ORDRE",
-    "url": "icons/sticks/AMIS/MAINTIEN DE L'ORDRE/ELT_LCL_GM_2.png",
+    "url": "icons/sticker/AMIS/MAINTIEN DE L'ORDRE/ELT_LCL_GM_2.png",
     "scale": 1.0,
     "order": 174
   },
@@ -2114,7 +2114,7 @@ const ICON_CATALOG = [
       "MAINTIEN DE L'ORDRE"
     ],
     "category": "AMIS / MAINTIEN DE L'ORDRE",
-    "url": "icons/sticks/AMIS/MAINTIEN DE L'ORDRE/ELT_LTN_GM.png",
+    "url": "icons/sticker/AMIS/MAINTIEN DE L'ORDRE/ELT_LTN_GM.png",
     "scale": 1.0,
     "order": 175
   },
@@ -2126,7 +2126,7 @@ const ICON_CATALOG = [
       "MAINTIEN DE L'ORDRE"
     ],
     "category": "AMIS / MAINTIEN DE L'ORDRE",
-    "url": "icons/sticks/AMIS/MAINTIEN DE L'ORDRE/ELT_MINISTERIEL.png",
+    "url": "icons/sticker/AMIS/MAINTIEN DE L'ORDRE/ELT_MINISTERIEL.png",
     "scale": 1.0,
     "order": 176
   },
@@ -2138,7 +2138,7 @@ const ICON_CATALOG = [
       "MAINTIEN DE L'ORDRE"
     ],
     "category": "AMIS / MAINTIEN DE L'ORDRE",
-    "url": "icons/sticks/AMIS/MAINTIEN DE L'ORDRE/ELT_P2_GM.png",
+    "url": "icons/sticker/AMIS/MAINTIEN DE L'ORDRE/ELT_P2_GM.png",
     "scale": 1.0,
     "order": 177
   },
@@ -2150,7 +2150,7 @@ const ICON_CATALOG = [
       "MAINTIEN DE L'ORDRE"
     ],
     "category": "AMIS / MAINTIEN DE L'ORDRE",
-    "url": "icons/sticks/AMIS/MAINTIEN DE L'ORDRE/ELT_P3_GM.png",
+    "url": "icons/sticker/AMIS/MAINTIEN DE L'ORDRE/ELT_P3_GM.png",
     "scale": 1.0,
     "order": 178
   },
@@ -2162,7 +2162,7 @@ const ICON_CATALOG = [
       "MAINTIEN DE L'ORDRE"
     ],
     "category": "AMIS / MAINTIEN DE L'ORDRE",
-    "url": "icons/sticks/AMIS/MAINTIEN DE L'ORDRE/ELT_P4_GM.png",
+    "url": "icons/sticker/AMIS/MAINTIEN DE L'ORDRE/ELT_P4_GM.png",
     "scale": 1.0,
     "order": 179
   },
@@ -2174,7 +2174,7 @@ const ICON_CATALOG = [
       "MAINTIEN DE L'ORDRE"
     ],
     "category": "AMIS / MAINTIEN DE L'ORDRE",
-    "url": "icons/sticks/AMIS/MAINTIEN DE L'ORDRE/ELT_P5_GM.png",
+    "url": "icons/sticker/AMIS/MAINTIEN DE L'ORDRE/ELT_P5_GM.png",
     "scale": 1.0,
     "order": 180
   },
@@ -2186,7 +2186,7 @@ const ICON_CATALOG = [
       "MAINTIEN DE L'ORDRE"
     ],
     "category": "AMIS / MAINTIEN DE L'ORDRE",
-    "url": "icons/sticks/AMIS/MAINTIEN DE L'ORDRE/ELT_PI_GM.png",
+    "url": "icons/sticker/AMIS/MAINTIEN DE L'ORDRE/ELT_PI_GM.png",
     "scale": 1.0,
     "order": 181
   },
@@ -2198,7 +2198,7 @@ const ICON_CATALOG = [
       "MAINTIEN DE L'ORDRE"
     ],
     "category": "AMIS / MAINTIEN DE L'ORDRE",
-    "url": "icons/sticks/AMIS/MAINTIEN DE L'ORDRE/ELT_POLICE.png",
+    "url": "icons/sticker/AMIS/MAINTIEN DE L'ORDRE/ELT_POLICE.png",
     "scale": 1.0,
     "order": 182
   },
@@ -2210,7 +2210,7 @@ const ICON_CATALOG = [
       "MAINTIEN DE L'ORDRE"
     ],
     "category": "AMIS / MAINTIEN DE L'ORDRE",
-    "url": "icons/sticks/AMIS/MAINTIEN DE L'ORDRE/ELT_TPI.png",
+    "url": "icons/sticker/AMIS/MAINTIEN DE L'ORDRE/ELT_TPI.png",
     "scale": 1.0,
     "order": 183
   },
@@ -2222,7 +2222,7 @@ const ICON_CATALOG = [
       "MAINTIEN DE L'ORDRE"
     ],
     "category": "AMIS / MAINTIEN DE L'ORDRE",
-    "url": "icons/sticks/AMIS/MAINTIEN DE L'ORDRE/ELT_UFM_POLICE.png",
+    "url": "icons/sticker/AMIS/MAINTIEN DE L'ORDRE/ELT_UFM_POLICE.png",
     "scale": 1.0,
     "order": 184
   },
@@ -2234,7 +2234,7 @@ const ICON_CATALOG = [
       "MAINTIEN DE L'ORDRE"
     ],
     "category": "AMIS / MAINTIEN DE L'ORDRE",
-    "url": "icons/sticks/AMIS/MAINTIEN DE L'ORDRE/ELT_VAB.png",
+    "url": "icons/sticker/AMIS/MAINTIEN DE L'ORDRE/ELT_VAB.png",
     "scale": 1.0,
     "order": 185
   },
@@ -2246,7 +2246,7 @@ const ICON_CATALOG = [
       "MAINTIEN DE L'ORDRE"
     ],
     "category": "AMIS / MAINTIEN DE L'ORDRE",
-    "url": "icons/sticks/AMIS/MAINTIEN DE L'ORDRE/ELT_VBRG_GD.png",
+    "url": "icons/sticker/AMIS/MAINTIEN DE L'ORDRE/ELT_VBRG_GD.png",
     "scale": 1.0,
     "order": 186
   },
@@ -2258,7 +2258,7 @@ const ICON_CATALOG = [
       "MAINTIEN DE L'ORDRE"
     ],
     "category": "AMIS / MAINTIEN DE L'ORDRE",
-    "url": "icons/sticks/AMIS/MAINTIEN DE L'ORDRE/ELT_VBRG_GM.png",
+    "url": "icons/sticker/AMIS/MAINTIEN DE L'ORDRE/ELT_VBRG_GM.png",
     "scale": 1.0,
     "order": 187
   },
@@ -2270,7 +2270,7 @@ const ICON_CATALOG = [
       "MAINTIEN DE L'ORDRE"
     ],
     "category": "AMIS / MAINTIEN DE L'ORDRE",
-    "url": "icons/sticks/AMIS/MAINTIEN DE L'ORDRE/FOURGON_POMPE.png",
+    "url": "icons/sticker/AMIS/MAINTIEN DE L'ORDRE/FOURGON_POMPE.png",
     "scale": 1.0,
     "order": 188
   },
@@ -2282,7 +2282,7 @@ const ICON_CATALOG = [
       "MAINTIEN DE L'ORDRE"
     ],
     "category": "AMIS / MAINTIEN DE L'ORDRE",
-    "url": "icons/sticks/AMIS/MAINTIEN DE L'ORDRE/GD_GENERIQUE_ROND.png",
+    "url": "icons/sticker/AMIS/MAINTIEN DE L'ORDRE/GD_GENERIQUE_ROND.png",
     "scale": 1.0,
     "order": 189
   },
@@ -2294,7 +2294,7 @@ const ICON_CATALOG = [
       "MAINTIEN DE L'ORDRE"
     ],
     "category": "AMIS / MAINTIEN DE L'ORDRE",
-    "url": "icons/sticks/AMIS/MAINTIEN DE L'ORDRE/GEND_GENERIQUE_CARRE.png",
+    "url": "icons/sticker/AMIS/MAINTIEN DE L'ORDRE/GEND_GENERIQUE_CARRE.png",
     "scale": 1.0,
     "order": 190
   },
@@ -2306,7 +2306,7 @@ const ICON_CATALOG = [
       "MAINTIEN DE L'ORDRE"
     ],
     "category": "AMIS / MAINTIEN DE L'ORDRE",
-    "url": "icons/sticks/AMIS/MAINTIEN DE L'ORDRE/GM_GENERIQUE_ROND.png",
+    "url": "icons/sticker/AMIS/MAINTIEN DE L'ORDRE/GM_GENERIQUE_ROND.png",
     "scale": 1.0,
     "order": 191
   },
@@ -2318,7 +2318,7 @@ const ICON_CATALOG = [
       "MAINTIEN DE L'ORDRE"
     ],
     "category": "AMIS / MAINTIEN DE L'ORDRE",
-    "url": "icons/sticks/AMIS/MAINTIEN DE L'ORDRE/MINISTERE_GENERIQUE_CARRE.png",
+    "url": "icons/sticker/AMIS/MAINTIEN DE L'ORDRE/MINISTERE_GENERIQUE_CARRE.png",
     "scale": 1.0,
     "order": 192
   },
@@ -2330,7 +2330,7 @@ const ICON_CATALOG = [
       "MAINTIEN DE L'ORDRE"
     ],
     "category": "AMIS / MAINTIEN DE L'ORDRE",
-    "url": "icons/sticks/AMIS/MAINTIEN DE L'ORDRE/MINISTERE_GENERIQUE_ROND.png",
+    "url": "icons/sticker/AMIS/MAINTIEN DE L'ORDRE/MINISTERE_GENERIQUE_ROND.png",
     "scale": 1.0,
     "order": 193
   },
@@ -2342,7 +2342,7 @@ const ICON_CATALOG = [
       "MAINTIEN DE L'ORDRE"
     ],
     "category": "AMIS / MAINTIEN DE L'ORDRE",
-    "url": "icons/sticks/AMIS/MAINTIEN DE L'ORDRE/MOYENS_INTERDICTION.png",
+    "url": "icons/sticker/AMIS/MAINTIEN DE L'ORDRE/MOYENS_INTERDICTION.png",
     "scale": 1.0,
     "order": 194
   },
@@ -2354,7 +2354,7 @@ const ICON_CATALOG = [
       "MAINTIEN DE L'ORDRE"
     ],
     "category": "AMIS / MAINTIEN DE L'ORDRE",
-    "url": "icons/sticks/AMIS/MAINTIEN DE L'ORDRE/MOYENS_INTERDICTION_GM.png",
+    "url": "icons/sticker/AMIS/MAINTIEN DE L'ORDRE/MOYENS_INTERDICTION_GM.png",
     "scale": 1.0,
     "order": 195
   },
@@ -2366,7 +2366,7 @@ const ICON_CATALOG = [
       "MAINTIEN DE L'ORDRE"
     ],
     "category": "AMIS / MAINTIEN DE L'ORDRE",
-    "url": "icons/sticks/AMIS/MAINTIEN DE L'ORDRE/MOYENS_SURVEILLANCE.png",
+    "url": "icons/sticker/AMIS/MAINTIEN DE L'ORDRE/MOYENS_SURVEILLANCE.png",
     "scale": 1.0,
     "order": 196
   },
@@ -2378,7 +2378,7 @@ const ICON_CATALOG = [
       "MAINTIEN DE L'ORDRE"
     ],
     "category": "AMIS / MAINTIEN DE L'ORDRE",
-    "url": "icons/sticks/AMIS/MAINTIEN DE L'ORDRE/PI.png",
+    "url": "icons/sticker/AMIS/MAINTIEN DE L'ORDRE/PI.png",
     "scale": 1.0,
     "order": 197
   },
@@ -2390,7 +2390,7 @@ const ICON_CATALOG = [
       "MAINTIEN DE L'ORDRE"
     ],
     "category": "AMIS / MAINTIEN DE L'ORDRE",
-    "url": "icons/sticks/AMIS/MAINTIEN DE L'ORDRE/POLICE_GENERIQUE_CARRE.png",
+    "url": "icons/sticker/AMIS/MAINTIEN DE L'ORDRE/POLICE_GENERIQUE_CARRE.png",
     "scale": 1.0,
     "order": 198
   },
@@ -2402,7 +2402,7 @@ const ICON_CATALOG = [
       "MAINTIEN DE L'ORDRE"
     ],
     "category": "AMIS / MAINTIEN DE L'ORDRE",
-    "url": "icons/sticks/AMIS/MAINTIEN DE L'ORDRE/POLICE_GENERIQUE_CARRE_COULEUR.png",
+    "url": "icons/sticker/AMIS/MAINTIEN DE L'ORDRE/POLICE_GENERIQUE_CARRE_COULEUR.png",
     "scale": 1.0,
     "order": 199
   },
@@ -2414,7 +2414,7 @@ const ICON_CATALOG = [
       "MAINTIEN DE L'ORDRE"
     ],
     "category": "AMIS / MAINTIEN DE L'ORDRE",
-    "url": "icons/sticks/AMIS/MAINTIEN DE L'ORDRE/POLICE_GENERIQUE_ROND.png",
+    "url": "icons/sticker/AMIS/MAINTIEN DE L'ORDRE/POLICE_GENERIQUE_ROND.png",
     "scale": 1.0,
     "order": 200
   },
@@ -2426,7 +2426,7 @@ const ICON_CATALOG = [
       "MAINTIEN DE L'ORDRE"
     ],
     "category": "AMIS / MAINTIEN DE L'ORDRE",
-    "url": "icons/sticks/AMIS/MAINTIEN DE L'ORDRE/PROTERRE_SENTINELLE.png",
+    "url": "icons/sticker/AMIS/MAINTIEN DE L'ORDRE/PROTERRE_SENTINELLE.png",
     "scale": 1.0,
     "order": 201
   },
@@ -2438,7 +2438,7 @@ const ICON_CATALOG = [
       "MAINTIEN DE L'ORDRE"
     ],
     "category": "AMIS / MAINTIEN DE L'ORDRE",
-    "url": "icons/sticks/AMIS/MAINTIEN DE L'ORDRE/PSPG.png",
+    "url": "icons/sticker/AMIS/MAINTIEN DE L'ORDRE/PSPG.png",
     "scale": 1.0,
     "order": 202
   },
@@ -2450,7 +2450,7 @@ const ICON_CATALOG = [
       "MAINTIEN DE L'ORDRE"
     ],
     "category": "AMIS / MAINTIEN DE L'ORDRE",
-    "url": "icons/sticks/AMIS/MAINTIEN DE L'ORDRE/SIC-CORAIL-BULLE_MODIFIABLE.png",
+    "url": "icons/sticker/AMIS/MAINTIEN DE L'ORDRE/SIC-CORAIL-BULLE_MODIFIABLE.png",
     "scale": 1.0,
     "order": 203
   },
@@ -2462,7 +2462,7 @@ const ICON_CATALOG = [
       "MAINTIEN DE L'ORDRE"
     ],
     "category": "AMIS / MAINTIEN DE L'ORDRE",
-    "url": "icons/sticks/AMIS/MAINTIEN DE L'ORDRE/SIC-RIP_GM-BULLE.png",
+    "url": "icons/sticker/AMIS/MAINTIEN DE L'ORDRE/SIC-RIP_GM-BULLE.png",
     "scale": 1.0,
     "order": 204
   },
@@ -2474,7 +2474,7 @@ const ICON_CATALOG = [
       "MAINTIEN DE L'ORDRE"
     ],
     "category": "AMIS / MAINTIEN DE L'ORDRE",
-    "url": "icons/sticks/AMIS/MAINTIEN DE L'ORDRE/TAB.png",
+    "url": "icons/sticker/AMIS/MAINTIEN DE L'ORDRE/TAB.png",
     "scale": 1.0,
     "order": 205
   },
@@ -2486,7 +2486,7 @@ const ICON_CATALOG = [
       "MAINTIEN DE L'ORDRE"
     ],
     "category": "AMIS / MAINTIEN DE L'ORDRE",
-    "url": "icons/sticks/AMIS/MAINTIEN DE L'ORDRE/TPI.png",
+    "url": "icons/sticker/AMIS/MAINTIEN DE L'ORDRE/TPI.png",
     "scale": 1.0,
     "order": 206
   },
@@ -2498,7 +2498,7 @@ const ICON_CATALOG = [
       "MAINTIEN DE L'ORDRE"
     ],
     "category": "AMIS / MAINTIEN DE L'ORDRE",
-    "url": "icons/sticks/AMIS/MAINTIEN DE L'ORDRE/UFM_GM.png",
+    "url": "icons/sticker/AMIS/MAINTIEN DE L'ORDRE/UFM_GM.png",
     "scale": 1.0,
     "order": 207
   },
@@ -2510,7 +2510,7 @@ const ICON_CATALOG = [
       "MAINTIEN DE L'ORDRE"
     ],
     "category": "AMIS / MAINTIEN DE L'ORDRE",
-    "url": "icons/sticks/AMIS/MAINTIEN DE L'ORDRE/UFM_GM_2.png",
+    "url": "icons/sticker/AMIS/MAINTIEN DE L'ORDRE/UFM_GM_2.png",
     "scale": 1.0,
     "order": 208
   },
@@ -2522,7 +2522,7 @@ const ICON_CATALOG = [
       "MAINTIEN DE L'ORDRE"
     ],
     "category": "AMIS / MAINTIEN DE L'ORDRE",
-    "url": "icons/sticks/AMIS/MAINTIEN DE L'ORDRE/UFM_POLICE.png",
+    "url": "icons/sticker/AMIS/MAINTIEN DE L'ORDRE/UFM_POLICE.png",
     "scale": 1.0,
     "order": 209
   },
@@ -2534,7 +2534,7 @@ const ICON_CATALOG = [
       "MAINTIEN DE L'ORDRE"
     ],
     "category": "AMIS / MAINTIEN DE L'ORDRE",
-    "url": "icons/sticks/AMIS/MAINTIEN DE L'ORDRE/UFM_POLICE_2.png",
+    "url": "icons/sticker/AMIS/MAINTIEN DE L'ORDRE/UFM_POLICE_2.png",
     "scale": 1.0,
     "order": 210
   },
@@ -2546,7 +2546,7 @@ const ICON_CATALOG = [
       "MAINTIEN DE L'ORDRE"
     ],
     "category": "AMIS / MAINTIEN DE L'ORDRE",
-    "url": "icons/sticks/AMIS/MAINTIEN DE L'ORDRE/VAB.png",
+    "url": "icons/sticker/AMIS/MAINTIEN DE L'ORDRE/VAB.png",
     "scale": 1.0,
     "order": 211
   },
@@ -2558,7 +2558,7 @@ const ICON_CATALOG = [
       "MAINTIEN DE L'ORDRE"
     ],
     "category": "AMIS / MAINTIEN DE L'ORDRE",
-    "url": "icons/sticks/AMIS/MAINTIEN DE L'ORDRE/VBRG.png",
+    "url": "icons/sticker/AMIS/MAINTIEN DE L'ORDRE/VBRG.png",
     "scale": 1.0,
     "order": 212
   },
@@ -2570,7 +2570,7 @@ const ICON_CATALOG = [
       "MAINTIEN DE L'ORDRE"
     ],
     "category": "AMIS / MAINTIEN DE L'ORDRE",
-    "url": "icons/sticks/AMIS/MAINTIEN DE L'ORDRE/VBRG_AGIGN_OM.png",
+    "url": "icons/sticker/AMIS/MAINTIEN DE L'ORDRE/VBRG_AGIGN_OM.png",
     "scale": 1.0,
     "order": 213
   },
@@ -2582,7 +2582,7 @@ const ICON_CATALOG = [
       "MONTAGNE"
     ],
     "category": "AMIS / MONTAGNE",
-    "url": "icons/sticks/AMIS/MONTAGNE/DET_MONTAGNE.png",
+    "url": "icons/sticker/AMIS/MONTAGNE/DET_MONTAGNE.png",
     "scale": 1.0,
     "order": 214
   },
@@ -2594,7 +2594,7 @@ const ICON_CATALOG = [
       "MONTAGNE"
     ],
     "category": "AMIS / MONTAGNE",
-    "url": "icons/sticks/AMIS/MONTAGNE/ELT_MONTAGNE.png",
+    "url": "icons/sticker/AMIS/MONTAGNE/ELT_MONTAGNE.png",
     "scale": 1.0,
     "order": 215
   },
@@ -2606,7 +2606,7 @@ const ICON_CATALOG = [
       "MONTAGNE"
     ],
     "category": "AMIS / MONTAGNE",
-    "url": "icons/sticks/AMIS/MONTAGNE/ELT_MONTAGNE_GM.png",
+    "url": "icons/sticker/AMIS/MONTAGNE/ELT_MONTAGNE_GM.png",
     "scale": 1.0,
     "order": 216
   },
@@ -2618,7 +2618,7 @@ const ICON_CATALOG = [
       "MONTAGNE"
     ],
     "category": "AMIS / MONTAGNE",
-    "url": "icons/sticks/AMIS/MONTAGNE/ELT_SPELEO.png",
+    "url": "icons/sticker/AMIS/MONTAGNE/ELT_SPELEO.png",
     "scale": 1.0,
     "order": 217
   },
@@ -2630,7 +2630,7 @@ const ICON_CATALOG = [
       "MONTAGNE"
     ],
     "category": "AMIS / MONTAGNE",
-    "url": "icons/sticks/AMIS/MONTAGNE/PON_MONTAGNE_GM.png",
+    "url": "icons/sticker/AMIS/MONTAGNE/PON_MONTAGNE_GM.png",
     "scale": 1.0,
     "order": 218
   },
@@ -2642,7 +2642,7 @@ const ICON_CATALOG = [
       "MOYENS INTERARMEES"
     ],
     "category": "AMIS / MOYENS INTERARMEES",
-    "url": "icons/sticks/AMIS/MOYENS INTERARMEES/AA_AVION_MODIFIABLE.png",
+    "url": "icons/sticker/AMIS/MOYENS INTERARMEES/AA_AVION_MODIFIABLE.png",
     "scale": 1.0,
     "order": 219
   },
@@ -2654,7 +2654,7 @@ const ICON_CATALOG = [
       "MOYENS INTERARMEES"
     ],
     "category": "AMIS / MOYENS INTERARMEES",
-    "url": "icons/sticks/AMIS/MOYENS INTERARMEES/ELT_ARMEES_NEDEX.png",
+    "url": "icons/sticker/AMIS/MOYENS INTERARMEES/ELT_ARMEES_NEDEX.png",
     "scale": 1.0,
     "order": 220
   },
@@ -2666,7 +2666,7 @@ const ICON_CATALOG = [
       "MOYENS INTERARMEES"
     ],
     "category": "AMIS / MOYENS INTERARMEES",
-    "url": "icons/sticks/AMIS/MOYENS INTERARMEES/ELT_AVION.png",
+    "url": "icons/sticker/AMIS/MOYENS INTERARMEES/ELT_AVION.png",
     "scale": 1.0,
     "order": 221
   },
@@ -2678,7 +2678,7 @@ const ICON_CATALOG = [
       "MOYENS INTERARMEES"
     ],
     "category": "AMIS / MOYENS INTERARMEES",
-    "url": "icons/sticks/AMIS/MOYENS INTERARMEES/ELT_FORMISC3.png",
+    "url": "icons/sticker/AMIS/MOYENS INTERARMEES/ELT_FORMISC3.png",
     "scale": 1.0,
     "order": 222
   },
@@ -2690,7 +2690,7 @@ const ICON_CATALOG = [
       "MOYENS INTERARMEES"
     ],
     "category": "AMIS / MOYENS INTERARMEES",
-    "url": "icons/sticks/AMIS/MOYENS INTERARMEES/ELT_GENIE.png",
+    "url": "icons/sticker/AMIS/MOYENS INTERARMEES/ELT_GENIE.png",
     "scale": 1.0,
     "order": 223
   },
@@ -2702,7 +2702,7 @@ const ICON_CATALOG = [
       "MOYENS INTERARMEES"
     ],
     "category": "AMIS / MOYENS INTERARMEES",
-    "url": "icons/sticks/AMIS/MOYENS INTERARMEES/ELT_GIH.png",
+    "url": "icons/sticker/AMIS/MOYENS INTERARMEES/ELT_GIH.png",
     "scale": 1.0,
     "order": 224
   },
@@ -2714,7 +2714,7 @@ const ICON_CATALOG = [
       "MOYENS INTERARMEES"
     ],
     "category": "AMIS / MOYENS INTERARMEES",
-    "url": "icons/sticks/AMIS/MOYENS INTERARMEES/ELT_Mess.png",
+    "url": "icons/sticker/AMIS/MOYENS INTERARMEES/ELT_Mess.png",
     "scale": 1.0,
     "order": 225
   },
@@ -2726,7 +2726,7 @@ const ICON_CATALOG = [
       "MOYENS INTERARMEES"
     ],
     "category": "AMIS / MOYENS INTERARMEES",
-    "url": "icons/sticks/AMIS/MOYENS INTERARMEES/ELT_NAVIRE.png",
+    "url": "icons/sticker/AMIS/MOYENS INTERARMEES/ELT_NAVIRE.png",
     "scale": 1.0,
     "order": 226
   },
@@ -2738,7 +2738,7 @@ const ICON_CATALOG = [
       "MOYENS INTERARMEES"
     ],
     "category": "AMIS / MOYENS INTERARMEES",
-    "url": "icons/sticks/AMIS/MOYENS INTERARMEES/ELT_SEA.png",
+    "url": "icons/sticker/AMIS/MOYENS INTERARMEES/ELT_SEA.png",
     "scale": 1.0,
     "order": 227
   },
@@ -2750,7 +2750,7 @@ const ICON_CATALOG = [
       "MOYENS INTERARMEES"
     ],
     "category": "AMIS / MOYENS INTERARMEES",
-    "url": "icons/sticks/AMIS/MOYENS INTERARMEES/ELT_SENTINELLE.png",
+    "url": "icons/sticker/AMIS/MOYENS INTERARMEES/ELT_SENTINELLE.png",
     "scale": 1.0,
     "order": 228
   },
@@ -2762,7 +2762,7 @@ const ICON_CATALOG = [
       "MOYENS INTERARMEES"
     ],
     "category": "AMIS / MOYENS INTERARMEES",
-    "url": "icons/sticks/AMIS/MOYENS INTERARMEES/ELT_SSA2.png",
+    "url": "icons/sticker/AMIS/MOYENS INTERARMEES/ELT_SSA2.png",
     "scale": 1.0,
     "order": 229
   },
@@ -2774,7 +2774,7 @@ const ICON_CATALOG = [
       "MOYENS INTERARMEES"
     ],
     "category": "AMIS / MOYENS INTERARMEES",
-    "url": "icons/sticks/AMIS/MOYENS INTERARMEES/ELT_TAM2.png",
+    "url": "icons/sticker/AMIS/MOYENS INTERARMEES/ELT_TAM2.png",
     "scale": 1.0,
     "order": 230
   },
@@ -2786,7 +2786,7 @@ const ICON_CATALOG = [
       "MOYENS INTERARMEES"
     ],
     "category": "AMIS / MOYENS INTERARMEES",
-    "url": "icons/sticks/AMIS/MOYENS INTERARMEES/FORMISC.png",
+    "url": "icons/sticker/AMIS/MOYENS INTERARMEES/FORMISC.png",
     "scale": 1.0,
     "order": 231
   },
@@ -2798,7 +2798,7 @@ const ICON_CATALOG = [
       "MOYENS INTERARMEES"
     ],
     "category": "AMIS / MOYENS INTERARMEES",
-    "url": "icons/sticks/AMIS/MOYENS INTERARMEES/GENIE_MODIFIABLE.png",
+    "url": "icons/sticker/AMIS/MOYENS INTERARMEES/GENIE_MODIFIABLE.png",
     "scale": 1.0,
     "order": 232
   },
@@ -2810,7 +2810,7 @@ const ICON_CATALOG = [
       "MOYENS INTERARMEES"
     ],
     "category": "AMIS / MOYENS INTERARMEES",
-    "url": "icons/sticks/AMIS/MOYENS INTERARMEES/GIH_MODIFIABLE.png",
+    "url": "icons/sticker/AMIS/MOYENS INTERARMEES/GIH_MODIFIABLE.png",
     "scale": 1.0,
     "order": 233
   },
@@ -2822,7 +2822,7 @@ const ICON_CATALOG = [
       "MOYENS INTERARMEES"
     ],
     "category": "AMIS / MOYENS INTERARMEES",
-    "url": "icons/sticks/AMIS/MOYENS INTERARMEES/Mess.png",
+    "url": "icons/sticker/AMIS/MOYENS INTERARMEES/Mess.png",
     "scale": 1.0,
     "order": 234
   },
@@ -2834,7 +2834,7 @@ const ICON_CATALOG = [
       "MOYENS INTERARMEES"
     ],
     "category": "AMIS / MOYENS INTERARMEES",
-    "url": "icons/sticks/AMIS/MOYENS INTERARMEES/MILITAIRE.png",
+    "url": "icons/sticker/AMIS/MOYENS INTERARMEES/MILITAIRE.png",
     "scale": 1.0,
     "order": 235
   },
@@ -2846,7 +2846,7 @@ const ICON_CATALOG = [
       "MOYENS INTERARMEES"
     ],
     "category": "AMIS / MOYENS INTERARMEES",
-    "url": "icons/sticks/AMIS/MOYENS INTERARMEES/NAVIRE_MODIFIABLE.png",
+    "url": "icons/sticker/AMIS/MOYENS INTERARMEES/NAVIRE_MODIFIABLE.png",
     "scale": 1.0,
     "order": 236
   },
@@ -2858,7 +2858,7 @@ const ICON_CATALOG = [
       "MOYENS INTERARMEES"
     ],
     "category": "AMIS / MOYENS INTERARMEES",
-    "url": "icons/sticks/AMIS/MOYENS INTERARMEES/NEDEX.png",
+    "url": "icons/sticker/AMIS/MOYENS INTERARMEES/NEDEX.png",
     "scale": 1.0,
     "order": 237
   },
@@ -2870,7 +2870,7 @@ const ICON_CATALOG = [
       "MOYENS INTERARMEES"
     ],
     "category": "AMIS / MOYENS INTERARMEES",
-    "url": "icons/sticks/AMIS/MOYENS INTERARMEES/PCIA.png",
+    "url": "icons/sticker/AMIS/MOYENS INTERARMEES/PCIA.png",
     "scale": 1.0,
     "order": 238
   },
@@ -2882,7 +2882,7 @@ const ICON_CATALOG = [
       "MOYENS INTERARMEES"
     ],
     "category": "AMIS / MOYENS INTERARMEES",
-    "url": "icons/sticks/AMIS/MOYENS INTERARMEES/SEA.png",
+    "url": "icons/sticker/AMIS/MOYENS INTERARMEES/SEA.png",
     "scale": 1.0,
     "order": 239
   },
@@ -2894,7 +2894,7 @@ const ICON_CATALOG = [
       "MOYENS INTERARMEES"
     ],
     "category": "AMIS / MOYENS INTERARMEES",
-    "url": "icons/sticks/AMIS/MOYENS INTERARMEES/SENTINELLE.png",
+    "url": "icons/sticker/AMIS/MOYENS INTERARMEES/SENTINELLE.png",
     "scale": 1.0,
     "order": 240
   },
@@ -2906,7 +2906,7 @@ const ICON_CATALOG = [
       "MOYENS INTERARMEES"
     ],
     "category": "AMIS / MOYENS INTERARMEES",
-    "url": "icons/sticks/AMIS/MOYENS INTERARMEES/SSA2.png",
+    "url": "icons/sticker/AMIS/MOYENS INTERARMEES/SSA2.png",
     "scale": 1.0,
     "order": 241
   },
@@ -2918,7 +2918,7 @@ const ICON_CATALOG = [
       "MOYENS INTERARMEES"
     ],
     "category": "AMIS / MOYENS INTERARMEES",
-    "url": "icons/sticks/AMIS/MOYENS INTERARMEES/TAM.png",
+    "url": "icons/sticker/AMIS/MOYENS INTERARMEES/TAM.png",
     "scale": 1.0,
     "order": 242
   },
@@ -2930,7 +2930,7 @@ const ICON_CATALOG = [
       "POLICE JUDICIAIRE"
     ],
     "category": "AMIS / POLICE JUDICIAIRE",
-    "url": "icons/sticks/AMIS/POLICE JUDICIAIRE/ELT_EQUIPE_CYNO.png",
+    "url": "icons/sticker/AMIS/POLICE JUDICIAIRE/ELT_EQUIPE_CYNO.png",
     "scale": 1.0,
     "order": 243
   },
@@ -2942,7 +2942,7 @@ const ICON_CATALOG = [
       "POLICE JUDICIAIRE"
     ],
     "category": "AMIS / POLICE JUDICIAIRE",
-    "url": "icons/sticks/AMIS/POLICE JUDICIAIRE/ELT_LIEU_GAV.png",
+    "url": "icons/sticker/AMIS/POLICE JUDICIAIRE/ELT_LIEU_GAV.png",
     "scale": 1.0,
     "order": 244
   },
@@ -2954,7 +2954,7 @@ const ICON_CATALOG = [
       "POLICE JUDICIAIRE"
     ],
     "category": "AMIS / POLICE JUDICIAIRE",
-    "url": "icons/sticks/AMIS/POLICE JUDICIAIRE/ELT_MAGISTRAT.png",
+    "url": "icons/sticker/AMIS/POLICE JUDICIAIRE/ELT_MAGISTRAT.png",
     "scale": 1.0,
     "order": 245
   },
@@ -2966,7 +2966,7 @@ const ICON_CATALOG = [
       "POLICE JUDICIAIRE"
     ],
     "category": "AMIS / POLICE JUDICIAIRE",
-    "url": "icons/sticks/AMIS/POLICE JUDICIAIRE/ELT_OBSERVATION.png",
+    "url": "icons/sticker/AMIS/POLICE JUDICIAIRE/ELT_OBSERVATION.png",
     "scale": 1.0,
     "order": 246
   },
@@ -2978,7 +2978,7 @@ const ICON_CATALOG = [
       "POLICE JUDICIAIRE"
     ],
     "category": "AMIS / POLICE JUDICIAIRE",
-    "url": "icons/sticks/AMIS/POLICE JUDICIAIRE/ELT_PJ.png",
+    "url": "icons/sticker/AMIS/POLICE JUDICIAIRE/ELT_PJ.png",
     "scale": 1.0,
     "order": 247
   },
@@ -2990,7 +2990,7 @@ const ICON_CATALOG = [
       "POLICE JUDICIAIRE"
     ],
     "category": "AMIS / POLICE JUDICIAIRE",
-    "url": "icons/sticks/AMIS/POLICE JUDICIAIRE/ELT_PTS.png",
+    "url": "icons/sticker/AMIS/POLICE JUDICIAIRE/ELT_PTS.png",
     "scale": 1.0,
     "order": 248
   },
@@ -3002,7 +3002,7 @@ const ICON_CATALOG = [
       "POLICE JUDICIAIRE"
     ],
     "category": "AMIS / POLICE JUDICIAIRE",
-    "url": "icons/sticks/AMIS/POLICE JUDICIAIRE/ELT_TPI.png",
+    "url": "icons/sticker/AMIS/POLICE JUDICIAIRE/ELT_TPI.png",
     "scale": 1.0,
     "order": 249
   },
@@ -3014,7 +3014,7 @@ const ICON_CATALOG = [
       "POLICE JUDICIAIRE"
     ],
     "category": "AMIS / POLICE JUDICIAIRE",
-    "url": "icons/sticks/AMIS/POLICE JUDICIAIRE/ELT_TRANSFEREMENT.png",
+    "url": "icons/sticker/AMIS/POLICE JUDICIAIRE/ELT_TRANSFEREMENT.png",
     "scale": 1.0,
     "order": 250
   },
@@ -3026,7 +3026,7 @@ const ICON_CATALOG = [
       "POLICE JUDICIAIRE"
     ],
     "category": "AMIS / POLICE JUDICIAIRE",
-    "url": "icons/sticks/AMIS/POLICE JUDICIAIRE/GIC.png",
+    "url": "icons/sticker/AMIS/POLICE JUDICIAIRE/GIC.png",
     "scale": 1.0,
     "order": 251
   },
@@ -3038,7 +3038,7 @@ const ICON_CATALOG = [
       "POLICE JUDICIAIRE"
     ],
     "category": "AMIS / POLICE JUDICIAIRE",
-    "url": "icons/sticks/AMIS/POLICE JUDICIAIRE/GIR.png",
+    "url": "icons/sticker/AMIS/POLICE JUDICIAIRE/GIR.png",
     "scale": 1.0,
     "order": 252
   },
@@ -3050,7 +3050,7 @@ const ICON_CATALOG = [
       "POLICE JUDICIAIRE"
     ],
     "category": "AMIS / POLICE JUDICIAIRE",
-    "url": "icons/sticks/AMIS/POLICE JUDICIAIRE/GOS_COS.png",
+    "url": "icons/sticker/AMIS/POLICE JUDICIAIRE/GOS_COS.png",
     "scale": 1.0,
     "order": 253
   },
@@ -3062,7 +3062,7 @@ const ICON_CATALOG = [
       "POLICE JUDICIAIRE"
     ],
     "category": "AMIS / POLICE JUDICIAIRE",
-    "url": "icons/sticks/AMIS/POLICE JUDICIAIRE/IRCGN.png",
+    "url": "icons/sticker/AMIS/POLICE JUDICIAIRE/IRCGN.png",
     "scale": 1.0,
     "order": 254
   },
@@ -3074,7 +3074,7 @@ const ICON_CATALOG = [
       "POLICE JUDICIAIRE"
     ],
     "category": "AMIS / POLICE JUDICIAIRE",
-    "url": "icons/sticks/AMIS/POLICE JUDICIAIRE/PC_JUD.png",
+    "url": "icons/sticker/AMIS/POLICE JUDICIAIRE/PC_JUD.png",
     "scale": 1.0,
     "order": 255
   },
@@ -3086,7 +3086,7 @@ const ICON_CATALOG = [
       "POLICE JUDICIAIRE"
     ],
     "category": "AMIS / POLICE JUDICIAIRE",
-    "url": "icons/sticks/AMIS/POLICE JUDICIAIRE/UNITE RECHERCHE.png",
+    "url": "icons/sticker/AMIS/POLICE JUDICIAIRE/UNITE RECHERCHE.png",
     "scale": 1.0,
     "order": 256
   },
@@ -3098,7 +3098,7 @@ const ICON_CATALOG = [
       "SECOURS"
     ],
     "category": "AMIS / SECOURS",
-    "url": "icons/sticks/AMIS/SECOURS/CENTRE_ACCUEIL.png",
+    "url": "icons/sticker/AMIS/SECOURS/CENTRE_ACCUEIL.png",
     "scale": 1.0,
     "order": 257
   },
@@ -3110,7 +3110,7 @@ const ICON_CATALOG = [
       "SECOURS"
     ],
     "category": "AMIS / SECOURS",
-    "url": "icons/sticks/AMIS/SECOURS/CENTRE_SECOURS.png",
+    "url": "icons/sticker/AMIS/SECOURS/CENTRE_SECOURS.png",
     "scale": 1.0,
     "order": 258
   },
@@ -3122,7 +3122,7 @@ const ICON_CATALOG = [
       "SECOURS"
     ],
     "category": "AMIS / SECOURS",
-    "url": "icons/sticks/AMIS/SECOURS/CHAPELLE_ARDENTE.png",
+    "url": "icons/sticker/AMIS/SECOURS/CHAPELLE_ARDENTE.png",
     "scale": 1.0,
     "order": 259
   },
@@ -3134,7 +3134,7 @@ const ICON_CATALOG = [
       "SECOURS"
     ],
     "category": "AMIS / SECOURS",
-    "url": "icons/sticks/AMIS/SECOURS/DEMINAGE DGSCGC.png",
+    "url": "icons/sticker/AMIS/SECOURS/DEMINAGE DGSCGC.png",
     "scale": 1.0,
     "order": 260
   },
@@ -3146,7 +3146,7 @@ const ICON_CATALOG = [
       "SECOURS"
     ],
     "category": "AMIS / SECOURS",
-    "url": "icons/sticks/AMIS/SECOURS/ELT_CENTRE_ACCUEIL.png",
+    "url": "icons/sticker/AMIS/SECOURS/ELT_CENTRE_ACCUEIL.png",
     "scale": 1.0,
     "order": 261
   },
@@ -3158,7 +3158,7 @@ const ICON_CATALOG = [
       "SECOURS"
     ],
     "category": "AMIS / SECOURS",
-    "url": "icons/sticks/AMIS/SECOURS/ELT_CENTRE_SECOURS.png",
+    "url": "icons/sticker/AMIS/SECOURS/ELT_CENTRE_SECOURS.png",
     "scale": 1.0,
     "order": 262
   },
@@ -3170,7 +3170,7 @@ const ICON_CATALOG = [
       "SECOURS"
     ],
     "category": "AMIS / SECOURS",
-    "url": "icons/sticks/AMIS/SECOURS/ELT_CHAPELLE-ARDENTE.png",
+    "url": "icons/sticker/AMIS/SECOURS/ELT_CHAPELLE-ARDENTE.png",
     "scale": 1.0,
     "order": 263
   },
@@ -3182,7 +3182,7 @@ const ICON_CATALOG = [
       "SECOURS"
     ],
     "category": "AMIS / SECOURS",
-    "url": "icons/sticks/AMIS/SECOURS/ELT_DEMINAGE_DGSCGC3.png",
+    "url": "icons/sticker/AMIS/SECOURS/ELT_DEMINAGE_DGSCGC3.png",
     "scale": 1.0,
     "order": 264
   },
@@ -3194,7 +3194,7 @@ const ICON_CATALOG = [
       "SECOURS"
     ],
     "category": "AMIS / SECOURS",
-    "url": "icons/sticks/AMIS/SECOURS/ELT_FORMISC3.png",
+    "url": "icons/sticker/AMIS/SECOURS/ELT_FORMISC3.png",
     "scale": 1.0,
     "order": 265
   },
@@ -3206,7 +3206,7 @@ const ICON_CATALOG = [
       "SECOURS"
     ],
     "category": "AMIS / SECOURS",
-    "url": "icons/sticks/AMIS/SECOURS/EMOG_AMBULANCE.png",
+    "url": "icons/sticker/AMIS/SECOURS/EMOG_AMBULANCE.png",
     "scale": 1.0,
     "order": 266
   },
@@ -3218,7 +3218,7 @@ const ICON_CATALOG = [
       "SECOURS"
     ],
     "category": "AMIS / SECOURS",
-    "url": "icons/sticks/AMIS/SECOURS/FORMISC.png",
+    "url": "icons/sticker/AMIS/SECOURS/FORMISC.png",
     "scale": 1.0,
     "order": 267
   },
@@ -3230,7 +3230,7 @@ const ICON_CATALOG = [
       "SECOURS"
     ],
     "category": "AMIS / SECOURS",
-    "url": "icons/sticks/AMIS/SECOURS/HELICO_ DGSCGC.png",
+    "url": "icons/sticker/AMIS/SECOURS/HELICO_ DGSCGC.png",
     "scale": 1.0,
     "order": 268
   },
@@ -3242,7 +3242,7 @@ const ICON_CATALOG = [
       "SECOURS"
     ],
     "category": "AMIS / SECOURS",
-    "url": "icons/sticks/AMIS/SECOURS/NEDEX.png",
+    "url": "icons/sticker/AMIS/SECOURS/NEDEX.png",
     "scale": 1.0,
     "order": 269
   },
@@ -3254,7 +3254,7 @@ const ICON_CATALOG = [
       "SECOURS"
     ],
     "category": "AMIS / SECOURS",
-    "url": "icons/sticks/AMIS/SECOURS/PMA.png",
+    "url": "icons/sticker/AMIS/SECOURS/PMA.png",
     "scale": 1.0,
     "order": 270
   },
@@ -3266,7 +3266,7 @@ const ICON_CATALOG = [
       "SECOURS"
     ],
     "category": "AMIS / SECOURS",
-    "url": "icons/sticks/AMIS/SECOURS/SDIS.png",
+    "url": "icons/sticker/AMIS/SECOURS/SDIS.png",
     "scale": 1.0,
     "order": 271
   },
@@ -3278,7 +3278,7 @@ const ICON_CATALOG = [
       "SECOURS"
     ],
     "category": "AMIS / SECOURS",
-    "url": "icons/sticks/AMIS/SECOURS/UIISC.PNG",
+    "url": "icons/sticker/AMIS/SECOURS/UIISC.PNG",
     "scale": 1.0,
     "order": 272
   },
@@ -3290,7 +3290,7 @@ const ICON_CATALOG = [
       "SECURITE PUBLIQUE"
     ],
     "category": "AMIS / SECURITE PUBLIQUE",
-    "url": "icons/sticks/AMIS/SECURITE PUBLIQUE/AP.png",
+    "url": "icons/sticker/AMIS/SECURITE PUBLIQUE/AP.png",
     "scale": 1.0,
     "order": 273
   },
@@ -3302,7 +3302,7 @@ const ICON_CATALOG = [
       "SECURITE PUBLIQUE"
     ],
     "category": "AMIS / SECURITE PUBLIQUE",
-    "url": "icons/sticks/AMIS/SECURITE PUBLIQUE/AP_GENERIQUE_CARRE.png",
+    "url": "icons/sticker/AMIS/SECURITE PUBLIQUE/AP_GENERIQUE_CARRE.png",
     "scale": 1.0,
     "order": 274
   },
@@ -3314,7 +3314,7 @@ const ICON_CATALOG = [
       "SECURITE PUBLIQUE"
     ],
     "category": "AMIS / SECURITE PUBLIQUE",
-    "url": "icons/sticks/AMIS/SECURITE PUBLIQUE/AP_GENERIQUE_ROND.png",
+    "url": "icons/sticker/AMIS/SECURITE PUBLIQUE/AP_GENERIQUE_ROND.png",
     "scale": 1.0,
     "order": 275
   },
@@ -3326,7 +3326,7 @@ const ICON_CATALOG = [
       "SECURITE PUBLIQUE"
     ],
     "category": "AMIS / SECURITE PUBLIQUE",
-    "url": "icons/sticks/AMIS/SECURITE PUBLIQUE/CBH_GD.png",
+    "url": "icons/sticker/AMIS/SECURITE PUBLIQUE/CBH_GD.png",
     "scale": 1.0,
     "order": 276
   },
@@ -3338,7 +3338,7 @@ const ICON_CATALOG = [
       "SECURITE PUBLIQUE"
     ],
     "category": "AMIS / SECURITE PUBLIQUE",
-    "url": "icons/sticks/AMIS/SECURITE PUBLIQUE/COMPAGNIE_EG.png",
+    "url": "icons/sticker/AMIS/SECURITE PUBLIQUE/COMPAGNIE_EG.png",
     "scale": 1.0,
     "order": 277
   },
@@ -3350,7 +3350,7 @@ const ICON_CATALOG = [
       "SECURITE PUBLIQUE"
     ],
     "category": "AMIS / SECURITE PUBLIQUE",
-    "url": "icons/sticks/AMIS/SECURITE PUBLIQUE/DOUANES_GENERIQUE_CARRE.png",
+    "url": "icons/sticker/AMIS/SECURITE PUBLIQUE/DOUANES_GENERIQUE_CARRE.png",
     "scale": 1.0,
     "order": 278
   },
@@ -3362,7 +3362,7 @@ const ICON_CATALOG = [
       "SECURITE PUBLIQUE"
     ],
     "category": "AMIS / SECURITE PUBLIQUE",
-    "url": "icons/sticks/AMIS/SECURITE PUBLIQUE/DOUANES_GENERIQUE_ROND.png",
+    "url": "icons/sticker/AMIS/SECURITE PUBLIQUE/DOUANES_GENERIQUE_ROND.png",
     "scale": 1.0,
     "order": 279
   },
@@ -3374,7 +3374,7 @@ const ICON_CATALOG = [
       "SECURITE PUBLIQUE"
     ],
     "category": "AMIS / SECURITE PUBLIQUE",
-    "url": "icons/sticks/AMIS/SECURITE PUBLIQUE/ELT_AP.png",
+    "url": "icons/sticker/AMIS/SECURITE PUBLIQUE/ELT_AP.png",
     "scale": 1.0,
     "order": 280
   },
@@ -3386,7 +3386,7 @@ const ICON_CATALOG = [
       "SECURITE PUBLIQUE"
     ],
     "category": "AMIS / SECURITE PUBLIQUE",
-    "url": "icons/sticks/AMIS/SECURITE PUBLIQUE/ELT_CEN_GD_2.png",
+    "url": "icons/sticker/AMIS/SECURITE PUBLIQUE/ELT_CEN_GD_2.png",
     "scale": 1.0,
     "order": 281
   },
@@ -3398,7 +3398,7 @@ const ICON_CATALOG = [
       "SECURITE PUBLIQUE"
     ],
     "category": "AMIS / SECURITE PUBLIQUE",
-    "url": "icons/sticks/AMIS/SECURITE PUBLIQUE/ELT_CNE_GD.png",
+    "url": "icons/sticker/AMIS/SECURITE PUBLIQUE/ELT_CNE_GD.png",
     "scale": 1.0,
     "order": 282
   },
@@ -3410,7 +3410,7 @@ const ICON_CATALOG = [
       "SECURITE PUBLIQUE"
     ],
     "category": "AMIS / SECURITE PUBLIQUE",
-    "url": "icons/sticks/AMIS/SECURITE PUBLIQUE/ELT_COL_GD_2.png",
+    "url": "icons/sticker/AMIS/SECURITE PUBLIQUE/ELT_COL_GD_2.png",
     "scale": 1.0,
     "order": 283
   },
@@ -3422,7 +3422,7 @@ const ICON_CATALOG = [
       "SECURITE PUBLIQUE"
     ],
     "category": "AMIS / SECURITE PUBLIQUE",
-    "url": "icons/sticks/AMIS/SECURITE PUBLIQUE/ELT_DOUANE.png",
+    "url": "icons/sticker/AMIS/SECURITE PUBLIQUE/ELT_DOUANE.png",
     "scale": 1.0,
     "order": 284
   },
@@ -3434,7 +3434,7 @@ const ICON_CATALOG = [
       "SECURITE PUBLIQUE"
     ],
     "category": "AMIS / SECURITE PUBLIQUE",
-    "url": "icons/sticks/AMIS/SECURITE PUBLIQUE/ELT_EG.png",
+    "url": "icons/sticker/AMIS/SECURITE PUBLIQUE/ELT_EG.png",
     "scale": 1.0,
     "order": 285
   },
@@ -3446,7 +3446,7 @@ const ICON_CATALOG = [
       "SECURITE PUBLIQUE"
     ],
     "category": "AMIS / SECURITE PUBLIQUE",
-    "url": "icons/sticks/AMIS/SECURITE PUBLIQUE/ELT_EQUIPE_CYNO.png",
+    "url": "icons/sticker/AMIS/SECURITE PUBLIQUE/ELT_EQUIPE_CYNO.png",
     "scale": 1.0,
     "order": 286
   },
@@ -3458,7 +3458,7 @@ const ICON_CATALOG = [
       "SECURITE PUBLIQUE"
     ],
     "category": "AMIS / SECURITE PUBLIQUE",
-    "url": "icons/sticks/AMIS/SECURITE PUBLIQUE/ELT_GD.png",
+    "url": "icons/sticker/AMIS/SECURITE PUBLIQUE/ELT_GD.png",
     "scale": 1.0,
     "order": 287
   },
@@ -3470,7 +3470,7 @@ const ICON_CATALOG = [
       "SECURITE PUBLIQUE"
     ],
     "category": "AMIS / SECURITE PUBLIQUE",
-    "url": "icons/sticks/AMIS/SECURITE PUBLIQUE/ELT_GYRO.png",
+    "url": "icons/sticker/AMIS/SECURITE PUBLIQUE/ELT_GYRO.png",
     "scale": 1.0,
     "order": 288
   },
@@ -3482,7 +3482,7 @@ const ICON_CATALOG = [
       "SECURITE PUBLIQUE"
     ],
     "category": "AMIS / SECURITE PUBLIQUE",
-    "url": "icons/sticks/AMIS/SECURITE PUBLIQUE/ELT_LAPI.png",
+    "url": "icons/sticker/AMIS/SECURITE PUBLIQUE/ELT_LAPI.png",
     "scale": 1.0,
     "order": 289
   },
@@ -3494,7 +3494,7 @@ const ICON_CATALOG = [
       "SECURITE PUBLIQUE"
     ],
     "category": "AMIS / SECURITE PUBLIQUE",
-    "url": "icons/sticks/AMIS/SECURITE PUBLIQUE/ELT_LCL_GD_2.png",
+    "url": "icons/sticker/AMIS/SECURITE PUBLIQUE/ELT_LCL_GD_2.png",
     "scale": 1.0,
     "order": 290
   },
@@ -3506,7 +3506,7 @@ const ICON_CATALOG = [
       "SECURITE PUBLIQUE"
     ],
     "category": "AMIS / SECURITE PUBLIQUE",
-    "url": "icons/sticks/AMIS/SECURITE PUBLIQUE/ELT_LIEU_GAV.png",
+    "url": "icons/sticker/AMIS/SECURITE PUBLIQUE/ELT_LIEU_GAV.png",
     "scale": 1.0,
     "order": 291
   },
@@ -3518,7 +3518,7 @@ const ICON_CATALOG = [
       "SECURITE PUBLIQUE"
     ],
     "category": "AMIS / SECURITE PUBLIQUE",
-    "url": "icons/sticks/AMIS/SECURITE PUBLIQUE/ELT_LTN_GD.png",
+    "url": "icons/sticker/AMIS/SECURITE PUBLIQUE/ELT_LTN_GD.png",
     "scale": 1.0,
     "order": 292
   },
@@ -3530,7 +3530,7 @@ const ICON_CATALOG = [
       "SECURITE PUBLIQUE"
     ],
     "category": "AMIS / SECURITE PUBLIQUE",
-    "url": "icons/sticks/AMIS/SECURITE PUBLIQUE/ELT_PAF.png",
+    "url": "icons/sticker/AMIS/SECURITE PUBLIQUE/ELT_PAF.png",
     "scale": 1.0,
     "order": 293
   },
@@ -3542,7 +3542,7 @@ const ICON_CATALOG = [
       "SECURITE PUBLIQUE"
     ],
     "category": "AMIS / SECURITE PUBLIQUE",
-    "url": "icons/sticks/AMIS/SECURITE PUBLIQUE/ELT_PSIG.png",
+    "url": "icons/sticker/AMIS/SECURITE PUBLIQUE/ELT_PSIG.png",
     "scale": 1.0,
     "order": 294
   },
@@ -3554,7 +3554,7 @@ const ICON_CATALOG = [
       "SECURITE PUBLIQUE"
     ],
     "category": "AMIS / SECURITE PUBLIQUE",
-    "url": "icons/sticks/AMIS/SECURITE PUBLIQUE/ELT_PSPG.png",
+    "url": "icons/sticker/AMIS/SECURITE PUBLIQUE/ELT_PSPG.png",
     "scale": 1.0,
     "order": 295
   },
@@ -3566,7 +3566,7 @@ const ICON_CATALOG = [
       "SECURITE PUBLIQUE"
     ],
     "category": "AMIS / SECURITE PUBLIQUE",
-    "url": "icons/sticks/AMIS/SECURITE PUBLIQUE/ELT_SENTINELLE.png",
+    "url": "icons/sticker/AMIS/SECURITE PUBLIQUE/ELT_SENTINELLE.png",
     "scale": 1.0,
     "order": 296
   },
@@ -3578,7 +3578,7 @@ const ICON_CATALOG = [
       "SECURITE PUBLIQUE"
     ],
     "category": "AMIS / SECURITE PUBLIQUE",
-    "url": "icons/sticks/AMIS/SECURITE PUBLIQUE/ELT_TRANSFEREMENT.png",
+    "url": "icons/sticker/AMIS/SECURITE PUBLIQUE/ELT_TRANSFEREMENT.png",
     "scale": 1.0,
     "order": 297
   },
@@ -3590,7 +3590,7 @@ const ICON_CATALOG = [
       "SECURITE PUBLIQUE"
     ],
     "category": "AMIS / SECURITE PUBLIQUE",
-    "url": "icons/sticks/AMIS/SECURITE PUBLIQUE/GIC.png",
+    "url": "icons/sticker/AMIS/SECURITE PUBLIQUE/GIC.png",
     "scale": 1.0,
     "order": 298
   },
@@ -3602,7 +3602,7 @@ const ICON_CATALOG = [
       "SECURITE PUBLIQUE"
     ],
     "category": "AMIS / SECURITE PUBLIQUE",
-    "url": "icons/sticks/AMIS/SECURITE PUBLIQUE/PAF.png",
+    "url": "icons/sticker/AMIS/SECURITE PUBLIQUE/PAF.png",
     "scale": 1.0,
     "order": 299
   },
@@ -3614,7 +3614,7 @@ const ICON_CATALOG = [
       "SECURITE PUBLIQUE"
     ],
     "category": "AMIS / SECURITE PUBLIQUE",
-    "url": "icons/sticks/AMIS/SECURITE PUBLIQUE/PAF_GENERIQUE_ROND.png",
+    "url": "icons/sticker/AMIS/SECURITE PUBLIQUE/PAF_GENERIQUE_ROND.png",
     "scale": 1.0,
     "order": 300
   },
@@ -3626,7 +3626,7 @@ const ICON_CATALOG = [
       "SECURITE PUBLIQUE"
     ],
     "category": "AMIS / SECURITE PUBLIQUE",
-    "url": "icons/sticks/AMIS/SECURITE PUBLIQUE/PSIG.png",
+    "url": "icons/sticker/AMIS/SECURITE PUBLIQUE/PSIG.png",
     "scale": 1.0,
     "order": 301
   },
@@ -3638,7 +3638,7 @@ const ICON_CATALOG = [
       "SECURITE PUBLIQUE"
     ],
     "category": "AMIS / SECURITE PUBLIQUE",
-    "url": "icons/sticks/AMIS/SECURITE PUBLIQUE/PSPG.png",
+    "url": "icons/sticker/AMIS/SECURITE PUBLIQUE/PSPG.png",
     "scale": 1.0,
     "order": 302
   },
@@ -3650,7 +3650,7 @@ const ICON_CATALOG = [
       "SECURITE PUBLIQUE"
     ],
     "category": "AMIS / SECURITE PUBLIQUE",
-    "url": "icons/sticks/AMIS/SECURITE PUBLIQUE/SENTINELLE.png",
+    "url": "icons/sticker/AMIS/SECURITE PUBLIQUE/SENTINELLE.png",
     "scale": 1.0,
     "order": 303
   },
@@ -3662,7 +3662,7 @@ const ICON_CATALOG = [
       "SECURITE PUBLIQUE"
     ],
     "category": "AMIS / SECURITE PUBLIQUE",
-    "url": "icons/sticks/AMIS/SECURITE PUBLIQUE/UNITE_GD_GENERIQUE_MODIFIABLE.png",
+    "url": "icons/sticker/AMIS/SECURITE PUBLIQUE/UNITE_GD_GENERIQUE_MODIFIABLE.png",
     "scale": 1.0,
     "order": 304
   },
@@ -3674,7 +3674,7 @@ const ICON_CATALOG = [
       "SECURITE ROUTIERE"
     ],
     "category": "AMIS / SECURITE ROUTIERE",
-    "url": "icons/sticks/AMIS/SECURITE ROUTIERE/CBH_GD.png",
+    "url": "icons/sticker/AMIS/SECURITE ROUTIERE/CBH_GD.png",
     "scale": 1.0,
     "order": 305
   },
@@ -3686,7 +3686,7 @@ const ICON_CATALOG = [
       "SECURITE ROUTIERE"
     ],
     "category": "AMIS / SECURITE ROUTIERE",
-    "url": "icons/sticks/AMIS/SECURITE ROUTIERE/ELT_AUTOROUTE.png",
+    "url": "icons/sticker/AMIS/SECURITE ROUTIERE/ELT_AUTOROUTE.png",
     "scale": 1.0,
     "order": 306
   },
@@ -3698,7 +3698,7 @@ const ICON_CATALOG = [
       "SECURITE ROUTIERE"
     ],
     "category": "AMIS / SECURITE ROUTIERE",
-    "url": "icons/sticks/AMIS/SECURITE ROUTIERE/ELT_HERSE.png",
+    "url": "icons/sticker/AMIS/SECURITE ROUTIERE/ELT_HERSE.png",
     "scale": 1.0,
     "order": 307
   },
@@ -3710,7 +3710,7 @@ const ICON_CATALOG = [
       "SECURITE ROUTIERE"
     ],
     "category": "AMIS / SECURITE ROUTIERE",
-    "url": "icons/sticks/AMIS/SECURITE ROUTIERE/ELT_MOTOCYCLISTE_GD.png",
+    "url": "icons/sticker/AMIS/SECURITE ROUTIERE/ELT_MOTOCYCLISTE_GD.png",
     "scale": 1.0,
     "order": 308
   },
@@ -3722,7 +3722,7 @@ const ICON_CATALOG = [
       "SECURITE ROUTIERE"
     ],
     "category": "AMIS / SECURITE ROUTIERE",
-    "url": "icons/sticks/AMIS/SECURITE ROUTIERE/ELT_MOTOCYCLISTE_GR.png",
+    "url": "icons/sticker/AMIS/SECURITE ROUTIERE/ELT_MOTOCYCLISTE_GR.png",
     "scale": 1.0,
     "order": 309
   },
@@ -3734,7 +3734,7 @@ const ICON_CATALOG = [
       "SECURITE ROUTIERE"
     ],
     "category": "AMIS / SECURITE ROUTIERE",
-    "url": "icons/sticks/AMIS/SECURITE ROUTIERE/ELT_VRI.png",
+    "url": "icons/sticker/AMIS/SECURITE ROUTIERE/ELT_VRI.png",
     "scale": 1.0,
     "order": 310
   },
@@ -3746,7 +3746,7 @@ const ICON_CATALOG = [
       "SECURITE ROUTIERE"
     ],
     "category": "AMIS / SECURITE ROUTIERE",
-    "url": "icons/sticks/AMIS/SECURITE ROUTIERE/ELT_VRI2.png",
+    "url": "icons/sticker/AMIS/SECURITE ROUTIERE/ELT_VRI2.png",
     "scale": 1.0,
     "order": 311
   },
@@ -3758,7 +3758,7 @@ const ICON_CATALOG = [
       "SIC"
     ],
     "category": "AMIS / SIC",
-    "url": "icons/sticks/AMIS/SIC/CAM_IP.png",
+    "url": "icons/sticker/AMIS/SIC/CAM_IP.png",
     "scale": 1.0,
     "order": 312
   },
@@ -3770,7 +3770,7 @@ const ICON_CATALOG = [
       "SIC"
     ],
     "category": "AMIS / SIC",
-    "url": "icons/sticks/AMIS/SIC/ELT_BROUILLEUR.png",
+    "url": "icons/sticker/AMIS/SIC/ELT_BROUILLEUR.png",
     "scale": 1.0,
     "order": 313
   },
@@ -3782,7 +3782,7 @@ const ICON_CATALOG = [
       "SIC"
     ],
     "category": "AMIS / SIC",
-    "url": "icons/sticks/AMIS/SIC/ELT_CAM_IP.png",
+    "url": "icons/sticker/AMIS/SIC/ELT_CAM_IP.png",
     "scale": 1.0,
     "order": 314
   },
@@ -3794,7 +3794,7 @@ const ICON_CATALOG = [
       "SIC"
     ],
     "category": "AMIS / SIC",
-    "url": "icons/sticks/AMIS/SIC/ELT_SATELLITE.png",
+    "url": "icons/sticker/AMIS/SIC/ELT_SATELLITE.png",
     "scale": 1.0,
     "order": 315
   },
@@ -3806,7 +3806,7 @@ const ICON_CATALOG = [
       "SIC"
     ],
     "category": "AMIS / SIC",
-    "url": "icons/sticks/AMIS/SIC/ELT_SIC.png",
+    "url": "icons/sticker/AMIS/SIC/ELT_SIC.png",
     "scale": 1.0,
     "order": 316
   },
@@ -3818,7 +3818,7 @@ const ICON_CATALOG = [
       "SIC"
     ],
     "category": "AMIS / SIC",
-    "url": "icons/sticks/AMIS/SIC/RELAIS.png",
+    "url": "icons/sticker/AMIS/SIC/RELAIS.png",
     "scale": 1.0,
     "order": 317
   },
@@ -3830,7 +3830,7 @@ const ICON_CATALOG = [
       "SIC"
     ],
     "category": "AMIS / SIC",
-    "url": "icons/sticks/AMIS/SIC/RELAIS_GM.png",
+    "url": "icons/sticker/AMIS/SIC/RELAIS_GM.png",
     "scale": 1.0,
     "order": 318
   },
@@ -3842,7 +3842,7 @@ const ICON_CATALOG = [
       "SIC"
     ],
     "category": "AMIS / SIC",
-    "url": "icons/sticks/AMIS/SIC/SATELLITE_MODIFIABLE.png",
+    "url": "icons/sticker/AMIS/SIC/SATELLITE_MODIFIABLE.png",
     "scale": 1.0,
     "order": 319
   },
@@ -3854,7 +3854,7 @@ const ICON_CATALOG = [
       "SIC"
     ],
     "category": "AMIS / SIC",
-    "url": "icons/sticks/AMIS/SIC/SIC-CORAIL-BULLE_MODIFIABLE.png",
+    "url": "icons/sticker/AMIS/SIC/SIC-CORAIL-BULLE_MODIFIABLE.png",
     "scale": 1.0,
     "order": 320
   },
@@ -3866,7 +3866,7 @@ const ICON_CATALOG = [
       "SIC"
     ],
     "category": "AMIS / SIC",
-    "url": "icons/sticks/AMIS/SIC/SIC-RIP-BULLE.png",
+    "url": "icons/sticker/AMIS/SIC/SIC-RIP-BULLE.png",
     "scale": 1.0,
     "order": 321
   },
@@ -3878,7 +3878,7 @@ const ICON_CATALOG = [
       "SIC"
     ],
     "category": "AMIS / SIC",
-    "url": "icons/sticks/AMIS/SIC/SIC-RIP-BULLE_MODIFIABLE.png",
+    "url": "icons/sticker/AMIS/SIC/SIC-RIP-BULLE_MODIFIABLE.png",
     "scale": 1.0,
     "order": 322
   },
@@ -3890,7 +3890,7 @@ const ICON_CATALOG = [
       "SIC"
     ],
     "category": "AMIS / SIC",
-    "url": "icons/sticks/AMIS/SIC/SIC-RIP_GM-BULLE.png",
+    "url": "icons/sticker/AMIS/SIC/SIC-RIP_GM-BULLE.png",
     "scale": 1.0,
     "order": 323
   },
@@ -3902,7 +3902,7 @@ const ICON_CATALOG = [
       "SIC"
     ],
     "category": "AMIS / SIC",
-    "url": "icons/sticks/AMIS/SIC/SIC-RUBIS-BULLE_MODIFIABLE.png",
+    "url": "icons/sticker/AMIS/SIC/SIC-RUBIS-BULLE_MODIFIABLE.png",
     "scale": 1.0,
     "order": 324
   },
@@ -3914,7 +3914,7 @@ const ICON_CATALOG = [
       "SIC"
     ],
     "category": "AMIS / SIC",
-    "url": "icons/sticks/AMIS/SIC/SIC-VHF-BULLE_MODIFIABLE.png",
+    "url": "icons/sticker/AMIS/SIC/SIC-VHF-BULLE_MODIFIABLE.png",
     "scale": 1.0,
     "order": 325
   },
@@ -3926,7 +3926,7 @@ const ICON_CATALOG = [
       "SOUTIEN INFRA"
     ],
     "category": "AMIS / SOUTIEN INFRA",
-    "url": "icons/sticks/AMIS/SOUTIEN INFRA/ELT_CASERNE.png",
+    "url": "icons/sticker/AMIS/SOUTIEN INFRA/ELT_CASERNE.png",
     "scale": 1.0,
     "order": 326
   },
@@ -3938,7 +3938,7 @@ const ICON_CATALOG = [
       "SOUTIEN INFRA"
     ],
     "category": "AMIS / SOUTIEN INFRA",
-    "url": "icons/sticks/AMIS/SOUTIEN INFRA/ELT_Mess.png",
+    "url": "icons/sticker/AMIS/SOUTIEN INFRA/ELT_Mess.png",
     "scale": 1.0,
     "order": 327
   },
@@ -3950,7 +3950,7 @@ const ICON_CATALOG = [
       "SOUTIEN INFRA"
     ],
     "category": "AMIS / SOUTIEN INFRA",
-    "url": "icons/sticks/AMIS/SOUTIEN INFRA/ELT_SEA.png",
+    "url": "icons/sticker/AMIS/SOUTIEN INFRA/ELT_SEA.png",
     "scale": 1.0,
     "order": 328
   },
@@ -3962,7 +3962,7 @@ const ICON_CATALOG = [
       "SOUTIEN INFRA"
     ],
     "category": "AMIS / SOUTIEN INFRA",
-    "url": "icons/sticks/AMIS/SOUTIEN INFRA/ELT_SOUTIEN_MECA.png",
+    "url": "icons/sticker/AMIS/SOUTIEN INFRA/ELT_SOUTIEN_MECA.png",
     "scale": 1.0,
     "order": 329
   },
@@ -3974,7 +3974,7 @@ const ICON_CATALOG = [
       "SOUTIEN INFRA"
     ],
     "category": "AMIS / SOUTIEN INFRA",
-    "url": "icons/sticks/AMIS/SOUTIEN INFRA/ELT_SOUTIEN_PSY.png",
+    "url": "icons/sticker/AMIS/SOUTIEN INFRA/ELT_SOUTIEN_PSY.png",
     "scale": 1.0,
     "order": 330
   },
@@ -3986,7 +3986,7 @@ const ICON_CATALOG = [
       "SOUTIEN INFRA"
     ],
     "category": "AMIS / SOUTIEN INFRA",
-    "url": "icons/sticks/AMIS/SOUTIEN INFRA/ELT_SSA2.png",
+    "url": "icons/sticker/AMIS/SOUTIEN INFRA/ELT_SSA2.png",
     "scale": 1.0,
     "order": 331
   },
@@ -3998,7 +3998,7 @@ const ICON_CATALOG = [
       "SOUTIEN INFRA"
     ],
     "category": "AMIS / SOUTIEN INFRA",
-    "url": "icons/sticks/AMIS/SOUTIEN INFRA/ELT_STRUCTURE_ALIMENTATION.png",
+    "url": "icons/sticker/AMIS/SOUTIEN INFRA/ELT_STRUCTURE_ALIMENTATION.png",
     "scale": 1.0,
     "order": 332
   },
@@ -4010,7 +4010,7 @@ const ICON_CATALOG = [
       "SOUTIEN INFRA"
     ],
     "category": "AMIS / SOUTIEN INFRA",
-    "url": "icons/sticks/AMIS/SOUTIEN INFRA/ELT_TAM2.png",
+    "url": "icons/sticker/AMIS/SOUTIEN INFRA/ELT_TAM2.png",
     "scale": 1.0,
     "order": 333
   },
@@ -4022,7 +4022,7 @@ const ICON_CATALOG = [
       "SOUTIEN INFRA"
     ],
     "category": "AMIS / SOUTIEN INFRA",
-    "url": "icons/sticks/AMIS/SOUTIEN INFRA/ELT_TAM_GEND.png",
+    "url": "icons/sticker/AMIS/SOUTIEN INFRA/ELT_TAM_GEND.png",
     "scale": 1.0,
     "order": 334
   },
@@ -4034,7 +4034,7 @@ const ICON_CATALOG = [
       "SOUTIEN INFRA"
     ],
     "category": "AMIS / SOUTIEN INFRA",
-    "url": "icons/sticks/AMIS/SOUTIEN INFRA/Mess.png",
+    "url": "icons/sticker/AMIS/SOUTIEN INFRA/Mess.png",
     "scale": 1.0,
     "order": 335
   },
@@ -4046,7 +4046,7 @@ const ICON_CATALOG = [
       "SOUTIEN INFRA"
     ],
     "category": "AMIS / SOUTIEN INFRA",
-    "url": "icons/sticks/AMIS/SOUTIEN INFRA/PCIA.png",
+    "url": "icons/sticker/AMIS/SOUTIEN INFRA/PCIA.png",
     "scale": 1.0,
     "order": 336
   },
@@ -4058,7 +4058,7 @@ const ICON_CATALOG = [
       "SOUTIEN INFRA"
     ],
     "category": "AMIS / SOUTIEN INFRA",
-    "url": "icons/sticks/AMIS/SOUTIEN INFRA/SEA.png",
+    "url": "icons/sticker/AMIS/SOUTIEN INFRA/SEA.png",
     "scale": 1.0,
     "order": 337
   },
@@ -4070,7 +4070,7 @@ const ICON_CATALOG = [
       "SOUTIEN INFRA"
     ],
     "category": "AMIS / SOUTIEN INFRA",
-    "url": "icons/sticks/AMIS/SOUTIEN INFRA/SSA2.png",
+    "url": "icons/sticker/AMIS/SOUTIEN INFRA/SSA2.png",
     "scale": 1.0,
     "order": 338
   },
@@ -4082,7 +4082,7 @@ const ICON_CATALOG = [
       "SOUTIEN INFRA"
     ],
     "category": "AMIS / SOUTIEN INFRA",
-    "url": "icons/sticks/AMIS/SOUTIEN INFRA/STRUCTURE_CARBURANT.png",
+    "url": "icons/sticker/AMIS/SOUTIEN INFRA/STRUCTURE_CARBURANT.png",
     "scale": 1.0,
     "order": 339
   },
@@ -4094,7 +4094,7 @@ const ICON_CATALOG = [
       "SOUTIEN INFRA"
     ],
     "category": "AMIS / SOUTIEN INFRA",
-    "url": "icons/sticks/AMIS/SOUTIEN INFRA/STRUCTURE_HEBERGEMENT.png",
+    "url": "icons/sticker/AMIS/SOUTIEN INFRA/STRUCTURE_HEBERGEMENT.png",
     "scale": 1.0,
     "order": 340
   },
@@ -4106,7 +4106,7 @@ const ICON_CATALOG = [
       "SOUTIEN INFRA"
     ],
     "category": "AMIS / SOUTIEN INFRA",
-    "url": "icons/sticks/AMIS/SOUTIEN INFRA/TAM.png",
+    "url": "icons/sticker/AMIS/SOUTIEN INFRA/TAM.png",
     "scale": 1.0,
     "order": 341
   },
@@ -4118,7 +4118,7 @@ const ICON_CATALOG = [
       "SOUTIEN INFRA"
     ],
     "category": "AMIS / SOUTIEN INFRA",
-    "url": "icons/sticks/AMIS/SOUTIEN INFRA/TAM_GEND.png",
+    "url": "icons/sticker/AMIS/SOUTIEN INFRA/TAM_GEND.png",
     "scale": 1.0,
     "order": 342
   },
@@ -4130,7 +4130,7 @@ const ICON_CATALOG = [
       "1 - carroyage"
     ],
     "category": "bapteme terrain / 1 - carroyage",
-    "url": "icons/sticks/bapteme terrain/1 - carroyage/Carroyage BZ-52 (Très Grand Carré) blanc.png",
+    "url": "icons/sticker/bapteme terrain/1 - carroyage/Carroyage BZ-52 (Très Grand Carré) blanc.png",
     "scale": 1.0,
     "order": 343
   },
@@ -4142,7 +4142,7 @@ const ICON_CATALOG = [
       "1 - carroyage"
     ],
     "category": "bapteme terrain / 1 - carroyage",
-    "url": "icons/sticks/bapteme terrain/1 - carroyage/Carroyage BZ-52 (Très Grand Carré) Gris.png",
+    "url": "icons/sticker/bapteme terrain/1 - carroyage/Carroyage BZ-52 (Très Grand Carré) Gris.png",
     "scale": 1.0,
     "order": 344
   },
@@ -4154,7 +4154,7 @@ const ICON_CATALOG = [
       "1 - carroyage"
     ],
     "category": "bapteme terrain / 1 - carroyage",
-    "url": "icons/sticks/bapteme terrain/1 - carroyage/Carroyage BZ-52 (Très Grand Carré) noir.png",
+    "url": "icons/sticker/bapteme terrain/1 - carroyage/Carroyage BZ-52 (Très Grand Carré) noir.png",
     "scale": 1.0,
     "order": 345
   },
@@ -4166,7 +4166,7 @@ const ICON_CATALOG = [
       "1 - carroyage"
     ],
     "category": "bapteme terrain / 1 - carroyage",
-    "url": "icons/sticks/bapteme terrain/1 - carroyage/Carroyage BZ-52 (Très Grand Carré) rouge.png",
+    "url": "icons/sticker/bapteme terrain/1 - carroyage/Carroyage BZ-52 (Très Grand Carré) rouge.png",
     "scale": 1.0,
     "order": 346
   },
@@ -4178,7 +4178,7 @@ const ICON_CATALOG = [
       "1 - carroyage"
     ],
     "category": "bapteme terrain / 1 - carroyage",
-    "url": "icons/sticks/bapteme terrain/1 - carroyage/CARROYAGE DOUBLES LETTRES (1920x1080) COE - BLANC.png",
+    "url": "icons/sticker/bapteme terrain/1 - carroyage/CARROYAGE DOUBLES LETTRES (1920x1080) COE - BLANC.png",
     "scale": 1.0,
     "order": 347
   },
@@ -4190,7 +4190,7 @@ const ICON_CATALOG = [
       "1 - carroyage"
     ],
     "category": "bapteme terrain / 1 - carroyage",
-    "url": "icons/sticks/bapteme terrain/1 - carroyage/CARROYAGE DOUBLES LETTRES (1920x1080) COE - NOIR.png",
+    "url": "icons/sticker/bapteme terrain/1 - carroyage/CARROYAGE DOUBLES LETTRES (1920x1080) COE - NOIR.png",
     "scale": 1.0,
     "order": 348
   },
@@ -4202,7 +4202,7 @@ const ICON_CATALOG = [
       "1 - carroyage"
     ],
     "category": "bapteme terrain / 1 - carroyage",
-    "url": "icons/sticks/bapteme terrain/1 - carroyage/CARROYAGE DOUBLES LETTRES (1920x1080) COE - ROUGE.png",
+    "url": "icons/sticker/bapteme terrain/1 - carroyage/CARROYAGE DOUBLES LETTRES (1920x1080) COE - ROUGE.png",
     "scale": 1.0,
     "order": 349
   },
@@ -4214,7 +4214,7 @@ const ICON_CATALOG = [
       "1 - carroyage"
     ],
     "category": "bapteme terrain / 1 - carroyage",
-    "url": "icons/sticks/bapteme terrain/1 - carroyage/Carroyage O-15 (Carré) Blanc.png",
+    "url": "icons/sticker/bapteme terrain/1 - carroyage/Carroyage O-15 (Carré) Blanc.png",
     "scale": 1.0,
     "order": 350
   },
@@ -4226,7 +4226,7 @@ const ICON_CATALOG = [
       "1 - carroyage"
     ],
     "category": "bapteme terrain / 1 - carroyage",
-    "url": "icons/sticks/bapteme terrain/1 - carroyage/Carroyage O-15 (Carré) Gris.png",
+    "url": "icons/sticker/bapteme terrain/1 - carroyage/Carroyage O-15 (Carré) Gris.png",
     "scale": 1.0,
     "order": 351
   },
@@ -4238,7 +4238,7 @@ const ICON_CATALOG = [
       "1 - carroyage"
     ],
     "category": "bapteme terrain / 1 - carroyage",
-    "url": "icons/sticks/bapteme terrain/1 - carroyage/Carroyage O-15 (Carré) Noir.png",
+    "url": "icons/sticker/bapteme terrain/1 - carroyage/Carroyage O-15 (Carré) Noir.png",
     "scale": 1.0,
     "order": 352
   },
@@ -4250,7 +4250,7 @@ const ICON_CATALOG = [
       "1 - carroyage"
     ],
     "category": "bapteme terrain / 1 - carroyage",
-    "url": "icons/sticks/bapteme terrain/1 - carroyage/Carroyage O-15 (Carré) Rouge.png",
+    "url": "icons/sticker/bapteme terrain/1 - carroyage/Carroyage O-15 (Carré) Rouge.png",
     "scale": 1.0,
     "order": 353
   },
@@ -4262,7 +4262,7 @@ const ICON_CATALOG = [
       "1 - carroyage"
     ],
     "category": "bapteme terrain / 1 - carroyage",
-    "url": "icons/sticks/bapteme terrain/1 - carroyage/Carroyage Q-9 (1920x1080) Blanc.png",
+    "url": "icons/sticker/bapteme terrain/1 - carroyage/Carroyage Q-9 (1920x1080) Blanc.png",
     "scale": 1.0,
     "order": 354
   },
@@ -4274,7 +4274,7 @@ const ICON_CATALOG = [
       "1 - carroyage"
     ],
     "category": "bapteme terrain / 1 - carroyage",
-    "url": "icons/sticks/bapteme terrain/1 - carroyage/Carroyage Q-9 (1920x1080) Gris.png",
+    "url": "icons/sticker/bapteme terrain/1 - carroyage/Carroyage Q-9 (1920x1080) Gris.png",
     "scale": 1.0,
     "order": 355
   },
@@ -4286,7 +4286,7 @@ const ICON_CATALOG = [
       "1 - carroyage"
     ],
     "category": "bapteme terrain / 1 - carroyage",
-    "url": "icons/sticks/bapteme terrain/1 - carroyage/Carroyage Q-9 (1920x1080) Noir.png",
+    "url": "icons/sticker/bapteme terrain/1 - carroyage/Carroyage Q-9 (1920x1080) Noir.png",
     "scale": 1.0,
     "order": 356
   },
@@ -4298,7 +4298,7 @@ const ICON_CATALOG = [
       "1 - carroyage"
     ],
     "category": "bapteme terrain / 1 - carroyage",
-    "url": "icons/sticks/bapteme terrain/1 - carroyage/Carroyage Q-9 (1920x1080) Rouge.png",
+    "url": "icons/sticker/bapteme terrain/1 - carroyage/Carroyage Q-9 (1920x1080) Rouge.png",
     "scale": 1.0,
     "order": 357
   },
@@ -4310,7 +4310,7 @@ const ICON_CATALOG = [
       "1 - carroyage"
     ],
     "category": "bapteme terrain / 1 - carroyage",
-    "url": "icons/sticks/bapteme terrain/1 - carroyage/Carroyage Z-26 (Grand Carré) Blanc.png",
+    "url": "icons/sticker/bapteme terrain/1 - carroyage/Carroyage Z-26 (Grand Carré) Blanc.png",
     "scale": 1.0,
     "order": 358
   },
@@ -4322,7 +4322,7 @@ const ICON_CATALOG = [
       "1 - carroyage"
     ],
     "category": "bapteme terrain / 1 - carroyage",
-    "url": "icons/sticks/bapteme terrain/1 - carroyage/Carroyage Z-26 (Grand Carré) Gris.png",
+    "url": "icons/sticker/bapteme terrain/1 - carroyage/Carroyage Z-26 (Grand Carré) Gris.png",
     "scale": 1.0,
     "order": 359
   },
@@ -4334,7 +4334,7 @@ const ICON_CATALOG = [
       "1 - carroyage"
     ],
     "category": "bapteme terrain / 1 - carroyage",
-    "url": "icons/sticks/bapteme terrain/1 - carroyage/Carroyage Z-26 (Grand Carré) Noir.png",
+    "url": "icons/sticker/bapteme terrain/1 - carroyage/Carroyage Z-26 (Grand Carré) Noir.png",
     "scale": 1.0,
     "order": 360
   },
@@ -4346,7 +4346,7 @@ const ICON_CATALOG = [
       "1 - carroyage"
     ],
     "category": "bapteme terrain / 1 - carroyage",
-    "url": "icons/sticks/bapteme terrain/1 - carroyage/Carroyage Z-26 (Grand Carré) Rouge.png",
+    "url": "icons/sticker/bapteme terrain/1 - carroyage/Carroyage Z-26 (Grand Carré) Rouge.png",
     "scale": 1.0,
     "order": 361
   },
@@ -4358,7 +4358,7 @@ const ICON_CATALOG = [
       "2 - facade"
     ],
     "category": "bapteme terrain / 2 - facade",
-    "url": "icons/sticks/bapteme terrain/2 - facade/A.png",
+    "url": "icons/sticker/bapteme terrain/2 - facade/A.png",
     "scale": 1.0,
     "order": 362
   },
@@ -4370,7 +4370,7 @@ const ICON_CATALOG = [
       "2 - facade"
     ],
     "category": "bapteme terrain / 2 - facade",
-    "url": "icons/sticks/bapteme terrain/2 - facade/B.png",
+    "url": "icons/sticker/bapteme terrain/2 - facade/B.png",
     "scale": 1.0,
     "order": 363
   },
@@ -4382,7 +4382,7 @@ const ICON_CATALOG = [
       "2 - facade"
     ],
     "category": "bapteme terrain / 2 - facade",
-    "url": "icons/sticks/bapteme terrain/2 - facade/C.png",
+    "url": "icons/sticker/bapteme terrain/2 - facade/C.png",
     "scale": 1.0,
     "order": 364
   },
@@ -4394,7 +4394,7 @@ const ICON_CATALOG = [
       "2 - facade"
     ],
     "category": "bapteme terrain / 2 - facade",
-    "url": "icons/sticks/bapteme terrain/2 - facade/D.png",
+    "url": "icons/sticker/bapteme terrain/2 - facade/D.png",
     "scale": 1.0,
     "order": 365
   },
@@ -4406,7 +4406,7 @@ const ICON_CATALOG = [
       "FRANCE_SEULE"
     ],
     "category": "CARTE / FRANCE_SEULE",
-    "url": "icons/sticks/CARTE/FRANCE_SEULE/02_AISNE.png",
+    "url": "icons/sticker/CARTE/FRANCE_SEULE/02_AISNE.png",
     "scale": 1.0,
     "order": 366
   },
@@ -4418,7 +4418,7 @@ const ICON_CATALOG = [
       "FRANCE_SEULE"
     ],
     "category": "CARTE / FRANCE_SEULE",
-    "url": "icons/sticks/CARTE/FRANCE_SEULE/03_ALLIER.png",
+    "url": "icons/sticker/CARTE/FRANCE_SEULE/03_ALLIER.png",
     "scale": 1.0,
     "order": 367
   },
@@ -4430,7 +4430,7 @@ const ICON_CATALOG = [
       "FRANCE_SEULE"
     ],
     "category": "CARTE / FRANCE_SEULE",
-    "url": "icons/sticks/CARTE/FRANCE_SEULE/04_ALPES-DE-HAUTE-PROVENCE.png",
+    "url": "icons/sticker/CARTE/FRANCE_SEULE/04_ALPES-DE-HAUTE-PROVENCE.png",
     "scale": 1.0,
     "order": 368
   },
@@ -4442,7 +4442,7 @@ const ICON_CATALOG = [
       "FRANCE_SEULE"
     ],
     "category": "CARTE / FRANCE_SEULE",
-    "url": "icons/sticks/CARTE/FRANCE_SEULE/05_HAUTES-ALPES.png",
+    "url": "icons/sticker/CARTE/FRANCE_SEULE/05_HAUTES-ALPES.png",
     "scale": 1.0,
     "order": 369
   },
@@ -4454,7 +4454,7 @@ const ICON_CATALOG = [
       "FRANCE_SEULE"
     ],
     "category": "CARTE / FRANCE_SEULE",
-    "url": "icons/sticks/CARTE/FRANCE_SEULE/06_ALPES MARITIMES.png",
+    "url": "icons/sticker/CARTE/FRANCE_SEULE/06_ALPES MARITIMES.png",
     "scale": 1.0,
     "order": 370
   },
@@ -4466,7 +4466,7 @@ const ICON_CATALOG = [
       "FRANCE_SEULE"
     ],
     "category": "CARTE / FRANCE_SEULE",
-    "url": "icons/sticks/CARTE/FRANCE_SEULE/07_ARDECHE.png",
+    "url": "icons/sticker/CARTE/FRANCE_SEULE/07_ARDECHE.png",
     "scale": 1.0,
     "order": 371
   },
@@ -4478,7 +4478,7 @@ const ICON_CATALOG = [
       "FRANCE_SEULE"
     ],
     "category": "CARTE / FRANCE_SEULE",
-    "url": "icons/sticks/CARTE/FRANCE_SEULE/08_ARDENNES.png",
+    "url": "icons/sticker/CARTE/FRANCE_SEULE/08_ARDENNES.png",
     "scale": 1.0,
     "order": 372
   },
@@ -4490,7 +4490,7 @@ const ICON_CATALOG = [
       "FRANCE_SEULE"
     ],
     "category": "CARTE / FRANCE_SEULE",
-    "url": "icons/sticks/CARTE/FRANCE_SEULE/09_ARIEGE.png",
+    "url": "icons/sticker/CARTE/FRANCE_SEULE/09_ARIEGE.png",
     "scale": 1.0,
     "order": 373
   },
@@ -4502,7 +4502,7 @@ const ICON_CATALOG = [
       "FRANCE_SEULE"
     ],
     "category": "CARTE / FRANCE_SEULE",
-    "url": "icons/sticks/CARTE/FRANCE_SEULE/10_AUBE.png",
+    "url": "icons/sticker/CARTE/FRANCE_SEULE/10_AUBE.png",
     "scale": 1.0,
     "order": 374
   },
@@ -4514,7 +4514,7 @@ const ICON_CATALOG = [
       "FRANCE_SEULE"
     ],
     "category": "CARTE / FRANCE_SEULE",
-    "url": "icons/sticks/CARTE/FRANCE_SEULE/11_AUDE.png",
+    "url": "icons/sticker/CARTE/FRANCE_SEULE/11_AUDE.png",
     "scale": 1.0,
     "order": 375
   },
@@ -4526,7 +4526,7 @@ const ICON_CATALOG = [
       "FRANCE_SEULE"
     ],
     "category": "CARTE / FRANCE_SEULE",
-    "url": "icons/sticks/CARTE/FRANCE_SEULE/12_AVEYRON.png",
+    "url": "icons/sticker/CARTE/FRANCE_SEULE/12_AVEYRON.png",
     "scale": 1.0,
     "order": 376
   },
@@ -4538,7 +4538,7 @@ const ICON_CATALOG = [
       "FRANCE_SEULE"
     ],
     "category": "CARTE / FRANCE_SEULE",
-    "url": "icons/sticks/CARTE/FRANCE_SEULE/13_BOUCHES-DU-RHONE.png",
+    "url": "icons/sticker/CARTE/FRANCE_SEULE/13_BOUCHES-DU-RHONE.png",
     "scale": 1.0,
     "order": 377
   },
@@ -4550,7 +4550,7 @@ const ICON_CATALOG = [
       "FRANCE_SEULE"
     ],
     "category": "CARTE / FRANCE_SEULE",
-    "url": "icons/sticks/CARTE/FRANCE_SEULE/14_CALVADOS.png",
+    "url": "icons/sticker/CARTE/FRANCE_SEULE/14_CALVADOS.png",
     "scale": 1.0,
     "order": 378
   },
@@ -4562,7 +4562,7 @@ const ICON_CATALOG = [
       "FRANCE_SEULE"
     ],
     "category": "CARTE / FRANCE_SEULE",
-    "url": "icons/sticks/CARTE/FRANCE_SEULE/15_CANTAL.png",
+    "url": "icons/sticker/CARTE/FRANCE_SEULE/15_CANTAL.png",
     "scale": 1.0,
     "order": 379
   },
@@ -4574,7 +4574,7 @@ const ICON_CATALOG = [
       "FRANCE_SEULE"
     ],
     "category": "CARTE / FRANCE_SEULE",
-    "url": "icons/sticks/CARTE/FRANCE_SEULE/16_CHARENTE.png",
+    "url": "icons/sticker/CARTE/FRANCE_SEULE/16_CHARENTE.png",
     "scale": 1.0,
     "order": 380
   },
@@ -4586,7 +4586,7 @@ const ICON_CATALOG = [
       "FRANCE_SEULE"
     ],
     "category": "CARTE / FRANCE_SEULE",
-    "url": "icons/sticks/CARTE/FRANCE_SEULE/17_CHARENTE-MARITIME.png",
+    "url": "icons/sticker/CARTE/FRANCE_SEULE/17_CHARENTE-MARITIME.png",
     "scale": 1.0,
     "order": 381
   },
@@ -4598,7 +4598,7 @@ const ICON_CATALOG = [
       "FRANCE_SEULE"
     ],
     "category": "CARTE / FRANCE_SEULE",
-    "url": "icons/sticks/CARTE/FRANCE_SEULE/18_CHER.png",
+    "url": "icons/sticker/CARTE/FRANCE_SEULE/18_CHER.png",
     "scale": 1.0,
     "order": 382
   },
@@ -4610,7 +4610,7 @@ const ICON_CATALOG = [
       "FRANCE_SEULE"
     ],
     "category": "CARTE / FRANCE_SEULE",
-    "url": "icons/sticks/CARTE/FRANCE_SEULE/19_CORREZE.png",
+    "url": "icons/sticker/CARTE/FRANCE_SEULE/19_CORREZE.png",
     "scale": 1.0,
     "order": 383
   },
@@ -4622,7 +4622,7 @@ const ICON_CATALOG = [
       "FRANCE_SEULE"
     ],
     "category": "CARTE / FRANCE_SEULE",
-    "url": "icons/sticks/CARTE/FRANCE_SEULE/21_COTE-D'OR.png",
+    "url": "icons/sticker/CARTE/FRANCE_SEULE/21_COTE-D'OR.png",
     "scale": 1.0,
     "order": 384
   },
@@ -4634,7 +4634,7 @@ const ICON_CATALOG = [
       "FRANCE_SEULE"
     ],
     "category": "CARTE / FRANCE_SEULE",
-    "url": "icons/sticks/CARTE/FRANCE_SEULE/22_COTE_D'ARMOR.png",
+    "url": "icons/sticker/CARTE/FRANCE_SEULE/22_COTE_D'ARMOR.png",
     "scale": 1.0,
     "order": 385
   },
@@ -4646,7 +4646,7 @@ const ICON_CATALOG = [
       "FRANCE_SEULE"
     ],
     "category": "CARTE / FRANCE_SEULE",
-    "url": "icons/sticks/CARTE/FRANCE_SEULE/23_CREUSE.png",
+    "url": "icons/sticker/CARTE/FRANCE_SEULE/23_CREUSE.png",
     "scale": 1.0,
     "order": 386
   },
@@ -4658,7 +4658,7 @@ const ICON_CATALOG = [
       "FRANCE_SEULE"
     ],
     "category": "CARTE / FRANCE_SEULE",
-    "url": "icons/sticks/CARTE/FRANCE_SEULE/24_DORDOGNE.png",
+    "url": "icons/sticker/CARTE/FRANCE_SEULE/24_DORDOGNE.png",
     "scale": 1.0,
     "order": 387
   },
@@ -4670,7 +4670,7 @@ const ICON_CATALOG = [
       "FRANCE_SEULE"
     ],
     "category": "CARTE / FRANCE_SEULE",
-    "url": "icons/sticks/CARTE/FRANCE_SEULE/25_DOUBS.png",
+    "url": "icons/sticker/CARTE/FRANCE_SEULE/25_DOUBS.png",
     "scale": 1.0,
     "order": 388
   },
@@ -4682,7 +4682,7 @@ const ICON_CATALOG = [
       "FRANCE_SEULE"
     ],
     "category": "CARTE / FRANCE_SEULE",
-    "url": "icons/sticks/CARTE/FRANCE_SEULE/26_DROME.png",
+    "url": "icons/sticker/CARTE/FRANCE_SEULE/26_DROME.png",
     "scale": 1.0,
     "order": 389
   },
@@ -4694,7 +4694,7 @@ const ICON_CATALOG = [
       "FRANCE_SEULE"
     ],
     "category": "CARTE / FRANCE_SEULE",
-    "url": "icons/sticks/CARTE/FRANCE_SEULE/27_EURE.png",
+    "url": "icons/sticker/CARTE/FRANCE_SEULE/27_EURE.png",
     "scale": 1.0,
     "order": 390
   },
@@ -4706,7 +4706,7 @@ const ICON_CATALOG = [
       "FRANCE_SEULE"
     ],
     "category": "CARTE / FRANCE_SEULE",
-    "url": "icons/sticks/CARTE/FRANCE_SEULE/28_EURE-ET-LOIR.png",
+    "url": "icons/sticker/CARTE/FRANCE_SEULE/28_EURE-ET-LOIR.png",
     "scale": 1.0,
     "order": 391
   },
@@ -4718,7 +4718,7 @@ const ICON_CATALOG = [
       "FRANCE_SEULE"
     ],
     "category": "CARTE / FRANCE_SEULE",
-    "url": "icons/sticks/CARTE/FRANCE_SEULE/29_FINISTERE.png",
+    "url": "icons/sticker/CARTE/FRANCE_SEULE/29_FINISTERE.png",
     "scale": 1.0,
     "order": 392
   },
@@ -4730,7 +4730,7 @@ const ICON_CATALOG = [
       "FRANCE_SEULE"
     ],
     "category": "CARTE / FRANCE_SEULE",
-    "url": "icons/sticks/CARTE/FRANCE_SEULE/2A_CORSE_DU_SUD.png",
+    "url": "icons/sticker/CARTE/FRANCE_SEULE/2A_CORSE_DU_SUD.png",
     "scale": 1.0,
     "order": 393
   },
@@ -4742,7 +4742,7 @@ const ICON_CATALOG = [
       "FRANCE_SEULE"
     ],
     "category": "CARTE / FRANCE_SEULE",
-    "url": "icons/sticks/CARTE/FRANCE_SEULE/2B_HAUTE_CORSE.png",
+    "url": "icons/sticker/CARTE/FRANCE_SEULE/2B_HAUTE_CORSE.png",
     "scale": 1.0,
     "order": 394
   },
@@ -4754,7 +4754,7 @@ const ICON_CATALOG = [
       "FRANCE_SEULE"
     ],
     "category": "CARTE / FRANCE_SEULE",
-    "url": "icons/sticks/CARTE/FRANCE_SEULE/30_GARD.png",
+    "url": "icons/sticker/CARTE/FRANCE_SEULE/30_GARD.png",
     "scale": 1.0,
     "order": 395
   },
@@ -4766,7 +4766,7 @@ const ICON_CATALOG = [
       "FRANCE_SEULE"
     ],
     "category": "CARTE / FRANCE_SEULE",
-    "url": "icons/sticks/CARTE/FRANCE_SEULE/31_HAUTE GARONNE.png",
+    "url": "icons/sticker/CARTE/FRANCE_SEULE/31_HAUTE GARONNE.png",
     "scale": 1.0,
     "order": 396
   },
@@ -4778,7 +4778,7 @@ const ICON_CATALOG = [
       "FRANCE_SEULE"
     ],
     "category": "CARTE / FRANCE_SEULE",
-    "url": "icons/sticks/CARTE/FRANCE_SEULE/32_GERS.png",
+    "url": "icons/sticker/CARTE/FRANCE_SEULE/32_GERS.png",
     "scale": 1.0,
     "order": 397
   },
@@ -4790,7 +4790,7 @@ const ICON_CATALOG = [
       "FRANCE_SEULE"
     ],
     "category": "CARTE / FRANCE_SEULE",
-    "url": "icons/sticks/CARTE/FRANCE_SEULE/33_GIRONDE.png",
+    "url": "icons/sticker/CARTE/FRANCE_SEULE/33_GIRONDE.png",
     "scale": 1.0,
     "order": 398
   },
@@ -4802,7 +4802,7 @@ const ICON_CATALOG = [
       "FRANCE_SEULE"
     ],
     "category": "CARTE / FRANCE_SEULE",
-    "url": "icons/sticks/CARTE/FRANCE_SEULE/34_HERAULT.png",
+    "url": "icons/sticker/CARTE/FRANCE_SEULE/34_HERAULT.png",
     "scale": 1.0,
     "order": 399
   },
@@ -4814,7 +4814,7 @@ const ICON_CATALOG = [
       "FRANCE_SEULE"
     ],
     "category": "CARTE / FRANCE_SEULE",
-    "url": "icons/sticks/CARTE/FRANCE_SEULE/35_ILLE-ET-VILAINE.png",
+    "url": "icons/sticker/CARTE/FRANCE_SEULE/35_ILLE-ET-VILAINE.png",
     "scale": 1.0,
     "order": 400
   },
@@ -4826,7 +4826,7 @@ const ICON_CATALOG = [
       "FRANCE_SEULE"
     ],
     "category": "CARTE / FRANCE_SEULE",
-    "url": "icons/sticks/CARTE/FRANCE_SEULE/36_INDRE.png",
+    "url": "icons/sticker/CARTE/FRANCE_SEULE/36_INDRE.png",
     "scale": 1.0,
     "order": 401
   },
@@ -4838,7 +4838,7 @@ const ICON_CATALOG = [
       "FRANCE_SEULE"
     ],
     "category": "CARTE / FRANCE_SEULE",
-    "url": "icons/sticks/CARTE/FRANCE_SEULE/37_INDRE-ET-LOIRE.png",
+    "url": "icons/sticker/CARTE/FRANCE_SEULE/37_INDRE-ET-LOIRE.png",
     "scale": 1.0,
     "order": 402
   },
@@ -4850,7 +4850,7 @@ const ICON_CATALOG = [
       "FRANCE_SEULE"
     ],
     "category": "CARTE / FRANCE_SEULE",
-    "url": "icons/sticks/CARTE/FRANCE_SEULE/38_ISERE.png",
+    "url": "icons/sticker/CARTE/FRANCE_SEULE/38_ISERE.png",
     "scale": 1.0,
     "order": 403
   },
@@ -4862,7 +4862,7 @@ const ICON_CATALOG = [
       "FRANCE_SEULE"
     ],
     "category": "CARTE / FRANCE_SEULE",
-    "url": "icons/sticks/CARTE/FRANCE_SEULE/39_JURA.png",
+    "url": "icons/sticker/CARTE/FRANCE_SEULE/39_JURA.png",
     "scale": 1.0,
     "order": 404
   },
@@ -4874,7 +4874,7 @@ const ICON_CATALOG = [
       "FRANCE_SEULE"
     ],
     "category": "CARTE / FRANCE_SEULE",
-    "url": "icons/sticks/CARTE/FRANCE_SEULE/40_LANDES.png",
+    "url": "icons/sticker/CARTE/FRANCE_SEULE/40_LANDES.png",
     "scale": 1.0,
     "order": 405
   },
@@ -4886,7 +4886,7 @@ const ICON_CATALOG = [
       "FRANCE_SEULE"
     ],
     "category": "CARTE / FRANCE_SEULE",
-    "url": "icons/sticks/CARTE/FRANCE_SEULE/41_LOIR-ET-CHER.png",
+    "url": "icons/sticker/CARTE/FRANCE_SEULE/41_LOIR-ET-CHER.png",
     "scale": 1.0,
     "order": 406
   },
@@ -4898,7 +4898,7 @@ const ICON_CATALOG = [
       "FRANCE_SEULE"
     ],
     "category": "CARTE / FRANCE_SEULE",
-    "url": "icons/sticks/CARTE/FRANCE_SEULE/42_LOIRE.png",
+    "url": "icons/sticker/CARTE/FRANCE_SEULE/42_LOIRE.png",
     "scale": 1.0,
     "order": 407
   },
@@ -4910,7 +4910,7 @@ const ICON_CATALOG = [
       "FRANCE_SEULE"
     ],
     "category": "CARTE / FRANCE_SEULE",
-    "url": "icons/sticks/CARTE/FRANCE_SEULE/43_HAUTE-LOIRE.png",
+    "url": "icons/sticker/CARTE/FRANCE_SEULE/43_HAUTE-LOIRE.png",
     "scale": 1.0,
     "order": 408
   },
@@ -4922,7 +4922,7 @@ const ICON_CATALOG = [
       "FRANCE_SEULE"
     ],
     "category": "CARTE / FRANCE_SEULE",
-    "url": "icons/sticks/CARTE/FRANCE_SEULE/44_LOIRE ATLANTIQUE.png",
+    "url": "icons/sticker/CARTE/FRANCE_SEULE/44_LOIRE ATLANTIQUE.png",
     "scale": 1.0,
     "order": 409
   },
@@ -4934,7 +4934,7 @@ const ICON_CATALOG = [
       "FRANCE_SEULE"
     ],
     "category": "CARTE / FRANCE_SEULE",
-    "url": "icons/sticks/CARTE/FRANCE_SEULE/45_LOIRET.png",
+    "url": "icons/sticker/CARTE/FRANCE_SEULE/45_LOIRET.png",
     "scale": 1.0,
     "order": 410
   },
@@ -4946,7 +4946,7 @@ const ICON_CATALOG = [
       "FRANCE_SEULE"
     ],
     "category": "CARTE / FRANCE_SEULE",
-    "url": "icons/sticks/CARTE/FRANCE_SEULE/46_LOT.png",
+    "url": "icons/sticker/CARTE/FRANCE_SEULE/46_LOT.png",
     "scale": 1.0,
     "order": 411
   },
@@ -4958,7 +4958,7 @@ const ICON_CATALOG = [
       "FRANCE_SEULE"
     ],
     "category": "CARTE / FRANCE_SEULE",
-    "url": "icons/sticks/CARTE/FRANCE_SEULE/47_LOT-ET-GARONNE.png",
+    "url": "icons/sticker/CARTE/FRANCE_SEULE/47_LOT-ET-GARONNE.png",
     "scale": 1.0,
     "order": 412
   },
@@ -4970,7 +4970,7 @@ const ICON_CATALOG = [
       "FRANCE_SEULE"
     ],
     "category": "CARTE / FRANCE_SEULE",
-    "url": "icons/sticks/CARTE/FRANCE_SEULE/48_LOZERE.png",
+    "url": "icons/sticker/CARTE/FRANCE_SEULE/48_LOZERE.png",
     "scale": 1.0,
     "order": 413
   },
@@ -4982,7 +4982,7 @@ const ICON_CATALOG = [
       "FRANCE_SEULE"
     ],
     "category": "CARTE / FRANCE_SEULE",
-    "url": "icons/sticks/CARTE/FRANCE_SEULE/49_MAINE-ET-LOIRE.png",
+    "url": "icons/sticker/CARTE/FRANCE_SEULE/49_MAINE-ET-LOIRE.png",
     "scale": 1.0,
     "order": 414
   },
@@ -4994,7 +4994,7 @@ const ICON_CATALOG = [
       "FRANCE_SEULE"
     ],
     "category": "CARTE / FRANCE_SEULE",
-    "url": "icons/sticks/CARTE/FRANCE_SEULE/50_MANCHE.png",
+    "url": "icons/sticker/CARTE/FRANCE_SEULE/50_MANCHE.png",
     "scale": 1.0,
     "order": 415
   },
@@ -5006,7 +5006,7 @@ const ICON_CATALOG = [
       "FRANCE_SEULE"
     ],
     "category": "CARTE / FRANCE_SEULE",
-    "url": "icons/sticks/CARTE/FRANCE_SEULE/51_MARNE.png",
+    "url": "icons/sticker/CARTE/FRANCE_SEULE/51_MARNE.png",
     "scale": 1.0,
     "order": 416
   },
@@ -5018,7 +5018,7 @@ const ICON_CATALOG = [
       "FRANCE_SEULE"
     ],
     "category": "CARTE / FRANCE_SEULE",
-    "url": "icons/sticks/CARTE/FRANCE_SEULE/52_HAUTE-MARNE.png",
+    "url": "icons/sticker/CARTE/FRANCE_SEULE/52_HAUTE-MARNE.png",
     "scale": 1.0,
     "order": 417
   },
@@ -5030,7 +5030,7 @@ const ICON_CATALOG = [
       "FRANCE_SEULE"
     ],
     "category": "CARTE / FRANCE_SEULE",
-    "url": "icons/sticks/CARTE/FRANCE_SEULE/53_MAYENNE.png",
+    "url": "icons/sticker/CARTE/FRANCE_SEULE/53_MAYENNE.png",
     "scale": 1.0,
     "order": 418
   },
@@ -5042,7 +5042,7 @@ const ICON_CATALOG = [
       "FRANCE_SEULE"
     ],
     "category": "CARTE / FRANCE_SEULE",
-    "url": "icons/sticks/CARTE/FRANCE_SEULE/54_MEURTHE-ET-MOSELLE.png",
+    "url": "icons/sticker/CARTE/FRANCE_SEULE/54_MEURTHE-ET-MOSELLE.png",
     "scale": 1.0,
     "order": 419
   },
@@ -5054,7 +5054,7 @@ const ICON_CATALOG = [
       "FRANCE_SEULE"
     ],
     "category": "CARTE / FRANCE_SEULE",
-    "url": "icons/sticks/CARTE/FRANCE_SEULE/55_MEUSE.png",
+    "url": "icons/sticker/CARTE/FRANCE_SEULE/55_MEUSE.png",
     "scale": 1.0,
     "order": 420
   },
@@ -5066,7 +5066,7 @@ const ICON_CATALOG = [
       "FRANCE_SEULE"
     ],
     "category": "CARTE / FRANCE_SEULE",
-    "url": "icons/sticks/CARTE/FRANCE_SEULE/56_MORBIHAN.png",
+    "url": "icons/sticker/CARTE/FRANCE_SEULE/56_MORBIHAN.png",
     "scale": 1.0,
     "order": 421
   },
@@ -5078,7 +5078,7 @@ const ICON_CATALOG = [
       "FRANCE_SEULE"
     ],
     "category": "CARTE / FRANCE_SEULE",
-    "url": "icons/sticks/CARTE/FRANCE_SEULE/57_MOSELLE.png",
+    "url": "icons/sticker/CARTE/FRANCE_SEULE/57_MOSELLE.png",
     "scale": 1.0,
     "order": 422
   },
@@ -5090,7 +5090,7 @@ const ICON_CATALOG = [
       "FRANCE_SEULE"
     ],
     "category": "CARTE / FRANCE_SEULE",
-    "url": "icons/sticks/CARTE/FRANCE_SEULE/58_NIEVRE.png",
+    "url": "icons/sticker/CARTE/FRANCE_SEULE/58_NIEVRE.png",
     "scale": 1.0,
     "order": 423
   },
@@ -5102,7 +5102,7 @@ const ICON_CATALOG = [
       "FRANCE_SEULE"
     ],
     "category": "CARTE / FRANCE_SEULE",
-    "url": "icons/sticks/CARTE/FRANCE_SEULE/59_NORD.png",
+    "url": "icons/sticker/CARTE/FRANCE_SEULE/59_NORD.png",
     "scale": 1.0,
     "order": 424
   },
@@ -5114,7 +5114,7 @@ const ICON_CATALOG = [
       "FRANCE_SEULE"
     ],
     "category": "CARTE / FRANCE_SEULE",
-    "url": "icons/sticks/CARTE/FRANCE_SEULE/60_OISE.png",
+    "url": "icons/sticker/CARTE/FRANCE_SEULE/60_OISE.png",
     "scale": 1.0,
     "order": 425
   },
@@ -5126,7 +5126,7 @@ const ICON_CATALOG = [
       "FRANCE_SEULE"
     ],
     "category": "CARTE / FRANCE_SEULE",
-    "url": "icons/sticks/CARTE/FRANCE_SEULE/61_ORNE.png",
+    "url": "icons/sticker/CARTE/FRANCE_SEULE/61_ORNE.png",
     "scale": 1.0,
     "order": 426
   },
@@ -5138,7 +5138,7 @@ const ICON_CATALOG = [
       "FRANCE_SEULE"
     ],
     "category": "CARTE / FRANCE_SEULE",
-    "url": "icons/sticks/CARTE/FRANCE_SEULE/62_PAS_DE_CALAIS.png",
+    "url": "icons/sticker/CARTE/FRANCE_SEULE/62_PAS_DE_CALAIS.png",
     "scale": 1.0,
     "order": 427
   },
@@ -5150,7 +5150,7 @@ const ICON_CATALOG = [
       "FRANCE_SEULE"
     ],
     "category": "CARTE / FRANCE_SEULE",
-    "url": "icons/sticks/CARTE/FRANCE_SEULE/63_PUY-DE-DOME.png",
+    "url": "icons/sticker/CARTE/FRANCE_SEULE/63_PUY-DE-DOME.png",
     "scale": 1.0,
     "order": 428
   },
@@ -5162,7 +5162,7 @@ const ICON_CATALOG = [
       "FRANCE_SEULE"
     ],
     "category": "CARTE / FRANCE_SEULE",
-    "url": "icons/sticks/CARTE/FRANCE_SEULE/64_PYRENEES ATLANTIQUES.png",
+    "url": "icons/sticker/CARTE/FRANCE_SEULE/64_PYRENEES ATLANTIQUES.png",
     "scale": 1.0,
     "order": 429
   },
@@ -5174,7 +5174,7 @@ const ICON_CATALOG = [
       "FRANCE_SEULE"
     ],
     "category": "CARTE / FRANCE_SEULE",
-    "url": "icons/sticks/CARTE/FRANCE_SEULE/65_HAUTES PYRENEES.png",
+    "url": "icons/sticker/CARTE/FRANCE_SEULE/65_HAUTES PYRENEES.png",
     "scale": 1.0,
     "order": 430
   },
@@ -5186,7 +5186,7 @@ const ICON_CATALOG = [
       "FRANCE_SEULE"
     ],
     "category": "CARTE / FRANCE_SEULE",
-    "url": "icons/sticks/CARTE/FRANCE_SEULE/66_PYRENEES ORIENTALES.png",
+    "url": "icons/sticker/CARTE/FRANCE_SEULE/66_PYRENEES ORIENTALES.png",
     "scale": 1.0,
     "order": 431
   },
@@ -5198,7 +5198,7 @@ const ICON_CATALOG = [
       "FRANCE_SEULE"
     ],
     "category": "CARTE / FRANCE_SEULE",
-    "url": "icons/sticks/CARTE/FRANCE_SEULE/67_BAS-RHIN.png",
+    "url": "icons/sticker/CARTE/FRANCE_SEULE/67_BAS-RHIN.png",
     "scale": 1.0,
     "order": 432
   },
@@ -5210,7 +5210,7 @@ const ICON_CATALOG = [
       "FRANCE_SEULE"
     ],
     "category": "CARTE / FRANCE_SEULE",
-    "url": "icons/sticks/CARTE/FRANCE_SEULE/68_HAUT-RHIN.png",
+    "url": "icons/sticker/CARTE/FRANCE_SEULE/68_HAUT-RHIN.png",
     "scale": 1.0,
     "order": 433
   },
@@ -5222,7 +5222,7 @@ const ICON_CATALOG = [
       "FRANCE_SEULE"
     ],
     "category": "CARTE / FRANCE_SEULE",
-    "url": "icons/sticks/CARTE/FRANCE_SEULE/69_RHONE.png",
+    "url": "icons/sticker/CARTE/FRANCE_SEULE/69_RHONE.png",
     "scale": 1.0,
     "order": 434
   },
@@ -5234,7 +5234,7 @@ const ICON_CATALOG = [
       "FRANCE_SEULE"
     ],
     "category": "CARTE / FRANCE_SEULE",
-    "url": "icons/sticks/CARTE/FRANCE_SEULE/70_HAUTE-SAONE.png",
+    "url": "icons/sticker/CARTE/FRANCE_SEULE/70_HAUTE-SAONE.png",
     "scale": 1.0,
     "order": 435
   },
@@ -5246,7 +5246,7 @@ const ICON_CATALOG = [
       "FRANCE_SEULE"
     ],
     "category": "CARTE / FRANCE_SEULE",
-    "url": "icons/sticks/CARTE/FRANCE_SEULE/71_SAONE-ET-LOIRE.png",
+    "url": "icons/sticker/CARTE/FRANCE_SEULE/71_SAONE-ET-LOIRE.png",
     "scale": 1.0,
     "order": 436
   },
@@ -5258,7 +5258,7 @@ const ICON_CATALOG = [
       "FRANCE_SEULE"
     ],
     "category": "CARTE / FRANCE_SEULE",
-    "url": "icons/sticks/CARTE/FRANCE_SEULE/72_SARTHE.png",
+    "url": "icons/sticker/CARTE/FRANCE_SEULE/72_SARTHE.png",
     "scale": 1.0,
     "order": 437
   },
@@ -5270,7 +5270,7 @@ const ICON_CATALOG = [
       "FRANCE_SEULE"
     ],
     "category": "CARTE / FRANCE_SEULE",
-    "url": "icons/sticks/CARTE/FRANCE_SEULE/73_SAVOIE.png",
+    "url": "icons/sticker/CARTE/FRANCE_SEULE/73_SAVOIE.png",
     "scale": 1.0,
     "order": 438
   },
@@ -5282,7 +5282,7 @@ const ICON_CATALOG = [
       "FRANCE_SEULE"
     ],
     "category": "CARTE / FRANCE_SEULE",
-    "url": "icons/sticks/CARTE/FRANCE_SEULE/74_HAUTE-SAVOIE.png",
+    "url": "icons/sticker/CARTE/FRANCE_SEULE/74_HAUTE-SAVOIE.png",
     "scale": 1.0,
     "order": 439
   },
@@ -5294,7 +5294,7 @@ const ICON_CATALOG = [
       "FRANCE_SEULE"
     ],
     "category": "CARTE / FRANCE_SEULE",
-    "url": "icons/sticks/CARTE/FRANCE_SEULE/76_SEINE-MARITIME.png",
+    "url": "icons/sticker/CARTE/FRANCE_SEULE/76_SEINE-MARITIME.png",
     "scale": 1.0,
     "order": 440
   },
@@ -5306,7 +5306,7 @@ const ICON_CATALOG = [
       "FRANCE_SEULE"
     ],
     "category": "CARTE / FRANCE_SEULE",
-    "url": "icons/sticks/CARTE/FRANCE_SEULE/77_SEINE-ET-MARNE.png",
+    "url": "icons/sticker/CARTE/FRANCE_SEULE/77_SEINE-ET-MARNE.png",
     "scale": 1.0,
     "order": 441
   },
@@ -5318,7 +5318,7 @@ const ICON_CATALOG = [
       "FRANCE_SEULE"
     ],
     "category": "CARTE / FRANCE_SEULE",
-    "url": "icons/sticks/CARTE/FRANCE_SEULE/78_YVELINES.png",
+    "url": "icons/sticker/CARTE/FRANCE_SEULE/78_YVELINES.png",
     "scale": 1.0,
     "order": 442
   },
@@ -5330,7 +5330,7 @@ const ICON_CATALOG = [
       "FRANCE_SEULE"
     ],
     "category": "CARTE / FRANCE_SEULE",
-    "url": "icons/sticks/CARTE/FRANCE_SEULE/79_DEUX-SEVRES.png",
+    "url": "icons/sticker/CARTE/FRANCE_SEULE/79_DEUX-SEVRES.png",
     "scale": 1.0,
     "order": 443
   },
@@ -5342,7 +5342,7 @@ const ICON_CATALOG = [
       "FRANCE_SEULE"
     ],
     "category": "CARTE / FRANCE_SEULE",
-    "url": "icons/sticks/CARTE/FRANCE_SEULE/80_SOMME.png",
+    "url": "icons/sticker/CARTE/FRANCE_SEULE/80_SOMME.png",
     "scale": 1.0,
     "order": 444
   },
@@ -5354,7 +5354,7 @@ const ICON_CATALOG = [
       "FRANCE_SEULE"
     ],
     "category": "CARTE / FRANCE_SEULE",
-    "url": "icons/sticks/CARTE/FRANCE_SEULE/81_TARN.png",
+    "url": "icons/sticker/CARTE/FRANCE_SEULE/81_TARN.png",
     "scale": 1.0,
     "order": 445
   },
@@ -5366,7 +5366,7 @@ const ICON_CATALOG = [
       "FRANCE_SEULE"
     ],
     "category": "CARTE / FRANCE_SEULE",
-    "url": "icons/sticks/CARTE/FRANCE_SEULE/82_TARN-ET-GARONNE.png",
+    "url": "icons/sticker/CARTE/FRANCE_SEULE/82_TARN-ET-GARONNE.png",
     "scale": 1.0,
     "order": 446
   },
@@ -5378,7 +5378,7 @@ const ICON_CATALOG = [
       "FRANCE_SEULE"
     ],
     "category": "CARTE / FRANCE_SEULE",
-    "url": "icons/sticks/CARTE/FRANCE_SEULE/83_VAR.png",
+    "url": "icons/sticker/CARTE/FRANCE_SEULE/83_VAR.png",
     "scale": 1.0,
     "order": 447
   },
@@ -5390,7 +5390,7 @@ const ICON_CATALOG = [
       "FRANCE_SEULE"
     ],
     "category": "CARTE / FRANCE_SEULE",
-    "url": "icons/sticks/CARTE/FRANCE_SEULE/84_VAUCLUSE.png",
+    "url": "icons/sticker/CARTE/FRANCE_SEULE/84_VAUCLUSE.png",
     "scale": 1.0,
     "order": 448
   },
@@ -5402,7 +5402,7 @@ const ICON_CATALOG = [
       "FRANCE_SEULE"
     ],
     "category": "CARTE / FRANCE_SEULE",
-    "url": "icons/sticks/CARTE/FRANCE_SEULE/85_VENDEE.png",
+    "url": "icons/sticker/CARTE/FRANCE_SEULE/85_VENDEE.png",
     "scale": 1.0,
     "order": 449
   },
@@ -5414,7 +5414,7 @@ const ICON_CATALOG = [
       "FRANCE_SEULE"
     ],
     "category": "CARTE / FRANCE_SEULE",
-    "url": "icons/sticks/CARTE/FRANCE_SEULE/86_VIENNE.png",
+    "url": "icons/sticker/CARTE/FRANCE_SEULE/86_VIENNE.png",
     "scale": 1.0,
     "order": 450
   },
@@ -5426,7 +5426,7 @@ const ICON_CATALOG = [
       "FRANCE_SEULE"
     ],
     "category": "CARTE / FRANCE_SEULE",
-    "url": "icons/sticks/CARTE/FRANCE_SEULE/87_HAUTE-VIENNE.png",
+    "url": "icons/sticker/CARTE/FRANCE_SEULE/87_HAUTE-VIENNE.png",
     "scale": 1.0,
     "order": 451
   },
@@ -5438,7 +5438,7 @@ const ICON_CATALOG = [
       "FRANCE_SEULE"
     ],
     "category": "CARTE / FRANCE_SEULE",
-    "url": "icons/sticks/CARTE/FRANCE_SEULE/88_VOSGES.png",
+    "url": "icons/sticker/CARTE/FRANCE_SEULE/88_VOSGES.png",
     "scale": 1.0,
     "order": 452
   },
@@ -5450,7 +5450,7 @@ const ICON_CATALOG = [
       "FRANCE_SEULE"
     ],
     "category": "CARTE / FRANCE_SEULE",
-    "url": "icons/sticks/CARTE/FRANCE_SEULE/89_YONNE.png",
+    "url": "icons/sticker/CARTE/FRANCE_SEULE/89_YONNE.png",
     "scale": 1.0,
     "order": 453
   },
@@ -5462,7 +5462,7 @@ const ICON_CATALOG = [
       "FRANCE_SEULE"
     ],
     "category": "CARTE / FRANCE_SEULE",
-    "url": "icons/sticks/CARTE/FRANCE_SEULE/90_TERRITOIRE_DE_BELFORT.png",
+    "url": "icons/sticker/CARTE/FRANCE_SEULE/90_TERRITOIRE_DE_BELFORT.png",
     "scale": 1.0,
     "order": 454
   },
@@ -5474,7 +5474,7 @@ const ICON_CATALOG = [
       "FRANCE_SEULE"
     ],
     "category": "CARTE / FRANCE_SEULE",
-    "url": "icons/sticks/CARTE/FRANCE_SEULE/91_ESSONNE.png",
+    "url": "icons/sticker/CARTE/FRANCE_SEULE/91_ESSONNE.png",
     "scale": 1.0,
     "order": 455
   },
@@ -5486,7 +5486,7 @@ const ICON_CATALOG = [
       "FRANCE_SEULE"
     ],
     "category": "CARTE / FRANCE_SEULE",
-    "url": "icons/sticks/CARTE/FRANCE_SEULE/95_VAL-D'OISE.png",
+    "url": "icons/sticker/CARTE/FRANCE_SEULE/95_VAL-D'OISE.png",
     "scale": 1.0,
     "order": 456
   },
@@ -5498,7 +5498,7 @@ const ICON_CATALOG = [
       "FRANCE_SEULE"
     ],
     "category": "CARTE / FRANCE_SEULE",
-    "url": "icons/sticks/CARTE/FRANCE_SEULE/ALSACE.png",
+    "url": "icons/sticker/CARTE/FRANCE_SEULE/ALSACE.png",
     "scale": 1.0,
     "order": 457
   },
@@ -5510,7 +5510,7 @@ const ICON_CATALOG = [
       "FRANCE_SEULE"
     ],
     "category": "CARTE / FRANCE_SEULE",
-    "url": "icons/sticks/CARTE/FRANCE_SEULE/AQUITAINE.png",
+    "url": "icons/sticker/CARTE/FRANCE_SEULE/AQUITAINE.png",
     "scale": 1.0,
     "order": 458
   },
@@ -5522,7 +5522,7 @@ const ICON_CATALOG = [
       "FRANCE_SEULE"
     ],
     "category": "CARTE / FRANCE_SEULE",
-    "url": "icons/sticks/CARTE/FRANCE_SEULE/AUVERGNE.png",
+    "url": "icons/sticker/CARTE/FRANCE_SEULE/AUVERGNE.png",
     "scale": 1.0,
     "order": 459
   },
@@ -5534,7 +5534,7 @@ const ICON_CATALOG = [
       "FRANCE_SEULE"
     ],
     "category": "CARTE / FRANCE_SEULE",
-    "url": "icons/sticks/CARTE/FRANCE_SEULE/BASSE-NORMANDIE.png",
+    "url": "icons/sticker/CARTE/FRANCE_SEULE/BASSE-NORMANDIE.png",
     "scale": 1.0,
     "order": 460
   },
@@ -5546,7 +5546,7 @@ const ICON_CATALOG = [
       "FRANCE_SEULE"
     ],
     "category": "CARTE / FRANCE_SEULE",
-    "url": "icons/sticks/CARTE/FRANCE_SEULE/BOURGOGNE.png",
+    "url": "icons/sticker/CARTE/FRANCE_SEULE/BOURGOGNE.png",
     "scale": 1.0,
     "order": 461
   },
@@ -5558,7 +5558,7 @@ const ICON_CATALOG = [
       "FRANCE_SEULE"
     ],
     "category": "CARTE / FRANCE_SEULE",
-    "url": "icons/sticks/CARTE/FRANCE_SEULE/BRETAGNE.png",
+    "url": "icons/sticker/CARTE/FRANCE_SEULE/BRETAGNE.png",
     "scale": 1.0,
     "order": 462
   },
@@ -5570,7 +5570,7 @@ const ICON_CATALOG = [
       "FRANCE_SEULE"
     ],
     "category": "CARTE / FRANCE_SEULE",
-    "url": "icons/sticks/CARTE/FRANCE_SEULE/CENTRE.png",
+    "url": "icons/sticker/CARTE/FRANCE_SEULE/CENTRE.png",
     "scale": 1.0,
     "order": 463
   },
@@ -5582,7 +5582,7 @@ const ICON_CATALOG = [
       "FRANCE_SEULE"
     ],
     "category": "CARTE / FRANCE_SEULE",
-    "url": "icons/sticks/CARTE/FRANCE_SEULE/CHAMPAGNE-ARDENNE.png",
+    "url": "icons/sticker/CARTE/FRANCE_SEULE/CHAMPAGNE-ARDENNE.png",
     "scale": 1.0,
     "order": 464
   },
@@ -5594,7 +5594,7 @@ const ICON_CATALOG = [
       "FRANCE_SEULE"
     ],
     "category": "CARTE / FRANCE_SEULE",
-    "url": "icons/sticks/CARTE/FRANCE_SEULE/CORSE.png",
+    "url": "icons/sticker/CARTE/FRANCE_SEULE/CORSE.png",
     "scale": 1.0,
     "order": 465
   },
@@ -5606,7 +5606,7 @@ const ICON_CATALOG = [
       "FRANCE_SEULE"
     ],
     "category": "CARTE / FRANCE_SEULE",
-    "url": "icons/sticks/CARTE/FRANCE_SEULE/FRANCHE-COMTE.png",
+    "url": "icons/sticker/CARTE/FRANCE_SEULE/FRANCHE-COMTE.png",
     "scale": 1.0,
     "order": 466
   },
@@ -5618,7 +5618,7 @@ const ICON_CATALOG = [
       "FRANCE_SEULE"
     ],
     "category": "CARTE / FRANCE_SEULE",
-    "url": "icons/sticks/CARTE/FRANCE_SEULE/HAUTE_NORMANDIE.png",
+    "url": "icons/sticker/CARTE/FRANCE_SEULE/HAUTE_NORMANDIE.png",
     "scale": 1.0,
     "order": 467
   },
@@ -5630,7 +5630,7 @@ const ICON_CATALOG = [
       "FRANCE_SEULE"
     ],
     "category": "CARTE / FRANCE_SEULE",
-    "url": "icons/sticks/CARTE/FRANCE_SEULE/ILE-DE-FRANCE.png",
+    "url": "icons/sticker/CARTE/FRANCE_SEULE/ILE-DE-FRANCE.png",
     "scale": 1.0,
     "order": 468
   },
@@ -5642,7 +5642,7 @@ const ICON_CATALOG = [
       "FRANCE_SEULE"
     ],
     "category": "CARTE / FRANCE_SEULE",
-    "url": "icons/sticks/CARTE/FRANCE_SEULE/LANGUEDOC-ROUSSILLON.png",
+    "url": "icons/sticker/CARTE/FRANCE_SEULE/LANGUEDOC-ROUSSILLON.png",
     "scale": 1.0,
     "order": 469
   },
@@ -5654,7 +5654,7 @@ const ICON_CATALOG = [
       "FRANCE_SEULE"
     ],
     "category": "CARTE / FRANCE_SEULE",
-    "url": "icons/sticks/CARTE/FRANCE_SEULE/LIMOUSIN.png",
+    "url": "icons/sticker/CARTE/FRANCE_SEULE/LIMOUSIN.png",
     "scale": 1.0,
     "order": 470
   },
@@ -5666,7 +5666,7 @@ const ICON_CATALOG = [
       "FRANCE_SEULE"
     ],
     "category": "CARTE / FRANCE_SEULE",
-    "url": "icons/sticks/CARTE/FRANCE_SEULE/LORRAINE.png",
+    "url": "icons/sticker/CARTE/FRANCE_SEULE/LORRAINE.png",
     "scale": 1.0,
     "order": 471
   },
@@ -5678,7 +5678,7 @@ const ICON_CATALOG = [
       "FRANCE_SEULE"
     ],
     "category": "CARTE / FRANCE_SEULE",
-    "url": "icons/sticks/CARTE/FRANCE_SEULE/MIDI-PYRENEES.png",
+    "url": "icons/sticker/CARTE/FRANCE_SEULE/MIDI-PYRENEES.png",
     "scale": 1.0,
     "order": 472
   },
@@ -5690,7 +5690,7 @@ const ICON_CATALOG = [
       "FRANCE_SEULE"
     ],
     "category": "CARTE / FRANCE_SEULE",
-    "url": "icons/sticks/CARTE/FRANCE_SEULE/NORD-PAS_DE_CALAIS.png",
+    "url": "icons/sticker/CARTE/FRANCE_SEULE/NORD-PAS_DE_CALAIS.png",
     "scale": 1.0,
     "order": 473
   },
@@ -5702,7 +5702,7 @@ const ICON_CATALOG = [
       "FRANCE_SEULE"
     ],
     "category": "CARTE / FRANCE_SEULE",
-    "url": "icons/sticks/CARTE/FRANCE_SEULE/PAYS DE LA LOIRE.png",
+    "url": "icons/sticker/CARTE/FRANCE_SEULE/PAYS DE LA LOIRE.png",
     "scale": 1.0,
     "order": 474
   },
@@ -5714,7 +5714,7 @@ const ICON_CATALOG = [
       "FRANCE_SEULE"
     ],
     "category": "CARTE / FRANCE_SEULE",
-    "url": "icons/sticks/CARTE/FRANCE_SEULE/PICARDIE.png",
+    "url": "icons/sticker/CARTE/FRANCE_SEULE/PICARDIE.png",
     "scale": 1.0,
     "order": 475
   },
@@ -5726,7 +5726,7 @@ const ICON_CATALOG = [
       "FRANCE_SEULE"
     ],
     "category": "CARTE / FRANCE_SEULE",
-    "url": "icons/sticks/CARTE/FRANCE_SEULE/POITOU-CHARENTES.png",
+    "url": "icons/sticker/CARTE/FRANCE_SEULE/POITOU-CHARENTES.png",
     "scale": 1.0,
     "order": 476
   },
@@ -5738,7 +5738,7 @@ const ICON_CATALOG = [
       "FRANCE_SEULE"
     ],
     "category": "CARTE / FRANCE_SEULE",
-    "url": "icons/sticks/CARTE/FRANCE_SEULE/PROVENCE-ALPES-COTE-D'AZUR.png",
+    "url": "icons/sticker/CARTE/FRANCE_SEULE/PROVENCE-ALPES-COTE-D'AZUR.png",
     "scale": 1.0,
     "order": 477
   },
@@ -5750,7 +5750,7 @@ const ICON_CATALOG = [
       "FRANCE_SEULE"
     ],
     "category": "CARTE / FRANCE_SEULE",
-    "url": "icons/sticks/CARTE/FRANCE_SEULE/RHONE-ALPES.png",
+    "url": "icons/sticker/CARTE/FRANCE_SEULE/RHONE-ALPES.png",
     "scale": 1.0,
     "order": 478
   },
@@ -5762,7 +5762,7 @@ const ICON_CATALOG = [
       "OUTRE-MER"
     ],
     "category": "CARTE / OUTRE-MER",
-    "url": "icons/sticks/CARTE/OUTRE-MER/GUADELOUPE_ETE.png",
+    "url": "icons/sticker/CARTE/OUTRE-MER/GUADELOUPE_ETE.png",
     "scale": 1.0,
     "order": 479
   },
@@ -5774,7 +5774,7 @@ const ICON_CATALOG = [
       "OUTRE-MER"
     ],
     "category": "CARTE / OUTRE-MER",
-    "url": "icons/sticks/CARTE/OUTRE-MER/GUADELOUPE_HIVER.png",
+    "url": "icons/sticker/CARTE/OUTRE-MER/GUADELOUPE_HIVER.png",
     "scale": 1.0,
     "order": 480
   },
@@ -5786,7 +5786,7 @@ const ICON_CATALOG = [
       "OUTRE-MER"
     ],
     "category": "CARTE / OUTRE-MER",
-    "url": "icons/sticks/CARTE/OUTRE-MER/GUYANE_ETE.png",
+    "url": "icons/sticker/CARTE/OUTRE-MER/GUYANE_ETE.png",
     "scale": 1.0,
     "order": 481
   },
@@ -5798,7 +5798,7 @@ const ICON_CATALOG = [
       "OUTRE-MER"
     ],
     "category": "CARTE / OUTRE-MER",
-    "url": "icons/sticks/CARTE/OUTRE-MER/GUYANE_HIVER.png",
+    "url": "icons/sticker/CARTE/OUTRE-MER/GUYANE_HIVER.png",
     "scale": 1.0,
     "order": 482
   },
@@ -5810,7 +5810,7 @@ const ICON_CATALOG = [
       "OUTRE-MER"
     ],
     "category": "CARTE / OUTRE-MER",
-    "url": "icons/sticks/CARTE/OUTRE-MER/MARTINIQUE_ETE.png",
+    "url": "icons/sticker/CARTE/OUTRE-MER/MARTINIQUE_ETE.png",
     "scale": 1.0,
     "order": 483
   },
@@ -5822,7 +5822,7 @@ const ICON_CATALOG = [
       "OUTRE-MER"
     ],
     "category": "CARTE / OUTRE-MER",
-    "url": "icons/sticks/CARTE/OUTRE-MER/MARTINIQUE_HIVER.png",
+    "url": "icons/sticker/CARTE/OUTRE-MER/MARTINIQUE_HIVER.png",
     "scale": 1.0,
     "order": 484
   },
@@ -5834,7 +5834,7 @@ const ICON_CATALOG = [
       "OUTRE-MER"
     ],
     "category": "CARTE / OUTRE-MER",
-    "url": "icons/sticks/CARTE/OUTRE-MER/MAYOTTE_ETE.png",
+    "url": "icons/sticker/CARTE/OUTRE-MER/MAYOTTE_ETE.png",
     "scale": 1.0,
     "order": 485
   },
@@ -5846,7 +5846,7 @@ const ICON_CATALOG = [
       "OUTRE-MER"
     ],
     "category": "CARTE / OUTRE-MER",
-    "url": "icons/sticks/CARTE/OUTRE-MER/MAYOTTE_HIVER.png",
+    "url": "icons/sticker/CARTE/OUTRE-MER/MAYOTTE_HIVER.png",
     "scale": 1.0,
     "order": 486
   },
@@ -5858,7 +5858,7 @@ const ICON_CATALOG = [
       "OUTRE-MER"
     ],
     "category": "CARTE / OUTRE-MER",
-    "url": "icons/sticks/CARTE/OUTRE-MER/NOUVELLE_CALEDONIE_ETE.png",
+    "url": "icons/sticker/CARTE/OUTRE-MER/NOUVELLE_CALEDONIE_ETE.png",
     "scale": 1.0,
     "order": 487
   },
@@ -5870,7 +5870,7 @@ const ICON_CATALOG = [
       "OUTRE-MER"
     ],
     "category": "CARTE / OUTRE-MER",
-    "url": "icons/sticks/CARTE/OUTRE-MER/NOUVELLE_CALEDONIE_HIVER.png",
+    "url": "icons/sticker/CARTE/OUTRE-MER/NOUVELLE_CALEDONIE_HIVER.png",
     "scale": 1.0,
     "order": 488
   },
@@ -5882,7 +5882,7 @@ const ICON_CATALOG = [
       "OUTRE-MER"
     ],
     "category": "CARTE / OUTRE-MER",
-    "url": "icons/sticks/CARTE/OUTRE-MER/POLYNESIE_ETE.png",
+    "url": "icons/sticker/CARTE/OUTRE-MER/POLYNESIE_ETE.png",
     "scale": 1.0,
     "order": 489
   },
@@ -5894,7 +5894,7 @@ const ICON_CATALOG = [
       "OUTRE-MER"
     ],
     "category": "CARTE / OUTRE-MER",
-    "url": "icons/sticks/CARTE/OUTRE-MER/POLYNESIE_HIVER.png",
+    "url": "icons/sticker/CARTE/OUTRE-MER/POLYNESIE_HIVER.png",
     "scale": 1.0,
     "order": 490
   },
@@ -5906,7 +5906,7 @@ const ICON_CATALOG = [
       "OUTRE-MER"
     ],
     "category": "CARTE / OUTRE-MER",
-    "url": "icons/sticks/CARTE/OUTRE-MER/REUNION_ETE.png",
+    "url": "icons/sticker/CARTE/OUTRE-MER/REUNION_ETE.png",
     "scale": 1.0,
     "order": 491
   },
@@ -5918,7 +5918,7 @@ const ICON_CATALOG = [
       "OUTRE-MER"
     ],
     "category": "CARTE / OUTRE-MER",
-    "url": "icons/sticks/CARTE/OUTRE-MER/REUNION_HIVER.png",
+    "url": "icons/sticker/CARTE/OUTRE-MER/REUNION_HIVER.png",
     "scale": 1.0,
     "order": 492
   },
@@ -5930,7 +5930,7 @@ const ICON_CATALOG = [
       "OUTRE-MER"
     ],
     "category": "CARTE / OUTRE-MER",
-    "url": "icons/sticks/CARTE/OUTRE-MER/SAINT_MARTIN_ETE.png",
+    "url": "icons/sticker/CARTE/OUTRE-MER/SAINT_MARTIN_ETE.png",
     "scale": 1.0,
     "order": 493
   },
@@ -5942,7 +5942,7 @@ const ICON_CATALOG = [
       "OUTRE-MER"
     ],
     "category": "CARTE / OUTRE-MER",
-    "url": "icons/sticks/CARTE/OUTRE-MER/SAINT_MARTIN_HIVER.png",
+    "url": "icons/sticker/CARTE/OUTRE-MER/SAINT_MARTIN_HIVER.png",
     "scale": 1.0,
     "order": 494
   },
@@ -5954,7 +5954,7 @@ const ICON_CATALOG = [
       "OUTRE-MER"
     ],
     "category": "CARTE / OUTRE-MER",
-    "url": "icons/sticks/CARTE/OUTRE-MER/SPM_ETE.png",
+    "url": "icons/sticker/CARTE/OUTRE-MER/SPM_ETE.png",
     "scale": 1.0,
     "order": 495
   },
@@ -5966,7 +5966,7 @@ const ICON_CATALOG = [
       "OUTRE-MER"
     ],
     "category": "CARTE / OUTRE-MER",
-    "url": "icons/sticks/CARTE/OUTRE-MER/SPM_HIVER.png",
+    "url": "icons/sticker/CARTE/OUTRE-MER/SPM_HIVER.png",
     "scale": 1.0,
     "order": 496
   },
@@ -5978,7 +5978,7 @@ const ICON_CATALOG = [
       "OUTRE-MER"
     ],
     "category": "CARTE / OUTRE-MER",
-    "url": "icons/sticks/CARTE/OUTRE-MER/ST_BARTHELEMY_ETE.png",
+    "url": "icons/sticker/CARTE/OUTRE-MER/ST_BARTHELEMY_ETE.png",
     "scale": 1.0,
     "order": 497
   },
@@ -5990,7 +5990,7 @@ const ICON_CATALOG = [
       "OUTRE-MER"
     ],
     "category": "CARTE / OUTRE-MER",
-    "url": "icons/sticks/CARTE/OUTRE-MER/ST_BARTHELEMY_HIVER.png",
+    "url": "icons/sticker/CARTE/OUTRE-MER/ST_BARTHELEMY_HIVER.png",
     "scale": 1.0,
     "order": 498
   },
@@ -6002,7 +6002,7 @@ const ICON_CATALOG = [
       "OUTRE-MER"
     ],
     "category": "CARTE / OUTRE-MER",
-    "url": "icons/sticks/CARTE/OUTRE-MER/WALLIS_ETE.png",
+    "url": "icons/sticker/CARTE/OUTRE-MER/WALLIS_ETE.png",
     "scale": 1.0,
     "order": 499
   },
@@ -6014,7 +6014,7 @@ const ICON_CATALOG = [
       "OUTRE-MER"
     ],
     "category": "CARTE / OUTRE-MER",
-    "url": "icons/sticks/CARTE/OUTRE-MER/WALLIS_HIVER.png",
+    "url": "icons/sticker/CARTE/OUTRE-MER/WALLIS_HIVER.png",
     "scale": 1.0,
     "order": 500
   },
@@ -6026,7 +6026,7 @@ const ICON_CATALOG = [
       "SITUATION_DEP_FINALISEES"
     ],
     "category": "CARTE / SITUATION_DEP_FINALISEES",
-    "url": "icons/sticks/CARTE/SITUATION_DEP_FINALISEES/01_AIN.png",
+    "url": "icons/sticker/CARTE/SITUATION_DEP_FINALISEES/01_AIN.png",
     "scale": 1.0,
     "order": 501
   },
@@ -6038,7 +6038,7 @@ const ICON_CATALOG = [
       "SITUATION_DEP_FINALISEES"
     ],
     "category": "CARTE / SITUATION_DEP_FINALISEES",
-    "url": "icons/sticks/CARTE/SITUATION_DEP_FINALISEES/02_AISNE.png",
+    "url": "icons/sticker/CARTE/SITUATION_DEP_FINALISEES/02_AISNE.png",
     "scale": 1.0,
     "order": 502
   },
@@ -6050,7 +6050,7 @@ const ICON_CATALOG = [
       "SITUATION_DEP_FINALISEES"
     ],
     "category": "CARTE / SITUATION_DEP_FINALISEES",
-    "url": "icons/sticks/CARTE/SITUATION_DEP_FINALISEES/03_ALLIER.png",
+    "url": "icons/sticker/CARTE/SITUATION_DEP_FINALISEES/03_ALLIER.png",
     "scale": 1.0,
     "order": 503
   },
@@ -6062,7 +6062,7 @@ const ICON_CATALOG = [
       "SITUATION_DEP_FINALISEES"
     ],
     "category": "CARTE / SITUATION_DEP_FINALISEES",
-    "url": "icons/sticks/CARTE/SITUATION_DEP_FINALISEES/04_ALPES-DE-HAUTE-PROVENCE.png",
+    "url": "icons/sticker/CARTE/SITUATION_DEP_FINALISEES/04_ALPES-DE-HAUTE-PROVENCE.png",
     "scale": 1.0,
     "order": 504
   },
@@ -6074,7 +6074,7 @@ const ICON_CATALOG = [
       "SITUATION_DEP_FINALISEES"
     ],
     "category": "CARTE / SITUATION_DEP_FINALISEES",
-    "url": "icons/sticks/CARTE/SITUATION_DEP_FINALISEES/05_HAUTES-ALPES.png",
+    "url": "icons/sticker/CARTE/SITUATION_DEP_FINALISEES/05_HAUTES-ALPES.png",
     "scale": 1.0,
     "order": 505
   },
@@ -6086,7 +6086,7 @@ const ICON_CATALOG = [
       "SITUATION_DEP_FINALISEES"
     ],
     "category": "CARTE / SITUATION_DEP_FINALISEES",
-    "url": "icons/sticks/CARTE/SITUATION_DEP_FINALISEES/06_ALPES-MARITIMES.png",
+    "url": "icons/sticker/CARTE/SITUATION_DEP_FINALISEES/06_ALPES-MARITIMES.png",
     "scale": 1.0,
     "order": 506
   },
@@ -6098,7 +6098,7 @@ const ICON_CATALOG = [
       "SITUATION_DEP_FINALISEES"
     ],
     "category": "CARTE / SITUATION_DEP_FINALISEES",
-    "url": "icons/sticks/CARTE/SITUATION_DEP_FINALISEES/07_ARDECHE.png",
+    "url": "icons/sticker/CARTE/SITUATION_DEP_FINALISEES/07_ARDECHE.png",
     "scale": 1.0,
     "order": 507
   },
@@ -6110,7 +6110,7 @@ const ICON_CATALOG = [
       "SITUATION_DEP_FINALISEES"
     ],
     "category": "CARTE / SITUATION_DEP_FINALISEES",
-    "url": "icons/sticks/CARTE/SITUATION_DEP_FINALISEES/08_ARDENNES.png",
+    "url": "icons/sticker/CARTE/SITUATION_DEP_FINALISEES/08_ARDENNES.png",
     "scale": 1.0,
     "order": 508
   },
@@ -6122,7 +6122,7 @@ const ICON_CATALOG = [
       "SITUATION_DEP_FINALISEES"
     ],
     "category": "CARTE / SITUATION_DEP_FINALISEES",
-    "url": "icons/sticks/CARTE/SITUATION_DEP_FINALISEES/09_ARIEGE.png",
+    "url": "icons/sticker/CARTE/SITUATION_DEP_FINALISEES/09_ARIEGE.png",
     "scale": 1.0,
     "order": 509
   },
@@ -6134,7 +6134,7 @@ const ICON_CATALOG = [
       "SITUATION_DEP_FINALISEES"
     ],
     "category": "CARTE / SITUATION_DEP_FINALISEES",
-    "url": "icons/sticks/CARTE/SITUATION_DEP_FINALISEES/10_AUBE.png",
+    "url": "icons/sticker/CARTE/SITUATION_DEP_FINALISEES/10_AUBE.png",
     "scale": 1.0,
     "order": 510
   },
@@ -6146,7 +6146,7 @@ const ICON_CATALOG = [
       "SITUATION_DEP_FINALISEES"
     ],
     "category": "CARTE / SITUATION_DEP_FINALISEES",
-    "url": "icons/sticks/CARTE/SITUATION_DEP_FINALISEES/11_AUDE.png",
+    "url": "icons/sticker/CARTE/SITUATION_DEP_FINALISEES/11_AUDE.png",
     "scale": 1.0,
     "order": 511
   },
@@ -6158,7 +6158,7 @@ const ICON_CATALOG = [
       "SITUATION_DEP_FINALISEES"
     ],
     "category": "CARTE / SITUATION_DEP_FINALISEES",
-    "url": "icons/sticks/CARTE/SITUATION_DEP_FINALISEES/12_AVEYRON.png",
+    "url": "icons/sticker/CARTE/SITUATION_DEP_FINALISEES/12_AVEYRON.png",
     "scale": 1.0,
     "order": 512
   },
@@ -6170,7 +6170,7 @@ const ICON_CATALOG = [
       "SITUATION_DEP_FINALISEES"
     ],
     "category": "CARTE / SITUATION_DEP_FINALISEES",
-    "url": "icons/sticks/CARTE/SITUATION_DEP_FINALISEES/13_BOUCHES-DU-RHONE.png",
+    "url": "icons/sticker/CARTE/SITUATION_DEP_FINALISEES/13_BOUCHES-DU-RHONE.png",
     "scale": 1.0,
     "order": 513
   },
@@ -6182,7 +6182,7 @@ const ICON_CATALOG = [
       "SITUATION_DEP_FINALISEES"
     ],
     "category": "CARTE / SITUATION_DEP_FINALISEES",
-    "url": "icons/sticks/CARTE/SITUATION_DEP_FINALISEES/14_CALVADOS.png",
+    "url": "icons/sticker/CARTE/SITUATION_DEP_FINALISEES/14_CALVADOS.png",
     "scale": 1.0,
     "order": 514
   },
@@ -6194,7 +6194,7 @@ const ICON_CATALOG = [
       "SITUATION_DEP_FINALISEES"
     ],
     "category": "CARTE / SITUATION_DEP_FINALISEES",
-    "url": "icons/sticks/CARTE/SITUATION_DEP_FINALISEES/15_CANTAL.png",
+    "url": "icons/sticker/CARTE/SITUATION_DEP_FINALISEES/15_CANTAL.png",
     "scale": 1.0,
     "order": 515
   },
@@ -6206,7 +6206,7 @@ const ICON_CATALOG = [
       "SITUATION_DEP_FINALISEES"
     ],
     "category": "CARTE / SITUATION_DEP_FINALISEES",
-    "url": "icons/sticks/CARTE/SITUATION_DEP_FINALISEES/16_CHARENTE.png",
+    "url": "icons/sticker/CARTE/SITUATION_DEP_FINALISEES/16_CHARENTE.png",
     "scale": 1.0,
     "order": 516
   },
@@ -6218,7 +6218,7 @@ const ICON_CATALOG = [
       "SITUATION_DEP_FINALISEES"
     ],
     "category": "CARTE / SITUATION_DEP_FINALISEES",
-    "url": "icons/sticks/CARTE/SITUATION_DEP_FINALISEES/17_CHARENTE-MARITIME.png",
+    "url": "icons/sticker/CARTE/SITUATION_DEP_FINALISEES/17_CHARENTE-MARITIME.png",
     "scale": 1.0,
     "order": 517
   },
@@ -6230,7 +6230,7 @@ const ICON_CATALOG = [
       "SITUATION_DEP_FINALISEES"
     ],
     "category": "CARTE / SITUATION_DEP_FINALISEES",
-    "url": "icons/sticks/CARTE/SITUATION_DEP_FINALISEES/18_CHER.png",
+    "url": "icons/sticker/CARTE/SITUATION_DEP_FINALISEES/18_CHER.png",
     "scale": 1.0,
     "order": 518
   },
@@ -6242,7 +6242,7 @@ const ICON_CATALOG = [
       "SITUATION_DEP_FINALISEES"
     ],
     "category": "CARTE / SITUATION_DEP_FINALISEES",
-    "url": "icons/sticks/CARTE/SITUATION_DEP_FINALISEES/19_CORREZE.png",
+    "url": "icons/sticker/CARTE/SITUATION_DEP_FINALISEES/19_CORREZE.png",
     "scale": 1.0,
     "order": 519
   },
@@ -6254,7 +6254,7 @@ const ICON_CATALOG = [
       "SITUATION_DEP_FINALISEES"
     ],
     "category": "CARTE / SITUATION_DEP_FINALISEES",
-    "url": "icons/sticks/CARTE/SITUATION_DEP_FINALISEES/21_COTE-D'OR.png",
+    "url": "icons/sticker/CARTE/SITUATION_DEP_FINALISEES/21_COTE-D'OR.png",
     "scale": 1.0,
     "order": 520
   },
@@ -6266,7 +6266,7 @@ const ICON_CATALOG = [
       "SITUATION_DEP_FINALISEES"
     ],
     "category": "CARTE / SITUATION_DEP_FINALISEES",
-    "url": "icons/sticks/CARTE/SITUATION_DEP_FINALISEES/22_COTE-D'ARMOR.png",
+    "url": "icons/sticker/CARTE/SITUATION_DEP_FINALISEES/22_COTE-D'ARMOR.png",
     "scale": 1.0,
     "order": 521
   },
@@ -6278,7 +6278,7 @@ const ICON_CATALOG = [
       "SITUATION_DEP_FINALISEES"
     ],
     "category": "CARTE / SITUATION_DEP_FINALISEES",
-    "url": "icons/sticks/CARTE/SITUATION_DEP_FINALISEES/23_CREUSE.png",
+    "url": "icons/sticker/CARTE/SITUATION_DEP_FINALISEES/23_CREUSE.png",
     "scale": 1.0,
     "order": 522
   },
@@ -6290,7 +6290,7 @@ const ICON_CATALOG = [
       "SITUATION_DEP_FINALISEES"
     ],
     "category": "CARTE / SITUATION_DEP_FINALISEES",
-    "url": "icons/sticks/CARTE/SITUATION_DEP_FINALISEES/24_DORDOGNE.png",
+    "url": "icons/sticker/CARTE/SITUATION_DEP_FINALISEES/24_DORDOGNE.png",
     "scale": 1.0,
     "order": 523
   },
@@ -6302,7 +6302,7 @@ const ICON_CATALOG = [
       "SITUATION_DEP_FINALISEES"
     ],
     "category": "CARTE / SITUATION_DEP_FINALISEES",
-    "url": "icons/sticks/CARTE/SITUATION_DEP_FINALISEES/25_DOUBS.png",
+    "url": "icons/sticker/CARTE/SITUATION_DEP_FINALISEES/25_DOUBS.png",
     "scale": 1.0,
     "order": 524
   },
@@ -6314,7 +6314,7 @@ const ICON_CATALOG = [
       "SITUATION_DEP_FINALISEES"
     ],
     "category": "CARTE / SITUATION_DEP_FINALISEES",
-    "url": "icons/sticks/CARTE/SITUATION_DEP_FINALISEES/26_DROME.png",
+    "url": "icons/sticker/CARTE/SITUATION_DEP_FINALISEES/26_DROME.png",
     "scale": 1.0,
     "order": 525
   },
@@ -6326,7 +6326,7 @@ const ICON_CATALOG = [
       "SITUATION_DEP_FINALISEES"
     ],
     "category": "CARTE / SITUATION_DEP_FINALISEES",
-    "url": "icons/sticks/CARTE/SITUATION_DEP_FINALISEES/27_EURE.png",
+    "url": "icons/sticker/CARTE/SITUATION_DEP_FINALISEES/27_EURE.png",
     "scale": 1.0,
     "order": 526
   },
@@ -6338,7 +6338,7 @@ const ICON_CATALOG = [
       "SITUATION_DEP_FINALISEES"
     ],
     "category": "CARTE / SITUATION_DEP_FINALISEES",
-    "url": "icons/sticks/CARTE/SITUATION_DEP_FINALISEES/28_EURE-ET-LOIR.png",
+    "url": "icons/sticker/CARTE/SITUATION_DEP_FINALISEES/28_EURE-ET-LOIR.png",
     "scale": 1.0,
     "order": 527
   },
@@ -6350,7 +6350,7 @@ const ICON_CATALOG = [
       "SITUATION_DEP_FINALISEES"
     ],
     "category": "CARTE / SITUATION_DEP_FINALISEES",
-    "url": "icons/sticks/CARTE/SITUATION_DEP_FINALISEES/29_FINISTERE.png",
+    "url": "icons/sticker/CARTE/SITUATION_DEP_FINALISEES/29_FINISTERE.png",
     "scale": 1.0,
     "order": 528
   },
@@ -6362,7 +6362,7 @@ const ICON_CATALOG = [
       "SITUATION_DEP_FINALISEES"
     ],
     "category": "CARTE / SITUATION_DEP_FINALISEES",
-    "url": "icons/sticks/CARTE/SITUATION_DEP_FINALISEES/2A_CORSE-DU-SUD.png",
+    "url": "icons/sticker/CARTE/SITUATION_DEP_FINALISEES/2A_CORSE-DU-SUD.png",
     "scale": 1.0,
     "order": 529
   },
@@ -6374,7 +6374,7 @@ const ICON_CATALOG = [
       "SITUATION_DEP_FINALISEES"
     ],
     "category": "CARTE / SITUATION_DEP_FINALISEES",
-    "url": "icons/sticks/CARTE/SITUATION_DEP_FINALISEES/2B_HAUTE-CORSE.png",
+    "url": "icons/sticker/CARTE/SITUATION_DEP_FINALISEES/2B_HAUTE-CORSE.png",
     "scale": 1.0,
     "order": 530
   },
@@ -6386,7 +6386,7 @@ const ICON_CATALOG = [
       "SITUATION_DEP_FINALISEES"
     ],
     "category": "CARTE / SITUATION_DEP_FINALISEES",
-    "url": "icons/sticks/CARTE/SITUATION_DEP_FINALISEES/30_GARD.png",
+    "url": "icons/sticker/CARTE/SITUATION_DEP_FINALISEES/30_GARD.png",
     "scale": 1.0,
     "order": 531
   },
@@ -6398,7 +6398,7 @@ const ICON_CATALOG = [
       "SITUATION_DEP_FINALISEES"
     ],
     "category": "CARTE / SITUATION_DEP_FINALISEES",
-    "url": "icons/sticks/CARTE/SITUATION_DEP_FINALISEES/31_HAUTE-GARONNE.png",
+    "url": "icons/sticker/CARTE/SITUATION_DEP_FINALISEES/31_HAUTE-GARONNE.png",
     "scale": 1.0,
     "order": 532
   },
@@ -6410,7 +6410,7 @@ const ICON_CATALOG = [
       "SITUATION_DEP_FINALISEES"
     ],
     "category": "CARTE / SITUATION_DEP_FINALISEES",
-    "url": "icons/sticks/CARTE/SITUATION_DEP_FINALISEES/32_GERS.png",
+    "url": "icons/sticker/CARTE/SITUATION_DEP_FINALISEES/32_GERS.png",
     "scale": 1.0,
     "order": 533
   },
@@ -6422,7 +6422,7 @@ const ICON_CATALOG = [
       "SITUATION_DEP_FINALISEES"
     ],
     "category": "CARTE / SITUATION_DEP_FINALISEES",
-    "url": "icons/sticks/CARTE/SITUATION_DEP_FINALISEES/33_GIRONDE.png",
+    "url": "icons/sticker/CARTE/SITUATION_DEP_FINALISEES/33_GIRONDE.png",
     "scale": 1.0,
     "order": 534
   },
@@ -6434,7 +6434,7 @@ const ICON_CATALOG = [
       "SITUATION_DEP_FINALISEES"
     ],
     "category": "CARTE / SITUATION_DEP_FINALISEES",
-    "url": "icons/sticks/CARTE/SITUATION_DEP_FINALISEES/34_HERAULT.png",
+    "url": "icons/sticker/CARTE/SITUATION_DEP_FINALISEES/34_HERAULT.png",
     "scale": 1.0,
     "order": 535
   },
@@ -6446,7 +6446,7 @@ const ICON_CATALOG = [
       "SITUATION_DEP_FINALISEES"
     ],
     "category": "CARTE / SITUATION_DEP_FINALISEES",
-    "url": "icons/sticks/CARTE/SITUATION_DEP_FINALISEES/35_ILLE-ET-VILAINE.png",
+    "url": "icons/sticker/CARTE/SITUATION_DEP_FINALISEES/35_ILLE-ET-VILAINE.png",
     "scale": 1.0,
     "order": 536
   },
@@ -6458,7 +6458,7 @@ const ICON_CATALOG = [
       "SITUATION_DEP_FINALISEES"
     ],
     "category": "CARTE / SITUATION_DEP_FINALISEES",
-    "url": "icons/sticks/CARTE/SITUATION_DEP_FINALISEES/36_INDRE.png",
+    "url": "icons/sticker/CARTE/SITUATION_DEP_FINALISEES/36_INDRE.png",
     "scale": 1.0,
     "order": 537
   },
@@ -6470,7 +6470,7 @@ const ICON_CATALOG = [
       "SITUATION_DEP_FINALISEES"
     ],
     "category": "CARTE / SITUATION_DEP_FINALISEES",
-    "url": "icons/sticks/CARTE/SITUATION_DEP_FINALISEES/37_INDRE-ET-LOIRE.png",
+    "url": "icons/sticker/CARTE/SITUATION_DEP_FINALISEES/37_INDRE-ET-LOIRE.png",
     "scale": 1.0,
     "order": 538
   },
@@ -6482,7 +6482,7 @@ const ICON_CATALOG = [
       "SITUATION_DEP_FINALISEES"
     ],
     "category": "CARTE / SITUATION_DEP_FINALISEES",
-    "url": "icons/sticks/CARTE/SITUATION_DEP_FINALISEES/38_ISERE.png",
+    "url": "icons/sticker/CARTE/SITUATION_DEP_FINALISEES/38_ISERE.png",
     "scale": 1.0,
     "order": 539
   },
@@ -6494,7 +6494,7 @@ const ICON_CATALOG = [
       "SITUATION_DEP_FINALISEES"
     ],
     "category": "CARTE / SITUATION_DEP_FINALISEES",
-    "url": "icons/sticks/CARTE/SITUATION_DEP_FINALISEES/39_JURA.png",
+    "url": "icons/sticker/CARTE/SITUATION_DEP_FINALISEES/39_JURA.png",
     "scale": 1.0,
     "order": 540
   },
@@ -6506,7 +6506,7 @@ const ICON_CATALOG = [
       "SITUATION_DEP_FINALISEES"
     ],
     "category": "CARTE / SITUATION_DEP_FINALISEES",
-    "url": "icons/sticks/CARTE/SITUATION_DEP_FINALISEES/40_LANDES.png",
+    "url": "icons/sticker/CARTE/SITUATION_DEP_FINALISEES/40_LANDES.png",
     "scale": 1.0,
     "order": 541
   },
@@ -6518,7 +6518,7 @@ const ICON_CATALOG = [
       "SITUATION_DEP_FINALISEES"
     ],
     "category": "CARTE / SITUATION_DEP_FINALISEES",
-    "url": "icons/sticks/CARTE/SITUATION_DEP_FINALISEES/41_LOIR-ET-CHER.png",
+    "url": "icons/sticker/CARTE/SITUATION_DEP_FINALISEES/41_LOIR-ET-CHER.png",
     "scale": 1.0,
     "order": 542
   },
@@ -6530,7 +6530,7 @@ const ICON_CATALOG = [
       "SITUATION_DEP_FINALISEES"
     ],
     "category": "CARTE / SITUATION_DEP_FINALISEES",
-    "url": "icons/sticks/CARTE/SITUATION_DEP_FINALISEES/42_LOIRE.png",
+    "url": "icons/sticker/CARTE/SITUATION_DEP_FINALISEES/42_LOIRE.png",
     "scale": 1.0,
     "order": 543
   },
@@ -6542,7 +6542,7 @@ const ICON_CATALOG = [
       "SITUATION_DEP_FINALISEES"
     ],
     "category": "CARTE / SITUATION_DEP_FINALISEES",
-    "url": "icons/sticks/CARTE/SITUATION_DEP_FINALISEES/43_HAUTE-LOIRE.png",
+    "url": "icons/sticker/CARTE/SITUATION_DEP_FINALISEES/43_HAUTE-LOIRE.png",
     "scale": 1.0,
     "order": 544
   },
@@ -6554,7 +6554,7 @@ const ICON_CATALOG = [
       "SITUATION_DEP_FINALISEES"
     ],
     "category": "CARTE / SITUATION_DEP_FINALISEES",
-    "url": "icons/sticks/CARTE/SITUATION_DEP_FINALISEES/44_LOIRE-ATLANTIQUE.png",
+    "url": "icons/sticker/CARTE/SITUATION_DEP_FINALISEES/44_LOIRE-ATLANTIQUE.png",
     "scale": 1.0,
     "order": 545
   },
@@ -6566,7 +6566,7 @@ const ICON_CATALOG = [
       "SITUATION_DEP_FINALISEES"
     ],
     "category": "CARTE / SITUATION_DEP_FINALISEES",
-    "url": "icons/sticks/CARTE/SITUATION_DEP_FINALISEES/45_LOIRET.png",
+    "url": "icons/sticker/CARTE/SITUATION_DEP_FINALISEES/45_LOIRET.png",
     "scale": 1.0,
     "order": 546
   },
@@ -6578,7 +6578,7 @@ const ICON_CATALOG = [
       "SITUATION_DEP_FINALISEES"
     ],
     "category": "CARTE / SITUATION_DEP_FINALISEES",
-    "url": "icons/sticks/CARTE/SITUATION_DEP_FINALISEES/46_LOT.png",
+    "url": "icons/sticker/CARTE/SITUATION_DEP_FINALISEES/46_LOT.png",
     "scale": 1.0,
     "order": 547
   },
@@ -6590,7 +6590,7 @@ const ICON_CATALOG = [
       "SITUATION_DEP_FINALISEES"
     ],
     "category": "CARTE / SITUATION_DEP_FINALISEES",
-    "url": "icons/sticks/CARTE/SITUATION_DEP_FINALISEES/47_LOT-ET-GARONNE.png",
+    "url": "icons/sticker/CARTE/SITUATION_DEP_FINALISEES/47_LOT-ET-GARONNE.png",
     "scale": 1.0,
     "order": 548
   },
@@ -6602,7 +6602,7 @@ const ICON_CATALOG = [
       "SITUATION_DEP_FINALISEES"
     ],
     "category": "CARTE / SITUATION_DEP_FINALISEES",
-    "url": "icons/sticks/CARTE/SITUATION_DEP_FINALISEES/48_LOZERE.png",
+    "url": "icons/sticker/CARTE/SITUATION_DEP_FINALISEES/48_LOZERE.png",
     "scale": 1.0,
     "order": 549
   },
@@ -6614,7 +6614,7 @@ const ICON_CATALOG = [
       "SITUATION_DEP_FINALISEES"
     ],
     "category": "CARTE / SITUATION_DEP_FINALISEES",
-    "url": "icons/sticks/CARTE/SITUATION_DEP_FINALISEES/49_MAINE-ET-LOIRE.png",
+    "url": "icons/sticker/CARTE/SITUATION_DEP_FINALISEES/49_MAINE-ET-LOIRE.png",
     "scale": 1.0,
     "order": 550
   },
@@ -6626,7 +6626,7 @@ const ICON_CATALOG = [
       "SITUATION_DEP_FINALISEES"
     ],
     "category": "CARTE / SITUATION_DEP_FINALISEES",
-    "url": "icons/sticks/CARTE/SITUATION_DEP_FINALISEES/50_MANCHE.png",
+    "url": "icons/sticker/CARTE/SITUATION_DEP_FINALISEES/50_MANCHE.png",
     "scale": 1.0,
     "order": 551
   },
@@ -6638,7 +6638,7 @@ const ICON_CATALOG = [
       "SITUATION_DEP_FINALISEES"
     ],
     "category": "CARTE / SITUATION_DEP_FINALISEES",
-    "url": "icons/sticks/CARTE/SITUATION_DEP_FINALISEES/51_MARNE.png",
+    "url": "icons/sticker/CARTE/SITUATION_DEP_FINALISEES/51_MARNE.png",
     "scale": 1.0,
     "order": 552
   },
@@ -6650,7 +6650,7 @@ const ICON_CATALOG = [
       "SITUATION_DEP_FINALISEES"
     ],
     "category": "CARTE / SITUATION_DEP_FINALISEES",
-    "url": "icons/sticks/CARTE/SITUATION_DEP_FINALISEES/52_HAUTE-MARNE.png",
+    "url": "icons/sticker/CARTE/SITUATION_DEP_FINALISEES/52_HAUTE-MARNE.png",
     "scale": 1.0,
     "order": 553
   },
@@ -6662,7 +6662,7 @@ const ICON_CATALOG = [
       "SITUATION_DEP_FINALISEES"
     ],
     "category": "CARTE / SITUATION_DEP_FINALISEES",
-    "url": "icons/sticks/CARTE/SITUATION_DEP_FINALISEES/53_MAYENNE.png",
+    "url": "icons/sticker/CARTE/SITUATION_DEP_FINALISEES/53_MAYENNE.png",
     "scale": 1.0,
     "order": 554
   },
@@ -6674,7 +6674,7 @@ const ICON_CATALOG = [
       "SITUATION_DEP_FINALISEES"
     ],
     "category": "CARTE / SITUATION_DEP_FINALISEES",
-    "url": "icons/sticks/CARTE/SITUATION_DEP_FINALISEES/54_MEURTHE-ET-MOSELLE.png",
+    "url": "icons/sticker/CARTE/SITUATION_DEP_FINALISEES/54_MEURTHE-ET-MOSELLE.png",
     "scale": 1.0,
     "order": 555
   },
@@ -6686,7 +6686,7 @@ const ICON_CATALOG = [
       "SITUATION_DEP_FINALISEES"
     ],
     "category": "CARTE / SITUATION_DEP_FINALISEES",
-    "url": "icons/sticks/CARTE/SITUATION_DEP_FINALISEES/55_MEUSE.png",
+    "url": "icons/sticker/CARTE/SITUATION_DEP_FINALISEES/55_MEUSE.png",
     "scale": 1.0,
     "order": 556
   },
@@ -6698,7 +6698,7 @@ const ICON_CATALOG = [
       "SITUATION_DEP_FINALISEES"
     ],
     "category": "CARTE / SITUATION_DEP_FINALISEES",
-    "url": "icons/sticks/CARTE/SITUATION_DEP_FINALISEES/56_MORBIHAN.png",
+    "url": "icons/sticker/CARTE/SITUATION_DEP_FINALISEES/56_MORBIHAN.png",
     "scale": 1.0,
     "order": 557
   },
@@ -6710,7 +6710,7 @@ const ICON_CATALOG = [
       "SITUATION_DEP_FINALISEES"
     ],
     "category": "CARTE / SITUATION_DEP_FINALISEES",
-    "url": "icons/sticks/CARTE/SITUATION_DEP_FINALISEES/57_MOSELLE.png",
+    "url": "icons/sticker/CARTE/SITUATION_DEP_FINALISEES/57_MOSELLE.png",
     "scale": 1.0,
     "order": 558
   },
@@ -6722,7 +6722,7 @@ const ICON_CATALOG = [
       "SITUATION_DEP_FINALISEES"
     ],
     "category": "CARTE / SITUATION_DEP_FINALISEES",
-    "url": "icons/sticks/CARTE/SITUATION_DEP_FINALISEES/58_NIEVRE.png",
+    "url": "icons/sticker/CARTE/SITUATION_DEP_FINALISEES/58_NIEVRE.png",
     "scale": 1.0,
     "order": 559
   },
@@ -6734,7 +6734,7 @@ const ICON_CATALOG = [
       "SITUATION_DEP_FINALISEES"
     ],
     "category": "CARTE / SITUATION_DEP_FINALISEES",
-    "url": "icons/sticks/CARTE/SITUATION_DEP_FINALISEES/59_NORD.png",
+    "url": "icons/sticker/CARTE/SITUATION_DEP_FINALISEES/59_NORD.png",
     "scale": 1.0,
     "order": 560
   },
@@ -6746,7 +6746,7 @@ const ICON_CATALOG = [
       "SITUATION_DEP_FINALISEES"
     ],
     "category": "CARTE / SITUATION_DEP_FINALISEES",
-    "url": "icons/sticks/CARTE/SITUATION_DEP_FINALISEES/60_OISE.png",
+    "url": "icons/sticker/CARTE/SITUATION_DEP_FINALISEES/60_OISE.png",
     "scale": 1.0,
     "order": 561
   },
@@ -6758,7 +6758,7 @@ const ICON_CATALOG = [
       "SITUATION_DEP_FINALISEES"
     ],
     "category": "CARTE / SITUATION_DEP_FINALISEES",
-    "url": "icons/sticks/CARTE/SITUATION_DEP_FINALISEES/61_ORNE.png",
+    "url": "icons/sticker/CARTE/SITUATION_DEP_FINALISEES/61_ORNE.png",
     "scale": 1.0,
     "order": 562
   },
@@ -6770,7 +6770,7 @@ const ICON_CATALOG = [
       "SITUATION_DEP_FINALISEES"
     ],
     "category": "CARTE / SITUATION_DEP_FINALISEES",
-    "url": "icons/sticks/CARTE/SITUATION_DEP_FINALISEES/62_PAS-DE-CALAIS.png",
+    "url": "icons/sticker/CARTE/SITUATION_DEP_FINALISEES/62_PAS-DE-CALAIS.png",
     "scale": 1.0,
     "order": 563
   },
@@ -6782,7 +6782,7 @@ const ICON_CATALOG = [
       "SITUATION_DEP_FINALISEES"
     ],
     "category": "CARTE / SITUATION_DEP_FINALISEES",
-    "url": "icons/sticks/CARTE/SITUATION_DEP_FINALISEES/63_PUY-DE-DOME.png",
+    "url": "icons/sticker/CARTE/SITUATION_DEP_FINALISEES/63_PUY-DE-DOME.png",
     "scale": 1.0,
     "order": 564
   },
@@ -6794,7 +6794,7 @@ const ICON_CATALOG = [
       "SITUATION_DEP_FINALISEES"
     ],
     "category": "CARTE / SITUATION_DEP_FINALISEES",
-    "url": "icons/sticks/CARTE/SITUATION_DEP_FINALISEES/64_PYRENEES-ATLANTIQUES.png",
+    "url": "icons/sticker/CARTE/SITUATION_DEP_FINALISEES/64_PYRENEES-ATLANTIQUES.png",
     "scale": 1.0,
     "order": 565
   },
@@ -6806,7 +6806,7 @@ const ICON_CATALOG = [
       "SITUATION_DEP_FINALISEES"
     ],
     "category": "CARTE / SITUATION_DEP_FINALISEES",
-    "url": "icons/sticks/CARTE/SITUATION_DEP_FINALISEES/65_HAUTES-PYRENEES.png",
+    "url": "icons/sticker/CARTE/SITUATION_DEP_FINALISEES/65_HAUTES-PYRENEES.png",
     "scale": 1.0,
     "order": 566
   },
@@ -6818,7 +6818,7 @@ const ICON_CATALOG = [
       "SITUATION_DEP_FINALISEES"
     ],
     "category": "CARTE / SITUATION_DEP_FINALISEES",
-    "url": "icons/sticks/CARTE/SITUATION_DEP_FINALISEES/66_PYRENEES ORIENTALES.png",
+    "url": "icons/sticker/CARTE/SITUATION_DEP_FINALISEES/66_PYRENEES ORIENTALES.png",
     "scale": 1.0,
     "order": 567
   },
@@ -6830,7 +6830,7 @@ const ICON_CATALOG = [
       "SITUATION_DEP_FINALISEES"
     ],
     "category": "CARTE / SITUATION_DEP_FINALISEES",
-    "url": "icons/sticks/CARTE/SITUATION_DEP_FINALISEES/67_BAS-RHIN.png",
+    "url": "icons/sticker/CARTE/SITUATION_DEP_FINALISEES/67_BAS-RHIN.png",
     "scale": 1.0,
     "order": 568
   },
@@ -6842,7 +6842,7 @@ const ICON_CATALOG = [
       "SITUATION_DEP_FINALISEES"
     ],
     "category": "CARTE / SITUATION_DEP_FINALISEES",
-    "url": "icons/sticks/CARTE/SITUATION_DEP_FINALISEES/68_HAUT-RHIN.png",
+    "url": "icons/sticker/CARTE/SITUATION_DEP_FINALISEES/68_HAUT-RHIN.png",
     "scale": 1.0,
     "order": 569
   },
@@ -6854,7 +6854,7 @@ const ICON_CATALOG = [
       "SITUATION_DEP_FINALISEES"
     ],
     "category": "CARTE / SITUATION_DEP_FINALISEES",
-    "url": "icons/sticks/CARTE/SITUATION_DEP_FINALISEES/69_RHONE.png",
+    "url": "icons/sticker/CARTE/SITUATION_DEP_FINALISEES/69_RHONE.png",
     "scale": 1.0,
     "order": 570
   },
@@ -6866,7 +6866,7 @@ const ICON_CATALOG = [
       "SITUATION_DEP_FINALISEES"
     ],
     "category": "CARTE / SITUATION_DEP_FINALISEES",
-    "url": "icons/sticks/CARTE/SITUATION_DEP_FINALISEES/70_HAUTE-SAONE.png",
+    "url": "icons/sticker/CARTE/SITUATION_DEP_FINALISEES/70_HAUTE-SAONE.png",
     "scale": 1.0,
     "order": 571
   },
@@ -6878,7 +6878,7 @@ const ICON_CATALOG = [
       "SITUATION_DEP_FINALISEES"
     ],
     "category": "CARTE / SITUATION_DEP_FINALISEES",
-    "url": "icons/sticks/CARTE/SITUATION_DEP_FINALISEES/71_SAONE-ET-LOIRE.png",
+    "url": "icons/sticker/CARTE/SITUATION_DEP_FINALISEES/71_SAONE-ET-LOIRE.png",
     "scale": 1.0,
     "order": 572
   },
@@ -6890,7 +6890,7 @@ const ICON_CATALOG = [
       "SITUATION_DEP_FINALISEES"
     ],
     "category": "CARTE / SITUATION_DEP_FINALISEES",
-    "url": "icons/sticks/CARTE/SITUATION_DEP_FINALISEES/72_SARTHE.png",
+    "url": "icons/sticker/CARTE/SITUATION_DEP_FINALISEES/72_SARTHE.png",
     "scale": 1.0,
     "order": 573
   },
@@ -6902,7 +6902,7 @@ const ICON_CATALOG = [
       "SITUATION_DEP_FINALISEES"
     ],
     "category": "CARTE / SITUATION_DEP_FINALISEES",
-    "url": "icons/sticks/CARTE/SITUATION_DEP_FINALISEES/73_SAVOIE.png",
+    "url": "icons/sticker/CARTE/SITUATION_DEP_FINALISEES/73_SAVOIE.png",
     "scale": 1.0,
     "order": 574
   },
@@ -6914,7 +6914,7 @@ const ICON_CATALOG = [
       "SITUATION_DEP_FINALISEES"
     ],
     "category": "CARTE / SITUATION_DEP_FINALISEES",
-    "url": "icons/sticks/CARTE/SITUATION_DEP_FINALISEES/74_HAUTE-SAVOIE.png",
+    "url": "icons/sticker/CARTE/SITUATION_DEP_FINALISEES/74_HAUTE-SAVOIE.png",
     "scale": 1.0,
     "order": 575
   },
@@ -6926,7 +6926,7 @@ const ICON_CATALOG = [
       "SITUATION_DEP_FINALISEES"
     ],
     "category": "CARTE / SITUATION_DEP_FINALISEES",
-    "url": "icons/sticks/CARTE/SITUATION_DEP_FINALISEES/75_PARIS.png",
+    "url": "icons/sticker/CARTE/SITUATION_DEP_FINALISEES/75_PARIS.png",
     "scale": 1.0,
     "order": 576
   },
@@ -6938,7 +6938,7 @@ const ICON_CATALOG = [
       "SITUATION_DEP_FINALISEES"
     ],
     "category": "CARTE / SITUATION_DEP_FINALISEES",
-    "url": "icons/sticks/CARTE/SITUATION_DEP_FINALISEES/76_SEINE-MARITIME.png",
+    "url": "icons/sticker/CARTE/SITUATION_DEP_FINALISEES/76_SEINE-MARITIME.png",
     "scale": 1.0,
     "order": 577
   },
@@ -6950,7 +6950,7 @@ const ICON_CATALOG = [
       "SITUATION_DEP_FINALISEES"
     ],
     "category": "CARTE / SITUATION_DEP_FINALISEES",
-    "url": "icons/sticks/CARTE/SITUATION_DEP_FINALISEES/77_SEINE-ET-MARNE.png",
+    "url": "icons/sticker/CARTE/SITUATION_DEP_FINALISEES/77_SEINE-ET-MARNE.png",
     "scale": 1.0,
     "order": 578
   },
@@ -6962,7 +6962,7 @@ const ICON_CATALOG = [
       "SITUATION_DEP_FINALISEES"
     ],
     "category": "CARTE / SITUATION_DEP_FINALISEES",
-    "url": "icons/sticks/CARTE/SITUATION_DEP_FINALISEES/78_YVELINES.png",
+    "url": "icons/sticker/CARTE/SITUATION_DEP_FINALISEES/78_YVELINES.png",
     "scale": 1.0,
     "order": 579
   },
@@ -6974,7 +6974,7 @@ const ICON_CATALOG = [
       "SITUATION_DEP_FINALISEES"
     ],
     "category": "CARTE / SITUATION_DEP_FINALISEES",
-    "url": "icons/sticks/CARTE/SITUATION_DEP_FINALISEES/79_DEUX-SEVRES.png",
+    "url": "icons/sticker/CARTE/SITUATION_DEP_FINALISEES/79_DEUX-SEVRES.png",
     "scale": 1.0,
     "order": 580
   },
@@ -6986,7 +6986,7 @@ const ICON_CATALOG = [
       "SITUATION_DEP_FINALISEES"
     ],
     "category": "CARTE / SITUATION_DEP_FINALISEES",
-    "url": "icons/sticks/CARTE/SITUATION_DEP_FINALISEES/80_SOMME.png",
+    "url": "icons/sticker/CARTE/SITUATION_DEP_FINALISEES/80_SOMME.png",
     "scale": 1.0,
     "order": 581
   },
@@ -6998,7 +6998,7 @@ const ICON_CATALOG = [
       "SITUATION_DEP_FINALISEES"
     ],
     "category": "CARTE / SITUATION_DEP_FINALISEES",
-    "url": "icons/sticks/CARTE/SITUATION_DEP_FINALISEES/81_TARN.png",
+    "url": "icons/sticker/CARTE/SITUATION_DEP_FINALISEES/81_TARN.png",
     "scale": 1.0,
     "order": 582
   },
@@ -7010,7 +7010,7 @@ const ICON_CATALOG = [
       "SITUATION_DEP_FINALISEES"
     ],
     "category": "CARTE / SITUATION_DEP_FINALISEES",
-    "url": "icons/sticks/CARTE/SITUATION_DEP_FINALISEES/82_TARN-ET-GARONNE.png",
+    "url": "icons/sticker/CARTE/SITUATION_DEP_FINALISEES/82_TARN-ET-GARONNE.png",
     "scale": 1.0,
     "order": 583
   },
@@ -7022,7 +7022,7 @@ const ICON_CATALOG = [
       "SITUATION_DEP_FINALISEES"
     ],
     "category": "CARTE / SITUATION_DEP_FINALISEES",
-    "url": "icons/sticks/CARTE/SITUATION_DEP_FINALISEES/83_VAR.png",
+    "url": "icons/sticker/CARTE/SITUATION_DEP_FINALISEES/83_VAR.png",
     "scale": 1.0,
     "order": 584
   },
@@ -7034,7 +7034,7 @@ const ICON_CATALOG = [
       "SITUATION_DEP_FINALISEES"
     ],
     "category": "CARTE / SITUATION_DEP_FINALISEES",
-    "url": "icons/sticks/CARTE/SITUATION_DEP_FINALISEES/84_VAUCLUSE.png",
+    "url": "icons/sticker/CARTE/SITUATION_DEP_FINALISEES/84_VAUCLUSE.png",
     "scale": 1.0,
     "order": 585
   },
@@ -7046,7 +7046,7 @@ const ICON_CATALOG = [
       "SITUATION_DEP_FINALISEES"
     ],
     "category": "CARTE / SITUATION_DEP_FINALISEES",
-    "url": "icons/sticks/CARTE/SITUATION_DEP_FINALISEES/85_VENDEE.png",
+    "url": "icons/sticker/CARTE/SITUATION_DEP_FINALISEES/85_VENDEE.png",
     "scale": 1.0,
     "order": 586
   },
@@ -7058,7 +7058,7 @@ const ICON_CATALOG = [
       "SITUATION_DEP_FINALISEES"
     ],
     "category": "CARTE / SITUATION_DEP_FINALISEES",
-    "url": "icons/sticks/CARTE/SITUATION_DEP_FINALISEES/86_VIENNE.png",
+    "url": "icons/sticker/CARTE/SITUATION_DEP_FINALISEES/86_VIENNE.png",
     "scale": 1.0,
     "order": 587
   },
@@ -7070,7 +7070,7 @@ const ICON_CATALOG = [
       "SITUATION_DEP_FINALISEES"
     ],
     "category": "CARTE / SITUATION_DEP_FINALISEES",
-    "url": "icons/sticks/CARTE/SITUATION_DEP_FINALISEES/87_HAUTE-VIENNE.png",
+    "url": "icons/sticker/CARTE/SITUATION_DEP_FINALISEES/87_HAUTE-VIENNE.png",
     "scale": 1.0,
     "order": 588
   },
@@ -7082,7 +7082,7 @@ const ICON_CATALOG = [
       "SITUATION_DEP_FINALISEES"
     ],
     "category": "CARTE / SITUATION_DEP_FINALISEES",
-    "url": "icons/sticks/CARTE/SITUATION_DEP_FINALISEES/88_VOSGES.png",
+    "url": "icons/sticker/CARTE/SITUATION_DEP_FINALISEES/88_VOSGES.png",
     "scale": 1.0,
     "order": 589
   },
@@ -7094,7 +7094,7 @@ const ICON_CATALOG = [
       "SITUATION_DEP_FINALISEES"
     ],
     "category": "CARTE / SITUATION_DEP_FINALISEES",
-    "url": "icons/sticks/CARTE/SITUATION_DEP_FINALISEES/89_YONNE.png",
+    "url": "icons/sticker/CARTE/SITUATION_DEP_FINALISEES/89_YONNE.png",
     "scale": 1.0,
     "order": 590
   },
@@ -7106,7 +7106,7 @@ const ICON_CATALOG = [
       "SITUATION_DEP_FINALISEES"
     ],
     "category": "CARTE / SITUATION_DEP_FINALISEES",
-    "url": "icons/sticks/CARTE/SITUATION_DEP_FINALISEES/90_ TERRITOIRE DE BELFORT.png",
+    "url": "icons/sticker/CARTE/SITUATION_DEP_FINALISEES/90_ TERRITOIRE DE BELFORT.png",
     "scale": 1.0,
     "order": 591
   },
@@ -7118,7 +7118,7 @@ const ICON_CATALOG = [
       "SITUATION_DEP_FINALISEES"
     ],
     "category": "CARTE / SITUATION_DEP_FINALISEES",
-    "url": "icons/sticks/CARTE/SITUATION_DEP_FINALISEES/91_ESSONNE.png",
+    "url": "icons/sticker/CARTE/SITUATION_DEP_FINALISEES/91_ESSONNE.png",
     "scale": 1.0,
     "order": 592
   },
@@ -7130,7 +7130,7 @@ const ICON_CATALOG = [
       "SITUATION_DEP_FINALISEES"
     ],
     "category": "CARTE / SITUATION_DEP_FINALISEES",
-    "url": "icons/sticks/CARTE/SITUATION_DEP_FINALISEES/92_HAUTS-DE-SEINE.png",
+    "url": "icons/sticker/CARTE/SITUATION_DEP_FINALISEES/92_HAUTS-DE-SEINE.png",
     "scale": 1.0,
     "order": 593
   },
@@ -7142,7 +7142,7 @@ const ICON_CATALOG = [
       "SITUATION_DEP_FINALISEES"
     ],
     "category": "CARTE / SITUATION_DEP_FINALISEES",
-    "url": "icons/sticks/CARTE/SITUATION_DEP_FINALISEES/93_SEINE-SAINT-DENIS.png",
+    "url": "icons/sticker/CARTE/SITUATION_DEP_FINALISEES/93_SEINE-SAINT-DENIS.png",
     "scale": 1.0,
     "order": 594
   },
@@ -7154,7 +7154,7 @@ const ICON_CATALOG = [
       "SITUATION_DEP_FINALISEES"
     ],
     "category": "CARTE / SITUATION_DEP_FINALISEES",
-    "url": "icons/sticks/CARTE/SITUATION_DEP_FINALISEES/94_VAL-DE-MARNE.png",
+    "url": "icons/sticker/CARTE/SITUATION_DEP_FINALISEES/94_VAL-DE-MARNE.png",
     "scale": 1.0,
     "order": 595
   },
@@ -7166,7 +7166,7 @@ const ICON_CATALOG = [
       "SITUATION_DEP_FINALISEES"
     ],
     "category": "CARTE / SITUATION_DEP_FINALISEES",
-    "url": "icons/sticks/CARTE/SITUATION_DEP_FINALISEES/95_VAL-D'OISE.png",
+    "url": "icons/sticker/CARTE/SITUATION_DEP_FINALISEES/95_VAL-D'OISE.png",
     "scale": 1.0,
     "order": 596
   },
@@ -7178,7 +7178,7 @@ const ICON_CATALOG = [
       "DANGER"
     ],
     "category": "CIRCULATION / DANGER",
-    "url": "icons/sticks/CIRCULATION/DANGER/ACCIDENT.png",
+    "url": "icons/sticker/CIRCULATION/DANGER/ACCIDENT.png",
     "scale": 1.0,
     "order": 597
   },
@@ -7190,7 +7190,7 @@ const ICON_CATALOG = [
       "DANGER"
     ],
     "category": "CIRCULATION / DANGER",
-    "url": "icons/sticks/CIRCULATION/DANGER/ATTENTION_TRAVAUX.png",
+    "url": "icons/sticker/CIRCULATION/DANGER/ATTENTION_TRAVAUX.png",
     "scale": 1.0,
     "order": 598
   },
@@ -7202,7 +7202,7 @@ const ICON_CATALOG = [
       "DANGER"
     ],
     "category": "CIRCULATION / DANGER",
-    "url": "icons/sticks/CIRCULATION/DANGER/AVION.png",
+    "url": "icons/sticker/CIRCULATION/DANGER/AVION.png",
     "scale": 1.0,
     "order": 599
   },
@@ -7214,7 +7214,7 @@ const ICON_CATALOG = [
       "DANGER"
     ],
     "category": "CIRCULATION / DANGER",
-    "url": "icons/sticks/CIRCULATION/DANGER/CAVALIERS.png",
+    "url": "icons/sticker/CIRCULATION/DANGER/CAVALIERS.png",
     "scale": 1.0,
     "order": 600
   },
@@ -7226,7 +7226,7 @@ const ICON_CATALOG = [
       "DANGER"
     ],
     "category": "CIRCULATION / DANGER",
-    "url": "icons/sticks/CIRCULATION/DANGER/CHAUSSEE_GLISSANTE.png",
+    "url": "icons/sticker/CIRCULATION/DANGER/CHAUSSEE_GLISSANTE.png",
     "scale": 1.0,
     "order": 601
   },
@@ -7238,7 +7238,7 @@ const ICON_CATALOG = [
       "DANGER"
     ],
     "category": "CIRCULATION / DANGER",
-    "url": "icons/sticks/CIRCULATION/DANGER/CIRCULATION_DEUX_SENS.png",
+    "url": "icons/sticker/CIRCULATION/DANGER/CIRCULATION_DEUX_SENS.png",
     "scale": 1.0,
     "order": 602
   },
@@ -7250,7 +7250,7 @@ const ICON_CATALOG = [
       "DANGER"
     ],
     "category": "CIRCULATION / DANGER",
-    "url": "icons/sticks/CIRCULATION/DANGER/DANGER.png",
+    "url": "icons/sticker/CIRCULATION/DANGER/DANGER.png",
     "scale": 1.0,
     "order": 603
   },
@@ -7262,7 +7262,7 @@ const ICON_CATALOG = [
       "DANGER"
     ],
     "category": "CIRCULATION / DANGER",
-    "url": "icons/sticks/CIRCULATION/DANGER/DANGER_ENFANTS.png",
+    "url": "icons/sticker/CIRCULATION/DANGER/DANGER_ENFANTS.png",
     "scale": 1.0,
     "order": 604
   },
@@ -7274,7 +7274,7 @@ const ICON_CATALOG = [
       "DANGER"
     ],
     "category": "CIRCULATION / DANGER",
-    "url": "icons/sticks/CIRCULATION/DANGER/ELECTRICITE.png",
+    "url": "icons/sticker/CIRCULATION/DANGER/ELECTRICITE.png",
     "scale": 1.0,
     "order": 605
   },
@@ -7286,7 +7286,7 @@ const ICON_CATALOG = [
       "DANGER"
     ],
     "category": "CIRCULATION / DANGER",
-    "url": "icons/sticks/CIRCULATION/DANGER/FEUX_TRICOLORE.png",
+    "url": "icons/sticker/CIRCULATION/DANGER/FEUX_TRICOLORE.png",
     "scale": 1.0,
     "order": 606
   },
@@ -7298,7 +7298,7 @@ const ICON_CATALOG = [
       "DANGER"
     ],
     "category": "CIRCULATION / DANGER",
-    "url": "icons/sticks/CIRCULATION/DANGER/INTERSECTION_PRIORITAIRE.png",
+    "url": "icons/sticker/CIRCULATION/DANGER/INTERSECTION_PRIORITAIRE.png",
     "scale": 1.0,
     "order": 607
   },
@@ -7310,7 +7310,7 @@ const ICON_CATALOG = [
       "DANGER"
     ],
     "category": "CIRCULATION / DANGER",
-    "url": "icons/sticks/CIRCULATION/DANGER/PASSAGE_A_NIVEAU_SANS_BARRIERE.png",
+    "url": "icons/sticker/CIRCULATION/DANGER/PASSAGE_A_NIVEAU_SANS_BARRIERE.png",
     "scale": 1.0,
     "order": 608
   },
@@ -7322,7 +7322,7 @@ const ICON_CATALOG = [
       "DANGER"
     ],
     "category": "CIRCULATION / DANGER",
-    "url": "icons/sticks/CIRCULATION/DANGER/PASSAGE_NIVEAU.png",
+    "url": "icons/sticker/CIRCULATION/DANGER/PASSAGE_NIVEAU.png",
     "scale": 1.0,
     "order": 609
   },
@@ -7334,7 +7334,7 @@ const ICON_CATALOG = [
       "DANGER"
     ],
     "category": "CIRCULATION / DANGER",
-    "url": "icons/sticks/CIRCULATION/DANGER/PENTE.png",
+    "url": "icons/sticker/CIRCULATION/DANGER/PENTE.png",
     "scale": 1.0,
     "order": 610
   },
@@ -7346,7 +7346,7 @@ const ICON_CATALOG = [
       "DANGER"
     ],
     "category": "CIRCULATION / DANGER",
-    "url": "icons/sticks/CIRCULATION/DANGER/PRIORITE_A_DROITE.png",
+    "url": "icons/sticker/CIRCULATION/DANGER/PRIORITE_A_DROITE.png",
     "scale": 1.0,
     "order": 611
   },
@@ -7358,7 +7358,7 @@ const ICON_CATALOG = [
       "DANGER"
     ],
     "category": "CIRCULATION / DANGER",
-    "url": "icons/sticks/CIRCULATION/DANGER/RETRECISSEMENT.png",
+    "url": "icons/sticker/CIRCULATION/DANGER/RETRECISSEMENT.png",
     "scale": 1.0,
     "order": 612
   },
@@ -7370,7 +7370,7 @@ const ICON_CATALOG = [
       "DANGER"
     ],
     "category": "CIRCULATION / DANGER",
-    "url": "icons/sticks/CIRCULATION/DANGER/ROUTE_BARREE.png",
+    "url": "icons/sticker/CIRCULATION/DANGER/ROUTE_BARREE.png",
     "scale": 1.0,
     "order": 613
   },
@@ -7382,7 +7382,7 @@ const ICON_CATALOG = [
       "DANGER"
     ],
     "category": "CIRCULATION / DANGER",
-    "url": "icons/sticks/CIRCULATION/DANGER/SENS_GIRATOIRE.png",
+    "url": "icons/sticker/CIRCULATION/DANGER/SENS_GIRATOIRE.png",
     "scale": 1.0,
     "order": 614
   },
@@ -7394,7 +7394,7 @@ const ICON_CATALOG = [
       "DANGER"
     ],
     "category": "CIRCULATION / DANGER",
-    "url": "icons/sticks/CIRCULATION/DANGER/SUCCESSION_VIRAGE_DROITE.png",
+    "url": "icons/sticker/CIRCULATION/DANGER/SUCCESSION_VIRAGE_DROITE.png",
     "scale": 1.0,
     "order": 615
   },
@@ -7406,7 +7406,7 @@ const ICON_CATALOG = [
       "DANGER"
     ],
     "category": "CIRCULATION / DANGER",
-    "url": "icons/sticks/CIRCULATION/DANGER/SUCCESSION_VIRAGE_GAUCHE.png",
+    "url": "icons/sticker/CIRCULATION/DANGER/SUCCESSION_VIRAGE_GAUCHE.png",
     "scale": 1.0,
     "order": 616
   },
@@ -7418,7 +7418,7 @@ const ICON_CATALOG = [
       "DANGER"
     ],
     "category": "CIRCULATION / DANGER",
-    "url": "icons/sticks/CIRCULATION/DANGER/TRAVAUX.png",
+    "url": "icons/sticker/CIRCULATION/DANGER/TRAVAUX.png",
     "scale": 1.0,
     "order": 617
   },
@@ -7430,7 +7430,7 @@ const ICON_CATALOG = [
       "DANGER"
     ],
     "category": "CIRCULATION / DANGER",
-    "url": "icons/sticks/CIRCULATION/DANGER/TRAVERSE_ANIMAUX.png",
+    "url": "icons/sticker/CIRCULATION/DANGER/TRAVERSE_ANIMAUX.png",
     "scale": 1.0,
     "order": 618
   },
@@ -7442,7 +7442,7 @@ const ICON_CATALOG = [
       "DANGER"
     ],
     "category": "CIRCULATION / DANGER",
-    "url": "icons/sticks/CIRCULATION/DANGER/TRAVERSE_CYCLISTES.png",
+    "url": "icons/sticker/CIRCULATION/DANGER/TRAVERSE_CYCLISTES.png",
     "scale": 1.0,
     "order": 619
   },
@@ -7454,7 +7454,7 @@ const ICON_CATALOG = [
       "DANGER"
     ],
     "category": "CIRCULATION / DANGER",
-    "url": "icons/sticks/CIRCULATION/DANGER/TRAVERSE_PIETON.png",
+    "url": "icons/sticker/CIRCULATION/DANGER/TRAVERSE_PIETON.png",
     "scale": 1.0,
     "order": 620
   },
@@ -7466,7 +7466,7 @@ const ICON_CATALOG = [
       "DANGER"
     ],
     "category": "CIRCULATION / DANGER",
-    "url": "icons/sticks/CIRCULATION/DANGER/VENT.png",
+    "url": "icons/sticker/CIRCULATION/DANGER/VENT.png",
     "scale": 1.0,
     "order": 621
   },
@@ -7478,7 +7478,7 @@ const ICON_CATALOG = [
       "DANGER"
     ],
     "category": "CIRCULATION / DANGER",
-    "url": "icons/sticks/CIRCULATION/DANGER/VIRAGE_DROITE.png",
+    "url": "icons/sticker/CIRCULATION/DANGER/VIRAGE_DROITE.png",
     "scale": 1.0,
     "order": 622
   },
@@ -7490,7 +7490,7 @@ const ICON_CATALOG = [
       "DANGER"
     ],
     "category": "CIRCULATION / DANGER",
-    "url": "icons/sticks/CIRCULATION/DANGER/VIRAGE_GAUCHE.png",
+    "url": "icons/sticker/CIRCULATION/DANGER/VIRAGE_GAUCHE.png",
     "scale": 1.0,
     "order": 623
   },
@@ -7502,7 +7502,7 @@ const ICON_CATALOG = [
       "INFORMATION"
     ],
     "category": "CIRCULATION / INFORMATION",
-    "url": "icons/sticks/CIRCULATION/INFORMATION/AEROPORT.png",
+    "url": "icons/sticker/CIRCULATION/INFORMATION/AEROPORT.png",
     "scale": 1.0,
     "order": 624
   },
@@ -7514,7 +7514,7 @@ const ICON_CATALOG = [
       "INFORMATION"
     ],
     "category": "CIRCULATION / INFORMATION",
-    "url": "icons/sticks/CIRCULATION/INFORMATION/AUTOROUTE.png",
+    "url": "icons/sticker/CIRCULATION/INFORMATION/AUTOROUTE.png",
     "scale": 1.0,
     "order": 625
   },
@@ -7526,7 +7526,7 @@ const ICON_CATALOG = [
       "INFORMATION"
     ],
     "category": "CIRCULATION / INFORMATION",
-    "url": "icons/sticks/CIRCULATION/INFORMATION/CAMPING.png",
+    "url": "icons/sticker/CIRCULATION/INFORMATION/CAMPING.png",
     "scale": 1.0,
     "order": 626
   },
@@ -7538,7 +7538,7 @@ const ICON_CATALOG = [
       "INFORMATION"
     ],
     "category": "CIRCULATION / INFORMATION",
-    "url": "icons/sticks/CIRCULATION/INFORMATION/CIMETIERE_MILI.png",
+    "url": "icons/sticker/CIRCULATION/INFORMATION/CIMETIERE_MILI.png",
     "scale": 1.0,
     "order": 627
   },
@@ -7550,7 +7550,7 @@ const ICON_CATALOG = [
       "INFORMATION"
     ],
     "category": "CIRCULATION / INFORMATION",
-    "url": "icons/sticks/CIRCULATION/INFORMATION/CIVIERE.png",
+    "url": "icons/sticker/CIRCULATION/INFORMATION/CIVIERE.png",
     "scale": 1.0,
     "order": 628
   },
@@ -7562,7 +7562,7 @@ const ICON_CATALOG = [
       "INFORMATION"
     ],
     "category": "CIRCULATION / INFORMATION",
-    "url": "icons/sticks/CIRCULATION/INFORMATION/DAB.png",
+    "url": "icons/sticker/CIRCULATION/INFORMATION/DAB.png",
     "scale": 1.0,
     "order": 629
   },
@@ -7574,7 +7574,7 @@ const ICON_CATALOG = [
       "INFORMATION"
     ],
     "category": "CIRCULATION / INFORMATION",
-    "url": "icons/sticks/CIRCULATION/INFORMATION/DEBIT_BOISSON.png",
+    "url": "icons/sticker/CIRCULATION/INFORMATION/DEBIT_BOISSON.png",
     "scale": 1.0,
     "order": 630
   },
@@ -7586,7 +7586,7 @@ const ICON_CATALOG = [
       "INFORMATION"
     ],
     "category": "CIRCULATION / INFORMATION",
-    "url": "icons/sticks/CIRCULATION/INFORMATION/DECHETTERIE.png",
+    "url": "icons/sticker/CIRCULATION/INFORMATION/DECHETTERIE.png",
     "scale": 1.0,
     "order": 631
   },
@@ -7598,7 +7598,7 @@ const ICON_CATALOG = [
       "INFORMATION"
     ],
     "category": "CIRCULATION / INFORMATION",
-    "url": "icons/sticks/CIRCULATION/INFORMATION/EAU_POTABLE.png",
+    "url": "icons/sticker/CIRCULATION/INFORMATION/EAU_POTABLE.png",
     "scale": 1.0,
     "order": 632
   },
@@ -7610,7 +7610,7 @@ const ICON_CATALOG = [
       "INFORMATION"
     ],
     "category": "CIRCULATION / INFORMATION",
-    "url": "icons/sticks/CIRCULATION/INFORMATION/ECHANGEUR.png",
+    "url": "icons/sticker/CIRCULATION/INFORMATION/ECHANGEUR.png",
     "scale": 1.0,
     "order": 633
   },
@@ -7622,7 +7622,7 @@ const ICON_CATALOG = [
       "INFORMATION"
     ],
     "category": "CIRCULATION / INFORMATION",
-    "url": "icons/sticks/CIRCULATION/INFORMATION/ECHANGEUR_FERME.png",
+    "url": "icons/sticker/CIRCULATION/INFORMATION/ECHANGEUR_FERME.png",
     "scale": 1.0,
     "order": 634
   },
@@ -7634,7 +7634,7 @@ const ICON_CATALOG = [
       "INFORMATION"
     ],
     "category": "CIRCULATION / INFORMATION",
-    "url": "icons/sticks/CIRCULATION/INFORMATION/FERRY.png",
+    "url": "icons/sticker/CIRCULATION/INFORMATION/FERRY.png",
     "scale": 1.0,
     "order": 635
   },
@@ -7646,7 +7646,7 @@ const ICON_CATALOG = [
       "INFORMATION"
     ],
     "category": "CIRCULATION / INFORMATION",
-    "url": "icons/sticks/CIRCULATION/INFORMATION/FIN_AUTOROUTE.png",
+    "url": "icons/sticker/CIRCULATION/INFORMATION/FIN_AUTOROUTE.png",
     "scale": 1.0,
     "order": 636
   },
@@ -7658,7 +7658,7 @@ const ICON_CATALOG = [
       "INFORMATION"
     ],
     "category": "CIRCULATION / INFORMATION",
-    "url": "icons/sticks/CIRCULATION/INFORMATION/FIN_ROUTE_ACCES_REGLEMENTE.png",
+    "url": "icons/sticker/CIRCULATION/INFORMATION/FIN_ROUTE_ACCES_REGLEMENTE.png",
     "scale": 1.0,
     "order": 637
   },
@@ -7670,7 +7670,7 @@ const ICON_CATALOG = [
       "INFORMATION"
     ],
     "category": "CIRCULATION / INFORMATION",
-    "url": "icons/sticks/CIRCULATION/INFORMATION/GARE.png",
+    "url": "icons/sticker/CIRCULATION/INFORMATION/GARE.png",
     "scale": 1.0,
     "order": 638
   },
@@ -7682,7 +7682,7 @@ const ICON_CATALOG = [
       "INFORMATION"
     ],
     "category": "CIRCULATION / INFORMATION",
-    "url": "icons/sticks/CIRCULATION/INFORMATION/HOPITAL.png",
+    "url": "icons/sticker/CIRCULATION/INFORMATION/HOPITAL.png",
     "scale": 1.0,
     "order": 639
   },
@@ -7694,7 +7694,7 @@ const ICON_CATALOG = [
       "INFORMATION"
     ],
     "category": "CIRCULATION / INFORMATION",
-    "url": "icons/sticks/CIRCULATION/INFORMATION/HOTEL_CHAMBRE.png",
+    "url": "icons/sticker/CIRCULATION/INFORMATION/HOTEL_CHAMBRE.png",
     "scale": 1.0,
     "order": 640
   },
@@ -7706,7 +7706,7 @@ const ICON_CATALOG = [
       "INFORMATION"
     ],
     "category": "CIRCULATION / INFORMATION",
-    "url": "icons/sticks/CIRCULATION/INFORMATION/IMPASSE.png",
+    "url": "icons/sticker/CIRCULATION/INFORMATION/IMPASSE.png",
     "scale": 1.0,
     "order": 641
   },
@@ -7718,7 +7718,7 @@ const ICON_CATALOG = [
       "INFORMATION"
     ],
     "category": "CIRCULATION / INFORMATION",
-    "url": "icons/sticks/CIRCULATION/INFORMATION/INFORMATION.png",
+    "url": "icons/sticker/CIRCULATION/INFORMATION/INFORMATION.png",
     "scale": 1.0,
     "order": 642
   },
@@ -7730,7 +7730,7 @@ const ICON_CATALOG = [
       "INFORMATION"
     ],
     "category": "CIRCULATION / INFORMATION",
-    "url": "icons/sticks/CIRCULATION/INFORMATION/ITINERAIRE_CONSEILLE_MARCHANDISES.png",
+    "url": "icons/sticker/CIRCULATION/INFORMATION/ITINERAIRE_CONSEILLE_MARCHANDISES.png",
     "scale": 1.0,
     "order": 643
   },
@@ -7742,7 +7742,7 @@ const ICON_CATALOG = [
       "INFORMATION"
     ],
     "category": "CIRCULATION / INFORMATION",
-    "url": "icons/sticks/CIRCULATION/INFORMATION/ITINERAIRE_CONSEILLE_MOTO.png",
+    "url": "icons/sticker/CIRCULATION/INFORMATION/ITINERAIRE_CONSEILLE_MOTO.png",
     "scale": 1.0,
     "order": 644
   },
@@ -7754,7 +7754,7 @@ const ICON_CATALOG = [
       "INFORMATION"
     ],
     "category": "CIRCULATION / INFORMATION",
-    "url": "icons/sticks/CIRCULATION/INFORMATION/ITINERAIRE_CONSEILLE_TC.png",
+    "url": "icons/sticker/CIRCULATION/INFORMATION/ITINERAIRE_CONSEILLE_TC.png",
     "scale": 1.0,
     "order": 645
   },
@@ -7766,7 +7766,7 @@ const ICON_CATALOG = [
       "INFORMATION"
     ],
     "category": "CIRCULATION / INFORMATION",
-    "url": "icons/sticks/CIRCULATION/INFORMATION/ITINERAIRE_CONSEILLE_VL.png",
+    "url": "icons/sticker/CIRCULATION/INFORMATION/ITINERAIRE_CONSEILLE_VL.png",
     "scale": 1.0,
     "order": 646
   },
@@ -7778,7 +7778,7 @@ const ICON_CATALOG = [
       "INFORMATION"
     ],
     "category": "CIRCULATION / INFORMATION",
-    "url": "icons/sticks/CIRCULATION/INFORMATION/MOBILITE_REDUITE.png",
+    "url": "icons/sticker/CIRCULATION/INFORMATION/MOBILITE_REDUITE.png",
     "scale": 1.0,
     "order": 647
   },
@@ -7790,7 +7790,7 @@ const ICON_CATALOG = [
       "INFORMATION"
     ],
     "category": "CIRCULATION / INFORMATION",
-    "url": "icons/sticks/CIRCULATION/INFORMATION/MONUMENT.png",
+    "url": "icons/sticker/CIRCULATION/INFORMATION/MONUMENT.png",
     "scale": 1.0,
     "order": 648
   },
@@ -7802,7 +7802,7 @@ const ICON_CATALOG = [
       "INFORMATION"
     ],
     "category": "CIRCULATION / INFORMATION",
-    "url": "icons/sticks/CIRCULATION/INFORMATION/PARC_RELAIS.png",
+    "url": "icons/sticker/CIRCULATION/INFORMATION/PARC_RELAIS.png",
     "scale": 1.0,
     "order": 649
   },
@@ -7814,7 +7814,7 @@ const ICON_CATALOG = [
       "INFORMATION"
     ],
     "category": "CIRCULATION / INFORMATION",
-    "url": "icons/sticks/CIRCULATION/INFORMATION/PARKING.png",
+    "url": "icons/sticker/CIRCULATION/INFORMATION/PARKING.png",
     "scale": 1.0,
     "order": 650
   },
@@ -7826,7 +7826,7 @@ const ICON_CATALOG = [
       "INFORMATION"
     ],
     "category": "CIRCULATION / INFORMATION",
-    "url": "icons/sticks/CIRCULATION/INFORMATION/POINT_APPEL.png",
+    "url": "icons/sticker/CIRCULATION/INFORMATION/POINT_APPEL.png",
     "scale": 1.0,
     "order": 651
   },
@@ -7838,7 +7838,7 @@ const ICON_CATALOG = [
       "INFORMATION"
     ],
     "category": "CIRCULATION / INFORMATION",
-    "url": "icons/sticks/CIRCULATION/INFORMATION/POINT_COMMERCE.png",
+    "url": "icons/sticker/CIRCULATION/INFORMATION/POINT_COMMERCE.png",
     "scale": 1.0,
     "order": 652
   },
@@ -7850,7 +7850,7 @@ const ICON_CATALOG = [
       "INFORMATION"
     ],
     "category": "CIRCULATION / INFORMATION",
-    "url": "icons/sticks/CIRCULATION/INFORMATION/POINT_MISE_EAU.png",
+    "url": "icons/sticker/CIRCULATION/INFORMATION/POINT_MISE_EAU.png",
     "scale": 1.0,
     "order": 653
   },
@@ -7862,7 +7862,7 @@ const ICON_CATALOG = [
       "INFORMATION"
     ],
     "category": "CIRCULATION / INFORMATION",
-    "url": "icons/sticks/CIRCULATION/INFORMATION/POINT_VUE.png",
+    "url": "icons/sticker/CIRCULATION/INFORMATION/POINT_VUE.png",
     "scale": 1.0,
     "order": 654
   },
@@ -7874,7 +7874,7 @@ const ICON_CATALOG = [
       "INFORMATION"
     ],
     "category": "CIRCULATION / INFORMATION",
-    "url": "icons/sticks/CIRCULATION/INFORMATION/RADAR_CSA.png",
+    "url": "icons/sticker/CIRCULATION/INFORMATION/RADAR_CSA.png",
     "scale": 1.0,
     "order": 655
   },
@@ -7886,7 +7886,7 @@ const ICON_CATALOG = [
       "INFORMATION"
     ],
     "category": "CIRCULATION / INFORMATION",
-    "url": "icons/sticks/CIRCULATION/INFORMATION/RESTAURATION.png",
+    "url": "icons/sticker/CIRCULATION/INFORMATION/RESTAURATION.png",
     "scale": 1.0,
     "order": 656
   },
@@ -7898,7 +7898,7 @@ const ICON_CATALOG = [
       "INFORMATION"
     ],
     "category": "CIRCULATION / INFORMATION",
-    "url": "icons/sticks/CIRCULATION/INFORMATION/ROUTE_ACCES_REGLEMENTE.png",
+    "url": "icons/sticker/CIRCULATION/INFORMATION/ROUTE_ACCES_REGLEMENTE.png",
     "scale": 1.0,
     "order": 657
   },
@@ -7910,7 +7910,7 @@ const ICON_CATALOG = [
       "INFORMATION"
     ],
     "category": "CIRCULATION / INFORMATION",
-    "url": "icons/sticks/CIRCULATION/INFORMATION/SITE_CLASSE.png",
+    "url": "icons/sticker/CIRCULATION/INFORMATION/SITE_CLASSE.png",
     "scale": 1.0,
     "order": 658
   },
@@ -7922,7 +7922,7 @@ const ICON_CATALOG = [
       "INFORMATION"
     ],
     "category": "CIRCULATION / INFORMATION",
-    "url": "icons/sticks/CIRCULATION/INFORMATION/SORTIE.png",
+    "url": "icons/sticker/CIRCULATION/INFORMATION/SORTIE.png",
     "scale": 1.0,
     "order": 659
   },
@@ -7934,7 +7934,7 @@ const ICON_CATALOG = [
       "INFORMATION"
     ],
     "category": "CIRCULATION / INFORMATION",
-    "url": "icons/sticks/CIRCULATION/INFORMATION/STATION_CARBURANT.png",
+    "url": "icons/sticker/CIRCULATION/INFORMATION/STATION_CARBURANT.png",
     "scale": 1.0,
     "order": 660
   },
@@ -7946,7 +7946,7 @@ const ICON_CATALOG = [
       "INFORMATION"
     ],
     "category": "CIRCULATION / INFORMATION",
-    "url": "icons/sticks/CIRCULATION/INFORMATION/WC.png",
+    "url": "icons/sticker/CIRCULATION/INFORMATION/WC.png",
     "scale": 1.0,
     "order": 661
   },
@@ -7957,7 +7957,7 @@ const ICON_CATALOG = [
       "ENTETE MINISTERE"
     ],
     "category": "ENTETE MINISTERE",
-    "url": "icons/sticks/ENTETE MINISTERE/LIBERTE_EGALITE_FRATER.png",
+    "url": "icons/sticker/ENTETE MINISTERE/LIBERTE_EGALITE_FRATER.png",
     "scale": 1.0,
     "order": 662
   },
@@ -7968,7 +7968,7 @@ const ICON_CATALOG = [
       "ENTETE MINISTERE"
     ],
     "category": "ENTETE MINISTERE",
-    "url": "icons/sticks/ENTETE MINISTERE/MINISTERE DE LA JUSTICE.png",
+    "url": "icons/sticker/ENTETE MINISTERE/MINISTERE DE LA JUSTICE.png",
     "scale": 1.0,
     "order": 663
   },
@@ -7981,7 +7981,7 @@ const ICON_CATALOG = [
       "ETIQUETTE COULEUR"
     ],
     "category": "etiquette trigramme / ETIQUETTE CTM / ETIQUETTE COULEUR",
-    "url": "icons/sticks/etiquette trigramme/ETIQUETTE CTM/ETIQUETTE COULEUR/jaune.png",
+    "url": "icons/sticker/etiquette trigramme/ETIQUETTE CTM/ETIQUETTE COULEUR/jaune.png",
     "scale": 1.0,
     "order": 664
   },
@@ -7994,7 +7994,7 @@ const ICON_CATALOG = [
       "ETIQUETTE COULEUR"
     ],
     "category": "etiquette trigramme / ETIQUETTE CTM / ETIQUETTE COULEUR",
-    "url": "icons/sticks/etiquette trigramme/ETIQUETTE CTM/ETIQUETTE COULEUR/ROSE.png",
+    "url": "icons/sticker/etiquette trigramme/ETIQUETTE CTM/ETIQUETTE COULEUR/ROSE.png",
     "scale": 1.0,
     "order": 665
   },
@@ -8007,7 +8007,7 @@ const ICON_CATALOG = [
       "ETIQUETTE COULEUR"
     ],
     "category": "etiquette trigramme / ETIQUETTE CTM / ETIQUETTE COULEUR",
-    "url": "icons/sticks/etiquette trigramme/ETIQUETTE CTM/ETIQUETTE COULEUR/vert.png",
+    "url": "icons/sticker/etiquette trigramme/ETIQUETTE CTM/ETIQUETTE COULEUR/vert.png",
     "scale": 1.0,
     "order": 666
   },
@@ -8020,7 +8020,7 @@ const ICON_CATALOG = [
       "ETIQUETTE COULEUR"
     ],
     "category": "etiquette trigramme / ETIQUETTE CTM / ETIQUETTE COULEUR",
-    "url": "icons/sticks/etiquette trigramme/ETIQUETTE CTM/ETIQUETTE COULEUR/violet.png",
+    "url": "icons/sticker/etiquette trigramme/ETIQUETTE CTM/ETIQUETTE COULEUR/violet.png",
     "scale": 1.0,
     "order": 667
   },
@@ -8033,7 +8033,7 @@ const ICON_CATALOG = [
       "S4 TRIG"
     ],
     "category": "etiquette trigramme / ETIQUETTE CTM / S4 TRIG",
-    "url": "icons/sticks/etiquette trigramme/ETIQUETTE CTM/S4 TRIG/FI - S4 - LBG.png",
+    "url": "icons/sticker/etiquette trigramme/ETIQUETTE CTM/S4 TRIG/FI - S4 - LBG.png",
     "scale": 1.0,
     "order": 668
   },
@@ -8044,7 +8044,7 @@ const ICON_CATALOG = [
       "Helico"
     ],
     "category": "Helico",
-    "url": "icons/sticks/Helico/2 - 2.png",
+    "url": "icons/sticker/Helico/2 - 2.png",
     "scale": 1.0,
     "order": 669
   },
@@ -8055,7 +8055,7 @@ const ICON_CATALOG = [
       "Helico"
     ],
     "category": "Helico",
-    "url": "icons/sticks/Helico/5 - Hélicoptère.png",
+    "url": "icons/sticker/Helico/5 - Hélicoptère.png",
     "scale": 1.0,
     "order": 670
   },
@@ -8066,7 +8066,7 @@ const ICON_CATALOG = [
       "Helico"
     ],
     "category": "Helico",
-    "url": "icons/sticks/Helico/CARACAL_V1.png",
+    "url": "icons/sticker/Helico/CARACAL_V1.png",
     "scale": 1.0,
     "order": 671
   },
@@ -8077,7 +8077,7 @@ const ICON_CATALOG = [
       "Helico"
     ],
     "category": "Helico",
-    "url": "icons/sticks/Helico/CARACAL_V2.png",
+    "url": "icons/sticker/Helico/CARACAL_V2.png",
     "scale": 1.0,
     "order": 672
   },
@@ -8088,7 +8088,7 @@ const ICON_CATALOG = [
       "Helico"
     ],
     "category": "Helico",
-    "url": "icons/sticks/Helico/EC 135.png",
+    "url": "icons/sticker/Helico/EC 135.png",
     "scale": 1.0,
     "order": 673
   },
@@ -8099,7 +8099,7 @@ const ICON_CATALOG = [
       "Helico"
     ],
     "category": "Helico",
-    "url": "icons/sticks/Helico/EC 145.png",
+    "url": "icons/sticker/Helico/EC 145.png",
     "scale": 1.0,
     "order": 674
   },
@@ -8110,7 +8110,7 @@ const ICON_CATALOG = [
       "Helico"
     ],
     "category": "Helico",
-    "url": "icons/sticks/Helico/Hélico sécu civile.png",
+    "url": "icons/sticker/Helico/Hélico sécu civile.png",
     "scale": 1.0,
     "order": 675
   },
@@ -8121,7 +8121,7 @@ const ICON_CATALOG = [
       "Helico"
     ],
     "category": "Helico",
-    "url": "icons/sticks/Helico/NH90_V1.png",
+    "url": "icons/sticker/Helico/NH90_V1.png",
     "scale": 1.0,
     "order": 676
   },
@@ -8132,7 +8132,7 @@ const ICON_CATALOG = [
       "Helico"
     ],
     "category": "Helico",
-    "url": "icons/sticks/Helico/NH90_V2.png",
+    "url": "icons/sticker/Helico/NH90_V2.png",
     "scale": 1.0,
     "order": 677
   },
@@ -8143,7 +8143,7 @@ const ICON_CATALOG = [
       "Helico"
     ],
     "category": "Helico",
-    "url": "icons/sticks/Helico/PANTHER_V1.png",
+    "url": "icons/sticker/Helico/PANTHER_V1.png",
     "scale": 1.0,
     "order": 678
   },
@@ -8154,7 +8154,7 @@ const ICON_CATALOG = [
       "Helico"
     ],
     "category": "Helico",
-    "url": "icons/sticks/Helico/PANTHER_V2.png",
+    "url": "icons/sticker/Helico/PANTHER_V2.png",
     "scale": 1.0,
     "order": 679
   },
@@ -8165,7 +8165,7 @@ const ICON_CATALOG = [
       "Helico"
     ],
     "category": "Helico",
-    "url": "icons/sticks/Helico/PUMA_TERRE_V1.png",
+    "url": "icons/sticker/Helico/PUMA_TERRE_V1.png",
     "scale": 1.0,
     "order": 680
   },
@@ -8176,7 +8176,7 @@ const ICON_CATALOG = [
       "Helico"
     ],
     "category": "Helico",
-    "url": "icons/sticks/Helico/PUMA_TERRE_V2.png",
+    "url": "icons/sticker/Helico/PUMA_TERRE_V2.png",
     "scale": 1.0,
     "order": 681
   },
@@ -8187,7 +8187,7 @@ const ICON_CATALOG = [
       "Helico"
     ],
     "category": "Helico",
-    "url": "icons/sticks/Helico/écureuil.png",
+    "url": "icons/sticker/Helico/écureuil.png",
     "scale": 1.0,
     "order": 682
   },
@@ -8198,7 +8198,7 @@ const ICON_CATALOG = [
       "INTER"
     ],
     "category": "INTER",
-    "url": "icons/sticks/INTER/1 - Combattants.png",
+    "url": "icons/sticker/INTER/1 - Combattants.png",
     "scale": 1.0,
     "order": 683
   },
@@ -8209,7 +8209,7 @@ const ICON_CATALOG = [
       "INTER"
     ],
     "category": "INTER",
-    "url": "icons/sticks/INTER/10 FI.png",
+    "url": "icons/sticker/INTER/10 FI.png",
     "scale": 1.0,
     "order": 684
   },
@@ -8220,7 +8220,7 @@ const ICON_CATALOG = [
       "INTER"
     ],
     "category": "INTER",
-    "url": "icons/sticks/INTER/11 FI.png",
+    "url": "icons/sticker/INTER/11 FI.png",
     "scale": 1.0,
     "order": 685
   },
@@ -8231,7 +8231,7 @@ const ICON_CATALOG = [
       "INTER"
     ],
     "category": "INTER",
-    "url": "icons/sticks/INTER/12 FI.png",
+    "url": "icons/sticker/INTER/12 FI.png",
     "scale": 1.0,
     "order": 686
   },
@@ -8242,7 +8242,7 @@ const ICON_CATALOG = [
       "INTER"
     ],
     "category": "INTER",
-    "url": "icons/sticks/INTER/13 FI.png",
+    "url": "icons/sticker/INTER/13 FI.png",
     "scale": 1.0,
     "order": 687
   },
@@ -8253,7 +8253,7 @@ const ICON_CATALOG = [
       "INTER"
     ],
     "category": "INTER",
-    "url": "icons/sticks/INTER/14 FI.png",
+    "url": "icons/sticker/INTER/14 FI.png",
     "scale": 1.0,
     "order": 688
   },
@@ -8264,7 +8264,7 @@ const ICON_CATALOG = [
       "INTER"
     ],
     "category": "INTER",
-    "url": "icons/sticks/INTER/2 - Drone.png",
+    "url": "icons/sticker/INTER/2 - Drone.png",
     "scale": 1.0,
     "order": 689
   },
@@ -8275,7 +8275,7 @@ const ICON_CATALOG = [
       "INTER"
     ],
     "category": "INTER",
-    "url": "icons/sticks/INTER/20 FI.png",
+    "url": "icons/sticker/INTER/20 FI.png",
     "scale": 1.0,
     "order": 690
   },
@@ -8286,7 +8286,7 @@ const ICON_CATALOG = [
       "INTER"
     ],
     "category": "INTER",
-    "url": "icons/sticks/INTER/21 FI.png",
+    "url": "icons/sticker/INTER/21 FI.png",
     "scale": 1.0,
     "order": 691
   },
@@ -8297,7 +8297,7 @@ const ICON_CATALOG = [
       "INTER"
     ],
     "category": "INTER",
-    "url": "icons/sticks/INTER/22 FI.png",
+    "url": "icons/sticker/INTER/22 FI.png",
     "scale": 1.0,
     "order": 692
   },
@@ -8308,7 +8308,7 @@ const ICON_CATALOG = [
       "INTER"
     ],
     "category": "INTER",
-    "url": "icons/sticks/INTER/23 FI.png",
+    "url": "icons/sticker/INTER/23 FI.png",
     "scale": 1.0,
     "order": 693
   },
@@ -8319,7 +8319,7 @@ const ICON_CATALOG = [
       "INTER"
     ],
     "category": "INTER",
-    "url": "icons/sticks/INTER/24 FI.png",
+    "url": "icons/sticker/INTER/24 FI.png",
     "scale": 1.0,
     "order": 694
   },
@@ -8330,7 +8330,7 @@ const ICON_CATALOG = [
       "INTER"
     ],
     "category": "INTER",
-    "url": "icons/sticks/INTER/30 FI.png",
+    "url": "icons/sticker/INTER/30 FI.png",
     "scale": 1.0,
     "order": 695
   },
@@ -8341,7 +8341,7 @@ const ICON_CATALOG = [
       "INTER"
     ],
     "category": "INTER",
-    "url": "icons/sticks/INTER/31 FI.png",
+    "url": "icons/sticker/INTER/31 FI.png",
     "scale": 1.0,
     "order": 696
   },
@@ -8352,7 +8352,7 @@ const ICON_CATALOG = [
       "INTER"
     ],
     "category": "INTER",
-    "url": "icons/sticks/INTER/32 FI.png",
+    "url": "icons/sticker/INTER/32 FI.png",
     "scale": 1.0,
     "order": 697
   },
@@ -8363,7 +8363,7 @@ const ICON_CATALOG = [
       "INTER"
     ],
     "category": "INTER",
-    "url": "icons/sticks/INTER/33 FI.png",
+    "url": "icons/sticker/INTER/33 FI.png",
     "scale": 1.0,
     "order": 698
   },
@@ -8374,7 +8374,7 @@ const ICON_CATALOG = [
       "INTER"
     ],
     "category": "INTER",
-    "url": "icons/sticks/INTER/34 FI.png",
+    "url": "icons/sticker/INTER/34 FI.png",
     "scale": 1.0,
     "order": 699
   },
@@ -8385,7 +8385,7 @@ const ICON_CATALOG = [
       "INTER"
     ],
     "category": "INTER",
-    "url": "icons/sticks/INTER/40 FI.png",
+    "url": "icons/sticker/INTER/40 FI.png",
     "scale": 1.0,
     "order": 700
   },
@@ -8396,7 +8396,7 @@ const ICON_CATALOG = [
       "INTER"
     ],
     "category": "INTER",
-    "url": "icons/sticks/INTER/41 FI.png",
+    "url": "icons/sticker/INTER/41 FI.png",
     "scale": 1.0,
     "order": 701
   },
@@ -8407,7 +8407,7 @@ const ICON_CATALOG = [
       "INTER"
     ],
     "category": "INTER",
-    "url": "icons/sticks/INTER/42 FI.png",
+    "url": "icons/sticker/INTER/42 FI.png",
     "scale": 1.0,
     "order": 702
   },
@@ -8418,7 +8418,7 @@ const ICON_CATALOG = [
       "INTER"
     ],
     "category": "INTER",
-    "url": "icons/sticks/INTER/43 FI.png",
+    "url": "icons/sticker/INTER/43 FI.png",
     "scale": 1.0,
     "order": 703
   },
@@ -8429,7 +8429,7 @@ const ICON_CATALOG = [
       "INTER"
     ],
     "category": "INTER",
-    "url": "icons/sticks/INTER/44 FI.png",
+    "url": "icons/sticker/INTER/44 FI.png",
     "scale": 1.0,
     "order": 704
   },
@@ -8440,7 +8440,7 @@ const ICON_CATALOG = [
       "INTER"
     ],
     "category": "INTER",
-    "url": "icons/sticks/INTER/6 - GIGN 2.png",
+    "url": "icons/sticker/INTER/6 - GIGN 2.png",
     "scale": 1.0,
     "order": 705
   },
@@ -8451,7 +8451,7 @@ const ICON_CATALOG = [
       "INTER"
     ],
     "category": "INTER",
-    "url": "icons/sticks/INTER/DAR 1.png",
+    "url": "icons/sticker/INTER/DAR 1.png",
     "scale": 1.0,
     "order": 706
   },
@@ -8462,7 +8462,7 @@ const ICON_CATALOG = [
       "INTER"
     ],
     "category": "INTER",
-    "url": "icons/sticks/INTER/DAR 2.png",
+    "url": "icons/sticker/INTER/DAR 2.png",
     "scale": 1.0,
     "order": 707
   },
@@ -8473,7 +8473,7 @@ const ICON_CATALOG = [
       "INTER"
     ],
     "category": "INTER",
-    "url": "icons/sticks/INTER/DAR 3.png",
+    "url": "icons/sticker/INTER/DAR 3.png",
     "scale": 1.0,
     "order": 708
   },
@@ -8484,7 +8484,7 @@ const ICON_CATALOG = [
       "INTER"
     ],
     "category": "INTER",
-    "url": "icons/sticks/INTER/DAR 4.png",
+    "url": "icons/sticker/INTER/DAR 4.png",
     "scale": 1.0,
     "order": 709
   },
@@ -8495,7 +8495,7 @@ const ICON_CATALOG = [
       "INTER"
     ],
     "category": "INTER",
-    "url": "icons/sticks/INTER/DAR 5.png",
+    "url": "icons/sticker/INTER/DAR 5.png",
     "scale": 1.0,
     "order": 710
   },
@@ -8506,7 +8506,7 @@ const ICON_CATALOG = [
       "INTER"
     ],
     "category": "INTER",
-    "url": "icons/sticks/INTER/DOC.png",
+    "url": "icons/sticker/INTER/DOC.png",
     "scale": 1.0,
     "order": 711
   },
@@ -8517,7 +8517,7 @@ const ICON_CATALOG = [
       "INTER"
     ],
     "category": "INTER",
-    "url": "icons/sticks/INTER/EQUIPE CYNO.png",
+    "url": "icons/sticker/INTER/EQUIPE CYNO.png",
     "scale": 1.0,
     "order": 712
   },
@@ -8528,7 +8528,7 @@ const ICON_CATALOG = [
       "INTER"
     ],
     "category": "INTER",
-    "url": "icons/sticks/INTER/EQUIPE FOR.png",
+    "url": "icons/sticker/INTER/EQUIPE FOR.png",
     "scale": 1.0,
     "order": 713
   },
@@ -8539,7 +8539,7 @@ const ICON_CATALOG = [
       "INTER"
     ],
     "category": "INTER",
-    "url": "icons/sticks/INTER/EQUIPE FSP.png",
+    "url": "icons/sticker/INTER/EQUIPE FSP.png",
     "scale": 1.0,
     "order": 714
   },
@@ -8550,7 +8550,7 @@ const ICON_CATALOG = [
       "INTER"
     ],
     "category": "INTER",
-    "url": "icons/sticks/INTER/PC CRISE.png",
+    "url": "icons/sticker/INTER/PC CRISE.png",
     "scale": 1.0,
     "order": 715
   },
@@ -8561,7 +8561,7 @@ const ICON_CATALOG = [
       "INTER"
     ],
     "category": "INTER",
-    "url": "icons/sticks/INTER/SMS 1.png",
+    "url": "icons/sticker/INTER/SMS 1.png",
     "scale": 1.0,
     "order": 716
   },
@@ -8572,7 +8572,7 @@ const ICON_CATALOG = [
       "INTER"
     ],
     "category": "INTER",
-    "url": "icons/sticks/INTER/SMS 2.png",
+    "url": "icons/sticker/INTER/SMS 2.png",
     "scale": 1.0,
     "order": 717
   },
@@ -8583,7 +8583,7 @@ const ICON_CATALOG = [
       "INTER"
     ],
     "category": "INTER",
-    "url": "icons/sticks/INTER/SMS 3.png",
+    "url": "icons/sticker/INTER/SMS 3.png",
     "scale": 1.0,
     "order": 718
   },
@@ -8594,7 +8594,7 @@ const ICON_CATALOG = [
       "INTER"
     ],
     "category": "INTER",
-    "url": "icons/sticks/INTER/SMS 4.png",
+    "url": "icons/sticker/INTER/SMS 4.png",
     "scale": 1.0,
     "order": 719
   },
@@ -8605,7 +8605,7 @@ const ICON_CATALOG = [
       "INTER"
     ],
     "category": "INTER",
-    "url": "icons/sticks/INTER/SMS 5.png",
+    "url": "icons/sticker/INTER/SMS 5.png",
     "scale": 1.0,
     "order": 720
   },
@@ -8616,7 +8616,7 @@ const ICON_CATALOG = [
       "INTER"
     ],
     "category": "INTER",
-    "url": "icons/sticks/INTER/Terro 2.png",
+    "url": "icons/sticker/INTER/Terro 2.png",
     "scale": 1.0,
     "order": 721
   },
@@ -8627,7 +8627,7 @@ const ICON_CATALOG = [
       "logo"
     ],
     "category": "logo",
-    "url": "icons/sticks/logo/BRI.png",
+    "url": "icons/sticker/logo/BRI.png",
     "scale": 1.0,
     "order": 722
   },
@@ -8638,7 +8638,7 @@ const ICON_CATALOG = [
       "logo"
     ],
     "category": "logo",
-    "url": "icons/sticks/logo/GIGN.png",
+    "url": "icons/sticker/logo/GIGN.png",
     "scale": 1.0,
     "order": 723
   },
@@ -8649,7 +8649,7 @@ const ICON_CATALOG = [
       "logo"
     ],
     "category": "logo",
-    "url": "icons/sticks/logo/LOGO AGIGN.png",
+    "url": "icons/sticker/logo/LOGO AGIGN.png",
     "scale": 1.0,
     "order": 724
   },
@@ -8660,7 +8660,7 @@ const ICON_CATALOG = [
       "logo"
     ],
     "category": "logo",
-    "url": "icons/sticks/logo/logo ecusson GIGN 3_0.png",
+    "url": "icons/sticker/logo/logo ecusson GIGN 3_0.png",
     "scale": 1.0,
     "order": 725
   },
@@ -8671,7 +8671,7 @@ const ICON_CATALOG = [
       "logo"
     ],
     "category": "logo",
-    "url": "icons/sticks/logo/logo GI.png",
+    "url": "icons/sticker/logo/logo GI.png",
     "scale": 1.0,
     "order": 726
   },
@@ -8682,7 +8682,7 @@ const ICON_CATALOG = [
       "logo"
     ],
     "category": "logo",
-    "url": "icons/sticks/logo/logo Nego GIGN OR très réduit.png",
+    "url": "icons/sticker/logo/logo Nego GIGN OR très réduit.png",
     "scale": 1.0,
     "order": 727
   },
@@ -8693,7 +8693,7 @@ const ICON_CATALOG = [
       "logo"
     ],
     "category": "logo",
-    "url": "icons/sticks/logo/logo Negreg.png",
+    "url": "icons/sticker/logo/logo Negreg.png",
     "scale": 1.0,
     "order": 728
   },
@@ -8704,7 +8704,7 @@ const ICON_CATALOG = [
       "logo"
     ],
     "category": "logo",
-    "url": "icons/sticks/logo/OCCHGCG.png",
+    "url": "icons/sticker/logo/OCCHGCG.png",
     "scale": 1.0,
     "order": 729
   },
@@ -8715,7 +8715,7 @@ const ICON_CATALOG = [
       "logo"
     ],
     "category": "logo",
-    "url": "icons/sticks/logo/OCLAESP.png",
+    "url": "icons/sticker/logo/OCLAESP.png",
     "scale": 1.0,
     "order": 730
   },
@@ -8726,7 +8726,7 @@ const ICON_CATALOG = [
       "logo"
     ],
     "category": "logo",
-    "url": "icons/sticks/logo/OCLDI.png",
+    "url": "icons/sticker/logo/OCLDI.png",
     "scale": 1.0,
     "order": 731
   },
@@ -8737,7 +8737,7 @@ const ICON_CATALOG = [
       "logo"
     ],
     "category": "logo",
-    "url": "icons/sticks/logo/OCLTI.png",
+    "url": "icons/sticker/logo/OCLTI.png",
     "scale": 1.0,
     "order": 732
   },
@@ -8748,7 +8748,7 @@ const ICON_CATALOG = [
       "logo"
     ],
     "category": "logo",
-    "url": "icons/sticks/logo/RAID.png",
+    "url": "icons/sticker/logo/RAID.png",
     "scale": 1.0,
     "order": 733
   },
@@ -8759,7 +8759,7 @@ const ICON_CATALOG = [
       "logo"
     ],
     "category": "logo",
-    "url": "icons/sticks/logo/RAID.svg.png",
+    "url": "icons/sticker/logo/RAID.svg.png",
     "scale": 1.0,
     "order": 734
   },
@@ -8771,7 +8771,7 @@ const ICON_CATALOG = [
       "LOGO ECOLES"
     ],
     "category": "logo / LOGO ECOLES",
-    "url": "icons/sticks/logo/LOGO ECOLES/Chaumont.png",
+    "url": "icons/sticker/logo/LOGO ECOLES/Chaumont.png",
     "scale": 1.0,
     "order": 735
   },
@@ -8783,7 +8783,7 @@ const ICON_CATALOG = [
       "LOGO ECOLES"
     ],
     "category": "logo / LOGO ECOLES",
-    "url": "icons/sticks/logo/LOGO ECOLES/CIECT.png",
+    "url": "icons/sticker/logo/LOGO ECOLES/CIECT.png",
     "scale": 1.0,
     "order": 736
   },
@@ -8795,7 +8795,7 @@ const ICON_CATALOG = [
       "LOGO ECOLES"
     ],
     "category": "logo / LOGO ECOLES",
-    "url": "icons/sticks/logo/LOGO ECOLES/CNEFG.png",
+    "url": "icons/sticker/logo/LOGO ECOLES/CNEFG.png",
     "scale": 1.0,
     "order": 737
   },
@@ -8807,7 +8807,7 @@ const ICON_CATALOG = [
       "LOGO ECOLES"
     ],
     "category": "logo / LOGO ECOLES",
-    "url": "icons/sticks/logo/LOGO ECOLES/CNFCSTAGN.png",
+    "url": "icons/sticker/logo/LOGO ECOLES/CNFCSTAGN.png",
     "scale": 1.0,
     "order": 738
   },
@@ -8819,7 +8819,7 @@ const ICON_CATALOG = [
       "LOGO ECOLES"
     ],
     "category": "logo / LOGO ECOLES",
-    "url": "icons/sticks/logo/LOGO ECOLES/CNFRO.png",
+    "url": "icons/sticker/logo/LOGO ECOLES/CNFRO.png",
     "scale": 1.0,
     "order": 739
   },
@@ -8831,7 +8831,7 @@ const ICON_CATALOG = [
       "LOGO ECOLES"
     ],
     "category": "logo / LOGO ECOLES",
-    "url": "icons/sticks/logo/LOGO ECOLES/CNFSIC.png",
+    "url": "icons/sticker/logo/LOGO ECOLES/CNFSIC.png",
     "scale": 1.0,
     "order": 740
   },
@@ -8843,7 +8843,7 @@ const ICON_CATALOG = [
       "LOGO ECOLES"
     ],
     "category": "logo / LOGO ECOLES",
-    "url": "icons/sticks/logo/LOGO ECOLES/CNIN.png",
+    "url": "icons/sticker/logo/LOGO ECOLES/CNIN.png",
     "scale": 1.0,
     "order": 741
   },
@@ -8855,7 +8855,7 @@ const ICON_CATALOG = [
       "LOGO ECOLES"
     ],
     "category": "logo / LOGO ECOLES",
-    "url": "icons/sticks/logo/LOGO ECOLES/CNISAG.png",
+    "url": "icons/sticker/logo/LOGO ECOLES/CNISAG.png",
     "scale": 1.0,
     "order": 742
   },
@@ -8866,7 +8866,7 @@ const ICON_CATALOG = [
       "NEUTRES"
     ],
     "category": "NEUTRES",
-    "url": "icons/sticks/NEUTRES/AUTORITE_MEDIA_VIP.png",
+    "url": "icons/sticker/NEUTRES/AUTORITE_MEDIA_VIP.png",
     "scale": 1.0,
     "order": 743
   },
@@ -8877,7 +8877,7 @@ const ICON_CATALOG = [
       "OODA"
     ],
     "category": "OODA",
-    "url": "icons/sticks/OODA/Belgium.png",
+    "url": "icons/sticker/OODA/Belgium.png",
     "scale": 1.0,
     "order": 744
   },
@@ -8888,7 +8888,7 @@ const ICON_CATALOG = [
       "OODA"
     ],
     "category": "OODA",
-    "url": "icons/sticks/OODA/bri-voiture.png",
+    "url": "icons/sticker/OODA/bri-voiture.png",
     "scale": 1.0,
     "order": 745
   },
@@ -8899,7 +8899,7 @@ const ICON_CATALOG = [
       "OODA"
     ],
     "category": "OODA",
-    "url": "icons/sticks/OODA/Canada.png",
+    "url": "icons/sticker/OODA/Canada.png",
     "scale": 1.0,
     "order": 746
   },
@@ -8910,7 +8910,7 @@ const ICON_CATALOG = [
       "OODA"
     ],
     "category": "OODA",
-    "url": "icons/sticks/OODA/Denmark.png",
+    "url": "icons/sticker/OODA/Denmark.png",
     "scale": 1.0,
     "order": 747
   },
@@ -8921,7 +8921,7 @@ const ICON_CATALOG = [
       "OODA"
     ],
     "category": "OODA",
-    "url": "icons/sticks/OODA/ennemi-explosion.png",
+    "url": "icons/sticker/OODA/ennemi-explosion.png",
     "scale": 1.0,
     "order": 748
   },
@@ -8932,7 +8932,7 @@ const ICON_CATALOG = [
       "OODA"
     ],
     "category": "OODA",
-    "url": "icons/sticks/OODA/ennemi-target.png",
+    "url": "icons/sticker/OODA/ennemi-target.png",
     "scale": 1.0,
     "order": 749
   },
@@ -8943,7 +8943,7 @@ const ICON_CATALOG = [
       "OODA"
     ],
     "category": "OODA",
-    "url": "icons/sticks/OODA/Germany.png",
+    "url": "icons/sticker/OODA/Germany.png",
     "scale": 1.0,
     "order": 750
   },
@@ -8954,7 +8954,7 @@ const ICON_CATALOG = [
       "OODA"
     ],
     "category": "OODA",
-    "url": "icons/sticks/OODA/gign-centigon.png",
+    "url": "icons/sticker/OODA/gign-centigon.png",
     "scale": 1.0,
     "order": 751
   },
@@ -8965,7 +8965,7 @@ const ICON_CATALOG = [
       "OODA"
     ],
     "category": "OODA",
-    "url": "icons/sticks/OODA/gign-cyno.png",
+    "url": "icons/sticker/OODA/gign-cyno.png",
     "scale": 1.0,
     "order": 752
   },
@@ -8976,7 +8976,7 @@ const ICON_CATALOG = [
       "OODA"
     ],
     "category": "OODA",
-    "url": "icons/sticks/OODA/gign-hl.png",
+    "url": "icons/sticker/OODA/gign-hl.png",
     "scale": 1.0,
     "order": 753
   },
@@ -8987,7 +8987,7 @@ const ICON_CATALOG = [
       "OODA"
     ],
     "category": "OODA",
-    "url": "icons/sticks/OODA/gign-inter.png",
+    "url": "icons/sticker/OODA/gign-inter.png",
     "scale": 1.0,
     "order": 754
   },
@@ -8998,7 +8998,7 @@ const ICON_CATALOG = [
       "OODA"
     ],
     "category": "OODA",
-    "url": "icons/sticks/OODA/gign-pc-projete.png",
+    "url": "icons/sticker/OODA/gign-pc-projete.png",
     "scale": 1.0,
     "order": 755
   },
@@ -9009,7 +9009,7 @@ const ICON_CATALOG = [
       "OODA"
     ],
     "category": "OODA",
-    "url": "icons/sticks/OODA/gign-vl.png",
+    "url": "icons/sticker/OODA/gign-vl.png",
     "scale": 1.0,
     "order": 756
   },
@@ -9020,7 +9020,7 @@ const ICON_CATALOG = [
       "OODA"
     ],
     "category": "OODA",
-    "url": "icons/sticks/OODA/Israel.png",
+    "url": "icons/sticker/OODA/Israel.png",
     "scale": 1.0,
     "order": 757
   },
@@ -9031,7 +9031,7 @@ const ICON_CATALOG = [
       "OODA"
     ],
     "category": "OODA",
-    "url": "icons/sticks/OODA/Netherlands.png",
+    "url": "icons/sticker/OODA/Netherlands.png",
     "scale": 1.0,
     "order": 758
   },
@@ -9042,7 +9042,7 @@ const ICON_CATALOG = [
       "OODA"
     ],
     "category": "OODA",
-    "url": "icons/sticks/OODA/Norway.png",
+    "url": "icons/sticker/OODA/Norway.png",
     "scale": 1.0,
     "order": 759
   },
@@ -9053,7 +9053,7 @@ const ICON_CATALOG = [
       "OODA"
     ],
     "category": "OODA",
-    "url": "icons/sticks/OODA/Sweden.png",
+    "url": "icons/sticker/OODA/Sweden.png",
     "scale": 1.0,
     "order": 760
   },
@@ -9064,7 +9064,7 @@ const ICON_CATALOG = [
       "OODA"
     ],
     "category": "OODA",
-    "url": "icons/sticks/OODA/terrain-parking old.png",
+    "url": "icons/sticker/OODA/terrain-parking old.png",
     "scale": 1.0,
     "order": 761
   },
@@ -9075,7 +9075,7 @@ const ICON_CATALOG = [
       "OODA"
     ],
     "category": "OODA",
-    "url": "icons/sticks/OODA/terrain-parking.png",
+    "url": "icons/sticker/OODA/terrain-parking.png",
     "scale": 1.0,
     "order": 762
   },
@@ -9086,7 +9086,7 @@ const ICON_CATALOG = [
       "OODA"
     ],
     "category": "OODA",
-    "url": "icons/sticks/OODA/terrain-rond-point.png",
+    "url": "icons/sticker/OODA/terrain-rond-point.png",
     "scale": 1.0,
     "order": 763
   },
@@ -9097,7 +9097,7 @@ const ICON_CATALOG = [
       "OODA"
     ],
     "category": "OODA",
-    "url": "icons/sticks/OODA/terrain-Site-JO.png",
+    "url": "icons/sticker/OODA/terrain-Site-JO.png",
     "scale": 1.0,
     "order": 764
   },
@@ -9108,7 +9108,7 @@ const ICON_CATALOG = [
       "OODA"
     ],
     "category": "OODA",
-    "url": "icons/sticks/OODA/UnitedKingdom.png",
+    "url": "icons/sticker/OODA/UnitedKingdom.png",
     "scale": 1.0,
     "order": 765
   },
@@ -9119,7 +9119,7 @@ const ICON_CATALOG = [
       "VEHICULES"
     ],
     "category": "VEHICULES",
-    "url": "icons/sticks/VEHICULES/1.png",
+    "url": "icons/sticker/VEHICULES/1.png",
     "scale": 1.0,
     "order": 766
   },
@@ -9130,7 +9130,7 @@ const ICON_CATALOG = [
       "VEHICULES"
     ],
     "category": "VEHICULES",
-    "url": "icons/sticks/VEHICULES/2.png",
+    "url": "icons/sticker/VEHICULES/2.png",
     "scale": 1.0,
     "order": 767
   },
@@ -9141,7 +9141,7 @@ const ICON_CATALOG = [
       "VEHICULES"
     ],
     "category": "VEHICULES",
-    "url": "icons/sticks/VEHICULES/3.png",
+    "url": "icons/sticker/VEHICULES/3.png",
     "scale": 1.0,
     "order": 768
   },
@@ -9152,7 +9152,7 @@ const ICON_CATALOG = [
       "VEHICULES"
     ],
     "category": "VEHICULES",
-    "url": "icons/sticks/VEHICULES/4.png",
+    "url": "icons/sticker/VEHICULES/4.png",
     "scale": 1.0,
     "order": 769
   },
@@ -9163,7 +9163,7 @@ const ICON_CATALOG = [
       "VEHICULES"
     ],
     "category": "VEHICULES",
-    "url": "icons/sticks/VEHICULES/5.png",
+    "url": "icons/sticker/VEHICULES/5.png",
     "scale": 1.0,
     "order": 770
   },
@@ -9174,7 +9174,7 @@ const ICON_CATALOG = [
       "VEHICULES"
     ],
     "category": "VEHICULES",
-    "url": "icons/sticks/VEHICULES/6.png",
+    "url": "icons/sticker/VEHICULES/6.png",
     "scale": 1.0,
     "order": 771
   },
@@ -9185,7 +9185,7 @@ const ICON_CATALOG = [
       "VEHICULES"
     ],
     "category": "VEHICULES",
-    "url": "icons/sticks/VEHICULES/BATEAU 1.png",
+    "url": "icons/sticker/VEHICULES/BATEAU 1.png",
     "scale": 1.0,
     "order": 772
   },
@@ -9196,7 +9196,7 @@ const ICON_CATALOG = [
       "VEHICULES"
     ],
     "category": "VEHICULES",
-    "url": "icons/sticks/VEHICULES/BATEAU 2.png",
+    "url": "icons/sticker/VEHICULES/BATEAU 2.png",
     "scale": 1.0,
     "order": 773
   },
@@ -9207,7 +9207,7 @@ const ICON_CATALOG = [
       "VEHICULES"
     ],
     "category": "VEHICULES",
-    "url": "icons/sticks/VEHICULES/BATEAU 3.png",
+    "url": "icons/sticker/VEHICULES/BATEAU 3.png",
     "scale": 1.0,
     "order": 774
   },
@@ -9218,7 +9218,7 @@ const ICON_CATALOG = [
       "VEHICULES"
     ],
     "category": "VEHICULES",
-    "url": "icons/sticks/VEHICULES/BATEAU 4.png",
+    "url": "icons/sticker/VEHICULES/BATEAU 4.png",
     "scale": 1.0,
     "order": 775
   },
@@ -9229,7 +9229,7 @@ const ICON_CATALOG = [
       "VEHICULES"
     ],
     "category": "VEHICULES",
-    "url": "icons/sticks/VEHICULES/BUS.png",
+    "url": "icons/sticker/VEHICULES/BUS.png",
     "scale": 1.0,
     "order": 776
   },
@@ -9240,7 +9240,7 @@ const ICON_CATALOG = [
       "VEHICULES"
     ],
     "category": "VEHICULES",
-    "url": "icons/sticks/VEHICULES/GD1.png",
+    "url": "icons/sticker/VEHICULES/GD1.png",
     "scale": 1.0,
     "order": 777
   },
@@ -9251,7 +9251,7 @@ const ICON_CATALOG = [
       "VEHICULES"
     ],
     "category": "VEHICULES",
-    "url": "icons/sticks/VEHICULES/GM1.png",
+    "url": "icons/sticker/VEHICULES/GM1.png",
     "scale": 1.0,
     "order": 778
   },
@@ -9262,7 +9262,7 @@ const ICON_CATALOG = [
       "VEHICULES"
     ],
     "category": "VEHICULES",
-    "url": "icons/sticks/VEHICULES/GM2.png",
+    "url": "icons/sticker/VEHICULES/GM2.png",
     "scale": 1.0,
     "order": 779
   },
@@ -9273,7 +9273,7 @@ const ICON_CATALOG = [
       "VEHICULES"
     ],
     "category": "VEHICULES",
-    "url": "icons/sticks/VEHICULES/passerelle.png",
+    "url": "icons/sticker/VEHICULES/passerelle.png",
     "scale": 1.0,
     "order": 780
   },
@@ -9284,7 +9284,7 @@ const ICON_CATALOG = [
       "VEHICULES"
     ],
     "category": "VEHICULES",
-    "url": "icons/sticks/VEHICULES/SECOURS 1.png",
+    "url": "icons/sticker/VEHICULES/SECOURS 1.png",
     "scale": 1.0,
     "order": 781
   },
@@ -9295,7 +9295,7 @@ const ICON_CATALOG = [
       "VEHICULES"
     ],
     "category": "VEHICULES",
-    "url": "icons/sticks/VEHICULES/SECOURS 2.png",
+    "url": "icons/sticker/VEHICULES/SECOURS 2.png",
     "scale": 1.0,
     "order": 782
   },
@@ -9306,7 +9306,7 @@ const ICON_CATALOG = [
       "VEHICULES"
     ],
     "category": "VEHICULES",
-    "url": "icons/sticks/VEHICULES/SECOURS 3.png",
+    "url": "icons/sticker/VEHICULES/SECOURS 3.png",
     "scale": 1.0,
     "order": 783
   },
@@ -9317,7 +9317,7 @@ const ICON_CATALOG = [
       "VEHICULES"
     ],
     "category": "VEHICULES",
-    "url": "icons/sticks/VEHICULES/Sherpa.png",
+    "url": "icons/sticker/VEHICULES/Sherpa.png",
     "scale": 1.0,
     "order": 784
   },
@@ -9328,7 +9328,7 @@ const ICON_CATALOG = [
       "VEHICULES"
     ],
     "category": "VEHICULES",
-    "url": "icons/sticks/VEHICULES/SPINEG.png",
+    "url": "icons/sticker/VEHICULES/SPINEG.png",
     "scale": 1.0,
     "order": 785
   },
@@ -9339,7 +9339,7 @@ const ICON_CATALOG = [
       "VEHICULES"
     ],
     "category": "VEHICULES",
-    "url": "icons/sticks/VEHICULES/Swatec.png",
+    "url": "icons/sticker/VEHICULES/Swatec.png",
     "scale": 1.0,
     "order": 786
   },
@@ -9350,7 +9350,7 @@ const ICON_CATALOG = [
       "VEHICULES"
     ],
     "category": "VEHICULES",
-    "url": "icons/sticks/VEHICULES/VAB militaire.png",
+    "url": "icons/sticker/VEHICULES/VAB militaire.png",
     "scale": 1.0,
     "order": 787
   },
@@ -9362,7 +9362,7 @@ const ICON_CATALOG = [
       "AVION"
     ],
     "category": "VEHICULES / AVION",
-    "url": "icons/sticks/VEHICULES/AVION/AVION 1.png",
+    "url": "icons/sticker/VEHICULES/AVION/AVION 1.png",
     "scale": 1.0,
     "order": 788
   },
@@ -9374,7 +9374,7 @@ const ICON_CATALOG = [
       "AVION"
     ],
     "category": "VEHICULES / AVION",
-    "url": "icons/sticks/VEHICULES/AVION/AVION 2.png",
+    "url": "icons/sticker/VEHICULES/AVION/AVION 2.png",
     "scale": 1.0,
     "order": 789
   },
@@ -9386,7 +9386,7 @@ const ICON_CATALOG = [
       "AVION"
     ],
     "category": "VEHICULES / AVION",
-    "url": "icons/sticks/VEHICULES/AVION/AVION 3.png",
+    "url": "icons/sticker/VEHICULES/AVION/AVION 3.png",
     "scale": 1.0,
     "order": 790
   },
@@ -9398,7 +9398,7 @@ const ICON_CATALOG = [
       "CENTIGON"
     ],
     "category": "VEHICULES / CENTIGON",
-    "url": "icons/sticks/VEHICULES/CENTIGON/7.png",
+    "url": "icons/sticker/VEHICULES/CENTIGON/7.png",
     "scale": 1.0,
     "order": 791
   },
@@ -9410,7 +9410,7 @@ const ICON_CATALOG = [
       "CENTIGON"
     ],
     "category": "VEHICULES / CENTIGON",
-    "url": "icons/sticks/VEHICULES/CENTIGON/dessus.png",
+    "url": "icons/sticker/VEHICULES/CENTIGON/dessus.png",
     "scale": 1.0,
     "order": 792
   },
@@ -9422,7 +9422,7 @@ const ICON_CATALOG = [
       "CENTIGON"
     ],
     "category": "VEHICULES / CENTIGON",
-    "url": "icons/sticks/VEHICULES/CENTIGON/face.png",
+    "url": "icons/sticker/VEHICULES/CENTIGON/face.png",
     "scale": 1.0,
     "order": 793
   },
@@ -9434,7 +9434,7 @@ const ICON_CATALOG = [
       "CENTIGON"
     ],
     "category": "VEHICULES / CENTIGON",
-    "url": "icons/sticks/VEHICULES/CENTIGON/profil.png",
+    "url": "icons/sticker/VEHICULES/CENTIGON/profil.png",
     "scale": 1.0,
     "order": 794
   }
