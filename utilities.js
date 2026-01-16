@@ -177,7 +177,7 @@ function drawReferenceCross(ctx, latLonToPixels, config, cellWidthInPixels) {
     ctx.stroke();
 }
 
-function drawCartouche(ctx, latLonToPixels, config, a1CornerCoords, cellWidthInPixels) {
+function drawCartouche(ctx, latLonToPixels, config, a1CornerCoords, cellWidthInPixels, address) {
     const [a1Lon, a1Lat] = a1CornerCoords;
     const startColNum = letterToNumber(config.startCol);
     const topRowNum = (config.letteringDirection === 'ascending') 
@@ -185,33 +185,56 @@ function drawCartouche(ctx, latLonToPixels, config, a1CornerCoords, cellWidthInP
         : Math.min(config.startRow, config.endRow);
     const anchorGeoPoint = calculateAndRotatePoint(startColNum, topRowNum, config, a1Lat, a1Lon);
     const anchorPixels = latLonToPixels(anchorGeoPoint[1], anchorGeoPoint[0]);
+    
     const FONT_SIZE_RATIO = 0.15;
     const FONT_SIZE_PX = Math.max(12, cellWidthInPixels * FONT_SIZE_RATIO);
     const PADDING_RATIO = 0.5;
     const padding = FONT_SIZE_PX * PADDING_RATIO;
     const lineSpacing = FONT_SIZE_PX * 1.3;
+    
     ctx.font = `${FONT_SIZE_PX}px Arial`;
+    
     const refText = (config.referencePointChoice === 'center') ? `Pt. Réf: ${config.latitude.toFixed(5)}, ${config.longitude.toFixed(5)}` : '';
-    const originText = `Origine A1: ${a1Lat.toFixed(5)}, ${a1Lon.toFixed(5)}`;
+    // MODIFICATION : On retire la ligne Origin Text
+    // const originText = `Origine A1: ${a1Lat.toFixed(5)}, ${a1Lon.toFixed(5)}`; 
     const scaleText = `Échelle: 1 case = ${config.scale}m`;
-    const textsToDraw = [config.gridNameBase];
+    
+    const textsToDraw = [];
+
+    // MODIFICATION : Ajout de l'adresse en première ligne si elle existe
+    if (address && address.length > 0) {
+        textsToDraw.push(address);
+    }
+
+    textsToDraw.push(config.gridNameBase);
+    
     if (refText) textsToDraw.push(refText);
-    textsToDraw.push(originText, scaleText);
+    
+    // MODIFICATION : On ne pousse plus originText
+    // textsToDraw.push(originText); 
+    
+    textsToDraw.push(scaleText);
+    
     const maxTextWidth = Math.max(...textsToDraw.map(text => ctx.measureText(text).width));
     const cartoucheWidth = maxTextWidth + (padding * 2);
     const cartoucheHeight = (lineSpacing * textsToDraw.length) + (padding * 2);
+    
     const cartoucheX = anchorPixels.x + padding;
     const cartoucheY = anchorPixels.y + padding;
+    
     ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
     ctx.fillRect(cartoucheX, cartoucheY, cartoucheWidth, cartoucheHeight);
     ctx.strokeStyle = 'black';
     ctx.lineWidth = 1;
     ctx.strokeRect(cartoucheX, cartoucheY, cartoucheWidth, cartoucheHeight);
+    
     ctx.fillStyle = 'black';
     ctx.textAlign = 'left';
     ctx.textBaseline = 'middle';
+    
     let textY = cartoucheY + padding + (lineSpacing / 2);
     const refTextPattern = /^Pt\. Réf:/;
+    
     for (const text of textsToDraw) {
         if (refTextPattern.test(text)) {
             const crossSize = FONT_SIZE_PX * 0.4;
@@ -268,7 +291,7 @@ function drawCompass(ctx, latLonToPixels, config, a1CornerCoords, cellWidthInPix
     ctx.fillText('N', N_point.x, N_point.y + 2);
 }
 
-function drawCadoElementsOnCanvas(ctx, config, latLonToPixels, a1CornerCoords) {
+function drawCadoElementsOnCanvas(ctx, config, latLonToPixels, a1CornerCoords, address = "") {
     const [a1Lon, a1Lat] = a1CornerCoords;
     const startColNum = letterToNumber(config.startCol);
     const endColNum = letterToNumber(config.endCol);
@@ -309,7 +332,7 @@ function drawCadoElementsOnCanvas(ctx, config, latLonToPixels, a1CornerCoords) {
     const cellWidthInPixels = Math.hypot(px_B1_center.x - px_A1_center.x, px_B1_center.y - px_A1_center.y);
     
     const labelFontSize = cellWidthInPixels * 0.75;
-    if (labelFontSize > 5) { // Ne pas dessiner les étiquettes si elles sont illisibles
+    if (labelFontSize > 5) {
         ctx.font = `bold ${labelFontSize}px Arial`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
@@ -328,8 +351,8 @@ function drawCadoElementsOnCanvas(ctx, config, latLonToPixels, a1CornerCoords) {
     }
         
     drawSubdivisionKey(ctx, latLonToPixels, config, a1CornerCoords);
-    drawCartouche(ctx, latLonToPixels, config, a1CornerCoords, cellWidthInPixels);
+    // MODIFICATION : Passage de l'argument address
+    drawCartouche(ctx, latLonToPixels, config, a1CornerCoords, cellWidthInPixels, address);
     drawCompass(ctx, latLonToPixels, config, a1CornerCoords, cellWidthInPixels);
-    // On passe cellWidthInPixels pour dimensionner la croix
     drawReferenceCross(ctx, latLonToPixels, config, cellWidthInPixels);
 }

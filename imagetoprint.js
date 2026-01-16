@@ -43,6 +43,9 @@ async function generateImageToPrint() {
         const mapConfig = MAP_LAYERS.find(m => m.id === selectedMapId);
         if (!mapConfig) throw new Error("Configuration de la carte non trouvée !");
         
+        // Récupération de l'adresse saisie
+        const addressValue = document.getElementById('address-search-input').value.trim();
+
         config.gridNameBase = gridNameBase;
         config.lineWidth = parseInt(document.getElementById('line-thickness').value, 10) || 1;
 
@@ -78,7 +81,8 @@ async function generateImageToPrint() {
         const originalLineWidth = config.lineWidth;
         config.lineWidth = config.lineWidth * scaleFactor;
 
-        drawCadoElementsOnCanvas(finalCtx, config, latLonToPixels, a1CornerCoords);
+        // On passe l'adresse en paramètre (5ème argument)
+        drawCadoElementsOnCanvas(finalCtx, config, latLonToPixels, a1CornerCoords, addressValue);
 
         // Restauration de la config
         config.lineWidth = originalLineWidth;
@@ -90,6 +94,8 @@ async function generateImageToPrint() {
         
         updateDynamicGridName(); 
         const finalGridName = document.getElementById('grid-name').value;
+        
+        // Les coordonnées restent dans le nom du fichier comme demandé
         const originString = `_origine=${a1CornerCoords[1].toFixed(6)},${a1CornerCoords[0].toFixed(6)}`;
         const fileName = `${finalGridName}${originString}${fileExtension}`;
 
