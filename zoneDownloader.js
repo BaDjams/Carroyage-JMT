@@ -50,7 +50,7 @@ function getIconsSync() {
     if (typeof ICON_CATALOG !== 'undefined') {
         finalIcons = finalIcons.concat(ICON_CATALOG);
     } else {
-        // Silencieux
+        // Silencieux si pas chargé pour éviter le spam console
     }
 
     return finalIcons;
@@ -123,7 +123,6 @@ function initIconScaler() {
     const label = document.getElementById('poi-icon-scale-label');
     
     if (slider && label) {
-        // Enlever les anciens écouteurs pour éviter les doublons (via clônage simple)
         const newSlider = slider.cloneNode(true);
         slider.parentNode.replaceChild(newSlider, slider);
         
@@ -453,6 +452,7 @@ function loadImageForCanvas(url) {
 }
 
 // Dessin des POIs sur le Canvas final (Image PNG)
+// MODIFICATION : Ajout du scaleFactor pour multiplier la taille de l'icône
 async function drawUserPOIsOnCanvas(ctx, latLonToCanvasPixels, scaleFactor = 1) {
     const uniqueUrls = [...new Set(userPOIs.map(p => p.url))];
     const imageCache = {};
@@ -468,16 +468,12 @@ async function drawUserPOIsOnCanvas(ctx, latLonToCanvasPixels, scaleFactor = 1) 
         
         // Taille de base (48px) multipliée par le facteur d'échelle global (upscaling)
         // ET multipliée par le facteur d'échelle utilisateur (slider)
-        
-        // On doit retrouver le facteur utilisateur, mais il est déjà inclus 
-        // dans le paramètre 'scaleFactor' passé par generateZonePNG si on l'appelle correctement.
-        // VOIR generateZonePNG pour l'appel.
-        
         const size = 48 * scaleFactor;
 
         if (img) {
             ctx.drawImage(img, px.x - size/2, px.y - size/2, size, size);
         } else {
+            // Fallback
             ctx.beginPath(); 
             ctx.arc(px.x, px.y, 10 * scaleFactor, 0, 2*Math.PI); 
             ctx.fillStyle = 'red'; 
@@ -504,7 +500,7 @@ async function drawUserPOIsOnCanvas(ctx, latLonToCanvasPixels, scaleFactor = 1) 
 }
 
 // =============================================================================
-// LOGIQUE GEOGRAPHIQUE
+// LOGIQUE GEOGRAPHIQUE (UTM / CADO / PIXELS)
 // =============================================================================
 
 function haversineDistance(p1, p2) {
