@@ -590,41 +590,73 @@
         }
 
         function createBaseLayers() {
-			const baseMaps = {};
-			MAP_LAYERS.forEach(layerConfig => {
-				let leafletLayer;
-				if (layerConfig.layers.length > 1) {
-					const layerGroupLayers = [];
-					layerConfig.layers.forEach(layerData => {
-						const tileLayer = L.tileLayer(layerData.url, {
-							attribution: layerConfig.name,
-							maxZoom: layerConfig.maxZoom || 20
-						});
-						layerGroupLayers.push(tileLayer);
-					});
-					leafletLayer = L.layerGroup(layerGroupLayers);
-				
-				} else {
-					const singleLayerConfig = layerConfig.layers[0];
-					if (singleLayerConfig.type === 'quadkey') {
-						const bingKey = 'Ap_a-1hs_i9aFp32f3D-g1Q_3aT2gq-n_X2gYm-s_Y3sZ_X5c_V3r_A3sZ_X5c';
-						leafletLayer = L.bingLayer(bingKey, {
-							type: 'AerialWithLabels'
-						});
+                const baseMaps = {};
 
-					} else {
-						leafletLayer = L.tileLayer(singleLayerConfig.url, {
-							attribution: layerConfig.name,
-							maxZoom: layerConfig.maxZoom || 20
-						});
-					}
-				}
-				if (leafletLayer) {
-					baseMaps[layerConfig.name] = leafletLayer;
-				}
-			});
-			return baseMaps;
-		}
+                // Extension Leaflet pour gérer les tuiles Quadkey (Bing)
+                const L_QuadKeyLayer = L.TileLayer.extend({
+                    getTileUrl: function (coords) {
+                        const x = coords.x;
+                        const y = coords.y;
+                        const z = coords.z;
+                        
+                        // Conversion XYZ vers QuadKey
+                        let quadKey = '';
+                        for (let i = z; i > 0; i--) {
+                            let digit = 0;
+                            const mask = 1 << (i - 1);
+                            if ((y & mask) !== 0) { digit += 2; }
+                            if ((x & mask) !== 0) { digit += 1; }
+                            quadKey += digit.toString();
+                        }
+                        
+                        return L.Util.template(this._url, {
+                            s: (x + y) % 4, // Sous-domaine dynamique (t0, t1, t2, t3)
+                            q: quadKey,
+                            z: z
+                        });
+                    }
+                });
+
+                MAP_LAYERS.forEach(layerConfig => {
+                    let leafletLayer;
+                    
+                    // Gestion Multicouches (ex: IGN + Google Routes)
+                    if (layerConfig.layers.length > 1) {
+                        const layerGroupLayers = [];
+                        layerConfig.layers.forEach(layerData => {
+                            const tileLayer = L.tileLayer(layerData.url, {
+                                attribution: layerConfig.name,
+                                maxZoom: layerConfig.maxZoom || 20
+                            });
+                            layerGroupLayers.push(tileLayer);
+                        });
+                        leafletLayer = L.layerGroup(layerGroupLayers);
+                    
+                    } else {
+                        // Gestion Couche Unique
+                        const singleLayerConfig = layerConfig.layers[0];
+                        
+                        if (singleLayerConfig.type === 'quadkey') {
+                            // Utilisation de notre classe personnalisée pour Bing
+                            leafletLayer = new L_QuadKeyLayer(singleLayerConfig.url, {
+                                attribution: layerConfig.name,
+                                maxZoom: layerConfig.maxZoom || 19
+                            });
+                        } else {
+                            // Standard XYZ
+                            leafletLayer = L.tileLayer(singleLayerConfig.url, {
+                                attribution: layerConfig.name,
+                                maxZoom: layerConfig.maxZoom || 20
+                            });
+                        }
+                    }
+                    
+                    if (leafletLayer) {
+                        baseMaps[layerConfig.name] = leafletLayer;
+                    }
+                });
+                return baseMaps;
+            }
 
         function initializeCadoMap() {
             cadoMap = L.map('cado-interactive-map').setView([46.2276, 2.2137], 5);

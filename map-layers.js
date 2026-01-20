@@ -20,6 +20,18 @@ const MAP_LAYERS = [
         ]
     },
     {
+        "id": "bing_hybrid",
+        "name": "Bing Maps Hybride",
+        "maxZoom": 19,
+        "layers": [
+            {
+                // Notez le 'h' devant {q} pour Hybrid et mkt=fr-FR pour le français
+                "url": "https://ecn.t{s}.tiles.virtualearth.net/tiles/h{q}.jpeg?g=12933&mkt=fr-FR",
+                "type": "quadkey"
+            }
+        ]
+    },
+    {
         "id": "google_hybrid",
         "name": "Google Hybrid",
         "maxZoom": 21,
@@ -41,7 +53,7 @@ const MAP_LAYERS = [
             }
         ]
     },
-    {
+    /*{
         "id": "esri_hybrid",
         "name": "Satellite Esri + Routes Google",
         "maxZoom": 21,
@@ -57,7 +69,7 @@ const MAP_LAYERS = [
                 "type": "xyz"
             }
         ]
-    },
+    },*/
     {
         "id": "ign_public_hybrid",
         "name": "Plan IGN",
@@ -69,13 +81,13 @@ const MAP_LAYERS = [
             }
         ]
     },
-    {
-        "id": "osm_FR",
-        "name": "OSM Français",
+   {
+        "id": "osm_standard",
+        "name": "OpenStreetMap",
         "maxZoom": 19,
         "layers": [
             {
-                "url": "https://a.tile.openstreetmap.fr/osmfr/{z}/{x}/{y}.png",
+                "url": "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
                 "type": "xyz"
             }
         ]
