@@ -25,12 +25,22 @@ function itpLatLonToWorldPixels(lat, lon, zoom) {
 function getCadoCount(start, end) {
     const min = Math.min(start, end);
     const max = Math.max(start, end);
+    // Calcul de distance mathématique en sautant 0
+    // Ex: -1 à 1. Indices: -1, 1. (Pas de 0). Distance = 2.
+    // Ex: 1 à 3. Indices: 1, 2, 3. Distance = 3.
     let count = max - min + 1;
-    // Si l'intervalle traverse 0 (ex: -2 à 2), on retire 1 car la ligne/colonne 0 n'existe pas
     if (min < 0 && max > 0) {
-        count--;
+        count--; // On retire le 0 qui n'existe pas
     }
     return count;
+}
+
+// Fonction pour obtenir la distance en "unités de cases" entre l'origine (0) et une coordonnée
+// A (1) -> 0. B (2) -> 1.
+// -A (-1) -> -1. -B (-2) -> -2.
+function getCellOffsetFromOrigin(n) {
+    if (n > 0) return n - 1;
+    return n; 
 }
 
 async function generateImageToPrint() {
@@ -57,22 +67,21 @@ async function generateImageToPrint() {
         config.gridNameBase = gridNameBase;
         config.lineWidth = parseInt(document.getElementById('line-thickness').value, 10) || 1;
 
-        // 1. BUFFER DE SECURITE
-        const bufferCases = 3; 
-        // On élargit artificiellement la zone demandée pour le téléchargement
-        // Note: letterToNumber gère les négatifs si besoin
+        // 1. ZONE DE TÉLÉCHARGEMENT (LARGE BUFFER)
+        // On calcule une zone GPS très large pour être sûr qu'après rotation et crop, on ait tout.
+        // On ne s'occupe pas ici des marges fines, on prend large (buffer de 5 cases).
+        const buffer = 5; 
         const startColNum = letterToNumber(config.startCol);
         const endColNum = letterToNumber(config.endCol);
         
         const bufferedConfig = { 
             ...config, 
-            startCol: numberToLetter(startColNum - bufferCases), // Simplifié, attention si passage de 0
-            endCol: numberToLetter(endColNum + bufferCases),
-            startRow: config.startRow - bufferCases,
-            endRow: config.endRow + bufferCases
+            // On élargit artificiellement les bornes pour le téléchargement
+            startCol: numberToLetter(startColNum > 0 ? startColNum - buffer : startColNum - buffer), 
+            endCol: numberToLetter(endColNum > 0 ? endColNum + buffer : endColNum + buffer),
+            startRow: config.startRow - buffer,
+            endRow: config.endRow + buffer
         };
-        // Pour être sûr de couvrir le passage à zéro dans le buffer, on s'appuie sur la bbox large
-        // getRotatedBoundingBox gère déjà calculateAndRotatePoint qui gère les coordonnées
 
         const realA1Coords = getA1CornerCoordsForPrint(config);
         const downloadBoundingBox = getRotatedBoundingBox(bufferedConfig, realA1Coords);
@@ -80,7 +89,7 @@ async function generateImageToPrint() {
         // 2. ZOOM
         const zoomLevel = calculateOptimalZoom(downloadBoundingBox, mapConfig);
 
-        // 3. TELECHARGEMENT
+        // 3. TÉLÉCHARGEMENT
         loadingMessage.textContent = `Téléchargement de la zone étendue (0%)...`;
         const { finalCanvas: worldCanvas, scaleFactor } = await createFinalCanvasWithLayers(downloadBoundingBox, zoomLevel, mapConfig, (progress) => {
             loadingMessage.textContent = `Téléchargement des tuiles (${progress.toFixed(0)}%)...`;
@@ -88,7 +97,7 @@ async function generateImageToPrint() {
 
         loadingMessage.textContent = "Assemblage et découpe finale...";
 
-        // 4. DIMENSIONS & MARGES
+        // 4. CALCUL DIMENSIONS FINALES & MARGES
         const metersPerPixel = (Math.cos(refLat * Math.PI / 180) * 2 * Math.PI * 6378137) / (256 * Math.pow(2, zoomLevel));
         const pixelsPerMeter = (1 / metersPerPixel) * scaleFactor;
         
@@ -97,19 +106,17 @@ async function generateImageToPrint() {
         const startRowIdx = config.startRow;
         const endRowIdx = config.endRow;
 
-        // CORRECTION: Utilisation de getCadoCount pour ne pas compter le 0
         const colsCount = getCadoCount(startColIdx, endColIdx);
         const rowsCount = getCadoCount(startRowIdx, endRowIdx);
         
         const scalePx = config.scale * pixelsPerMeter;
 
-        // --- NOUVELLES MARGES ---
-        // Texte : 1.2
-        // Vide : 0.3
+        // --- MARGES STRICTES ---
+        // 1.2 distance côté coordonnées, 0.3 distance côté vide
         const marginLarge = scalePx * 1.2;
         const marginSmall = scalePx * 0.3;
 
-        const marginLeft = marginLarge;  // Chiffres toujours à gauche
+        const marginLeft = marginLarge;  // Toujours chiffres à gauche
         const marginRight = marginSmall;
         let marginTop, marginBottom;
 
@@ -121,9 +128,11 @@ async function generateImageToPrint() {
             marginBottom = marginSmall;
         }
         
+        // Taille exacte de la zone utile (grille)
         const gridWidthPx = colsCount * scalePx;
         const gridHeightPx = rowsCount * scalePx;
         
+        // Taille finale du papier
         const finalWidth = Math.ceil(gridWidthPx + marginLeft + marginRight);
         const finalHeight = Math.ceil(gridHeightPx + marginTop + marginBottom);
         
@@ -135,109 +144,127 @@ async function generateImageToPrint() {
         finalCtx.fillStyle = 'white';
         finalCtx.fillRect(0, 0, finalWidth, finalHeight);
 
-        // 5. PLACEMENT DU PIVOT
+        // 5. PLACEMENT DU PIVOT SUR LE PAPIER
+        // Le pivot est le point qui correspond à (refLat, refLon)
         const pivotGeoLat = (config.referencePointChoice === 'center') ? config.latitude : realA1Coords[1];
         const pivotGeoLon = (config.referencePointChoice === 'center') ? config.longitude : realA1Coords[0];
         
         let pivotFinalX, pivotFinalY;
 
         if (config.referencePointChoice === 'center') {
-            // Pivot au centre de la GRILLE (pas de l'image)
+            // CORRECTION CRUCIALE : Le pivot (la croix) est au centre de la GRILLE, pas de l'image.
             pivotFinalX = marginLeft + (gridWidthPx / 2);
             pivotFinalY = marginTop + (gridHeightPx / 2);
         } else {
-            // Mode Origine : Le pivot est A1 (StartCol, StartRow)
-            // Mais attention si StartCol = 3 (C), il y a un décalage par rapport au bord gauche
-            // On doit calculer la "position CADO" du début de la grille
+            // Mode Origine (A1)
+            // Calcul du décalage de A1 par rapport au début de la grille
+            // Le début de la grille est à X = marginLeft
+            // Si la grille commence à C (3), A1 est virtuellement 2 cases à gauche.
             
-            // Unité CADO du bord gauche (StartCol)
-            // ex: A=1 -> 1. C=3 -> 3. -B=-2 -> -2.
+            const startColOffset = getCellOffsetFromOrigin(startColIdx);
+            const startRowOffset = getCellOffsetFromOrigin(startRowIdx);
             
-            // Pour le dessin, le repère (0,0) est le pivot.
-            // Si Pivot=A1, alors StartCol est à 0.
-            pivotFinalX = marginLeft; // A1 est aligné avec la marge gauche (par définition du mode Origine A1)
-            
+            // X : A1 est à gauche du début de grille de 'startColOffset' cases
+            pivotFinalX = marginLeft - (startColOffset * scalePx);
+
+            // Y : Dépend du sens
             if (config.letteringDirection === 'ascending') {
-                pivotFinalY = finalHeight - marginBottom; // A1 en bas
+                // Ascendant : 0 est en bas. L'image commence à startRow.
+                // Le bas de la grille (visuel) est à Y = finalHeight - marginBottom.
+                // Ce point correspond à la ligne 'startRow'.
+                // A1 (ligne 1/0) est décalé de 'startRowOffset' vers le bas.
+                // En canvas Y augmente vers le bas.
+                // Y_StartGrid = finalHeight - marginBottom
+                // Y_A1 = Y_StartGrid + (startRowOffset * scalePx) ?? Non.
+                // Si StartRow=1 (Offset=0), A1 est sur la ligne de base.
+                // Si StartRow=3 (Offset=2), la ligne de base est la ligne 3. A1 est plus bas.
+                pivotFinalY = (finalHeight - marginBottom) + (startRowOffset * scalePx);
             } else {
-                pivotFinalY = marginTop; // A1 en haut
+                // Descendant : 0 est en haut.
+                // Le haut de la grille est à Y = marginTop.
+                // Ce point correspond à la ligne 'startRow'.
+                // A1 (ligne 1/0) est décalé vers le haut (Y diminue).
+                pivotFinalY = marginTop - (startRowOffset * scalePx);
             }
         }
         
+        // Coordonnées du pivot sur la carte source
         const worldOriginPx = itpLatLonToWorldPixels(downloadBoundingBox.north, downloadBoundingBox.west, zoomLevel);
         const pivotWorldGlobalPx = itpLatLonToWorldPixels(pivotGeoLat, pivotGeoLon, zoomLevel);
         const pivotOnWorldCanvasX = (pivotWorldGlobalPx.x - worldOriginPx.x) * scaleFactor;
         const pivotOnWorldCanvasY = (pivotWorldGlobalPx.y - worldOriginPx.y) * scaleFactor;
 
+        // --- PROJECTION CARTE ---
         finalCtx.save();
+        // 1. On place l'origine du contexte au point pivot sur le papier final
         finalCtx.translate(pivotFinalX, pivotFinalY);
+        // 2. On tourne le papier pour aligner le nord de la carte
         finalCtx.rotate(-config.deviation * Math.PI / 180);
+        // 3. On dessine la carte en la décalant pour que son pivot coïncide avec l'origine (0,0)
         finalCtx.drawImage(worldCanvas, -pivotOnWorldCanvasX, -pivotOnWorldCanvasY);
         finalCtx.restore();
 
-        // 6. DESSIN DE LA GRILLE
+        // 6. DESSIN DE LA GRILLE (SUR LE PAPIER DROIT)
         const drawConfig = { ...config, deviation: 0, realDeviation: config.deviation };
         drawConfig.lineWidth = drawConfig.lineWidth * scaleFactor;
-        const metersToPx = pixelsPerMeter;
-        
-        // Projection locale
+
+        // Fonction de projection "Plate" Locale
+        // Convertit des lat/lon virtuels en pixels canvas relatifs au pivot
         const localLatLonToPixels = (lat, lon) => {
             const dLat = lat - pivotGeoLat;
             const dLon = lon - pivotGeoLon;
+            
+            // Conversion Mètres (approx locale)
             const dY_meters = dLat * 111320;
             const dX_meters = dLon * 111320 * Math.cos(pivotGeoLat * Math.PI / 180);
+            
+            // Projection : Y Canvas inversé par rapport à Lat
             return {
-                x: pivotFinalX + (dX_meters * metersToPx),
-                y: pivotFinalY - (dY_meters * metersToPx)
+                x: pivotFinalX + (dX_meters * pixelsPerMeter),
+                y: pivotFinalY - (dY_meters * pixelsPerMeter)
             };
         };
 
-        // Calcul A1 Virtuel pour le dessin
+        // Calcul du A1 Virtuel Géographique pour le moteur de dessin
+        // Le moteur de dessin recalcule tout à partir de A1. On doit lui donner un A1 
+        // qui fait retomber le dessin exactement sur notre grille pixels.
+        
         let a1GeoForDrawLat, a1GeoForDrawLon;
 
         if (config.referencePointChoice === 'origin') {
             a1GeoForDrawLat = pivotGeoLat;
             a1GeoForDrawLon = pivotGeoLon;
         } else {
-            // Mode Center : On doit trouver le A1 qui ferait tomber le centre au Pivot
+            // Mode Center : Le pivot est le centre géométrique.
+            // On doit calculer où se trouve A1 par rapport à ce centre.
+            
             const mToDegLat = 1 / 111320;
             const mToDegLon = 1 / (111320 * Math.cos(pivotGeoLat * Math.PI / 180));
             
-            // Calcul de la "Distance CADO" entre le début et le centre
-            // On convertit tout en "unités de cases" par rapport à 0.
-            // Ex: Start=-1, End=1. Count=2.
-            // UnitStart = -1. UnitEnd = 1.
-            // UnitCenter = (UnitStart + UnitEnd) / 2 = 0.
-            // Mais attention, il n'y a pas de case 0.
-            // On utilise une logique de coordonnées continues "virtuelles" pour la géométrie
+            // On calcule la distance en mètres entre le centre de la grille et l'origine virtuelle (A1/0,0)
             
-            // Fonction helper interne pour convertir Numéro CADO -> Offset Relatif
-            const getRelativeOffset = (num) => (num > 0 ? num - 1 : num);
+            // Distance X du Centre par rapport à l'Origine (en mètres) :
+            // StartOffsetMeters + (LargeurGrilleMeters / 2)
+            const startColOffset = getCellOffsetFromOrigin(startColIdx);
+            const gridWidthM = colsCount * config.scale;
+            const centerX_M = (startColOffset * config.scale) + (gridWidthM / 2);
             
-            const startColUnit = getRelativeOffset(startColIdx);
-            const endColUnit = getRelativeOffset(endColIdx);
-            // Longueur totale en unités continues
-            const totalWidthUnits = endColUnit - startColUnit + 1; // +1 car on inclut les bornes ?
-            // Non, c'est une distance. De -1 (fin) à 0 (début de 1).
-            // Width = colsCount.
+            // A1 est à l'opposé : CentreX - DistanceX
+            a1GeoForDrawLon = pivotGeoLon - (centerX_M * mToDegLon);
             
-            // Le centre est à +colsCount/2 cases du début
-            // Donc A1 est à -colsCount/2 cases du centre.
-            
-            // Position du début de la grille par rapport au centre (en mètres)
-            const offsetX = -(colsCount * config.scale) / 2;
-            const offsetY = -(rowsCount * config.scale) / 2;
+            // Distance Y
+            const startRowOffset = getCellOffsetFromOrigin(startRowIdx);
+            const gridHeightM = rowsCount * config.scale;
+            const centerY_M = (startRowOffset * config.scale) + (gridHeightM / 2);
 
-            a1GeoForDrawLon = pivotGeoLon + (offsetX * mToDegLon);
-            
             if (config.letteringDirection === 'ascending') {
-                a1GeoForDrawLat = pivotGeoLat + (offsetY * mToDegLat);
+                // Ascendant : Y monte. Centre est plus haut (Lat+) que A1.
+                // A1 = Center - Distance
+                a1GeoForDrawLat = pivotGeoLat - (centerY_M * mToDegLat);
             } else {
-                // En descendant, si on remonte vers A1 (haut), c'est positif en Y canvas ?
-                // Non, en Geo: A1 est en haut (Lat +). Pivot (Centre) est en bas (Lat -).
-                // Donc A1 Lat > Pivot Lat.
-                // Distance = Hauteur / 2.
-                a1GeoForDrawLat = pivotGeoLat + ((rowsCount * config.scale / 2) * mToDegLat);
+                // Descendant : Y descend. Centre est plus bas (Lat-) que A1.
+                // A1 = Center + Distance
+                a1GeoForDrawLat = pivotGeoLat + (centerY_M * mToDegLat);
             }
         }
 
@@ -267,29 +294,20 @@ async function generateImageToPrint() {
     }
 }
 
-// ... (getRotatedBoundingBox, getA1CornerCoordsForPrint, calculateOptimalZoom, createFinalCanvasWithLayers)
-// Ces fonctions restent inchangées, on les garde pour la cohérence du fichier
+// ... Les fonctions suivantes restent inchangées mais nécessaires ...
 function getRotatedBoundingBox(config, a1Coords) {
     const [a1Lon, a1Lat] = a1Coords;
     const startColNum = letterToNumber(config.startCol);
     const endColNum = letterToNumber(config.endCol);
     const startRowNum = config.startRow;
     const endRowNum = config.endRow;
-
     const p1 = calculateAndRotatePoint(startColNum, startRowNum, config, a1Lat, a1Lon);
     const p2 = calculateAndRotatePoint(endColNum + 1, startRowNum, config, a1Lat, a1Lon);
     const p3 = calculateAndRotatePoint(startColNum, endRowNum + 1, config, a1Lat, a1Lon);
     const p4 = calculateAndRotatePoint(endColNum + 1, endRowNum + 1, config, a1Lat, a1Lon);
-
     const lats = [p1[1], p2[1], p3[1], p4[1]];
     const lons = [p1[0], p2[0], p3[0], p4[0]];
-
-    return {
-        north: Math.max(...lats),
-        south: Math.min(...lats),
-        east: Math.max(...lons),
-        west: Math.min(...lons)
-    };
+    return { north: Math.max(...lats), south: Math.min(...lats), east: Math.max(...lons), west: Math.min(...lons) };
 }
 
 function getA1CornerCoordsForPrint(config) {
@@ -297,7 +315,6 @@ function getA1CornerCoordsForPrint(config) {
     const refLon = config.longitude;
     const metersToLatDegrees = (meters) => meters / 111320;
     const metersToLonDegrees = (meters, lat) => meters / (111320 * Math.cos(lat * Math.PI / 180));
-
     if (config.referencePointChoice === 'origin') {
         return [refLon, refLat];
     } else {
@@ -305,17 +322,11 @@ function getA1CornerCoordsForPrint(config) {
         const endColNum = letterToNumber(config.endCol);
         const startRowNum = config.startRow;
         const endRowNum = config.endRow;
-
-        // Utilisation de la nouvelle logique CADO (sans zéro) pour le décalage
-        // Le but est de trouver le centre géométrique
-        const totalCols = getCadoCount(startColNum, endColNum);
-        const totalRows = getCadoCount(startRowNum, endRowNum);
-        
-        // On suppose que le point de référence est au milieu exact
-        // Donc on recule de Moitié de la largeur/hauteur pour trouver A1
-        const xOffsetMeters = (totalCols * config.scale) / 2;
-        const yOffsetMeters = (totalRows * config.scale) / 2;
-
+        // Pour le calcul GPS initial, on garde la logique centrée approximative
+        const cols = getCadoCount(startColNum, endColNum);
+        const rows = getCadoCount(startRowNum, endRowNum);
+        const xOffsetMeters = (cols * config.scale) / 2;
+        const yOffsetMeters = (rows * config.scale) / 2;
         const a1Lon = refLon - metersToLonDegrees(xOffsetMeters, refLat);
         let a1Lat;
         if (config.letteringDirection === 'ascending') {
@@ -323,7 +334,6 @@ function getA1CornerCoordsForPrint(config) {
         } else {
             a1Lat = refLat + metersToLatDegrees(yOffsetMeters);
         }
-        
         return [a1Lon, a1Lat];
     }
 }
