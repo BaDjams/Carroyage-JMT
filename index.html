@@ -659,18 +659,86 @@
             }
 
         function initializeCadoMap() {
-            cadoMap = L.map('cado-interactive-map').setView([46.2276, 2.2137], 5);
-            const baseMaps = createBaseLayers();
-            const defaultLayer = baseMaps["Ortho IGN + Routes Google"] || baseMaps["Google Hybrid"];
-            if(defaultLayer) defaultLayer.addTo(cadoMap);
-            L.control.layers(baseMaps).addTo(cadoMap);
-            cadoMap.on('click', handleCadoMapClick);
-            cadoMap.on('baselayerchange', function(e) {
-                const selector = document.getElementById('map-tile-provider');
-                const correspondingMapLayer = MAP_LAYERS.find(layer => layer.name === e.name);
-                if (correspondingMapLayer) selector.value = correspondingMapLayer.id;
-            });
-        }
+                cadoMap = L.map('cado-interactive-map').setView([46.2276, 2.2137], 5);
+                const baseMaps = createBaseLayers();
+                const defaultLayer = baseMaps["Ortho IGN + Routes Google"] || baseMaps[Object.keys(baseMaps)[0]];
+                if(defaultLayer) defaultLayer.addTo(cadoMap);
+                L.control.layers(baseMaps).addTo(cadoMap);
+                cadoMap.on('click', handleCadoMapClick);
+                
+                // --- AJOUT : Contrôles de Rotation ---
+                const RotationControl = L.Control.extend({
+                    options: { position: 'topleft' },
+                    onAdd: function(map) {
+                        const container = L.DomUtil.create('div', 'leaflet-control-rotation leaflet-bar');
+                        
+                        // Bouton Rotation Gauche (-1°)
+                        const btnLeft = L.DomUtil.create('a', '', container);
+                        btnLeft.innerHTML = '↺';
+                        btnLeft.title = "Pivoter vers la gauche";
+                        btnLeft.href = "#";
+                        L.DomEvent.disableClickPropagation(btnLeft);
+                        L.DomEvent.on(btnLeft, 'click', (e) => {
+                            L.DomEvent.stop(e);
+                            updateDeviation(-1); // Décrémente de 1 degré
+                        });
+
+                        // Bouton Reset (0°)
+                        const btnReset = L.DomUtil.create('a', '', container);
+                        btnReset.innerHTML = 'N';
+                        btnReset.title = "Réinitialiser au Nord";
+                        btnReset.href = "#";
+                        btnReset.style.color = "red";
+                        L.DomEvent.disableClickPropagation(btnReset);
+                        L.DomEvent.on(btnReset, 'click', (e) => {
+                            L.DomEvent.stop(e);
+                            resetDeviation();
+                        });
+
+                        // Bouton Rotation Droite (+1°)
+                        const btnRight = L.DomUtil.create('a', '', container);
+                        btnRight.innerHTML = '↻';
+                        btnRight.title = "Pivoter vers la droite";
+                        btnRight.href = "#";
+                        L.DomEvent.disableClickPropagation(btnRight);
+                        L.DomEvent.on(btnRight, 'click', (e) => {
+                            L.DomEvent.stop(e);
+                            updateDeviation(1); // Incrémente de 1 degré
+                        });
+
+                        return container;
+                    }
+                });
+                cadoMap.addControl(new RotationControl());
+                // ----------------------------------------
+
+                cadoMap.on('baselayerchange', function(e) {
+                    const selector = document.getElementById('map-tile-provider');
+                    const correspondingMapLayer = MAP_LAYERS.find(layer => layer.name === e.name);
+                    if (correspondingMapLayer) selector.value = correspondingMapLayer.id;
+                });
+            }
+
+            // Fonctions Helper pour la rotation (à placer dans le script global ou juste après initializeCadoMap)
+            function updateDeviation(change) {
+                const devInput = document.getElementById('deviation');
+                let currentVal = parseInt(devInput.value, 10);
+                let newVal = currentVal + change;
+                
+                // Boucle -180 / 180
+                if (newVal > 180) newVal = -179;
+                if (newVal < -180) newVal = 179;
+                
+                devInput.value = newVal;
+                // Déclenche l'événement 'input' pour que le reste du site (grid name, dessin) se mette à jour
+                devInput.dispatchEvent(new Event('input'));
+            }
+
+            function resetDeviation() {
+                const devInput = document.getElementById('deviation');
+                devInput.value = 0;
+                devInput.dispatchEvent(new Event('input'));
+            }
 
         function initializeZoneMap() {
             zoneMap = L.map('zone-interactive-map').setView([46.2276, 2.2137], 5);
@@ -1055,8 +1123,27 @@
             document.getElementById('view-on-maps-mercator').addEventListener('click', () => viewOnMap('mercator'));
             document.getElementById('view-on-maps-utm').addEventListener('click', () => viewOnMap('utm'));
 
-            const deviationInput = document.getElementById('deviation');
+             const deviationInput = document.getElementById('deviation');
             const deviationValueSpan = document.getElementById('deviation-value');
+            const mapContainer = document.getElementById('cado-interactive-map'); // Le conteneur de la carte
+
+            deviationInput.addEventListener('input', () => { 
+                const val = parseInt(deviationInput.value, 10);
+                deviationValueSpan.textContent = `${val}°`; 
+                
+                // --- AJOUT : Rotation visuelle de la carte ---
+                // On applique une rotation inverse (-val) au conteneur de la carte.
+                // Si la déviation est +45° (Grille tourne à droite), 
+                // on tourne la carte de -45° pour que la grille apparaisse "droite" et la carte "penchée".
+                // C'est souvent l'effet recherché pour cadrer une route verticale.
+                // On ajoute un scale pour éviter de voir les bords blancs lors de la rotation.
+                if (val !== 0) {
+                    mapContainer.style.transform = `rotate(${-val}deg) scale(1.0)`;
+                    // Note : Le scale(1.4) permet de couvrir les coins vides créés par la rotation.
+                } else {
+                    mapContainer.style.transform = 'none';
+                }
+            });
             const generateImageButton = document.getElementById('generate-image-button');
             const resetButton = document.getElementById('reset-deviation');
             const iconScaleInput = document.getElementById('zone-icon-scale');

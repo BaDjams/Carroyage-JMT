@@ -334,3 +334,38 @@ input[type="radio"].custom-radio:checked + span {
     overflow: hidden;
     text-overflow: ellipsis;
 }
+
+/* Animation fluide pour la rotation de la carte */
+#cado-interactive-map {
+    transition: transform 0.3s ease-out;
+    /* Important : permet de voir la carte tourner sans qu'elle sorte du cadre, 
+       mais attention, les coins seront blancs si on ne zoome pas. */
+}
+
+/* Style des boutons de rotation dans Leaflet */
+.leaflet-control-rotation {
+    background: white;
+    border: 2px solid rgba(0,0,0,0.2);
+    border-radius: 4px;
+    display: flex;
+    flex-direction: column;
+}
+.leaflet-control-rotation a {
+    width: 30px;
+    height: 30px;
+    line-height: 30px;
+    text-align: center;
+    text-decoration: none;
+    color: black;
+    font-size: 18px;
+    font-weight: bold;
+    cursor: pointer;
+    border-bottom: 1px solid #ccc;
+    display: block;
+}
+.leaflet-control-rotation a:last-child {
+    border-bottom: none;
+}
+.leaflet-control-rotation a:hover {
+    background-color: #f4f4f4;
+}
