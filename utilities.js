@@ -194,9 +194,12 @@ function drawCartouche(ctx, latLonToPixels, config, a1CornerCoords, cellWidthInP
     
     ctx.font = `${FONT_SIZE_PX}px Arial`;
     
-    const refText = (config.referencePointChoice === 'center') ? `Pt. Réf: ${config.latitude.toFixed(5)}, ${config.longitude.toFixed(5)}` : '';
-    // MODIFICATION : On retire la ligne Origin Text
-    // const originText = `Origine A1: ${a1Lat.toFixed(5)}, ${a1Lon.toFixed(5)}`; 
+    const originText = (config.referencePointChoice === 'origin') 
+        ? `Origine A1: ${a1Lat.toFixed(5)}, ${a1Lon.toFixed(5)}` 
+        : '';
+    const refText = (config.referencePointChoice === 'center') 
+        ? `Pt. Réf: ${config.latitude.toFixed(5)}, ${config.longitude.toFixed(5)}` 
+        : '';
     const scaleText = `Échelle: 1 case = ${config.scale}m`;
     
     const textsToDraw = [];
@@ -252,43 +255,90 @@ function drawCartouche(ctx, latLonToPixels, config, a1CornerCoords, cellWidthInP
     }
 }
 
-function drawCompass(ctx, latLonToPixels, config, a1CornerCoords, cellWidthInPixels) {
+function drawCompass(ctx, latLonToPixels, config, a1CornerCoords, cellWidthInPixels, forcedRotation = null) {
     const [a1Lon, a1Lat] = a1CornerCoords;
     const endColNum = letterToNumber(config.endCol);
     const topRowNum = (config.letteringDirection === 'ascending') 
         ? Math.max(config.startRow, config.endRow) 
         : Math.min(config.startRow, config.endRow);
+        
     const centerPoint = calculateAndRotatePoint(endColNum + 0.5, topRowNum + 0.5, config, a1Lat, a1Lon);
     const center = latLonToPixels(centerPoint[1], centerPoint[0]);
-    const arrowLengthInMeters = config.scale * 0.35; 
-    const northGeoPoint = { lat: centerPoint[1] + (arrowLengthInMeters / 111320), lon: centerPoint[0] };
-    const northPixel = latLonToPixels(northGeoPoint.lat, northGeoPoint.lon);
-    const arrowLengthInPixels = Math.hypot(northPixel.x - center.x, northPixel.y - center.y);
-    const radius = arrowLengthInPixels * 1.2;
+    
+    const radius = cellWidthInPixels * 0.4; 
+
+    ctx.save();
+    ctx.translate(center.x, center.y);
+
+    let rotationAngle = 0;
+    
+    if (forcedRotation !== null && forcedRotation !== undefined) {
+        rotationAngle = -toRad(forcedRotation);
+    } else {
+        const arrowLengthInMeters = config.scale * 2; 
+        const northGeoPoint = { lat: centerPoint[1] + (arrowLengthInMeters / 111320), lon: centerPoint[0] };
+        const northPixel = latLonToPixels(northGeoPoint.lat, northGeoPoint.lon);
+        const dx = northPixel.x - center.x;
+        const dy = northPixel.y - center.y;
+        rotationAngle = Math.atan2(dy, dx) + (Math.PI / 2);
+    }
+
+    ctx.rotate(rotationAngle);
+
+    // Cercle
     ctx.beginPath();
-    ctx.arc(center.x, center.y, radius, 0, 2 * Math.PI, false);
-    ctx.fillStyle = 'rgba(200, 200, 200, 0.7)';
+    ctx.arc(0, 0, radius, 0, 2 * Math.PI, false);
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
     ctx.fill();
-    const angle = Math.atan2(northPixel.y - center.y, northPixel.x - center.x);
-    const N_point = { x: center.x + arrowLengthInPixels * Math.cos(angle), y: center.y + arrowLengthInPixels * Math.sin(angle) };
-    const base_point = { x: center.x - (arrowLengthInPixels * 0.3) * Math.cos(angle), y: center.y - (arrowLengthInPixels * 0.3) * Math.sin(angle) };
-    ctx.beginPath();
-    ctx.moveTo(base_point.x, base_point.y);
-    ctx.lineTo(N_point.x, N_point.y);
-    ctx.strokeStyle = 'red'; ctx.lineWidth = 3; ctx.stroke();
-    ctx.beginPath();
-    ctx.moveTo(N_point.x, N_point.y);
-    ctx.lineTo(N_point.x - 10 * Math.cos(angle + 0.3), N_point.y - 10 * Math.sin(angle + 0.3));
-    ctx.lineTo(N_point.x - 10 * Math.cos(angle - 0.3), N_point.y - 10 * Math.sin(angle - 0.3));
-    ctx.closePath();
+    ctx.strokeStyle = 'black';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+
+    // Aiguille
+    const arrowLen = radius * 0.8;
+    const arrowWidth = radius * 0.25;
+
+    // Nord (Rouge)
+    ctx.beginPath(); ctx.moveTo(0, -arrowLen); ctx.lineTo(arrowWidth, 0); ctx.lineTo(-arrowWidth, 0); ctx.closePath();
     ctx.fillStyle = 'red'; ctx.fill();
-    const compassNFontSize = cellWidthInPixels * 0.25;
-    ctx.font = `bold ${compassNFontSize}px Arial`;
-    ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
-    ctx.strokeStyle = 'white'; ctx.lineWidth = 3;
-    ctx.strokeText('N', N_point.x, N_point.y + 2);
+
+    // Sud (Blanc)
+    ctx.beginPath(); ctx.moveTo(0, arrowLen); ctx.lineTo(arrowWidth, 0); ctx.lineTo(-arrowWidth, 0); ctx.closePath();
+    ctx.fillStyle = 'white'; ctx.fill(); ctx.stroke();
+
+    // Texte N (suit la rotation)
+    ctx.font = `bold ${radius * 0.6}px Arial`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'bottom';
     ctx.fillStyle = 'black';
-    ctx.fillText('N', N_point.x, N_point.y + 2);
+    ctx.fillText('N', 0, -arrowLen - 2);
+
+    ctx.restore(); // On restaure pour écrire le texte de déviation droit (ou pas ?)
+
+    // Texte Déviation (Sous la boussole)
+    // On veut qu'il soit écrit horizontalement par rapport à la page, ou par rapport au Nord ?
+    // Généralement sous la boussole, aligné avec la page (donc hors du restore si on veut qu'il soit droit sur le papier)
+    // MAIS ici la boussole est dessinée sur un contexte déjà tourné dans imagetoprint.
+    // Dans imagetoprint, le contexte est "Droit" (la grille est droite), la carte est tournée.
+    // Donc si on écrit ici, c'est droit par rapport à la grille.
+
+    // Si une déviation significative existe
+    const devVal = (forcedRotation !== null && forcedRotation !== undefined) ? forcedRotation : config.deviation;
+    if (devVal && Math.abs(devVal) > 0) {
+        ctx.font = `bold ${radius * 0.4}px Arial`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'top';
+        ctx.fillStyle = 'black';
+        ctx.strokeStyle = 'white';
+        ctx.lineWidth = 2;
+        
+        const sign = devVal > 0 ? '+' : '';
+        const text = `${sign}${devVal}°`;
+        
+        // On l'affiche un peu sous la boussole
+        ctx.strokeText(text, center.x, center.y + radius + 4);
+        ctx.fillText(text, center.x, center.y + radius + 4);
+    }
 }
 
 function drawCadoElementsOnCanvas(ctx, config, latLonToPixels, a1CornerCoords, address = "") {
@@ -325,6 +375,7 @@ function drawCadoElementsOnCanvas(ctx, config, latLonToPixels, a1CornerCoords, a
         ctx.beginPath(); ctx.moveTo(startPixels.x, startPixels.y); ctx.lineTo(endPixels.x, endPixels.y); ctx.stroke();
     });
     
+    // Calcul taille de case pour les échelles
     const geo_A1_center = calculateAndRotatePoint(startColNum + 0.5, startRowNum + 0.5, config, a1Lat, a1Lon);
     const geo_B1_center = calculateAndRotatePoint(startColNum + 1.5, startRowNum + 0.5, config, a1Lat, a1Lon);
     const px_A1_center = latLonToPixels(geo_A1_center[1], geo_A1_center[0]);
@@ -351,8 +402,16 @@ function drawCadoElementsOnCanvas(ctx, config, latLonToPixels, a1CornerCoords, a
     }
         
     drawSubdivisionKey(ctx, latLonToPixels, config, a1CornerCoords);
-    // MODIFICATION : Passage de l'argument address
     drawCartouche(ctx, latLonToPixels, config, a1CornerCoords, cellWidthInPixels, address);
-    drawCompass(ctx, latLonToPixels, config, a1CornerCoords, cellWidthInPixels);
+    
+    // MODIFICATION : Détection si on est en mode "Image Rotatée" ou "Carte Standard"
+    // Si la grille est dessinée droite (deviation=0 dans config), mais qu'il y a une deviation réelle dans l'UI
+    // Alors on doit forcer la rotation de la boussole.
+    // Pour l'instant, on passe la deviation de la config. Si config.deviation == 0, la boussole pointe vers le haut.
+    // C'est dans imagetoprint.js qu'on décidera de passer un argument supplémentaire.
+    
+    // On passe config.realDeviation s'il existe (injecté par imagetoprint), sinon null
+    drawCompass(ctx, latLonToPixels, config, a1CornerCoords, cellWidthInPixels, config.realDeviation);
+    
     drawReferenceCross(ctx, latLonToPixels, config, cellWidthInPixels);
 }

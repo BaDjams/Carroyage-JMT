@@ -1065,11 +1065,21 @@
                         document.getElementById('zone-icon-scale-value').textContent = `${e.target.value}x`;
                     });
                 }
+            // Dans index.html, remplacez la fonction updateImageButtonState par :
             const updateImageButtonState = () => {
-				const isDeviationZero = parseInt(deviationInput.value, 10) === 0;
-				const isPrintableSetup = isDeviationZero;
-				generateImageButton.disabled = !isPrintableSetup;
-			};
+                // On autorise toujours la génération, même avec rotation
+                generateImageButton.disabled = false;
+                
+                // Changement visuel pour indiquer que la rotation est active
+                const dev = parseInt(deviationInput.value, 10);
+                if (dev !== 0) {
+                    generateImageButton.textContent = "Générer l'image (Rotatée)";
+                    generateImageButton.classList.add('ring-2', 'ring-yellow-400');
+                } else {
+                    generateImageButton.textContent = "Générer l'image";
+                    generateImageButton.classList.remove('ring-2', 'ring-yellow-400');
+                }
+            };
             
             document.querySelectorAll('.grid-parameter').forEach(el => {
                 const eventType = (el.tagName === 'INPUT' && ['range', 'number', 'text'].includes(el.type)) ? 'input' : 'change';
