@@ -578,11 +578,12 @@ function getZoneCadoConfigAndBounds() {
         a1CornerLat = refLat + metersToLatDegrees(yOffsetMeters);
     }
     
+    // --- CORRECTION ICI : Utilisation de common-grid-thickness ---
     const config = {
         latitude: refLat,
         longitude: refLon,
         scale: scale,
-        lineWidth: parseInt(document.getElementById('cado-overlay-thickness').value, 10),
+        lineWidth: parseInt(document.getElementById('common-grid-thickness').value, 10) || 1, // <--- CORRECTION
         letteringDirection: letteringDirection,
         gridColor: document.getElementById('utm-grid-color').value,
         colorName: document.getElementById('utm-grid-color-name').value,
@@ -638,6 +639,9 @@ async function generateZonePNG() {
         const [north, west] = nwCoordsStr.split(',').map(c => parseFloat(c.trim()));
         const [south, east] = seCoordsStr.split(',').map(c => parseFloat(c.trim()));
         
+        // Récupération de l'épaisseur commune pour l'utiliser partout
+        const baseThickness = parseInt(document.getElementById('common-grid-thickness').value, 10) || 1;
+
         if(isCadoExport) {
             cadoData = getZoneCadoConfigAndBounds();
             const { config, gridBounds } = cadoData;
@@ -675,7 +679,6 @@ async function generateZonePNG() {
         
         const nwPixel = zdLatLonToWorldPixels(finalBoundingBox.north, finalBoundingBox.west, zoom);
         
-        // Fonction de conversion qui intègre le scaleFactor
         const latLonToCanvasPixels = (lat, lon) => {
             const worldPixels = zdLatLonToWorldPixels(lat, lon, zoom);
             return {
@@ -696,26 +699,22 @@ async function generateZonePNG() {
 
         if (userPOIs.length > 0) {
             loadingMessage.textContent = "Dessin des points d'intérêt...";
-            
-            // MODIFICATION: Récupération du facteur utilisateur
             const userScaleInput = document.getElementById('poi-icon-scale');
             const userScalePreference = userScaleInput ? parseFloat(userScaleInput.value) : 1.0;
-            
-            // On combine les deux facteurs : (Upscaling Technique * Préférence Utilisateur)
             await drawUserPOIsOnCanvas(ctx, latLonToCanvasPixels, scaleFactor * userScalePreference);
         }
 
         if (isUtmExport) {
             loadingMessage.textContent = "Dessin de la grille UTM...";
             const cartoucheFontSize = Math.max(10 * scaleFactor, Math.min(48 * scaleFactor, finalCanvas.width * 0.007));
-            await drawUtmGridOnCanvas(ctx, finalBoundingBox, latLonToCanvasPixels, dynamicMargin, cartoucheFontSize);
+            // --- CORRECTION ICI : Passage de l'épaisseur scalée ---
+            await drawUtmGridOnCanvas(ctx, finalBoundingBox, latLonToCanvasPixels, dynamicMargin, cartoucheFontSize, baseThickness * scaleFactor);
         }
         
         if (isCadoExport && cadoData) {
             loadingMessage.textContent = "Dessin du carroyage CADO...";
             const { config, a1CornerLat, a1CornerLon } = cadoData;
             drawCadoElementsOnCanvas(ctx, config, latLonToCanvasPixels, [a1CornerLon, a1CornerLat]);
-            // Rétablissement de l'épaisseur originale
             config.lineWidth = config.lineWidth / scaleFactor;
         }
 
@@ -737,7 +736,7 @@ async function generateZonePNG() {
                 const avgLat = (north + south) / 2;
                 const realWidthMeters = haversineDistance({lat: avgLat, lon: west}, {lat: avgLat, lon: east});
                 const mapPixelWidth = finalCanvas.width - (2 * dynamicMargin);
-                const metersPerPixel = realWidthMeters / mapPixelWidth; // metersPerPixel s'ajuste auto car mapPixelWidth augmente avec le scaleFactor
+                const metersPerPixel = realWidthMeters / mapPixelWidth; 
 
                 drawSmartScaleBar(ctx, finalCanvas.width, finalCanvas.height, 0, metersPerPixel);
             }
@@ -764,7 +763,7 @@ async function generateZonePNG() {
         console.error("Erreur lors de la génération de l'image de zone :", error);
         let msg = error.message;
         if (msg.includes("Tainted")) {
-            msg = "Erreur de sécurité navigateur (Tainted Canvas). Impossible d'exporter. Si vous utilisez des images locales, vous DEVEZ utiliser un serveur local (ex: Live Server) et non ouvrir le fichier directement.";
+            msg = "Erreur de sécurité navigateur (Tainted Canvas).";
         }
         showError(msg);
     } finally {
@@ -869,111 +868,99 @@ async function generateCadoGridForZone() {
 
 // --- CREATION CANVAS FINAL (TUILES + UPSCALING) ---
 
-async function zdCreateFinalCanvas(boundingBox, zoom, mapConfig, hasExternalMargin = false) {
-    const nwPixel = zdLatLonToWorldPixels(boundingBox.north, boundingBox.west, zoom);
-    const sePixel = zdLatLonToWorldPixels(boundingBox.south, boundingBox.east, zoom);
+async function zdCreateFinalCanvas(boundingBox, zoom, mapConfig, externalMargin) {
+    const nwPx = zdLatLonToWorldPixels(boundingBox.north, boundingBox.west, zoom);
+    const sePx = zdLatLonToWorldPixels(boundingBox.south, boundingBox.east, zoom);
     
-    // Dimensions natives
-    const naturalWidth = Math.abs(sePixel.x - nwPixel.x);
-    const naturalHeight = Math.abs(sePixel.y - nwPixel.y);
+    const natW = Math.abs(sePx.x - nwPx.x);
+    const natH = Math.abs(sePx.y - nwPx.y);
     
-    // --- LOGIQUE D'UPSCALING ---
-    // On vise une image dont la plus grande dimension fait au moins 3840px (4K standard)
-    const TARGET_LONG_EDGE = 3840;
-    let scaleFactor = 1;
+    // --- LOGIQUE UPSCALING ---
+    const TARGET = 3840; // 4K
+    const maxDim = Math.max(natW, natH);
+    let scale = 1;
 
-    const longEdge = Math.max(naturalWidth, naturalHeight);
+    if (maxDim < TARGET) {
+        scale = TARGET / maxDim;
+        scale = Math.min(scale, 16); 
+    }
+    
+    console.log(`[ZONE] Native: ${Math.round(natW)}x${Math.round(natH)} | Zoom: ${zoom}`);
+    console.log(`[ZONE] Upscale x${scale.toFixed(2)}`);
 
-    // Si l'image est plus petite que la cible (peu importe le zoom), on upscale
-    if (longEdge < TARGET_LONG_EDGE) {
-        scaleFactor = TARGET_LONG_EDGE / longEdge;
-        // Optionnel : Plafonner à 8x pour éviter les crashs navigateur sur des zones minuscules
-        scaleFactor = Math.min(scaleFactor, 8);
-        console.log(`ZoneDownloader Upscaling: Native ${Math.round(naturalWidth)}x${Math.round(naturalHeight)} -> Target ~2160p (Facteur x${scaleFactor.toFixed(2)})`);
+    const finalW = Math.round(natW * scale);
+    const finalH = Math.round(natH * scale);
+    
+    let margin = 0;
+    if (externalMargin) {
+        margin = Math.ceil(Math.max(10 * scale, Math.min(48 * scale, finalW * 0.007)) * 4);
     }
 
-    // Calcul des dimensions finales (Map Content)
-    const scaledWidth = Math.round(naturalWidth * scaleFactor);
-    const scaledHeight = Math.round(naturalHeight * scaleFactor);
-
-    // Marge dynamique calculée sur la taille finale
-    let dynamicMargin = 0;
-    if (hasExternalMargin) {
-        const cartoucheFontSize = Math.max(10 * scaleFactor, Math.min(48 * scaleFactor, scaledWidth * 0.007));
-        dynamicMargin = Math.ceil(cartoucheFontSize * 4);
-    }
-
-    // Canvas Temporaire (Taille Native pour assemblage)
-    const tempCanvas = document.createElement('canvas');
-    tempCanvas.width = naturalWidth;
-    tempCanvas.height = naturalHeight;
-    const tempCtx = tempCanvas.getContext('2d');
-
-    // Canvas Final (Taille Scalée + Marges)
-    const finalCanvas = document.createElement('canvas');
-    finalCanvas.width = scaledWidth + dynamicMargin * 2;
-    finalCanvas.height = scaledHeight + dynamicMargin * 2;
-    const ctx = finalCanvas.getContext('2d');
-
-    // Fond blanc
-    ctx.fillStyle = 'white';
-    ctx.fillRect(0, 0, finalCanvas.width, finalCanvas.height);
+    const tempC = document.createElement('canvas'); 
+    tempC.width = natW; 
+    tempC.height = natH;
+    const tempCtx = tempC.getContext('2d');
     
-    // Lissage haute qualité pour l'upscale
-    ctx.imageSmoothingEnabled = true;
+    const finalC = document.createElement('canvas'); 
+    finalC.width = finalW + margin * 2; 
+    finalC.height = finalH + margin * 2;
+    const ctx = finalC.getContext('2d');
+    
+    ctx.fillStyle = 'white'; 
+    ctx.fillRect(0,0,finalC.width, finalC.height);
+    ctx.imageSmoothingEnabled = true; 
     ctx.imageSmoothingQuality = 'high';
 
-    const nwTile = { x: Math.floor(nwPixel.x / ZD_TILE_SIZE), y: Math.floor(nwPixel.y / ZD_TILE_SIZE) };
-    const seTile = { x: Math.floor(sePixel.x / ZD_TILE_SIZE), y: Math.floor(sePixel.y / ZD_TILE_SIZE) };
+    // Calcul des index de tuiles
+    const nwTile = { x: Math.floor(nwPx.x / ZD_TILE_SIZE), y: Math.floor(nwPx.y / ZD_TILE_SIZE) };
+    const seTile = { x: Math.floor(sePx.x / ZD_TILE_SIZE), y: Math.floor(sePx.y / ZD_TILE_SIZE) };
     
-    const totalTilesToDownload = (seTile.x - nwTile.x + 1) * (seTile.y - nwTile.y + 1) * mapConfig.layers.length;
-    let downloadedCount = 0;
-
     for (const layer of mapConfig.layers) {
-        const tilePromises = [];
+        const promises = [];
         for (let x = nwTile.x; x <= seTile.x; x++) {
             for (let y = nwTile.y; y <= seTile.y; y++) {
-                let tileUrl;
+                let url;
                 if (layer.type === 'quadkey') {
-                    const quadKey = zdCoordsToQuadKey(x, y, zoom);
-                    const subdomain = (x + y) % 4;
-                    tileUrl = layer.url.replace('{q}', quadKey).replace('{s}', subdomain);
+                    const q = zdCoordsToQuadKey(x,y,zoom);
+                    url = layer.url.replace('{q}', q).replace('{s}', (x+y)%4);
                 } else {
-                    tileUrl = layer.url.replace('{z}', zoom).replace('{x}', x).replace('{y}', y);
+                    url = layer.url.replace('{z}', zoom).replace('{x}', x).replace('{y}', y);
                 }
-                
-                const safeUrl = tileUrl + (tileUrl.includes('?') ? '&' : '?') + 't=' + Date.now();
-
-                const promise = new Promise((resolve) => {
-                    const img = new Image();
-                    // CORRECTION : Toujours demander l'anonymat pour les tuiles aussi
-                    img.crossOrigin = "Anonymous"; 
-                    img.onload = () => {
-                         downloadedCount++;
-                         resolve({ img, x, y, success: true });
-                    }
-                    img.onerror = () => resolve({ success: false });
-                    img.src = safeUrl;
-                });
-                tilePromises.push(promise);
+                const safeUrl = url + (url.includes('?') ? '&' : '?') + 't=' + Date.now();
+                promises.push(new Promise(r => {
+                    const i = new Image(); i.crossOrigin = "Anonymous";
+                    i.onload = () => r({i, x, y, ok:true});
+                    i.onerror = () => r({ok:false});
+                    i.src = safeUrl;
+                }));
             }
         }
-        const resolvedTiles = await Promise.all(tilePromises);
-        resolvedTiles.forEach(tileResult => {
-            if (tileResult.success) {
-                // Dessin sur Canvas Temporaire (Natif)
-                const tileX = (tileResult.x * ZD_TILE_SIZE) - nwPixel.x;
-                const tileY = (tileResult.y * ZD_TILE_SIZE) - nwPixel.y;
-                tempCtx.drawImage(tileResult.img, Math.round(tileX), Math.round(tileY));
+        
+        // Dessin des tuiles sur le canvas temporaire
+        (await Promise.all(promises)).forEach(res => {
+            if (res.ok) {
+                // --- CORRECTION ANTI-ALIASING ---
+                // 1. Calcul de la position relative par rapport au coin Nord-Ouest
+                // 2. Math.floor pour forcer des coordonnées entières (pixel perfect)
+                const destX = Math.floor((res.x * ZD_TILE_SIZE) - nwPx.x);
+                const destY = Math.floor((res.y * ZD_TILE_SIZE) - nwPx.y);
+
+                // 3. "Bleeding" : On dessine la tuile avec +1px de largeur/hauteur
+                // pour créer un chevauchement imperceptible qui bouche les trous
+                tempCtx.drawImage(
+                    res.i, 
+                    destX, 
+                    destY, 
+                    ZD_TILE_SIZE + 1, // Largeur + 1px
+                    ZD_TILE_SIZE + 1  // Hauteur + 1px
+                );
             }
         });
     }
-
-    // Dessin du Canvas Temporaire sur le Canvas Final avec redimensionnement et marge
-    // destinationX, destinationY, dWidth, dHeight
-    ctx.drawImage(tempCanvas, dynamicMargin, dynamicMargin, scaledWidth, scaledHeight);
-
-    return { finalCanvas, dynamicMargin, scaleFactor };
+    
+    // Dessin final avec marge et échelle
+    ctx.drawImage(tempC, margin, margin, finalW, finalH);
+    return { finalCanvas: finalC, dynamicMargin: margin, scaleFactor: scale };
 }
 
 function drawZoneCartouche(ctx, title, bbox, layerName, zoom, margin, fontSize) {
@@ -1015,36 +1002,78 @@ function drawZoneCompass(ctx, canvasWidth, canvasHeight, margin, cartoucheMetric
 }
 
 function drawSimpleCompass(ctx, x, y, radius, fontSize) {
-    ctx.beginPath();
-    ctx.arc(x, y, radius, 0, 2 * Math.PI);
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
-    ctx.strokeStyle = 'rgba(0, 0, 0, 0.7)';
-    ctx.lineWidth = 1;
-    ctx.fill();
-    ctx.stroke();
-    const arrowLength = radius / 1.2;
-    const N_point = { x: x, y: y - arrowLength };
-    const base_point = { x: x, y: y + (arrowLength * 0.3) };
-    ctx.beginPath();
-    ctx.moveTo(base_point.x, base_point.y);
-    ctx.lineTo(N_point.x, N_point.y);
-    ctx.strokeStyle = 'red'; ctx.lineWidth = 3; ctx.stroke();
-    ctx.beginPath();
-    ctx.moveTo(N_point.x, N_point.y);
-    const arrowHeadSize = radius * 0.25;
-    ctx.lineTo(N_point.x - arrowHeadSize, N_point.y + arrowHeadSize);
-    ctx.lineTo(N_point.x + arrowHeadSize, N_point.y + arrowHeadSize);
-    ctx.closePath();
-    ctx.fillStyle = 'red'; ctx.fill();
+    // Note: fontSize passé en paramètre est ignoré au profit du calcul proportionnel au radius
+    // pour garantir l'uniformité exacte avec le mode CADO.
     
-    ctx.font = `bold ${fontSize}px Arial`;
-    ctx.textAlign = 'center'; 
+    ctx.save();
+    ctx.translate(x, y);
+    
+    // Pas de rotation pour l'export de zone (Nord toujours en haut)
+    // Sauf si on implémente la rotation en zone plus tard.
+    
+    // --- DESSIN UNIFORMISÉ (IDENTIQUE A UTILITIES.JS) ---
+
+    // 1. Fond Cercle
+    ctx.beginPath();
+    ctx.arc(0, 0, radius, 0, 2 * Math.PI, false);
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
+    ctx.fill();
+    ctx.strokeStyle = 'black';
+    ctx.lineWidth = 1; // Trait fin pour le cercle
+    ctx.stroke();
+
+    // 2. Aiguille
+    const arrowLen = radius * 0.9;
+    const arrowWidth = radius * 0.25;
+
+    // Pointe Nord (Rouge)
+    ctx.beginPath();
+    ctx.moveTo(0, -arrowLen);
+    ctx.lineTo(arrowWidth, 0);
+    ctx.lineTo(-arrowWidth, 0);
+    ctx.closePath();
+    ctx.fillStyle = 'red';
+    ctx.fill();
+    ctx.strokeStyle = 'black';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+
+    // Pointe Sud (Blanc)
+    ctx.beginPath();
+    ctx.moveTo(0, arrowLen);
+    ctx.lineTo(arrowWidth, 0);
+    ctx.lineTo(-arrowWidth, 0);
+    ctx.closePath();
+    ctx.fillStyle = 'white';
+    ctx.fill();
+    ctx.strokeStyle = 'black';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+    /*
+    // Trait central aiguille (pour la netteté)
+    ctx.beginPath();
+    ctx.moveTo(0, -arrowLen);
+    ctx.lineTo(0, arrowLen);
+    ctx.strokeStyle = 'black';
+    ctx.lineWidth = 0;
+    ctx.stroke();
+    */
+    // 3. Lettre N avec Outline Blanc
+    ctx.font = `bold ${radius * 0.6}px Arial`;
+    ctx.textAlign = 'center';
     ctx.textBaseline = 'bottom';
-    ctx.strokeStyle = 'white'; 
-    ctx.lineWidth = 3;
-    ctx.strokeText('N', N_point.x, N_point.y);
+    
+    // Outline Blanc (Contour)
+    ctx.lineWidth = radius * 0.15; // Proportionnel (environ 3-5px selon la taille)
+    ctx.strokeStyle = 'white';
+    ctx.lineJoin = 'round';
+    ctx.strokeText('N', 0, -arrowLen - (radius * 0.1));
+    
+    // Remplissage Noir
     ctx.fillStyle = 'black';
-    ctx.fillText('N', N_point.x, N_point.y);
+    ctx.fillText('N', 0, -arrowLen - (radius * 0.1));
+
+    ctx.restore();
 }
 
 function drawSmartScaleBar(ctx, canvasWidth, canvasHeight, margin, metersPerPixel) {
@@ -1438,7 +1467,7 @@ function drawZoneKmlFeatures(ctx, zoom, features, latLonToCanvasPixels) {
     });
 }
 
-async function drawUtmGridOnCanvas(ctx, boundingBox, latLonToCanvasPixels, margin, cartoucheFontSize) {
+async function drawUtmGridOnCanvas(ctx, boundingBox, latLonToCanvasPixels, margin, cartoucheFontSize, lineWidth = 1) {
     const color = document.getElementById('utm-grid-color').value;
     const opacity = (100 - parseInt(document.getElementById('utm-transparency').value)) / 100;
     const r = parseInt(color.slice(1, 3), 16), g = parseInt(color.slice(3, 5), 16), b = parseInt(color.slice(5, 7), 16);
@@ -1450,10 +1479,12 @@ async function drawUtmGridOnCanvas(ctx, boundingBox, latLonToCanvasPixels, margi
     const labelFontSize = cartoucheFontSize * 0.75;
     const labelPadding = 5;
     const labelsToDraw = [];
+    
     ctx.save();
     ctx.beginPath();
     ctx.rect(drawingBox.x, drawingBox.y, drawingBox.width, drawingBox.height);
     ctx.clip();
+    
     for (let zone = startZone; zone <= endZone; zone++) {
         const zoneBoundaryLeft = (zone - 1) * 6 - 180;
         const clipLonStart = Math.max(nwLon, zoneBoundaryLeft);
@@ -1464,8 +1495,14 @@ async function drawUtmGridOnCanvas(ctx, boundingBox, latLonToCanvasPixels, margi
         const allLines = [...gridData.eastingLines, ...gridData.northingLines];
         const utmInfo = WGS84_to_UTM.fromLatLon((nwLat + seLat) / 2, clipLonStart);
         const zoneDesignator = `${zone}${utmInfo.zoneLetter}`;
+        
         for (const line of allLines) {
-            ctx.lineWidth = (parseInt(line.name.split(' ')[1], 10) % 5 === 0) ? 2 : 1;
+            // --- CORRECTION ICI : Usage de la variable lineWidth ---
+            // Ligne principale (divisible par 5) = double épaisseur
+            // Ligne secondaire = épaisseur standard
+            const isMajorLine = (parseInt(line.name.split(' ')[1], 10) % 5 === 0);
+            ctx.lineWidth = isMajorLine ? lineWidth * 2 : lineWidth;
+            
             ctx.strokeStyle = gridLineColor;
             ctx.beginPath();
             let firstCanvasPoint = null, lastCanvasPoint = null;

@@ -255,6 +255,8 @@ function drawCartouche(ctx, latLonToPixels, config, a1CornerCoords, cellWidthInP
     }
 }
 
+// utilities.js
+
 function drawCompass(ctx, latLonToPixels, config, a1CornerCoords, cellWidthInPixels, forcedRotation = null) {
     const [a1Lon, a1Lat] = a1CornerCoords;
     const endColNum = letterToNumber(config.endCol);
@@ -265,13 +267,14 @@ function drawCompass(ctx, latLonToPixels, config, a1CornerCoords, cellWidthInPix
     const centerPoint = calculateAndRotatePoint(endColNum + 0.5, topRowNum + 0.5, config, a1Lat, a1Lon);
     const center = latLonToPixels(centerPoint[1], centerPoint[0]);
     
+    // Taille boussole standardisée
     const radius = cellWidthInPixels * 0.4; 
 
     ctx.save();
     ctx.translate(center.x, center.y);
 
+    // Calcul de l'angle
     let rotationAngle = 0;
-    
     if (forcedRotation !== null && forcedRotation !== undefined) {
         rotationAngle = -toRad(forcedRotation);
     } else {
@@ -285,7 +288,9 @@ function drawCompass(ctx, latLonToPixels, config, a1CornerCoords, cellWidthInPix
 
     ctx.rotate(rotationAngle);
 
-    // Cercle
+    // --- DESSIN UNIFORMISÉ ---
+    
+    // 1. Fond Cercle
     ctx.beginPath();
     ctx.arc(0, 0, radius, 0, 2 * Math.PI, false);
     ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
@@ -294,35 +299,64 @@ function drawCompass(ctx, latLonToPixels, config, a1CornerCoords, cellWidthInPix
     ctx.lineWidth = 1;
     ctx.stroke();
 
-    // Aiguille
-    const arrowLen = radius * 0.8;
+    // 2. Aiguille
+    const arrowLen = radius * 0.9;
     const arrowWidth = radius * 0.25;
 
-    // Nord (Rouge)
-    ctx.beginPath(); ctx.moveTo(0, -arrowLen); ctx.lineTo(arrowWidth, 0); ctx.lineTo(-arrowWidth, 0); ctx.closePath();
-    ctx.fillStyle = 'red'; ctx.fill();
+    // Pointe Nord (Rouge)
+    ctx.beginPath();
+    ctx.moveTo(0, -arrowLen);
+    ctx.lineTo(arrowWidth, 0);
+    ctx.lineTo(-arrowWidth, 0);
+    ctx.closePath();
+    ctx.fillStyle = 'red';
+    ctx.fill();
+    ctx.strokeStyle = 'black';
+    ctx.lineWidth = 1;
+    ctx.stroke();
 
-    // Sud (Blanc)
-    ctx.beginPath(); ctx.moveTo(0, arrowLen); ctx.lineTo(arrowWidth, 0); ctx.lineTo(-arrowWidth, 0); ctx.closePath();
-    ctx.fillStyle = 'white'; ctx.fill(); ctx.stroke();
+    // Pointe Sud (Blanc)
+    ctx.beginPath();
+    ctx.moveTo(0, arrowLen);
+    ctx.lineTo(arrowWidth, 0);
+    ctx.lineTo(-arrowWidth, 0);
+    ctx.closePath();
+    ctx.fillStyle = 'white';
+    ctx.fill();
+    ctx.strokeStyle = 'black';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+    
+    /* Trait central aiguille
+    ctx.beginPath();
+    ctx.moveTo(0, -arrowLen);
+    ctx.lineTo(0, arrowLen);
+    ctx.strokeStyle = 'black';
+    ctx.lineWidth = 0;
+    ctx.stroke();
+    */
 
-    // Texte N (suit la rotation)
+    // 3. Lettre N avec Outline Blanc
+    // On annule la rotation pour le texte ? Non, la demande précédente validait que le N suive le Nord.
+    // On garde donc le contexte tourné.
+    
     ctx.font = `bold ${radius * 0.6}px Arial`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'bottom';
+    
+    // Outline Blanc (Contour)
+    ctx.lineWidth = radius * 0.15; // Proportionnel à la taille
+    ctx.strokeStyle = 'white';
+    ctx.lineJoin = 'round'; // Coins arrondis pour éviter les pics
+    ctx.strokeText('N', 0, -arrowLen - (radius * 0.1));
+    
+    // Remplissage Noir
     ctx.fillStyle = 'black';
-    ctx.fillText('N', 0, -arrowLen - 2);
+    ctx.fillText('N', 0, -arrowLen - (radius * 0.1));
 
-    ctx.restore(); // On restaure pour écrire le texte de déviation droit (ou pas ?)
+    ctx.restore();
 
-    // Texte Déviation (Sous la boussole)
-    // On veut qu'il soit écrit horizontalement par rapport à la page, ou par rapport au Nord ?
-    // Généralement sous la boussole, aligné avec la page (donc hors du restore si on veut qu'il soit droit sur le papier)
-    // MAIS ici la boussole est dessinée sur un contexte déjà tourné dans imagetoprint.
-    // Dans imagetoprint, le contexte est "Droit" (la grille est droite), la carte est tournée.
-    // Donc si on écrit ici, c'est droit par rapport à la grille.
-
-    // Si une déviation significative existe
+    // Texte Déviation (Optionnel, sous la boussole)
     const devVal = (forcedRotation !== null && forcedRotation !== undefined) ? forcedRotation : config.deviation;
     if (devVal && Math.abs(devVal) > 0) {
         ctx.font = `bold ${radius * 0.4}px Arial`;
@@ -330,12 +364,9 @@ function drawCompass(ctx, latLonToPixels, config, a1CornerCoords, cellWidthInPix
         ctx.textBaseline = 'top';
         ctx.fillStyle = 'black';
         ctx.strokeStyle = 'white';
-        ctx.lineWidth = 2;
-        
+        ctx.lineWidth = 3;
         const sign = devVal > 0 ? '+' : '';
         const text = `${sign}${devVal}°`;
-        
-        // On l'affiche un peu sous la boussole
         ctx.strokeText(text, center.x, center.y + radius + 4);
         ctx.fillText(text, center.x, center.y + radius + 4);
     }

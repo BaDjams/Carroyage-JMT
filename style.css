@@ -369,3 +369,58 @@ input[type="radio"].custom-radio:checked + span {
 .leaflet-control-rotation a:hover {
     background-color: #f4f4f4;
 }
+/* --- CSS POUR LA ROTATION AVANCÉE --- */
+
+/* 1. Le Viewport (Fenêtre fixe) */
+#map-viewport {
+    position: relative;
+    width: 100%;
+    height: 400px;
+    /* overflow: hidden est géré par la classe Tailwind, mais on s'assure ici */
+    overflow: hidden; 
+}
+
+/* --- CSS POUR LES CONTRÔLES DÉTACHÉS (HUD) --- */
+
+/* Le conteneur de contrôles sera déplacé directement dans le #map-viewport */
+.leaflet-control-container {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 2000; /* Au-dessus de la carte */
+    pointer-events: none; /* Laisse passer les clics vers la carte */
+    /* Plus de transform, plus de width 66%, on remplit le cadre fixe */
+}
+
+/* On réactive les clics sur les boutons eux-mêmes */
+.leaflet-control-container .leaflet-top, 
+.leaflet-control-container .leaflet-bottom {
+    pointer-events: auto;
+}
+
+/* La carte reste en 150% pour la rotation sans bords blancs */
+#cado-interactive-map {
+    width: 150% !important;
+    height: 150% !important;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%); 
+    transform-origin: center center;
+    transition: transform 0.1s linear;
+}
+/* Correction des lignes blanches entre les tuiles (Tile Gap Fix) */
+.leaflet-tile-container img {
+    /* Technique 1 : Mélange de pixels */
+    mix-blend-mode: normal; 
+    /* Technique 2 : Très léger agrandissement pour chevauchement */
+    transform: scale(1.005); 
+}
+
+/* Pour Safari/Chrome si le scale ne suffit pas */
+.leaflet-tile {
+    image-rendering: -webkit-optimize-contrast; /* Webkit */
+    image-rendering: crisp-edges;
+}

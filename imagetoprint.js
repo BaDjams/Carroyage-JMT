@@ -350,24 +350,44 @@ function calculateOptimalZoom(boundingBox, mapConfig) {
 async function createFinalCanvasWithLayers(boundingBox, zoom, mapConfig, onProgress) {
     const nwPixel = itpLatLonToWorldPixels(boundingBox.north, boundingBox.west, zoom);
     const sePixel = itpLatLonToWorldPixels(boundingBox.south, boundingBox.east, zoom);
+    
+    // Dimensions natives (basées sur les tuiles disponibles au zoom max)
     const naturalWidth = Math.abs(sePixel.x - nwPixel.x);
     const naturalHeight = Math.abs(sePixel.y - nwPixel.y);
-    const TARGET_PRINT_WIDTH = 4000; 
+
+    // --- LOGIQUE UPSCALING CORRIGÉE ---
+    const TARGET_RESOLUTION = 3840; // 4K UHD
     let scaleFactor = 1;
-    if (Math.max(naturalWidth, naturalHeight) < TARGET_PRINT_WIDTH) {
-        scaleFactor = Math.min(TARGET_PRINT_WIDTH / Math.max(naturalWidth, naturalHeight), 4);
+    const maxDimension = Math.max(naturalWidth, naturalHeight);
+
+    if (maxDimension < TARGET_RESOLUTION) {
+        // On calcule le facteur exact pour atteindre 4K
+        scaleFactor = TARGET_RESOLUTION / maxDimension;
+        
+        // On autorise un agrandissement jusqu'à x16 pour les très petites zones
+        // (Ex: une maison seule au zoom 19 fait ~100px. x16 -> 1600px, c'est encore utile)
+        scaleFactor = Math.min(scaleFactor, 16); 
     }
+
+    // Debug pour vérifier (F12 > Console)
+    console.log(`[CADO] Native: ${Math.round(naturalWidth)}x${Math.round(naturalHeight)}px | Zoom: ${zoom}`);
+    console.log(`[CADO] Upscale appliqué: x${scaleFactor.toFixed(3)} -> Final: ${Math.round(naturalWidth * scaleFactor)}x${Math.round(naturalHeight * scaleFactor)}px`);
+
     const TILE_SIZE = 256;
     const tempCanvas = document.createElement('canvas');
     tempCanvas.width = naturalWidth;
     tempCanvas.height = naturalHeight;
     const tempCtx = tempCanvas.getContext('2d');
+
     const finalCanvas = document.createElement('canvas');
     finalCanvas.width = Math.round(naturalWidth * scaleFactor);
     finalCanvas.height = Math.round(naturalHeight * scaleFactor);
     const ctx = finalCanvas.getContext('2d');
+    
+    // Lissage haute qualité obligatoire pour l'upscaling
     ctx.imageSmoothingEnabled = true;
     ctx.imageSmoothingQuality = 'high';
+
     const nwTile = { x: Math.floor(nwPixel.x / TILE_SIZE), y: Math.floor(nwPixel.y / TILE_SIZE) };
     const seTile = { x: Math.floor(sePixel.x / TILE_SIZE), y: Math.floor(sePixel.y / TILE_SIZE) };
     const totalTilesToDownload = (seTile.x - nwTile.x + 1) * (seTile.y - nwTile.y + 1) * mapConfig.layers.length;
@@ -413,6 +433,8 @@ async function createFinalCanvasWithLayers(boundingBox, zoom, mapConfig, onProgr
             }
         });
     }
+    
+    // Transfert agrandi
     ctx.drawImage(tempCanvas, 0, 0, finalCanvas.width, finalCanvas.height);
     return { finalCanvas, scaleFactor };
 }

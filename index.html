@@ -108,7 +108,14 @@
                             <ul id="suggestions" class="hidden"></ul>
                         </div>
                         <p class="text-sm text-secondary mb-2">Ou cliquez directement sur la carte pour choisir un point.</p>
-                        <div id="cado-interactive-map" class="interactive-map-container"></div>
+                        <!-- NOUVELLE STRUCTURE : VIEWPORT + CARTE + GUIDE -->
+                        <div id="map-viewport" class="interactive-map-container relative overflow-hidden bg-gray-100 rounded-lg border border-gray-300 dark:border-gray-600" style="height: 400px;">
+                            <!-- La carte (sera agrandie via CSS) -->
+                            <div id="cado-interactive-map" class="w-full h-full"></div>
+                            
+                            <!-- La ligne guide (cachée par défaut) -->
+                            <div id="rotation-guide" class="absolute top-1/2 left-0 w-full h-0.5 bg-red-500 opacity-0 transition-opacity duration-200 pointer-events-none z-[2000] shadow-[0_0_4px_rgba(255,255,255,1)]"></div>
+                        </div>
                     </section>
                 </div>
                 <div class="card bg-white shadow-md rounded-lg p-4 md:p-6 dark:bg-gray-800 dark:border dark:border-gray-700">
@@ -422,38 +429,53 @@
                 </section>
             </div>
 
-            <!-- Tuile 4 : Style (inchangée) -->
-            <div class="card bg-white shadow-md rounded-lg p-4 md:p-6 dark:bg-gray-800 dark:border dark:border-gray-700">
-                <section>
-                    <h3 class="text-lg font-semibold mb-3 text-content">4. Configuration du Style (Commun)</h3>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div class="flex flex-col space-y-1">
-                            <label class="text-sm md:text-base text-content">Couleur globale des lignes :</label>
-                            <div class="flex flex-wrap gap-2" id="utm-color-options">
-                                <div class="color-option selected" data-color="#FFFFFF" data-name="white" style="background-color: #FFFFFF; border: 1px solid #ccc;"></div>
-                                <div class="color-option" data-color="#000000" data-name="black" style="background-color: #000000;"></div>
-                                <div class="color-option" data-color="#FF0000" data-name="red" style="background-color: #FF0000;"></div>
-                                <div class="color-option" data-color="#FFA500" data-name="orange" style="background-color: #FFA500;"></div>
-                                <div class="color-option" data-color="#FFFF00" data-name="yellow" style="background-color: #FFFF00;"></div>
-                                <div class="color-option" data-color="#008000" data-name="green" style="background-color: #008000;"></div>
-                                <div class="color-option" data-color="#0000FF" data-name="blue" style="background-color: #0000FF;"></div>
-                                <div class="color-option" data-color="#800080" data-name="violet" style="background-color: #800080;"></div>
-                                <div class="color-option" data-color="#A52A2A" data-name="brown" style="background-color: #A52A2A;"></div>
-                                <div class="color-option" data-color="#808080" data-name="gray" style="background-color: #808080;"></div>
-                            </div>
-                            <input type="hidden" id="utm-grid-color" value="#FFFFFF">
-                            <input type="hidden" id="utm-grid-color-name" value="white">
-                        </div>
-                        <div class="flex flex-col space-y-1">
-                            <label for="utm-transparency" class="text-sm md:text-base text-content">Transparence :</label>
-                            <div class="flex space-x-2 items-center">
-                                <input type="range" id="utm-transparency" class="w-full" min="0" max="100" value="30">
-                                <span id="utm-transparency-value" class="text-sm text-content">30%</span>
-                            </div>
-                        </div>
-                    </div>
-                </section>
+            <!-- Tuile 4 : Style (MISE À JOUR) -->
+<div class="card bg-white shadow-md rounded-lg p-4 md:p-6 dark:bg-gray-800 dark:border dark:border-gray-700">
+    <section>
+        <h3 class="text-lg font-semibold mb-3 text-content">4. Configuration du Style (Commun)</h3>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6"> <!-- Changé de grid-cols-2 à grid-cols-3 -->
+            
+            <!-- Couleur -->
+            <div class="flex flex-col space-y-1">
+                <label class="text-sm md:text-base text-content">Couleur globale :</label>
+                <div class="flex flex-wrap gap-2" id="utm-color-options">
+                    <div class="color-option selected" data-color="#FFFFFF" data-name="white" style="background-color: #FFFFFF; border: 1px solid #ccc;"></div>
+                    <div class="color-option" data-color="#000000" data-name="black" style="background-color: #000000;"></div>
+                    <div class="color-option" data-color="#FF0000" data-name="red" style="background-color: #FF0000;"></div>
+                    <div class="color-option" data-color="#FFA500" data-name="orange" style="background-color: #FFA500;"></div>
+                    <div class="color-option" data-color="#FFFF00" data-name="yellow" style="background-color: #FFFF00;"></div>
+                    <div class="color-option" data-color="#008000" data-name="green" style="background-color: #008000;"></div>
+                    <div class="color-option" data-color="#0000FF" data-name="blue" style="background-color: #0000FF;"></div>
+                    <div class="color-option" data-color="#800080" data-name="violet" style="background-color: #800080;"></div>
+                    <div class="color-option" data-color="#A52A2A" data-name="brown" style="background-color: #A52A2A;"></div>
+                    <div class="color-option" data-color="#808080" data-name="gray" style="background-color: #808080;"></div>
+                </div>
+                <input type="hidden" id="utm-grid-color" value="#FFFFFF">
+                <input type="hidden" id="utm-grid-color-name" value="white">
             </div>
+
+            <!-- Transparence -->
+            <div class="flex flex-col space-y-1">
+                <label for="utm-transparency" class="text-sm md:text-base text-content">Transparence :</label>
+                <div class="flex space-x-2 items-center">
+                    <input type="range" id="utm-transparency" class="w-full" min="0" max="100" value="30">
+                    <span id="utm-transparency-value" class="text-sm text-content">30%</span>
+                </div>
+            </div>
+
+            <!-- AJOUT : Épaisseur Commune -->
+            <div class="flex flex-col space-y-1">
+                <label for="common-grid-thickness" class="text-sm md:text-base text-content">Épaisseur du trait :</label>
+                <select id="common-grid-thickness" class="input-field px-2 py-1 border rounded shadow-sm text-sm text-gray-900 dark:bg-gray-600 dark:border-gray-500 dark:text-white">
+                    <option value="1" selected>Fine (1px)</option>
+                    <option value="2">Moyenne (2px)</option>
+                    <option value="3">Épaisse (3px)</option>
+                </select>
+            </div>
+
+        </div>
+    </section>
+</div>
             
             <!-- Grille d'actions (inchangée) -->
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
@@ -511,14 +533,6 @@
                                 <div class="flex flex-col space-y-1">
                                     <label for="cado-overlay-scale" class="text-sm text-content">Échelle (m) :</label>
                                     <input type="number" id="cado-overlay-scale" class="input-field px-2 py-1 border rounded shadow-sm text-sm text-gray-900 dark:bg-gray-600 dark:border-gray-500 dark:text-white" value="50">
-                                </div>
-                                <div class="flex flex-col space-y-1">
-                                    <label for="cado-overlay-thickness" class="text-sm text-content">Épaisseur du trait :</label>
-                                    <select id="cado-overlay-thickness" class="input-field px-2 py-1 border rounded shadow-sm text-sm text-gray-900 dark:bg-gray-600 dark:border-gray-500 dark:text-white">
-                                        <option value="1" selected>Fine (1px)</option>
-                                        <option value="2">Moyenne (2px)</option>
-                                        <option value="3">Épaisse (3px)</option>
-                                    </select>
                                 </div>
                                 <div class="flex flex-col space-y-1">
                                     <label class="text-sm text-content">Orientation :</label>
@@ -659,14 +673,21 @@
             }
 
         function initializeCadoMap() {
+                // 1. Initialisation de la carte
                 cadoMap = L.map('cado-interactive-map').setView([46.2276, 2.2137], 5);
+
+                // 2. Gestion des calques
                 const baseMaps = createBaseLayers();
-                const defaultLayer = baseMaps["Ortho IGN + Routes Google"] || baseMaps[Object.keys(baseMaps)[0]];
+                // Priorité à l'IGN, sinon Google Hybrid
+                const defaultLayer = baseMaps["Ortho IGN + Routes Google"] || baseMaps["Google Hybrid"] || baseMaps[Object.keys(baseMaps)[0]];
+                
                 if(defaultLayer) defaultLayer.addTo(cadoMap);
                 L.control.layers(baseMaps).addTo(cadoMap);
+
+                // 3. Événement clic sur la carte (pour placer le point)
                 cadoMap.on('click', handleCadoMapClick);
                 
-                // --- AJOUT : Contrôles de Rotation ---
+                // 4. Création des Contrôles de Rotation Personnalisés
                 const RotationControl = L.Control.extend({
                     options: { position: 'topleft' },
                     onAdd: function(map) {
@@ -680,7 +701,7 @@
                         L.DomEvent.disableClickPropagation(btnLeft);
                         L.DomEvent.on(btnLeft, 'click', (e) => {
                             L.DomEvent.stop(e);
-                            updateDeviation(-1); // Décrémente de 1 degré
+                            updateDeviation(-1); // Appel fonction globale
                         });
 
                         // Bouton Reset (0°)
@@ -692,7 +713,7 @@
                         L.DomEvent.disableClickPropagation(btnReset);
                         L.DomEvent.on(btnReset, 'click', (e) => {
                             L.DomEvent.stop(e);
-                            resetDeviation();
+                            resetDeviation(); // Appel fonction globale
                         });
 
                         // Bouton Rotation Droite (+1°)
@@ -703,20 +724,35 @@
                         L.DomEvent.disableClickPropagation(btnRight);
                         L.DomEvent.on(btnRight, 'click', (e) => {
                             L.DomEvent.stop(e);
-                            updateDeviation(1); // Incrémente de 1 degré
+                            updateDeviation(1); // Appel fonction globale
                         });
 
                         return container;
                     }
                 });
                 cadoMap.addControl(new RotationControl());
-                // ----------------------------------------
 
+                // 5. Synchro du menu déroulant "Fond de carte" lors du changement sur la carte
                 cadoMap.on('baselayerchange', function(e) {
                     const selector = document.getElementById('map-tile-provider');
                     const correspondingMapLayer = MAP_LAYERS.find(layer => layer.name === e.name);
                     if (correspondingMapLayer) selector.value = correspondingMapLayer.id;
                 });
+
+                // 6. FIX HUD : Détachement des contrôles pour qu'ils ne tournent pas
+                setTimeout(() => {
+                    const viewport = document.getElementById('map-viewport');
+                    const mapDiv = document.getElementById('cado-interactive-map');
+                    
+                    if (viewport && mapDiv) {
+                        const controls = mapDiv.querySelector('.leaflet-control-container');
+                        if (controls) {
+                            // On déplace le conteneur de contrôles du <div map> vers le <div viewport>
+                            // Ils deviennent frères de la carte au lieu d'enfants, et ne subissent plus la rotation CSS
+                            viewport.appendChild(controls);
+                        }
+                    }
+                }, 100);
             }
 
             // Fonctions Helper pour la rotation (à placer dans le script global ou juste après initializeCadoMap)
@@ -1123,27 +1159,55 @@
             document.getElementById('view-on-maps-mercator').addEventListener('click', () => viewOnMap('mercator'));
             document.getElementById('view-on-maps-utm').addEventListener('click', () => viewOnMap('utm'));
 
-             const deviationInput = document.getElementById('deviation');
-            const deviationValueSpan = document.getElementById('deviation-value');
-            const mapContainer = document.getElementById('cado-interactive-map'); // Le conteneur de la carte
 
+            const deviationInput = document.getElementById('deviation');
+            const deviationValueSpan = document.getElementById('deviation-value');
+            const mapContainer = document.getElementById('cado-interactive-map');
+            const rotationGuide = document.getElementById('rotation-guide');
+            let guideTimeout;
+
+            // Fonction pour mettre à jour la vue
+           const updateMapRotation = (val) => {
+                     // 1. Mise à jour texte
+                    deviationValueSpan.textContent = `${val}°`; 
+                    
+                    // 2. Rotation Carte
+                    // On tourne SEULEMENT la carte. Les boutons ne bougent plus car ils sont dans le viewport.
+                    mapContainer.style.transform = `translate(-50%, -50%) rotate(${-val}deg)`;
+                    
+                    // 3. (SUPPRIMÉ) Plus besoin de contre-rotation des contrôles !
+                    
+                    // 4. Gestion de la ligne guide
+                    rotationGuide.style.opacity = '1';
+                    clearTimeout(guideTimeout);
+                    guideTimeout = setTimeout(() => {
+                        rotationGuide.style.opacity = '0';
+                    }, 1500);
+                };
+
+            // Listener sur le slider (Input = pendant le drag)
             deviationInput.addEventListener('input', () => { 
                 const val = parseInt(deviationInput.value, 10);
-                deviationValueSpan.textContent = `${val}°`; 
-                
-                // --- AJOUT : Rotation visuelle de la carte ---
-                // On applique une rotation inverse (-val) au conteneur de la carte.
-                // Si la déviation est +45° (Grille tourne à droite), 
-                // on tourne la carte de -45° pour que la grille apparaisse "droite" et la carte "penchée".
-                // C'est souvent l'effet recherché pour cadrer une route verticale.
-                // On ajoute un scale pour éviter de voir les bords blancs lors de la rotation.
-                if (val !== 0) {
-                    mapContainer.style.transform = `rotate(${-val}deg) scale(1.0)`;
-                    // Note : Le scale(1.4) permet de couvrir les coins vides créés par la rotation.
-                } else {
-                    mapContainer.style.transform = 'none';
-                }
+                updateMapRotation(val);
             });
+
+            // On s'assure que updateDeviation (les boutons sur la carte) appelle aussi cette logique
+            // Modifiez la fonction updateDeviation existante plus bas dans le script :
+            window.updateDeviation = function(change) {
+                let currentVal = parseInt(deviationInput.value, 10);
+                let newVal = currentVal + change;
+                if (newVal > 180) newVal = -179;
+                if (newVal < -180) newVal = 179;
+                
+                deviationInput.value = newVal;
+                // Déclenche l'événement input manuel pour activer le listener ci-dessus
+                deviationInput.dispatchEvent(new Event('input'));
+            };
+            
+            window.resetDeviation = function() {
+                deviationInput.value = 0;
+                deviationInput.dispatchEvent(new Event('input'));
+            };
             const generateImageButton = document.getElementById('generate-image-button');
             const resetButton = document.getElementById('reset-deviation');
             const iconScaleInput = document.getElementById('zone-icon-scale');
