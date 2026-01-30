@@ -102,21 +102,71 @@
             <div class="space-y-6">
                 <div class="card bg-white shadow-md rounded-lg p-4 md:p-6 dark:bg-gray-800 dark:border dark:border-gray-700">
                     <section>
-                        <h3 class="text-lg font-semibold mb-3 text-content">1. Sélectionner un point de référence sur la carte</h3>
-                        <div class="address-search-container">
-                            <input type="text" id="address-search-input" class="address-search-input input-field px-3 py-2 border rounded shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white text-base" placeholder="Rechercher une adresse..." autocomplete="off">
-                            <ul id="suggestions" class="hidden"></ul>
-                        </div>
-                        <p class="text-sm text-secondary mb-2">Ou cliquez directement sur la carte pour choisir un point.</p>
-                        <!-- NOUVELLE STRUCTURE : VIEWPORT + CARTE + GUIDE -->
-                        <div id="map-viewport" class="interactive-map-container relative overflow-hidden bg-gray-100 rounded-lg border border-gray-300 dark:border-gray-600" style="height: 400px;">
-                            <!-- La carte (sera agrandie via CSS) -->
-                            <div id="cado-interactive-map" class="w-full h-full"></div>
-                            
-                            <!-- La ligne guide (cachée par défaut) -->
-                            <div id="rotation-guide" class="absolute top-1/2 left-0 w-full h-0.5 bg-red-500 opacity-0 transition-opacity duration-200 pointer-events-none z-[2000] shadow-[0_0_4px_rgba(255,255,255,1)]"></div>
-                        </div>
-                    </section>
+    <h3 class="text-lg font-semibold mb-3 text-content">1. Sélectionner un point de référence sur la carte</h3>
+    <div class="address-search-container">
+        <input type="text" id="address-search-input" class="address-search-input input-field px-3 py-2 border rounded shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white text-base" placeholder="Rechercher une adresse..." autocomplete="off">
+        <ul id="suggestions" class="hidden"></ul>
+    </div>
+    <p class="text-sm text-secondary mb-2">Ou cliquez directement sur la carte pour choisir un point.</p>
+    
+    <!-- VIEWPORT CARTE -->
+    <div id="map-viewport" class="interactive-map-container relative overflow-hidden bg-gray-100 rounded-lg border border-gray-300 dark:border-gray-600" style="height: 400px;">
+    <div id="cado-interactive-map" class="w-full h-full"></div>
+    <div id="rotation-guide" class="absolute top-1/2 left-0 w-full h-0.5 bg-red-500 opacity-0 transition-opacity duration-200 pointer-events-none z-[2000] shadow-[0_0_4px_rgba(255,255,255,1)]"></div>
+</div>
+
+<!-- BOUTON DE BASCULE (TOGGLE) -->
+<div class="flex justify-end mt-2">
+    <button id="toggle-rotation-btn" type="button" class="text-sm text-blue-600 hover:underline dark:text-blue-400 font-medium flex items-center gap-1">
+        <span>Options de rotation</span> <span>▼</span>
+    </button>
+</div>
+
+<!-- BLOC CONTENU (Masqué par défaut + Style corrigé) -->
+<div id="rotation-controls" class="hidden mt-2 p-4 bg-gray-100 rounded-lg border border-gray-300 dark:bg-gray-700 dark:border-gray-600 shadow-inner">
+    <div class="flex flex-col space-y-3">
+        <div class="flex items-center justify-between">
+            <label for="deviation" class="text-sm font-semibold text-content">Orientation de la grille :</label>
+            
+            <!-- NOUVEAU GROUPE DE BOUTONS -->
+            <div class="flex items-center gap-2 bg-white dark:bg-gray-800 p-1 rounded border border-gray-300 dark:border-gray-500">
+                <!-- Bouton -1° -->
+                <button id="rotate-left-btn" class="px-2 py-1 text-gray-600 hover:text-blue-600 hover:bg-gray-100 rounded transition-colors" title="Pivoter à gauche (-1°)">
+                    ↻
+                </button>
+                
+                <!-- Valeur -->
+                <span id="deviation-value" class="text-sm font-bold text-blue-600 dark:text-blue-400 min-w-[2.5rem] text-center select-none">0°</span>
+                
+                <!-- Bouton +1° -->
+                <button id="rotate-right-btn" class="px-2 py-1 text-gray-600 hover:text-blue-600 hover:bg-gray-100 rounded transition-colors" title="Pivoter à droite (+1°)">
+                    ↺
+                </button>
+                
+                <!-- Séparateur vertical -->
+                <div class="w-px h-4 bg-gray-300 mx-1"></div>
+
+                <!-- Reset -->
+                <button id="reset-deviation" class="text-xs font-medium text-red-500 hover:text-red-700 px-1" title="Remettre au Nord (0°)">
+                    Reset
+                </button>
+            </div>
+        </div>
+        
+        <div class="relative w-full h-6 flex items-center">
+            <input type="range" id="deviation" class="w-full h-2 bg-gray-300 rounded-lg appearance-none cursor-pointer dark:bg-gray-600 grid-parameter z-10 relative" min="-180" max="180" value="0">
+            <!-- Marqueur visuel du centre (0°) -->
+            <div class="absolute left-1/2 top-0 bottom-0 w-0.5 bg-gray-400 h-4 -mt-1 transform -translate-x-1/2 z-0"></div>
+        </div>
+
+        <p class="text-xs text-gray-500 dark:text-gray-400 italic text-center">
+            Astuce : Alignez la grille parallèlement à une route ou un bâtiment.
+        </p>
+    </div>
+</div>
+    <!-- FIN DU SLIDER -->
+
+</section>
                 </div>
                 <div class="card bg-white shadow-md rounded-lg p-4 md:p-6 dark:bg-gray-800 dark:border dark:border-gray-700">
                     <section class="mb-6">
@@ -131,7 +181,7 @@
                                 </div>
                             </div>
                             <div class="flex justify-start md:justify-end">
-                                <button id="toggle-coords-btn" type="button" class="text-sm text-blue-600 hover:underline dark:text-blue-400">Options avancées ▼</button>
+                                <button id="toggle-coords-btn" type="button" class="text-sm text-blue-600 hover:underline dark:text-blue-400">Options de conversion ▼</button>
                             </div>
                             <div id="advanced-coords" class="hidden space-y-4 pt-4 border-t border-gray-200 dark:border-gray-700">
                                 <div class="flex flex-col md:flex-row md:items-center space-y-2 md:space-y-0">
@@ -249,10 +299,6 @@
                                         <label class="inline-flex items-center"><input type="radio" name="lettering-direction" value="ascending" class="custom-radio grid-parameter" checked><span class="px-3 py-1 border border-default rounded cursor-pointer text-sm button-outline">Ascendante (Sud→Nord)</span></label>
                                         <label class="inline-flex items-center"><input type="radio" name="lettering-direction" value="descending" class="custom-radio grid-parameter"><span class="px-3 py-1 border border-default rounded cursor-pointer text-sm button-outline">Descendante (Nord→Sud)</span></label>
                                     </div>
-                                </div>
-                                <div class="flex flex-col space-y-1">
-                                    <div class="flex items-center justify-between"><label for="deviation" class="text-sm md:text-base text-content">Déviation (en degrés) :</label><button id="reset-deviation" class="px-2 py-1 text-xs bg-gray-200 hover:bg-gray-300 rounded dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-white reset-btn">Réinitialiser</button></div>
-                                    <div class="flex space-x-2 items-center"><input type="range" id="deviation" class="w-full grid-parameter" min="-180" max="180" value="0"><span id="deviation-value" class="text-sm text-content">0°</span></div>
                                 </div>
                                 <div class="md:col-span-2 flex flex-col space-y-1">
                                     <label class="text-sm md:text-base text-content">Autres types de grille :</label>
@@ -687,51 +733,6 @@
                 // 3. Événement clic sur la carte (pour placer le point)
                 cadoMap.on('click', handleCadoMapClick);
                 
-                // 4. Création des Contrôles de Rotation Personnalisés
-                const RotationControl = L.Control.extend({
-                    options: { position: 'topleft' },
-                    onAdd: function(map) {
-                        const container = L.DomUtil.create('div', 'leaflet-control-rotation leaflet-bar');
-                        
-                        // Bouton Rotation Gauche (-1°)
-                        const btnLeft = L.DomUtil.create('a', '', container);
-                        btnLeft.innerHTML = '↺';
-                        btnLeft.title = "Pivoter vers la gauche";
-                        btnLeft.href = "#";
-                        L.DomEvent.disableClickPropagation(btnLeft);
-                        L.DomEvent.on(btnLeft, 'click', (e) => {
-                            L.DomEvent.stop(e);
-                            updateDeviation(-1); // Appel fonction globale
-                        });
-
-                        // Bouton Reset (0°)
-                        const btnReset = L.DomUtil.create('a', '', container);
-                        btnReset.innerHTML = 'N';
-                        btnReset.title = "Réinitialiser au Nord";
-                        btnReset.href = "#";
-                        btnReset.style.color = "red";
-                        L.DomEvent.disableClickPropagation(btnReset);
-                        L.DomEvent.on(btnReset, 'click', (e) => {
-                            L.DomEvent.stop(e);
-                            resetDeviation(); // Appel fonction globale
-                        });
-
-                        // Bouton Rotation Droite (+1°)
-                        const btnRight = L.DomUtil.create('a', '', container);
-                        btnRight.innerHTML = '↻';
-                        btnRight.title = "Pivoter vers la droite";
-                        btnRight.href = "#";
-                        L.DomEvent.disableClickPropagation(btnRight);
-                        L.DomEvent.on(btnRight, 'click', (e) => {
-                            L.DomEvent.stop(e);
-                            updateDeviation(1); // Appel fonction globale
-                        });
-
-                        return container;
-                    }
-                });
-                cadoMap.addControl(new RotationControl());
-
                 // 5. Synchro du menu déroulant "Fond de carte" lors du changement sur la carte
                 cadoMap.on('baselayerchange', function(e) {
                     const selector = document.getElementById('map-tile-provider');
@@ -1056,13 +1057,15 @@
             }
         }
 
-        function setupToggle(buttonId, contentId) {
+        function setupToggle(buttonId, contentId, label = "Options avancées") {
             const button = document.getElementById(buttonId);
             const content = document.getElementById(contentId);
             if (button && content) {
                 button.addEventListener('click', () => {
                     const isHidden = content.classList.toggle('hidden');
-                    button.innerHTML = isHidden ? 'Options avancées ▼' : 'Masquer les options ▲';
+                    // Si c'est caché, on affiche le label personnalisé + flèche bas
+                    // Sinon, on affiche "Masquer les options" + flèche haut
+                    button.innerHTML = isHidden ? `${label} ▼` : 'Masquer les options ▲';
                 });
             }
         }
@@ -1144,8 +1147,9 @@
             document.getElementById('mode-selector').addEventListener('click', (e) => {
                 if (e.target.matches('.mode-btn')) toggleMode(e.target.getAttribute('data-mode'));
             });
-            setupToggle('toggle-coords-btn', 'advanced-coords');
-            setupToggle('toggle-grid-config-btn', 'advanced-grid-config');
+            setupToggle('toggle-coords-btn', 'advanced-coords', 'Options de conversion');
+            setupToggle('toggle-grid-config-btn', 'advanced-grid-config', 'Options avancées');
+            setupToggle('toggle-rotation-btn', 'rotation-controls', 'Options de rotation'); 
             document.getElementById('transparency').addEventListener('input', e => { document.getElementById('transparency-value').textContent = `${e.target.value}%`; });
             document.getElementById('utm-transparency').addEventListener('input', e => { document.getElementById('utm-transparency-value').textContent = `${e.target.value}%`; });
             document.getElementById('convert-from-decimal').addEventListener('click', convertFromDecimal);
@@ -1158,6 +1162,8 @@
             document.getElementById('view-on-maps-plus').addEventListener('click', () => viewOnMap('plus'));
             document.getElementById('view-on-maps-mercator').addEventListener('click', () => viewOnMap('mercator'));
             document.getElementById('view-on-maps-utm').addEventListener('click', () => viewOnMap('utm'));
+            document.getElementById('rotate-left-btn').addEventListener('click', () => updateDeviation(-1));
+            document.getElementById('rotate-right-btn').addEventListener('click', () => updateDeviation(1));
 
 
             const deviationInput = document.getElementById('deviation');
@@ -1194,14 +1200,17 @@
             // On s'assure que updateDeviation (les boutons sur la carte) appelle aussi cette logique
             // Modifiez la fonction updateDeviation existante plus bas dans le script :
             window.updateDeviation = function(change) {
-                let currentVal = parseInt(deviationInput.value, 10);
+                const devInput = document.getElementById('deviation');
+                let currentVal = parseInt(devInput.value, 10);
                 let newVal = currentVal + change;
+                
+                // Boucle -180 / 180
                 if (newVal > 180) newVal = -179;
                 if (newVal < -180) newVal = 179;
                 
-                deviationInput.value = newVal;
-                // Déclenche l'événement input manuel pour activer le listener ci-dessus
-                deviationInput.dispatchEvent(new Event('input'));
+                devInput.value = newVal;
+                // Important : déclenche l'événement pour mettre à jour la carte en temps réel
+                devInput.dispatchEvent(new Event('input'));
             };
             
             window.resetDeviation = function() {
