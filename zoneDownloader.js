@@ -13,56 +13,38 @@ let isAddingPoint = false;
 let poiMarkersLayer = null;
 
 // =============================================================================
-// GESTION DE LA BIBLIOTHEQUE D'ICONES (SYSTEME + CATALOGUE + CUSTOM)
+// GESTION DE LA BIBLIOTHEQUE D'ICONES
 // =============================================================================
 
-/**
- * Récupère la liste complète des icônes.
- * Fusionne : 
- * 1. localStorage (User Custom)
- * 2. ICON_LIBRARY (icons.js - Base)
- * 3. ICON_CATALOG (icons-catalog.js - Pro généré par Python)
- */
 function getIconsSync() {
     let finalIcons = [];
 
-    // 1. Icônes Perso (LocalStorage) - Priorité 1 (Préfixe 00_ pour tri visuel)
+    // 1. Icônes Perso (LocalStorage) - Ce sont "Mes Icônes"
     const storedCustom = localStorage.getItem('userIcons');
     if (storedCustom) {
         try {
             const customIcons = JSON.parse(storedCustom);
-            customIcons.forEach(icon => { icon.path = ['00_Mes Icônes (Uploads)']; });
+            // On les marque simplement comme 'Mes Icônes'
+            customIcons.forEach(icon => { icon.path = ['00_Mes Icônes']; });
             finalIcons = finalIcons.concat(customIcons);
         } catch(e) { console.error("Erreur lecture localstorage icons:", e); }
     }
 
-    // 2. Icônes de base (icons.js) - Priorité 2 (Préfixe 01_ pour tri visuel)
-    if (typeof ICON_LIBRARY !== 'undefined') {
-        const sysIcons = JSON.parse(JSON.stringify(ICON_LIBRARY));
-        sysIcons.forEach(icon => { 
-            icon.path = ['01_Icônes Application']; 
-            icon.category = 'Application';
-        });
-        finalIcons = finalIcons.concat(sysIcons);
-    }
+    // 2. SUPPRESSION : On ne charge plus ICON_LIBRARY ici pour éviter les doublons
+    // Le bloc qui chargeait "01_Icônes Application" a été supprimé.
 
-    // 3. Icônes Pro (Variable globale issue de icons-catalog.js) - Priorité 3
+    // 3. Icônes Pro (Catalogue)
     if (typeof ICON_CATALOG !== 'undefined') {
         finalIcons = finalIcons.concat(ICON_CATALOG);
-    } else {
-        // Silencieux
     }
 
     return finalIcons;
 }
 
-/**
- * API pour settingsManager.js
- */
 window.getIconLibrary = getIconsSync;
 
 // =============================================================================
-// LOGIQUE DE SELECTION VISUELLE (ARBORESCENCE & FILTRES)
+// LOGIQUE DE SELECTION VISUELLE
 // =============================================================================
 
 function initVisualIconSelector() {
@@ -70,7 +52,6 @@ function initVisualIconSelector() {
     const hiddenInput = document.getElementById('poi-type-selector');
     const categoryFilter = document.getElementById('poi-category-filter');
     
-    // Initialisation du scaler d'icônes
     initIconScaler();
 
     if (!visualContainer || !hiddenInput) return;
@@ -85,7 +66,6 @@ function initVisualIconSelector() {
         return;
     }
 
-    // --- Gestion du Select (Filtre plat) ---
     if (categoryFilter) {
         const categories = new Set();
         allIcons.forEach(icon => {
@@ -94,7 +74,6 @@ function initVisualIconSelector() {
             categories.add(cleanCat);
         });
 
-        // Reconstruit le select
         categoryFilter.innerHTML = '<option value="all">Toutes les catégories</option>';
         Array.from(categories).sort().forEach(cat => {
             const opt = document.createElement('option');
@@ -112,24 +91,19 @@ function initVisualIconSelector() {
             }
         };
     }
-
-    // Affichage initial (Arbre complet)
     renderFullTree(allIcons, visualContainer, hiddenInput);
 }
 
-// Initialise l'écouteur sur le slider de taille
 function initIconScaler() {
     const slider = document.getElementById('poi-icon-scale');
     const label = document.getElementById('poi-icon-scale-label');
     
     if (slider && label) {
-        // Enlever les anciens écouteurs pour éviter les doublons (via clônage simple)
         const newSlider = slider.cloneNode(true);
         slider.parentNode.replaceChild(newSlider, slider);
         
         newSlider.addEventListener('input', (e) => {
             label.textContent = `${e.target.value}x`;
-            // Met à jour les marqueurs Leaflet en temps réel
             updatePOIMarkers();
         });
     }
@@ -292,7 +266,6 @@ function handleMapClickForPOI(e) {
     const allIcons = getIconsSync();
     const iconConfig = allIcons.find(i => i.id === typeId);
     
-    // Fallback
     const url = iconConfig ? iconConfig.url : "https://maps.google.com/mapfiles/kml/pushpin/ylw-pushpin.png";
     
     const poi = { 
@@ -316,8 +289,6 @@ function handleMapClickForPOI(e) {
     }
 }
 
-// Mise à jour des marqueurs sur la carte Leaflet
-// MODIFIE POUR UTILISER LE SLIDER
 function updatePOIMarkers() {
     const map = window.zoneMap; 
     if (!map) return;
@@ -327,18 +298,15 @@ function updatePOIMarkers() {
     }
     poiMarkersLayer.clearLayers();
 
-    // Récupération de la taille utilisateur
     const scaleInput = document.getElementById('poi-icon-scale');
     const userScale = scaleInput ? parseFloat(scaleInput.value) : 1.0;
     
-    // Base 48px
     const finalSize = 48 * userScale;
     const anchorPos = finalSize / 2;
 
     userPOIs.forEach(poi => {
         const customIcon = L.icon({
             iconUrl: poi.url,
-            // Taille dynamique
             iconSize: [finalSize, finalSize],
             iconAnchor: [anchorPos, anchorPos], 
             popupAnchor: [0, -anchorPos]
@@ -409,7 +377,7 @@ function getIconData(url) {
             .then(r => { if(!r.ok) throw new Error(r.status); return r.blob(); })
             .then(b => {
                 const reader = new FileReader();
-                reader.onloadend = () => resolve(reader.result); // Retourne DataURI
+                reader.onloadend = () => resolve(reader.result);
                 reader.readAsDataURL(b);
             })
             .catch(e => {
@@ -433,16 +401,13 @@ function getIconData(url) {
 function loadImageForCanvas(url) {
     return new Promise((resolve) => {
         const img = new Image();
-        
         if (!url.startsWith('data:')) {
             img.crossOrigin = "Anonymous"; 
         }
-        
         let safeUrl = url;
         if (url.startsWith('http')) {
             safeUrl = url + (url.includes('?') ? '&' : '?') + 't=' + Date.now();
         }
-
         img.onload = () => resolve(img);
         img.onerror = () => {
             console.warn("Image ignorée pour le canvas (erreur chargement/CORS):", url);
@@ -452,7 +417,6 @@ function loadImageForCanvas(url) {
     });
 }
 
-// Dessin des POIs sur le Canvas final (Image PNG)
 async function drawUserPOIsOnCanvas(ctx, latLonToCanvasPixels, scaleFactor = 1) {
     const uniqueUrls = [...new Set(userPOIs.map(p => p.url))];
     const imageCache = {};
@@ -465,14 +429,6 @@ async function drawUserPOIsOnCanvas(ctx, latLonToCanvasPixels, scaleFactor = 1) 
     userPOIs.forEach(poi => {
         const px = latLonToCanvasPixels(poi.lat, poi.lon);
         const img = imageCache[poi.url];
-        
-        // Taille de base (48px) multipliée par le facteur d'échelle global (upscaling)
-        // ET multipliée par le facteur d'échelle utilisateur (slider)
-        
-        // On doit retrouver le facteur utilisateur, mais il est déjà inclus 
-        // dans le paramètre 'scaleFactor' passé par generateZonePNG si on l'appelle correctement.
-        // VOIR generateZonePNG pour l'appel.
-        
         const size = 48 * scaleFactor;
 
         if (img) {
@@ -503,20 +459,17 @@ async function drawUserPOIsOnCanvas(ctx, latLonToCanvasPixels, scaleFactor = 1) 
     });
 }
 
-// =============================================================================
-// LOGIQUE GEOGRAPHIQUE
-// =============================================================================
-
 function haversineDistance(p1, p2) {
     const R = 6371e3;
-    const lat1Rad = toRad(p1.lat);
-    const lat2Rad = toRad(p2.lat);
-    const deltaLatRad = toRad(p2.lat - p1.lat);
-    const deltaLonRad = toRad(p2.lon - p1.lon);
+    const lat1Rad = toRadians(p1.lat);
+    const lat2Rad = toRadians(p2.lat);
+    const deltaLatRad = toRadians(p2.lat - p1.lat);
+    const deltaLonRad = toRadians(p2.lon - p1.lon);
     const a = Math.sin(deltaLatRad / 2) * Math.sin(deltaLatRad / 2) + Math.cos(lat1Rad) * Math.cos(lat2Rad) * Math.sin(deltaLonRad / 2) * Math.sin(deltaLonRad / 2);
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     return R * c;
 }
+function toRadians(deg) { return deg * Math.PI / 180; }
 
 function zdCoordsToQuadKey(x, y, zoom) {
     let quadKey = '';
@@ -531,7 +484,7 @@ function zdCoordsToQuadKey(x, y, zoom) {
 }
 
 function zdLatLonToWorldPixels(lat, lon, zoom) {
-    const siny = Math.sin(toRad(lat));
+    const siny = Math.sin(toRadians(lat));
     const yClamped = Math.max(Math.min(siny, 0.9999), -0.9999);
     const y = 0.5 - Math.log((1 + yClamped) / (1 - yClamped)) / (4 * Math.PI);
     const x = (lon + 180) / 360;
@@ -563,7 +516,7 @@ function getZoneCadoConfigAndBounds() {
     const refLon = (nwLon + seLon) / 2;
     
     const metersToLatDegrees = (meters) => meters / 111320;
-    const metersToLonDegrees = (meters, lat) => meters / (111320 * Math.cos(toRad(lat)));
+    const metersToLonDegrees = (meters, lat) => meters / (111320 * Math.cos(toRadians(lat)));
     
     const xOffsetMeters = (numCols / 2) * scale;
     const yOffsetMeters = (numRows / 2) * scale;
@@ -578,12 +531,11 @@ function getZoneCadoConfigAndBounds() {
         a1CornerLat = refLat + metersToLatDegrees(yOffsetMeters);
     }
     
-    // --- CORRECTION ICI : Utilisation de common-grid-thickness ---
     const config = {
         latitude: refLat,
         longitude: refLon,
         scale: scale,
-        lineWidth: parseInt(document.getElementById('common-grid-thickness').value, 10) || 1, // <--- CORRECTION
+        lineWidth: parseInt(document.getElementById('common-grid-thickness').value, 10) || 1,
         letteringDirection: letteringDirection,
         gridColor: document.getElementById('utm-grid-color').value,
         colorName: document.getElementById('utm-grid-color-name').value,
@@ -616,10 +568,6 @@ function getZoneCadoConfigAndBounds() {
     return { config, gridBounds, a1CornerLat, a1CornerLon };
 }
 
-// =============================================================================
-// FONCTIONS PRINCIPALES (GENERATEURS)
-// =============================================================================
-
 async function generateZonePNG() {
     const loadingIndicator = document.getElementById("loading-indicator");
     const loadingMessage = document.getElementById("loading-message");
@@ -639,7 +587,6 @@ async function generateZonePNG() {
         const [north, west] = nwCoordsStr.split(',').map(c => parseFloat(c.trim()));
         const [south, east] = seCoordsStr.split(',').map(c => parseFloat(c.trim()));
         
-        // Récupération de l'épaisseur commune pour l'utiliser partout
         const baseThickness = parseInt(document.getElementById('common-grid-thickness').value, 10) || 1;
 
         if(isCadoExport) {
@@ -647,7 +594,7 @@ async function generateZonePNG() {
             const { config, gridBounds } = cadoData;
             const avgLat = (gridBounds.minLat + gridBounds.maxLat) / 2;
             const metersToLat = (meters) => meters / 111320;
-            const metersToLon = (meters, lat) => meters / (111320 * Math.cos(toRad(lat)));
+            const metersToLon = (meters, lat) => meters / (111320 * Math.cos(toRadians(lat)));
 
             finalBoundingBox = {
                 north: gridBounds.maxLat + metersToLat(0.5 * config.scale),
@@ -673,7 +620,6 @@ async function generateZonePNG() {
         
         const needsExternalMargin = isUtmExport && !isCadoExport;
         
-        // --- Création Canvas avec Upscaling 4K ---
         const { finalCanvas, dynamicMargin, scaleFactor } = await zdCreateFinalCanvas(finalBoundingBox, zoom, selectedMap, needsExternalMargin);
         const ctx = finalCanvas.getContext('2d');
         
@@ -687,7 +633,6 @@ async function generateZonePNG() {
             };
         };
         
-        // Ajustement temporaire de l'épaisseur du trait CADO si upscaling
         if (cadoData) {
             cadoData.config.lineWidth = cadoData.config.lineWidth * scaleFactor;
         }
@@ -707,7 +652,6 @@ async function generateZonePNG() {
         if (isUtmExport) {
             loadingMessage.textContent = "Dessin de la grille UTM...";
             const cartoucheFontSize = Math.max(10 * scaleFactor, Math.min(48 * scaleFactor, finalCanvas.width * 0.007));
-            // --- CORRECTION ICI : Passage de l'épaisseur scalée ---
             await drawUtmGridOnCanvas(ctx, finalBoundingBox, latLonToCanvasPixels, dynamicMargin, cartoucheFontSize, baseThickness * scaleFactor);
         }
         
@@ -798,14 +742,12 @@ async function generateCadoGridForZone() {
                 if(iconDef) iconUrl = iconDef.url;
                 if(poi.url) iconUrl = poi.url;
 
-                // Si image non HTTP (dataURI ou locale), on l'embarque
                 if (!iconUrl.startsWith('http')) {
                     const iconFilename = `icon_${index}.png`;
                     const zipPath = `files/${iconFilename}`;
                     
                     const base64Data = await getIconData(iconUrl);
                     if (base64Data) {
-                        // DataURI -> Base64 string
                         const cleanBase64 = base64Data.split(',')[1];
                         imagesToZip.set(zipPath, cleanBase64);
                         iconUrl = zipPath; 
@@ -865,8 +807,6 @@ async function generateCadoGridForZone() {
         loadingIndicator.classList.add("hidden");
     }
 }
-
-// --- CREATION CANVAS FINAL (TUILES + UPSCALING) ---
 
 async function zdCreateFinalCanvas(boundingBox, zoom, mapConfig, externalMargin) {
     const nwPx = zdLatLonToWorldPixels(boundingBox.north, boundingBox.west, zoom);
@@ -940,13 +880,10 @@ async function zdCreateFinalCanvas(boundingBox, zoom, mapConfig, externalMargin)
         (await Promise.all(promises)).forEach(res => {
             if (res.ok) {
                 // --- CORRECTION ANTI-ALIASING ---
-                // 1. Calcul de la position relative par rapport au coin Nord-Ouest
-                // 2. Math.floor pour forcer des coordonnées entières (pixel perfect)
                 const destX = Math.floor((res.x * ZD_TILE_SIZE) - nwPx.x);
                 const destY = Math.floor((res.y * ZD_TILE_SIZE) - nwPx.y);
 
                 // 3. "Bleeding" : On dessine la tuile avec +1px de largeur/hauteur
-                // pour créer un chevauchement imperceptible qui bouche les trous
                 tempCtx.drawImage(
                     res.i, 
                     destX, 
@@ -1002,31 +939,20 @@ function drawZoneCompass(ctx, canvasWidth, canvasHeight, margin, cartoucheMetric
 }
 
 function drawSimpleCompass(ctx, x, y, radius, fontSize) {
-    // Note: fontSize passé en paramètre est ignoré au profit du calcul proportionnel au radius
-    // pour garantir l'uniformité exacte avec le mode CADO.
-    
     ctx.save();
     ctx.translate(x, y);
     
-    // Pas de rotation pour l'export de zone (Nord toujours en haut)
-    // Sauf si on implémente la rotation en zone plus tard.
-    
-    // --- DESSIN UNIFORMISÉ (IDENTIQUE A UTILITIES.JS) ---
-
-    // 1. Fond Cercle
     ctx.beginPath();
     ctx.arc(0, 0, radius, 0, 2 * Math.PI, false);
     ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
     ctx.fill();
     ctx.strokeStyle = 'black';
-    ctx.lineWidth = 1; // Trait fin pour le cercle
+    ctx.lineWidth = 1;
     ctx.stroke();
 
-    // 2. Aiguille
     const arrowLen = radius * 0.9;
     const arrowWidth = radius * 0.25;
 
-    // Pointe Nord (Rouge)
     ctx.beginPath();
     ctx.moveTo(0, -arrowLen);
     ctx.lineTo(arrowWidth, 0);
@@ -1038,7 +964,6 @@ function drawSimpleCompass(ctx, x, y, radius, fontSize) {
     ctx.lineWidth = 1;
     ctx.stroke();
 
-    // Pointe Sud (Blanc)
     ctx.beginPath();
     ctx.moveTo(0, arrowLen);
     ctx.lineTo(arrowWidth, 0);
@@ -1049,27 +974,16 @@ function drawSimpleCompass(ctx, x, y, radius, fontSize) {
     ctx.strokeStyle = 'black';
     ctx.lineWidth = 1;
     ctx.stroke();
-    /*
-    // Trait central aiguille (pour la netteté)
-    ctx.beginPath();
-    ctx.moveTo(0, -arrowLen);
-    ctx.lineTo(0, arrowLen);
-    ctx.strokeStyle = 'black';
-    ctx.lineWidth = 0;
-    ctx.stroke();
-    */
-    // 3. Lettre N avec Outline Blanc
+
     ctx.font = `bold ${radius * 0.6}px Arial`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'bottom';
     
-    // Outline Blanc (Contour)
-    ctx.lineWidth = radius * 0.15; // Proportionnel (environ 3-5px selon la taille)
+    ctx.lineWidth = radius * 0.15; 
     ctx.strokeStyle = 'white';
     ctx.lineJoin = 'round';
     ctx.strokeText('N', 0, -arrowLen - (radius * 0.1));
     
-    // Remplissage Noir
     ctx.fillStyle = 'black';
     ctx.fillText('N', 0, -arrowLen - (radius * 0.1));
 
@@ -1113,8 +1027,6 @@ function drawSmartScaleBar(ctx, canvasWidth, canvasHeight, margin, metersPerPixe
     ctx.fillText(label, x + (finalBarWidthPx / 2), y + (barHeight / 2));
 }
 
-// --- RECHERCHE ADRESSE API BAN ---
-
 function setupZoneAddressSearch() {
     const input = document.getElementById('zone-address-search-input');
     const list = document.getElementById('zone-suggestions');
@@ -1126,7 +1038,6 @@ function setupZoneAddressSearch() {
         timer = setTimeout(async () => {
             list.innerHTML = '';
             let found = false;
-            // API BAN (Priorité France)
             try {
                 const r = await fetch(`https://api-adresse.data.gouv.fr/search/?q=${encodeURIComponent(input.value)}&limit=5`);
                 const d = await r.json();
@@ -1145,7 +1056,6 @@ function setupZoneAddressSearch() {
                 }
             } catch(e){}
 
-            // Fallback Nominatim (Monde)
             if (!found) {
                 try {
                     const r = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(input.value)}&limit=5`);
@@ -1172,15 +1082,12 @@ function setupZoneAddressSearch() {
         }, 300);
     });
     
-    // Fermer si clic dehors
     document.addEventListener('click', (e) => {
         if (!document.querySelector('.address-search-container').contains(e.target)) {
             list.classList.add('hidden');
         }
     });
 }
-
-// --- GESTION IMPORT KML ---
 
 async function handleZoneKmzFile(event) {
     const file = event.target.files[0];
@@ -1481,6 +1388,7 @@ async function drawUtmGridOnCanvas(ctx, boundingBox, latLonToCanvasPixels, margi
     const labelsToDraw = [];
     
     ctx.save();
+    // Clipping pour que rien ne dépasse du cadre blanc
     ctx.beginPath();
     ctx.rect(drawingBox.x, drawingBox.y, drawingBox.width, drawingBox.height);
     ctx.clip();
@@ -1490,16 +1398,16 @@ async function drawUtmGridOnCanvas(ctx, boundingBox, latLonToCanvasPixels, margi
         const clipLonStart = Math.max(nwLon, zoneBoundaryLeft);
         const clipLonEnd = Math.min(seLon, zone * 6 - 180);
         if (clipLonStart >= clipLonEnd) continue;
+        
         const latPadding = (nwLat - seLat) * 0.1;
+        // Calcul des lignes de grille
         const gridData = calculateGridForZoneStrip(nwLat + latPadding, clipLonStart, seLat - latPadding, clipLonEnd, zone);
         const allLines = [...gridData.eastingLines, ...gridData.northingLines];
         const utmInfo = WGS84_to_UTM.fromLatLon((nwLat + seLat) / 2, clipLonStart);
         const zoneDesignator = `${zone}${utmInfo.zoneLetter}`;
         
+        // 1. DESSIN DE LA GRILLE STANDARD
         for (const line of allLines) {
-            // --- CORRECTION ICI : Usage de la variable lineWidth ---
-            // Ligne principale (divisible par 5) = double épaisseur
-            // Ligne secondaire = épaisseur standard
             const isMajorLine = (parseInt(line.name.split(' ')[1], 10) % 5 === 0);
             ctx.lineWidth = isMajorLine ? lineWidth * 2 : lineWidth;
             
@@ -1513,10 +1421,12 @@ async function drawUtmGridOnCanvas(ctx, boundingBox, latLonToCanvasPixels, margi
                 lastCanvasPoint = p;
             }
             ctx.stroke();
+            
+            // Stockage des labels
             if (firstCanvasPoint && lastCanvasPoint) {
-                const coordValue = line.name.split(' ')[1];
-                const labelText = `${zoneDesignator} ${coordValue}`;
-                if (line.name.startsWith('E')) {
+                const labelText = line.name;
+                
+                if (line.type === 'easting') {
                     labelsToDraw.push({ type: 'top', anchor: { x: lastCanvasPoint.x, y: drawingBox.y }, text: labelText });
                     labelsToDraw.push({ type: 'bottom', anchor: { x: firstCanvasPoint.x, y: drawingBox.y + drawingBox.height }, text: labelText });
                 } else {
@@ -1525,15 +1435,39 @@ async function drawUtmGridOnCanvas(ctx, boundingBox, latLonToCanvasPixels, margi
                 }
             }
         }
+
+        // 2. DESSIN DE LA LIGNE JAUNE DE SÉPARATION DES FUSEAUX (NOUVEAU)
+        // Si ce n'est pas le dernier fuseau de la boucle, c'est qu'il y a une frontière à droite
+        if (zone < endZone) {
+            const boundaryLon = zone * 6 - 180; // Longitude exacte de la séparation (ex: 0°, 6°, 12°...)
+            
+            ctx.beginPath();
+            ctx.strokeStyle = '#FFFF00'; // Jaune pur
+            ctx.lineWidth = lineWidth * 2; // Trait épais pour bien le distinguer
+            
+            // On trace la ligne verticale du Nord au Sud
+            const segments = 20; // Segmentation pour suivre la courbure éventuelle de la projection
+            for (let i = 0; i <= segments; i++) {
+                // Interpolation linéaire de la latitude
+                const lat = nwLat + (i / segments) * (seLat - nwLat);
+                const p = latLonToCanvasPixels(lat, boundaryLon);
+                
+                if (i === 0) ctx.moveTo(p.x, p.y);
+                else ctx.lineTo(p.x, p.y);
+            }
+            ctx.stroke();
+        }
     }
     ctx.restore();
 
+    // Dessin du cadre blanc autour (Masque les dépassements)
     ctx.fillStyle = 'white';
     ctx.fillRect(0, 0, ctx.canvas.width, margin);
     ctx.fillRect(0, ctx.canvas.height - margin, ctx.canvas.width, margin);
     ctx.fillRect(0, 0, margin, ctx.canvas.height);
     ctx.fillRect(ctx.canvas.width - margin, 0, margin, ctx.canvas.height);
 
+    // Dessin des textes (Labels)
     ctx.fillStyle = 'black';
     ctx.font = `bold ${labelFontSize}px Arial`;
     for (const label of labelsToDraw) {
@@ -1548,3 +1482,9 @@ async function drawUtmGridOnCanvas(ctx, boundingBox, latLonToCanvasPixels, margi
         ctx.restore();
     }
 }
+
+// --- EXPORT GLOBAL POUR UTM ---
+window.getUserPOIs = function() {
+    return userPOIs;
+};
+window.getIconDataGlobal = getIconData;

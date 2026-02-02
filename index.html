@@ -34,7 +34,7 @@
 <header class="mb-6 text-center">
 <h1 id="app-title" class="text-2xl md:text-3xl font-bold mb-4 text-content">Générateur de carroyage CADO</h1>
 <div class="flex flex-wrap justify-center items-center gap-2 mb-4">
-<button id="settingsBtn" class="text-2xl px-3 py-1 rounded-full button-outline bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-white transition-colors" title="Gérer les icônes">⚙️</button>
+<!-- BOUTON SETTINGS SUPPRIMÉ ICI (DÉPLACÉ EN BAS) -->
 <a href="help.html" target="_blank" id="helpBtn" class="text-2xl px-3 py-1 rounded-full button-outline bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-white no-underline" style="text-decoration: none;">?</a>
 <a href="https://www.google.com/maps" target="_blank" class="px-3 py-1 button-outline bg-gray-200 hover:bg-gray-300 rounded dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-white text-sm md:text-base">Ouvrir Google Maps</a>
 <a href="https://www.google.com/mymaps" target="_blank" class="px-3 py-1 button-outline bg-gray-200 hover:bg-gray-300 rounded dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-white text-sm md:text-base">Ouvrir Google MyMaps</a>
@@ -46,7 +46,7 @@
 </div>
 </header>
 
-<!-- MODAL SETTINGS - FIX Z-INDEX -->
+<!-- MODAL SETTINGS (Inchangé) -->
     <div id="settings-modal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full" style="z-index: 9999;">
         <div class="relative top-20 mx-auto p-5 border w-11/12 md:w-3/4 lg:w-2/3 shadow-lg rounded-md bg-white dark:bg-gray-800 dark:border-gray-700">
             <div class="flex justify-between items-center mb-4">
@@ -102,72 +102,51 @@
             <div class="space-y-6">
                 <div class="card bg-white shadow-md rounded-lg p-4 md:p-6 dark:bg-gray-800 dark:border dark:border-gray-700">
                     <section>
-    <h3 class="text-lg font-semibold mb-3 text-content">1. Sélectionner un point de référence sur la carte</h3>
-    <div class="address-search-container">
-        <input type="text" id="address-search-input" class="address-search-input input-field px-3 py-2 border rounded shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white text-base" placeholder="Rechercher une adresse..." autocomplete="off">
-        <ul id="suggestions" class="hidden"></ul>
-    </div>
-    <p class="text-sm text-secondary mb-2">Ou cliquez directement sur la carte pour choisir un point.</p>
-    
-    <!-- VIEWPORT CARTE -->
-    <div id="map-viewport" class="interactive-map-container relative overflow-hidden bg-gray-100 rounded-lg border border-gray-300 dark:border-gray-600" style="height: 400px;">
-    <div id="cado-interactive-map" class="w-full h-full"></div>
-    <div id="rotation-guide" class="absolute top-1/2 left-0 w-full h-0.5 bg-red-500 opacity-0 transition-opacity duration-200 pointer-events-none z-[2000] shadow-[0_0_4px_rgba(255,255,255,1)]"></div>
-</div>
+                        <h3 class="text-lg font-semibold mb-3 text-content">1. Sélectionner un point de référence sur la carte</h3>
+                        <div class="address-search-container">
+                            <input type="text" id="address-search-input" class="address-search-input input-field px-3 py-2 border rounded shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white text-base" placeholder="Rechercher une adresse..." autocomplete="off">
+                            <ul id="suggestions" class="hidden"></ul>
+                        </div>
+                        <p class="text-sm text-secondary mb-2">Ou cliquez directement sur la carte pour choisir un point.</p>
+                        
+                        <!-- VIEWPORT CARTE + SLIDER ROTATION -->
+                        <div id="map-viewport" class="interactive-map-container relative overflow-hidden bg-gray-100 rounded-lg border border-gray-300 dark:border-gray-600" style="height: 400px;">
+                            <div id="cado-interactive-map" class="w-full h-full"></div>
+                            <div id="rotation-guide" class="absolute top-1/2 left-0 w-full h-0.5 bg-red-500 opacity-0 transition-opacity duration-200 pointer-events-none z-[2000] shadow-[0_0_4px_rgba(255,255,255,1)]"></div>
+                        </div>
 
-<!-- BOUTON DE BASCULE (TOGGLE) -->
-<div class="flex justify-end mt-2">
-    <button id="toggle-rotation-btn" type="button" class="text-sm text-blue-600 hover:underline dark:text-blue-400 font-medium flex items-center gap-1">
-        <span>Options de rotation</span> <span>▼</span>
-    </button>
-</div>
+                        <!-- TOGGLE ROTATION -->
+                        <div class="flex justify-end mt-2">
+                            <button id="toggle-rotation-btn" type="button" class="text-sm text-blue-600 hover:underline dark:text-blue-400 font-medium flex items-center gap-1">
+                                <span>🔄 Configurer la rotation</span> <span>▼</span>
+                            </button>
+                        </div>
 
-<!-- BLOC CONTENU (Masqué par défaut + Style corrigé) -->
-<div id="rotation-controls" class="hidden mt-2 p-4 bg-gray-100 rounded-lg border border-gray-300 dark:bg-gray-700 dark:border-gray-600 shadow-inner">
-    <div class="flex flex-col space-y-3">
-        <div class="flex items-center justify-between">
-            <label for="deviation" class="text-sm font-semibold text-content">Orientation de la grille :</label>
-            
-            <!-- NOUVEAU GROUPE DE BOUTONS -->
-            <div class="flex items-center gap-2 bg-white dark:bg-gray-800 p-1 rounded border border-gray-300 dark:border-gray-500">
-                <!-- Bouton -1° -->
-                <button id="rotate-left-btn" class="px-2 py-1 text-gray-600 hover:text-blue-600 hover:bg-gray-100 rounded transition-colors" title="Pivoter à gauche (-1°)">
-                    ↻
-                </button>
-                
-                <!-- Valeur -->
-                <span id="deviation-value" class="text-sm font-bold text-blue-600 dark:text-blue-400 min-w-[2.5rem] text-center select-none">0°</span>
-                
-                <!-- Bouton +1° -->
-                <button id="rotate-right-btn" class="px-2 py-1 text-gray-600 hover:text-blue-600 hover:bg-gray-100 rounded transition-colors" title="Pivoter à droite (+1°)">
-                    ↺
-                </button>
-                
-                <!-- Séparateur vertical -->
-                <div class="w-px h-4 bg-gray-300 mx-1"></div>
+                        <!-- BLOC CONTENU ROTATION (Masqué par défaut) -->
+                        <div id="rotation-controls" class="hidden mt-2 p-4 bg-gray-100 rounded-lg border border-gray-300 dark:bg-gray-700 dark:border-gray-600 shadow-inner">
+                            <div class="flex flex-col space-y-3">
+                                <div class="flex items-center justify-between">
+                                    <label for="deviation" class="text-sm font-semibold text-content">Orientation de la grille :</label>
+                                    
+                                    <div class="flex items-center gap-2 bg-white dark:bg-gray-800 p-1 rounded border border-gray-300 dark:border-gray-500">
+                                        <button id="rotate-left-btn" class="px-2 py-1 text-gray-600 hover:text-blue-600 hover:bg-gray-100 rounded transition-colors" title="Pivoter à gauche (-1°)">↺</button>
+                                        <span id="deviation-value" class="text-sm font-bold text-blue-600 dark:text-blue-400 min-w-[2.5rem] text-center select-none">0°</span>
+                                        <button id="rotate-right-btn" class="px-2 py-1 text-gray-600 hover:text-blue-600 hover:bg-gray-100 rounded transition-colors" title="Pivoter à droite (+1°)">↻</button>
+                                        <div class="w-px h-4 bg-gray-300 mx-1"></div>
+                                        <button id="reset-deviation" class="text-xs font-medium text-red-500 hover:text-red-700 px-1" title="Remettre au Nord (0°)">Reset</button>
+                                    </div>
+                                </div>
+                                <div class="relative w-full h-6 flex items-center">
+                                    <input type="range" id="deviation" class="w-full h-2 bg-gray-300 rounded-lg appearance-none cursor-pointer dark:bg-gray-600 grid-parameter z-10 relative" min="-180" max="180" value="0">
+                                    <div class="absolute left-1/2 top-0 bottom-0 w-0.5 bg-gray-400 h-4 -mt-1 transform -translate-x-1/2 z-0"></div>
+                                </div>
+                                <p class="text-xs text-gray-500 dark:text-gray-400 italic text-center">Astuce : Alignez la grille parallèlement à une route ou un bâtiment.</p>
+                            </div>
+                        </div>
 
-                <!-- Reset -->
-                <button id="reset-deviation" class="text-xs font-medium text-red-500 hover:text-red-700 px-1" title="Remettre au Nord (0°)">
-                    Reset
-                </button>
-            </div>
-        </div>
-        
-        <div class="relative w-full h-6 flex items-center">
-            <input type="range" id="deviation" class="w-full h-2 bg-gray-300 rounded-lg appearance-none cursor-pointer dark:bg-gray-600 grid-parameter z-10 relative" min="-180" max="180" value="0">
-            <!-- Marqueur visuel du centre (0°) -->
-            <div class="absolute left-1/2 top-0 bottom-0 w-0.5 bg-gray-400 h-4 -mt-1 transform -translate-x-1/2 z-0"></div>
-        </div>
-
-        <p class="text-xs text-gray-500 dark:text-gray-400 italic text-center">
-            Astuce : Alignez la grille parallèlement à une route ou un bâtiment.
-        </p>
-    </div>
-</div>
-    <!-- FIN DU SLIDER -->
-
-</section>
+                    </section>
                 </div>
+                
                 <div class="card bg-white shadow-md rounded-lg p-4 md:p-6 dark:bg-gray-800 dark:border dark:border-gray-700">
                     <section class="mb-6">
                         <h3 class="text-lg font-semibold mb-3 text-content">2. Coordonnées et Configuration</h3>
@@ -181,7 +160,7 @@
                                 </div>
                             </div>
                             <div class="flex justify-start md:justify-end">
-                                <button id="toggle-coords-btn" type="button" class="text-sm text-blue-600 hover:underline dark:text-blue-400">Options de conversion ▼</button>
+                                <button id="toggle-coords-btn" type="button" class="text-sm text-blue-600 hover:underline dark:text-blue-400">Options avancées ▼</button>
                             </div>
                             <div id="advanced-coords" class="hidden space-y-4 pt-4 border-t border-gray-200 dark:border-gray-700">
                                 <div class="flex flex-col md:flex-row md:items-center space-y-2 md:space-y-0">
@@ -190,14 +169,6 @@
                                         <input type="text" id="dms-coords" class="input-field w-full px-3 py-2 border rounded shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white text-base" placeholder="ex: 48°51'23.7''N 2°21'07.9''E">
                                         <button id="convert-from-dms" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-sm md:text-base">Convertir</button>
                                         <button id="view-on-maps-dms" class="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-sm md:text-base">Voir sur la carte</button>
-                                    </div>
-                                </div>
-                                <div class="flex flex-col md:flex-row md:items-center space-y-2 md:space-y-0" hidden>
-                                    <label for="plus-code" class="md:w-1/3 text-sm md:text-base text-content" hidden>Plus Code :</label>
-                                    <div class="md:w-2/3 flex space-x-2" hidden>
-                                        <input type="text" id="plus-code" class="input-field w-full px-3 py-2 border rounded shadow-sm" placeholder="ex: 8FW4V75V+ ou EW47+QV Paris" hidden>
-                                        <button id="convert-from-plus" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-sm md:text-base" hidden>Convertir</button>
-                                        <button id="view-on-maps-plus" class="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-sm md:text-base" hidden>Voir sur la carte</button>
                                     </div>
                                 </div>
                                 <div class="flex flex-col md:flex-row md:items-center space-y-2 md:space-y-0">
@@ -220,55 +191,55 @@
                         </div>
                     </section>
                     <section class="mb-6">
-                        <h3 class="text-lg font-semibold mb-3 text-content">3. Configuration du carroyage CADO</h3>
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
-                            <div class="flex flex-col space-y-3">
-                                <label for="scale" class="text-sm md:text-base text-content">Échelle (en mètres) :</label>
-                                <input type="number" id="scale" class="input-field px-3 py-2 border rounded shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white text-base grid-parameter" value="10">
-                            </div>
-                            <div class="flex flex-col space-y-3">
-                                <label class="text-sm md:text-base text-content">Choisir une couleur :</label>
-                                <div class="flex flex-wrap gap-2" id="color-options">
-                                    <div class="color-option selected" data-color="#FFFFFF" data-name="white" style="background-color: #FFFFFF; border: 1px solid #ccc;"></div>
-                                    <div class="color-option" data-color="#000000" data-name="black" style="background-color: #000000;"></div>
-                                    <div class="color-option" data-color="#FF0000" data-name="red" style="background-color: #FF0000;"></div>
-                                    <div class="color-option" data-color="#FFA500" data-name="orange" style="background-color: #FFA500;"></div>
-                                    <div class="color-option" data-color="#FFFF00" data-name="yellow" style="background-color: #FFFF00;"></div>
-                                    <div class="color-option" data-color="#008000" data-name="green" style="background-color: #008000;"></div>
-                                    <div class="color-option" data-color="#0000FF" data-name="blue" style="background-color: #0000FF;"></div>
-                                    <div class="color-option" data-color="#800080" data-name="violet" style="background-color: #800080;"></div>
-                                    <div class="color-option" data-color="#A52A2A" data-name="brown" style="background-color: #A52A2A;"></div>
-                                    <div class="color-option" data-color="#808080" data-name="gray" style="background-color: #808080;"></div>
-                                    <div class="color-option" data-color="#00000000" data-name="transparent" title="Grille transparente"></div>
-                                </div>
-                                <input type="hidden" id="grid-color" value="#FFFFFF">
-                                <input type="hidden" id="grid-color-name" value="white" class="grid-parameter">
-                            </div>
-                            <div class="flex flex-col space-y-3 md:col-span-2">
-                                 <label for="grid-name-base" class="text-sm md:text-base text-content">Nom du carroyage :</label>
-                                <input type="text" id="grid-name-base" class="input-field px-3 py-2 border rounded shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white text-base grid-parameter" value="">
-                                <input type="hidden" id="grid-name" value="CADO Grid">
-                                <div id="full-grid-name" class="text-sm text-secondary mt-1 overflow-auto max-h-20 border-l-2 border-blue-500 pl-2 italic">CADO Grid_20m_center_Q12_white</div>
-                            </div>
-                            <div class="flex flex-col space-y-3 md:col-span-2">
-                                <label class="text-sm md:text-base text-content">Type de grille :</label>
-                                <div class="flex flex-wrap items-center gap-2">
-                                    <label class="inline-flex items-center"><input type="radio" name="grid-type" value="Q12" class="custom-radio grid-parameter" checked><span class="px-3 py-1 border border-default rounded cursor-pointer text-sm button-outline">Q12 (Format A4)</span></label>
-                                    <label class="inline-flex items-center"><input type="radio" name="grid-type" value="Z18" class="custom-radio grid-parameter"><span class="px-3 py-1 border border-default rounded cursor-pointer text-sm button-outline">Z18 (Format A3)</span></label>
-                                </div>
-                            </div>
-                            <div class="md:col-span-2 flex justify-start md:justify-end">
-                                <button id="toggle-grid-config-btn" type="button" class="text-sm text-blue-600 hover:underline dark:text-blue-400">Options avancées ▼</button>
-                            </div>
-                            <div id="advanced-grid-config" class="hidden md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4 pt-4 border-t border-gray-200 dark:border-gray-700">
-                                 <div class="flex flex-col space-y-1">
+                         <h3 class="text-lg font-semibold mb-3 text-content">3. Configuration du carroyage CADO</h3>
+                         <div class="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
+                             <div class="flex flex-col space-y-3">
+                                 <label for="scale" class="text-sm md:text-base text-content">Échelle (en mètres) :</label>
+                                 <input type="number" id="scale" class="input-field px-3 py-2 border rounded shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white text-base grid-parameter" value="10">
+                             </div>
+                             <div class="flex flex-col space-y-3">
+                                 <label class="text-sm md:text-base text-content">Choisir une couleur :</label>
+                                 <div class="flex flex-wrap gap-2" id="color-options">
+                                     <div class="color-option selected" data-color="#FFFFFF" data-name="white" style="background-color: #FFFFFF; border: 1px solid #ccc;"></div>
+                                     <div class="color-option" data-color="#000000" data-name="black" style="background-color: #000000;"></div>
+                                     <div class="color-option" data-color="#FF0000" data-name="red" style="background-color: #FF0000;"></div>
+                                     <div class="color-option" data-color="#FFA500" data-name="orange" style="background-color: #FFA500;"></div>
+                                     <div class="color-option" data-color="#FFFF00" data-name="yellow" style="background-color: #FFFF00;"></div>
+                                     <div class="color-option" data-color="#008000" data-name="green" style="background-color: #008000;"></div>
+                                     <div class="color-option" data-color="#0000FF" data-name="blue" style="background-color: #0000FF;"></div>
+                                     <div class="color-option" data-color="#800080" data-name="violet" style="background-color: #800080;"></div>
+                                     <div class="color-option" data-color="#A52A2A" data-name="brown" style="background-color: #A52A2A;"></div>
+                                     <div class="color-option" data-color="#808080" data-name="gray" style="background-color: #808080;"></div>
+                                     <div class="color-option" data-color="#00000000" data-name="transparent" title="Grille transparente"></div>
+                                 </div>
+                                 <input type="hidden" id="grid-color" value="#FFFFFF">
+                                 <input type="hidden" id="grid-color-name" value="white" class="grid-parameter">
+                             </div>
+                             <div class="flex flex-col space-y-3 md:col-span-2">
+                                <label for="grid-name-base" class="text-sm md:text-base text-content">Nom du carroyage :</label>
+                               <input type="text" id="grid-name-base" class="input-field px-3 py-2 border rounded shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white text-base grid-parameter" value="">
+                               <input type="hidden" id="grid-name" value="CADO Grid">
+                               <div id="full-grid-name" class="text-sm text-secondary mt-1 overflow-auto max-h-20 border-l-2 border-blue-500 pl-2 italic">CADO Grid_20m_center_Q12_white</div>
+                           </div>
+                           <div class="flex flex-col space-y-3 md:col-span-2">
+                               <label class="text-sm md:text-base text-content">Type de grille :</label>
+                               <div class="flex flex-wrap items-center gap-2">
+                                   <label class="inline-flex items-center"><input type="radio" name="grid-type" value="Q12" class="custom-radio grid-parameter" checked><span class="px-3 py-1 border border-default rounded cursor-pointer text-sm button-outline">Q12 (Format A4)</span></label>
+                                   <label class="inline-flex items-center"><input type="radio" name="grid-type" value="Z18" class="custom-radio grid-parameter"><span class="px-3 py-1 border border-default rounded cursor-pointer text-sm button-outline">Z18 (Format A3)</span></label>
+                               </div>
+                           </div>
+                           <div class="md:col-span-2 flex justify-start md:justify-end">
+                               <button id="toggle-grid-config-btn" type="button" class="text-sm text-blue-600 hover:underline dark:text-blue-400">Options avancées ▼</button>
+                           </div>
+                           <div id="advanced-grid-config" class="hidden md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+                                <div class="flex flex-col space-y-1">
                                     <label for="transparency" class="text-sm md:text-base text-content">Transparence :</label>
                                     <div class="flex space-x-2 items-center">
                                         <input type="range" id="transparency" class="w-full grid-parameter" min="0" max="100" value="20">
                                         <span id="transparency-value" class="text-sm text-content">20%</span>
                                     </div>
                                 </div>
-                                 <div class="flex flex-col space-y-1">
+                                <div class="flex flex-col space-y-1">
                                     <label for="line-thickness" class="text-sm md:text-base text-content">Épaisseur du trait :</label>
                                     <select id="line-thickness" class="input-field px-3 py-2 border rounded shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white text-base grid-parameter">
                                         <option value="1" selected>Fine (1px)</option>
@@ -316,11 +287,12 @@
                                         <div class="flex flex-col space-y-1"><label for="start-col" class="text-sm text-content">Début des colonnes :</label><input type="text" id="start-col" class="input-field px-3 py-2 border rounded shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white text-base grid-parameter" value="A"></div>
                                         <div class="flex flex-col space-y-1"><label for="end-col" class="text-sm text-content">Fin des colonnes :</label><input type="text" id="end-col" class="input-field px-3 py-2 border rounded shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white text-base grid-parameter" value="Z"></div>
                                     </div>
-								</div>
-                            </div>
-                        </div>
+                                </div>
+                           </div>
+                         </div>
                     </section>
                 </div>
+                
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
                     <div class="card bg-white shadow-md rounded-lg p-4 md:p-6 dark:bg-gray-800 dark:border dark:border-gray-700 flex flex-col justify-between">
                         <h3 class="text-lg font-semibold mb-3 text-content text-center">4. Générer l'image</h3>
@@ -370,10 +342,11 @@
                 </div>
             </div>
         </div>
-<!-- MODE 2 : ZONE DOWNLOADER -->
-<div id="zone-downloader-mode-container" class="hidden space-y-6">
 
-<!-- Tuile 1 : Carte (inchangée) -->
+        <!-- MODE 2 : ZONE DOWNLOADER -->
+        <div id="zone-downloader-mode-container" class="hidden space-y-6">
+
+            <!-- Tuile 1 : Carte -->
             <div class="card bg-white shadow-md rounded-lg p-4 md:p-6 dark:bg-gray-800 dark:border dark:border-gray-700">
                 <section>
                     <h3 class="text-lg font-semibold mb-3 text-content">1. Définir une zone à exporter</h3>
@@ -386,7 +359,7 @@
                 </section>
             </div>
 
-            <!-- Tuile 2 : Informations (inchangée) -->
+            <!-- Tuile 2 : Informations -->
             <div class="card bg-white shadow-md rounded-lg p-4 md:p-6 dark:bg-gray-800 dark:border dark:border-gray-700">
                 <section>
                     <h3 class="text-lg font-semibold mb-3 text-content">2. Informations et options</h3>
@@ -411,54 +384,51 @@
                 </section>
             </div>
 
-            <!-- Tuile 3 : Points d'intérêt (INTERFACE MISE À JOUR) -->
+            <!-- Tuile 3 : Points d'intérêt -->
             <div class="card bg-white shadow-md rounded-lg p-4 md:p-6 dark:bg-gray-800 dark:border dark:border-gray-700">
                 <section>
                     <h3 class="text-lg font-semibold mb-3 text-content">3. Points d'intérêt (Optionnel)</h3>
                     
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                        <!-- Colonne gauche : Sélection -->
                         <div class="flex flex-col space-y-3">
-                            <!-- Filtre Catégorie -->
                             <div class="flex flex-col space-y-1">
                                 <label for="poi-category-filter" class="text-sm text-content">Filtrer par catégorie :</label>
                                 <select id="poi-category-filter" class="input-field px-2 py-1 border rounded shadow-sm text-sm text-gray-900 dark:bg-gray-600 dark:border-gray-500 dark:text-white">
                                     <option value="all">Toutes</option>
-                                    <!-- Peuplé par JS -->
                                 </select>
                             </div>
-
-                            <!-- Grille visuelle des icônes -->
                             <div class="flex flex-col space-y-1">
                                 <label class="text-sm text-content">Choisir une icône :</label>
-                                <div id="poi-visual-selector" class="icon-grid-container custom-scrollbar">
-                                    <!-- Peuplé par JS -->
-                                </div>
+                                <div id="poi-visual-selector" class="icon-grid-container custom-scrollbar"></div>
                                 <input type="hidden" id="poi-type-selector" value="target">
                             </div>
                         </div>
 
-                        <!-- Colonne droite : Nom et Ajout -->
-                         <div class="flex flex-col space-y-1 mb-2">
-                            <div class="flex justify-between items-center">
-                                <label for="poi-icon-scale" class="text-sm text-content">Taille des icônes :</label>
+                        <div class="flex flex-col space-y-1 mb-2">
+                            <div class="flex justify-between items-center gap-3">
+                                <label for="poi-icon-scale" class="text-sm text-content whitespace-nowrap">Taille des icônes :</label>
+                                <input type="range" id="poi-icon-scale" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer dark:bg-gray-700" min="0.5" max="3.0" step="0.1" value="1.0">
                                 <span id="poi-icon-scale-label" class="text-xs font-bold text-blue-600 dark:text-blue-400">1.0x</span>
                             </div>
-                            <input type="range" id="poi-icon-scale" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer dark:bg-gray-700" min="0.5" max="3.0" step="0.1" value="1.0">
-                        </div>
-                        <div class="flex flex-col space-y-3 justify-end">
-                            <div class="flex flex-col space-y-1">
-                                <label for="poi-name-input" class="text-sm text-content">Nom du point :</label>
-                                <input type="text" id="poi-name-input" class="input-field px-2 py-1 border rounded shadow-sm text-sm text-gray-900 dark:bg-gray-600 dark:border-gray-500 dark:text-white" placeholder="Nom (facultatif)">
+                            <br/>
+                            <div class="flex items-center gap-2">
+                                <label for="poi-icon-scale" class="text-sm text-content">Icônes personnalisées : </label>
+                                <button id="settingsBtn" class="text-xl px-2 py-1 rounded-full button-outline bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-white transition-colors" title="Icônes personnalisées">Gestion&nbsp;⚙️</button>
                             </div>
-                            <button id="add-poi-btn" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded shadow transition-colors w-full">
-                                + Activer l'ajout sur la carte
-                            </button>
-                            <p class="text-xs text-secondary italic text-center mt-1">Cliquez sur le bouton puis sur la carte.</p>
+                            <br/>
+                            <div class="flex flex-col space-y-3 justify-end mt-4">
+                                <div class="flex flex-col space-y-1">
+                                    <label for="poi-name-input" class="text-sm text-content">Nom du point :</label>
+                                    <input type="text" id="poi-name-input" class="input-field px-2 py-1 border rounded shadow-sm text-sm text-gray-900 dark:bg-gray-600 dark:border-gray-500 dark:text-white" placeholder="Nom (facultatif)">
+                                </div>
+                                <button id="add-poi-btn" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded shadow transition-colors w-full">
+                                    + Activer l'ajout sur la carte
+                                </button>
+                                <p class="text-xs text-secondary italic text-center mt-1">Cliquez sur le bouton puis sur la carte.</p>
+                            </div>
                         </div>
                     </div>
 
-                    <!-- Tableau liste des points -->
                     <div id="poi-list-container" class="border rounded p-2 max-h-40 overflow-y-auto hidden dark:border-gray-600">
                         <table class="w-full text-sm text-left text-gray-500 dark:text-gray-400">
                             <thead class="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
@@ -475,55 +445,51 @@
                 </section>
             </div>
 
-            <!-- Tuile 4 : Style (MISE À JOUR) -->
-<div class="card bg-white shadow-md rounded-lg p-4 md:p-6 dark:bg-gray-800 dark:border dark:border-gray-700">
-    <section>
-        <h3 class="text-lg font-semibold mb-3 text-content">4. Configuration du Style (Commun)</h3>
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6"> <!-- Changé de grid-cols-2 à grid-cols-3 -->
+            <!-- Tuile 4 : Style (Commun) -->
+            <div class="card bg-white shadow-md rounded-lg p-4 md:p-6 dark:bg-gray-800 dark:border dark:border-gray-700">
+                <section>
+                    <h3 class="text-lg font-semibold mb-3 text-content">4. Configuration du Style (Commun)</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6"> 
+                        
+                        <div class="flex flex-col space-y-1">
+                            <label class="text-sm md:text-base text-content">Couleur globale :</label>
+                            <div class="flex flex-wrap gap-2" id="utm-color-options">
+                                <div class="color-option selected" data-color="#FFFFFF" data-name="white" style="background-color: #FFFFFF; border: 1px solid #ccc;"></div>
+                                <div class="color-option" data-color="#000000" data-name="black" style="background-color: #000000;"></div>
+                                <div class="color-option" data-color="#FF0000" data-name="red" style="background-color: #FF0000;"></div>
+                                <div class="color-option" data-color="#FFA500" data-name="orange" style="background-color: #FFA500;"></div>
+                                <div class="color-option" data-color="#FFFF00" data-name="yellow" style="background-color: #FFFF00;"></div>
+                                <div class="color-option" data-color="#008000" data-name="green" style="background-color: #008000;"></div>
+                                <div class="color-option" data-color="#0000FF" data-name="blue" style="background-color: #0000FF;"></div>
+                                <div class="color-option" data-color="#800080" data-name="violet" style="background-color: #800080;"></div>
+                                <div class="color-option" data-color="#A52A2A" data-name="brown" style="background-color: #A52A2A;"></div>
+                                <div class="color-option" data-color="#808080" data-name="gray" style="background-color: #808080;"></div>
+                            </div>
+                            <input type="hidden" id="utm-grid-color" value="#FFFFFF">
+                            <input type="hidden" id="utm-grid-color-name" value="white">
+                        </div>
+
+                        <div class="flex flex-col space-y-1">
+                            <label for="utm-transparency" class="text-sm md:text-base text-content">Transparence :</label>
+                            <div class="flex space-x-2 items-center">
+                                <input type="range" id="utm-transparency" class="w-full" min="0" max="100" value="30">
+                                <span id="utm-transparency-value" class="text-sm text-content">30%</span>
+                            </div>
+                        </div>
+
+                        <div class="flex flex-col space-y-1">
+                            <label for="common-grid-thickness" class="text-sm md:text-base text-content">Épaisseur du trait :</label>
+                            <select id="common-grid-thickness" class="input-field px-2 py-1 border rounded shadow-sm text-sm text-gray-900 dark:bg-gray-600 dark:border-gray-500 dark:text-white">
+                                <option value="1" selected>Fine (1px)</option>
+                                <option value="2">Moyenne (2px)</option>
+                                <option value="3">Épaisse (3px)</option>
+                            </select>
+                        </div>
+
+                    </div>
+                </section>
+            </div>
             
-            <!-- Couleur -->
-            <div class="flex flex-col space-y-1">
-                <label class="text-sm md:text-base text-content">Couleur globale :</label>
-                <div class="flex flex-wrap gap-2" id="utm-color-options">
-                    <div class="color-option selected" data-color="#FFFFFF" data-name="white" style="background-color: #FFFFFF; border: 1px solid #ccc;"></div>
-                    <div class="color-option" data-color="#000000" data-name="black" style="background-color: #000000;"></div>
-                    <div class="color-option" data-color="#FF0000" data-name="red" style="background-color: #FF0000;"></div>
-                    <div class="color-option" data-color="#FFA500" data-name="orange" style="background-color: #FFA500;"></div>
-                    <div class="color-option" data-color="#FFFF00" data-name="yellow" style="background-color: #FFFF00;"></div>
-                    <div class="color-option" data-color="#008000" data-name="green" style="background-color: #008000;"></div>
-                    <div class="color-option" data-color="#0000FF" data-name="blue" style="background-color: #0000FF;"></div>
-                    <div class="color-option" data-color="#800080" data-name="violet" style="background-color: #800080;"></div>
-                    <div class="color-option" data-color="#A52A2A" data-name="brown" style="background-color: #A52A2A;"></div>
-                    <div class="color-option" data-color="#808080" data-name="gray" style="background-color: #808080;"></div>
-                </div>
-                <input type="hidden" id="utm-grid-color" value="#FFFFFF">
-                <input type="hidden" id="utm-grid-color-name" value="white">
-            </div>
-
-            <!-- Transparence -->
-            <div class="flex flex-col space-y-1">
-                <label for="utm-transparency" class="text-sm md:text-base text-content">Transparence :</label>
-                <div class="flex space-x-2 items-center">
-                    <input type="range" id="utm-transparency" class="w-full" min="0" max="100" value="30">
-                    <span id="utm-transparency-value" class="text-sm text-content">30%</span>
-                </div>
-            </div>
-
-            <!-- AJOUT : Épaisseur Commune -->
-            <div class="flex flex-col space-y-1">
-                <label for="common-grid-thickness" class="text-sm md:text-base text-content">Épaisseur du trait :</label>
-                <select id="common-grid-thickness" class="input-field px-2 py-1 border rounded shadow-sm text-sm text-gray-900 dark:bg-gray-600 dark:border-gray-500 dark:text-white">
-                    <option value="1" selected>Fine (1px)</option>
-                    <option value="2">Moyenne (2px)</option>
-                    <option value="3">Épaisse (3px)</option>
-                </select>
-            </div>
-
-        </div>
-    </section>
-</div>
-            
-            <!-- Grille d'actions (inchangée) -->
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
                 <!-- Action 1 : UTM KMZ -->
                 <div class="card bg-white shadow-md rounded-lg p-4 md:p-6 dark:bg-gray-800 dark:border dark:border-gray-700 flex flex-col justify-between">
@@ -629,6 +595,32 @@
         let drawnItems = null;
         const TILE_LIMIT = 2000;
 
+        // Fonction utilitaire pour la rotation (doit être définie avant setupEventListeners)
+        window.updateDeviation = function(change) {
+            const devInput = document.getElementById('deviation');
+            let currentVal = parseInt(devInput.value, 10);
+            let newVal = currentVal + change;
+            
+            // Boucle -180 / 180
+            if (newVal > 180) newVal = -179;
+            if (newVal < -180) newVal = 179;
+            
+            devInput.value = newVal;
+            devInput.dispatchEvent(new Event('input'));
+        };
+
+        // Nouvelle version de setupToggle avec paramètre 'label'
+        function setupToggle(buttonId, contentId, label = "Options avancées") {
+            const button = document.getElementById(buttonId);
+            const content = document.getElementById(contentId);
+            if (button && content) {
+                button.addEventListener('click', () => {
+                    const isHidden = content.classList.toggle('hidden');
+                    button.innerHTML = isHidden ? `${label} ▼` : 'Masquer les options ▲';
+                });
+            }
+        }
+
         function initializeApp() {
             setupTheme();
             initializeCadoMap();
@@ -649,17 +641,12 @@
             }
         }
 
+        // ... (Création des baseLayers) ...
         function createBaseLayers() {
                 const baseMaps = {};
-
-                // Extension Leaflet pour gérer les tuiles Quadkey (Bing)
                 const L_QuadKeyLayer = L.TileLayer.extend({
                     getTileUrl: function (coords) {
-                        const x = coords.x;
-                        const y = coords.y;
-                        const z = coords.z;
-                        
-                        // Conversion XYZ vers QuadKey
+                        const x = coords.x, y = coords.y, z = coords.z;
                         let quadKey = '';
                         for (let i = z; i > 0; i--) {
                             let digit = 0;
@@ -668,113 +655,56 @@
                             if ((x & mask) !== 0) { digit += 1; }
                             quadKey += digit.toString();
                         }
-                        
-                        return L.Util.template(this._url, {
-                            s: (x + y) % 4, // Sous-domaine dynamique (t0, t1, t2, t3)
-                            q: quadKey,
-                            z: z
-                        });
+                        return L.Util.template(this._url, { s: (x + y) % 4, q: quadKey, z: z });
                     }
                 });
 
                 MAP_LAYERS.forEach(layerConfig => {
                     let leafletLayer;
-                    
-                    // Gestion Multicouches (ex: IGN + Google Routes)
                     if (layerConfig.layers.length > 1) {
                         const layerGroupLayers = [];
                         layerConfig.layers.forEach(layerData => {
-                            const tileLayer = L.tileLayer(layerData.url, {
-                                attribution: layerConfig.name,
-                                maxZoom: layerConfig.maxZoom || 20
-                            });
+                            const tileLayer = L.tileLayer(layerData.url, { attribution: layerConfig.name, maxZoom: layerConfig.maxZoom || 20 });
                             layerGroupLayers.push(tileLayer);
                         });
                         leafletLayer = L.layerGroup(layerGroupLayers);
-                    
                     } else {
-                        // Gestion Couche Unique
                         const singleLayerConfig = layerConfig.layers[0];
-                        
                         if (singleLayerConfig.type === 'quadkey') {
-                            // Utilisation de notre classe personnalisée pour Bing
-                            leafletLayer = new L_QuadKeyLayer(singleLayerConfig.url, {
-                                attribution: layerConfig.name,
-                                maxZoom: layerConfig.maxZoom || 19
-                            });
+                            leafletLayer = new L_QuadKeyLayer(singleLayerConfig.url, { attribution: layerConfig.name, maxZoom: layerConfig.maxZoom || 19 });
                         } else {
-                            // Standard XYZ
-                            leafletLayer = L.tileLayer(singleLayerConfig.url, {
-                                attribution: layerConfig.name,
-                                maxZoom: layerConfig.maxZoom || 20
-                            });
+                            leafletLayer = L.tileLayer(singleLayerConfig.url, { attribution: layerConfig.name, maxZoom: layerConfig.maxZoom || 20 });
                         }
                     }
-                    
-                    if (leafletLayer) {
-                        baseMaps[layerConfig.name] = leafletLayer;
-                    }
+                    if (leafletLayer) baseMaps[layerConfig.name] = leafletLayer;
                 });
                 return baseMaps;
             }
 
         function initializeCadoMap() {
-                // 1. Initialisation de la carte
                 cadoMap = L.map('cado-interactive-map').setView([46.2276, 2.2137], 5);
-
-                // 2. Gestion des calques
                 const baseMaps = createBaseLayers();
-                // Priorité à l'IGN, sinon Google Hybrid
                 const defaultLayer = baseMaps["Ortho IGN + Routes Google"] || baseMaps["Google Hybrid"] || baseMaps[Object.keys(baseMaps)[0]];
-                
                 if(defaultLayer) defaultLayer.addTo(cadoMap);
                 L.control.layers(baseMaps).addTo(cadoMap);
-
-                // 3. Événement clic sur la carte (pour placer le point)
                 cadoMap.on('click', handleCadoMapClick);
                 
-                // 5. Synchro du menu déroulant "Fond de carte" lors du changement sur la carte
+                // SUPPRESSION DES CONTROLES ROTATION LEAFLET (Ils sont maintenant sous la carte)
+
                 cadoMap.on('baselayerchange', function(e) {
                     const selector = document.getElementById('map-tile-provider');
                     const correspondingMapLayer = MAP_LAYERS.find(layer => layer.name === e.name);
                     if (correspondingMapLayer) selector.value = correspondingMapLayer.id;
                 });
 
-                // 6. FIX HUD : Détachement des contrôles pour qu'ils ne tournent pas
                 setTimeout(() => {
                     const viewport = document.getElementById('map-viewport');
                     const mapDiv = document.getElementById('cado-interactive-map');
-                    
                     if (viewport && mapDiv) {
                         const controls = mapDiv.querySelector('.leaflet-control-container');
-                        if (controls) {
-                            // On déplace le conteneur de contrôles du <div map> vers le <div viewport>
-                            // Ils deviennent frères de la carte au lieu d'enfants, et ne subissent plus la rotation CSS
-                            viewport.appendChild(controls);
-                        }
+                        if (controls) viewport.appendChild(controls);
                     }
                 }, 100);
-            }
-
-            // Fonctions Helper pour la rotation (à placer dans le script global ou juste après initializeCadoMap)
-            function updateDeviation(change) {
-                const devInput = document.getElementById('deviation');
-                let currentVal = parseInt(devInput.value, 10);
-                let newVal = currentVal + change;
-                
-                // Boucle -180 / 180
-                if (newVal > 180) newVal = -179;
-                if (newVal < -180) newVal = 179;
-                
-                devInput.value = newVal;
-                // Déclenche l'événement 'input' pour que le reste du site (grid name, dessin) se mette à jour
-                devInput.dispatchEvent(new Event('input'));
-            }
-
-            function resetDeviation() {
-                const devInput = document.getElementById('deviation');
-                devInput.value = 0;
-                devInput.dispatchEvent(new Event('input'));
             }
 
         function initializeZoneMap() {
@@ -807,16 +737,12 @@
             zoneMap.on('zoomend', updateZoneInfo);
             zoneMap.on('baselayerchange', updateZoneInfo);
             
-            // Click handler for POI adding
             zoneMap.on('click', (e) => {
                 if (typeof handleMapClickForPOI === 'function') {
                     handleMapClickForPOI(e);
                 }
             });
-            
-            // Hack pour rendre zoneMap accessible à zoneDownloader.js
             window.zoneMap = zoneMap;
-
             setTimeout(() => { updateZoneInfo({name: "Ortho IGN + Routes Google"})}, 500);
             setupZoneAddressSearch();
         }
@@ -824,14 +750,10 @@
         function updateCadoOverlayDefaults() {
             const nwCoordsStr = document.getElementById("zone-nw-coords").value;
             const seCoordsStr = document.getElementById("zone-se-coords").value;
-
             if (!nwCoordsStr || !seCoordsStr) return;
-            
             const [nwLat, nwLon] = nwCoordsStr.split(',').map(c => parseFloat(c.trim()));
             const [seLat, seLon] = seCoordsStr.split(',').map(c => parseFloat(c.trim()));
-
             const widthMeters = haversineDistance({lat: nwLat, lon: nwLon}, {lat: nwLat, lon: seLon});
-            
             if (widthMeters > 0) {
                 const newScale = Math.round(widthMeters / 26);
                 document.getElementById('cado-overlay-scale').value = newScale > 0 ? newScale : 1;
@@ -872,7 +794,6 @@
             const warningLowSpan = document.getElementById('zone-tile-warning-low');
             const downloadBtn = document.getElementById('generate-zone-png-button');
             const generateUtmBtn = document.getElementById('generate-utm-button');
-
 
             if (!nwCoordsStr || !seCoordsStr) {
                 tileInfoSpan.textContent = 'N/A';
@@ -1056,22 +977,8 @@
                 gridNameInput.dispatchEvent(new Event('input'));
             }
         }
-
-        function setupToggle(buttonId, contentId, label = "Options avancées") {
-            const button = document.getElementById(buttonId);
-            const content = document.getElementById(contentId);
-            if (button && content) {
-                button.addEventListener('click', () => {
-                    const isHidden = content.classList.toggle('hidden');
-                    // Si c'est caché, on affiche le label personnalisé + flèche bas
-                    // Sinon, on affiche "Masquer les options" + flèche haut
-                    button.innerHTML = isHidden ? `${label} ▼` : 'Masquer les options ▲';
-                });
-            }
-        }
         
         function initUI() {
-            // Main CADO Color Picker
             document.querySelectorAll('#color-options .color-option').forEach(option => {
                 option.addEventListener('click', function() {
                     document.querySelectorAll('#color-options .color-option').forEach(opt => opt.classList.remove('selected'));
@@ -1082,13 +989,11 @@
                 });
             });
             
-            // NEW: Zone Mode Shared Color Picker
             document.querySelectorAll('#utm-color-options .color-option').forEach(option => {
                 option.addEventListener('click', function() {
                     document.querySelectorAll('#utm-color-options .color-option').forEach(opt => opt.classList.remove('selected'));
                     this.classList.add('selected');
                     document.getElementById('utm-grid-color').value = this.dataset.color;
-                    // Use data-name for CADO compatibility, fallback to empty string if undefined (for UTM)
                     if (this.dataset.name) {
                         document.getElementById('utm-grid-color-name').value = this.dataset.name;
                     }
@@ -1105,7 +1010,6 @@
                 });
             });
 
-            // Initialisation du Settings Manager qui remplit aussi le dropdown
             if (typeof initSettingsManager === 'function') {
                 initSettingsManager();
             }
@@ -1132,13 +1036,8 @@
 
             let mapToResize = null;
             switch (targetMode) {
-                case 'zone': 
-                    mapToResize = zoneMap; 
-                    break;
-                case 'cado': 
-                default: 
-                    mapToResize = cadoMap; 
-                    break;
+                case 'zone': mapToResize = zoneMap; break;
+                case 'cado': default: mapToResize = cadoMap; break;
             }
             if (mapToResize) setTimeout(() => mapToResize.invalidateSize(), 10);
         }
@@ -1147,24 +1046,29 @@
             document.getElementById('mode-selector').addEventListener('click', (e) => {
                 if (e.target.matches('.mode-btn')) toggleMode(e.target.getAttribute('data-mode'));
             });
-            setupToggle('toggle-coords-btn', 'advanced-coords', 'Options de conversion');
+            
+            setupToggle('toggle-coords-btn', 'advanced-coords', 'Options avancées');
             setupToggle('toggle-grid-config-btn', 'advanced-grid-config', 'Options avancées');
-            setupToggle('toggle-rotation-btn', 'rotation-controls', 'Options de rotation'); 
+            setupToggle('toggle-rotation-btn', 'rotation-controls', '🔄 Configurer la rotation');
+
+            document.getElementById('rotate-left-btn').addEventListener('click', () => updateDeviation(-1));
+            document.getElementById('rotate-right-btn').addEventListener('click', () => updateDeviation(1));
+            document.getElementById('reset-deviation').addEventListener('click', () => {
+                const devInput = document.getElementById('deviation');
+                devInput.value = 0;
+                devInput.dispatchEvent(new Event('input'));
+            });
+
             document.getElementById('transparency').addEventListener('input', e => { document.getElementById('transparency-value').textContent = `${e.target.value}%`; });
             document.getElementById('utm-transparency').addEventListener('input', e => { document.getElementById('utm-transparency-value').textContent = `${e.target.value}%`; });
             document.getElementById('convert-from-decimal').addEventListener('click', convertFromDecimal);
             document.getElementById('convert-from-dms').addEventListener('click', convertFromDMS);
-            document.getElementById('convert-from-plus').addEventListener('click', convertFromPlusCode);
             document.getElementById('convert-from-mercator').addEventListener('click', convertFromMercator);
             document.getElementById('convert-from-utm').addEventListener('click', convertFromUTM);
             document.getElementById('view-on-maps-decimal').addEventListener('click', () => viewOnMap('decimal'));
             document.getElementById('view-on-maps-dms').addEventListener('click', () => viewOnMap('dms'));
-            document.getElementById('view-on-maps-plus').addEventListener('click', () => viewOnMap('plus'));
             document.getElementById('view-on-maps-mercator').addEventListener('click', () => viewOnMap('mercator'));
             document.getElementById('view-on-maps-utm').addEventListener('click', () => viewOnMap('utm'));
-            document.getElementById('rotate-left-btn').addEventListener('click', () => updateDeviation(-1));
-            document.getElementById('rotate-right-btn').addEventListener('click', () => updateDeviation(1));
-
 
             const deviationInput = document.getElementById('deviation');
             const deviationValueSpan = document.getElementById('deviation-value');
@@ -1172,18 +1076,9 @@
             const rotationGuide = document.getElementById('rotation-guide');
             let guideTimeout;
 
-            // Fonction pour mettre à jour la vue
            const updateMapRotation = (val) => {
-                     // 1. Mise à jour texte
                     deviationValueSpan.textContent = `${val}°`; 
-                    
-                    // 2. Rotation Carte
-                    // On tourne SEULEMENT la carte. Les boutons ne bougent plus car ils sont dans le viewport.
                     mapContainer.style.transform = `translate(-50%, -50%) rotate(${-val}deg)`;
-                    
-                    // 3. (SUPPRIMÉ) Plus besoin de contre-rotation des contrôles !
-                    
-                    // 4. Gestion de la ligne guide
                     rotationGuide.style.opacity = '1';
                     clearTimeout(guideTimeout);
                     guideTimeout = setTimeout(() => {
@@ -1191,46 +1086,21 @@
                     }, 1500);
                 };
 
-            // Listener sur le slider (Input = pendant le drag)
             deviationInput.addEventListener('input', () => { 
                 const val = parseInt(deviationInput.value, 10);
                 updateMapRotation(val);
             });
 
-            // On s'assure que updateDeviation (les boutons sur la carte) appelle aussi cette logique
-            // Modifiez la fonction updateDeviation existante plus bas dans le script :
-            window.updateDeviation = function(change) {
-                const devInput = document.getElementById('deviation');
-                let currentVal = parseInt(devInput.value, 10);
-                let newVal = currentVal + change;
-                
-                // Boucle -180 / 180
-                if (newVal > 180) newVal = -179;
-                if (newVal < -180) newVal = 179;
-                
-                devInput.value = newVal;
-                // Important : déclenche l'événement pour mettre à jour la carte en temps réel
-                devInput.dispatchEvent(new Event('input'));
-            };
-            
-            window.resetDeviation = function() {
-                deviationInput.value = 0;
-                deviationInput.dispatchEvent(new Event('input'));
-            };
             const generateImageButton = document.getElementById('generate-image-button');
-            const resetButton = document.getElementById('reset-deviation');
             const iconScaleInput = document.getElementById('zone-icon-scale');
-                if (iconScaleInput) {
-                    iconScaleInput.addEventListener('input', (e) => {
-                        document.getElementById('zone-icon-scale-value').textContent = `${e.target.value}x`;
-                    });
-                }
-            // Dans index.html, remplacez la fonction updateImageButtonState par :
+            if (iconScaleInput) {
+                iconScaleInput.addEventListener('input', (e) => {
+                    // Update label removed in HTML, keeping logic just in case
+                });
+            }
+            
             const updateImageButtonState = () => {
-                // On autorise toujours la génération, même avec rotation
                 generateImageButton.disabled = false;
-                
-                // Changement visuel pour indiquer que la rotation est active
                 const dev = parseInt(deviationInput.value, 10);
                 if (dev !== 0) {
                     generateImageButton.textContent = "Générer l'image (Rotatée)";
@@ -1249,10 +1119,7 @@
                 });
             });
             deviationInput.addEventListener('input', () => { deviationValueSpan.textContent = `${deviationInput.value}°`; });
-            resetButton.addEventListener('click', () => {
-                deviationInput.value = 0;
-                deviationInput.dispatchEvent(new Event('input'));
-            });
+            
             document.getElementById('generate-image-button').addEventListener('click', generateImageToPrint);
             document.getElementById('generate-button').addEventListener('click', generateGrid);
             document.getElementById('generate-utm-button').addEventListener('click', generateUTMGrid);
@@ -1275,7 +1142,7 @@
                 }
             });
 
-            // --- GESTION DES POIS ---
+            // GESTION DES POIS
             const addPoiBtn = document.getElementById('add-poi-btn');
             addPoiBtn.addEventListener('click', () => {
                 if (typeof toggleAddPointMode === 'function') {

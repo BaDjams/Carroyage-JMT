@@ -172,7 +172,7 @@ input[type="radio"].custom-radio:checked + span {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(60px, 1fr));
     gap: 0.5rem;
-    max-height: 160px;
+    max-height: 120px;
     overflow-y: auto;
     padding: 0.5rem;
     border: 1px solid #e5e7eb;
@@ -233,7 +233,7 @@ input[type="radio"].custom-radio:checked + span {
     background-color: var(--light-card-bg);
     border-radius: 0.5rem;
     padding: 0.5rem;
-    max-height: 250px;
+    max-height: 200px;
     overflow-y: auto;
     font-size: 0.85rem;
 }
