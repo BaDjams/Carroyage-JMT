@@ -408,6 +408,22 @@ input[type="radio"].custom-radio:checked + span {
 
 /* --- CSS POUR LES CONTRÔLES DÉTACHÉS (HUD) --- */
 
+/* Ligne rouge de rotation - doit être au-dessus de tout */
+#rotation-guide {
+    position: absolute;
+    top: 50%;
+    left: 0;
+    width: 100%;
+    height: 2px;
+    background-color: #ef4444; /* Rouge */
+    opacity: 0;
+    transition: opacity 0.2s;
+    pointer-events: none;
+    z-index: 9999 !important; /* Au-dessus de tout */
+    box-shadow: 0 0 4px rgba(255, 255, 255, 1);
+    transform: translateY(-50%); /* Centre verticalement */
+}
+
 /* Le conteneur de contrôles sera déplacé directement dans le #map-viewport */
 .leaflet-control-container {
     position: absolute;
