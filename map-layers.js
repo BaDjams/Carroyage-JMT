@@ -73,7 +73,7 @@ const MAP_LAYERS = [
     {
         "id": "ign_public_hybrid",
         "name": "Plan IGN",
-        "maxZoom": 20,
+        "maxZoom": 19,
         "layers": [
             {
                 "url": "https://data.geopf.fr/wmts?Layer=GEOGRAPHICALGRIDSYSTEMS.PLANIGNV2&Style=normal&TileMatrixSet=PM&SERVICE=WMTS&REQUEST=GetTile&Version=1.0.0&FORMAT=image/png&TileMatrix={z}&TileCol={x}&TileRow={y}",
