@@ -682,7 +682,7 @@
             }
 
         function initializeCadoMap() {
-                cadoMap = L.map('cado-interactive-map').setView([46.2276, 2.2137], 5);
+                cadoMap = L.map('cado-interactive-map', { attributionControl: false }).setView([46.2276, 2.2137], 5);
                 const baseMaps = createBaseLayers();
                 const defaultLayer = baseMaps["Ortho IGN + Routes Google"] || baseMaps["Google Hybrid"] || baseMaps[Object.keys(baseMaps)[0]];
                 if(defaultLayer) defaultLayer.addTo(cadoMap);
@@ -708,7 +708,7 @@
             }
 
         function initializeZoneMap() {
-            zoneMap = L.map('zone-interactive-map').setView([46.2276, 2.2137], 5);
+            zoneMap = L.map('zone-interactive-map', { attributionControl: false }).setView([46.2276, 2.2137], 5);
             const baseMaps = createBaseLayers();
             const defaultLayer = baseMaps["Ortho IGN + Routes Google"] || baseMaps["Google Hybrid"];
             if(defaultLayer) defaultLayer.addTo(zoneMap);

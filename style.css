@@ -450,3 +450,8 @@ input[type="radio"].custom-radio:checked + span {
     image-rendering: -webkit-optimize-contrast; /* Webkit */
     image-rendering: crisp-edges;
 }
+
+/* Masquage complet de l'attribution Leaflet pour neutralité administrative */
+.leaflet-control-attribution {
+    display: none !important;
+}
