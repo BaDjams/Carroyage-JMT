@@ -36,20 +36,37 @@ body {
     color: var(--dark-text);
 }
 
-/* Styles des cartes et overlays Leaflet */
-.interactive-map-container {
-    height: 400px;
+/* Styles des cartes Leaflet - RESPONSIVE ADAPTATIF */
+#zone-interactive-map, 
+#cado-interactive-map { 
     width: 100%;
+    aspect-ratio: 1 / 1; /* Par défaut carré sur petit écran */
     margin-bottom: 1em;
+    margin-left: auto;
+    margin-right: auto;
     border: 1px solid var(--light-border);
     border-radius: 8px;
     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-    z-index: 1; /* Important pour que le modal passe au dessus */
+    z-index: 1;
 }
-.dark .interactive-map-container { border-color: var(--dark-border); }
 
-#zone-interactive-map { height: 600px; }
-#cado-interactive-map { height: 600px; cursor: crosshair; }
+/* Sur écran large (>600px), on prend toute la largeur avec hauteur max 600px */
+@media (min-width: 601px) {
+    #zone-interactive-map, 
+    #cado-interactive-map {
+        aspect-ratio: auto; /* Désactive le ratio carré */
+        height: 600px; /* Hauteur fixe à 600px */
+    }
+}
+
+#cado-interactive-map { 
+    cursor: crosshair; 
+}
+.dark #zone-interactive-map,
+.dark #cado-interactive-map { 
+    border-color: var(--dark-border); 
+}
+
 /* Leaflet controls fix */
 .leaflet-control-container { z-index: 800 !important; }
 
@@ -375,9 +392,18 @@ input[type="radio"].custom-radio:checked + span {
 #map-viewport {
     position: relative;
     width: 100%;
-    height: 400px;
-    /* overflow: hidden est géré par la classe Tailwind, mais on s'assure ici */
+    aspect-ratio: 1 / 1; /* Par défaut carré sur petit écran */
+    margin-left: auto;
+    margin-right: auto;
     overflow: hidden; 
+}
+
+/* Sur écran large (>600px), on prend toute la largeur avec hauteur max 600px */
+@media (min-width: 601px) {
+    #map-viewport {
+        aspect-ratio: auto; /* Désactive le ratio carré */
+        height: 600px; /* Hauteur fixe à 600px */
+    }
 }
 
 /* --- CSS POUR LES CONTRÔLES DÉTACHÉS (HUD) --- */

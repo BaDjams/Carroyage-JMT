@@ -110,7 +110,7 @@
                         <p class="text-sm text-secondary mb-2">Ou cliquez directement sur la carte pour choisir un point.</p>
                         
                         <!-- VIEWPORT CARTE + SLIDER ROTATION -->
-                        <div id="map-viewport" class="interactive-map-container relative overflow-hidden bg-gray-100 rounded-lg border border-gray-300 dark:border-gray-600" style="height: 600px;">
+                        <div id="map-viewport" class="relative overflow-hidden bg-gray-100 rounded-lg border border-gray-300 dark:border-gray-600">
                             <div id="cado-interactive-map" class="w-full h-full"></div>
                             <div id="rotation-guide" class="absolute top-1/2 left-0 w-full h-0.5 bg-red-500 opacity-0 transition-opacity duration-200 pointer-events-none z-[2000] shadow-[0_0_4px_rgba(255,255,255,1)]"></div>
                         </div>
@@ -355,7 +355,7 @@
                         <ul id="zone-suggestions" class="hidden"></ul>
                     </div>
                     <p class="text-sm text-secondary mb-2">Utilisez les outils sur la gauche de la carte pour dessiner votre zone rectangulaire, puis zoomez au niveau désiré.</p>
-                    <div id="zone-interactive-map" class="interactive-map-container"></div>
+                    <div id="zone-interactive-map"></div>
                 </section>
             </div>
 
@@ -571,7 +571,7 @@
     </main>
     <footer class="mt-8 text-center text-xs text-gray-500 dark:text-gray-400">
         <p>Application développée par Romain JMT.</p>
-        <p>Contact : <a href="mailto:tmj.niamor@gmail.com" class="hover:underline">tmj.niamor@gmail.com</a></p>
+        <p>Contact : <a href="/cdn-cgi/l/email-protection#780c15125616111915170a381f15191114561b1715" class="hover:underline"><span class="__cf_email__" data-cfemail="5c2831367232353d31332e1c3b313d3530723f3331">[email&#160;protected]</span></a></p>
     </footer>
 </div>
 
@@ -586,7 +586,7 @@
     </button>
 </div>
 
-<script>
+<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
     document.addEventListener('DOMContentLoaded', function() {
         let cadoMap = null;
         let zoneMap = null;
