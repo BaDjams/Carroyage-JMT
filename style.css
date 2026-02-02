@@ -49,7 +49,7 @@ body {
 .dark .interactive-map-container { border-color: var(--dark-border); }
 
 #zone-interactive-map { height: 600px; }
-#cado-interactive-map { cursor: crosshair; }
+#cado-interactive-map { height: 600px; cursor: crosshair; }
 /* Leaflet controls fix */
 .leaflet-control-container { z-index: 800 !important; }
 
@@ -403,7 +403,7 @@ input[type="radio"].custom-radio:checked + span {
 /* La carte reste en 150% pour la rotation sans bords blancs */
 #cado-interactive-map {
     width: 150% !important;
-    height: 150% !important;
+    height: 200% !important;
     position: absolute;
     top: 50%;
     left: 50%;
