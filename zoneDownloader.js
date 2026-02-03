@@ -686,6 +686,30 @@ async function generateZonePNG() {
             }
         }
         
+        // UPSCALING FINAL (si nécessaire) : si la hauteur de l'image est < 2160px,
+        // on upscale le canvas final pour atteindre 2160px de hauteur.
+        const TARGET_EXPORT_HEIGHT = 2160;
+        let exportCanvas = finalCanvas;
+        if (finalCanvas.height < TARGET_EXPORT_HEIGHT) {
+            const exportScale = TARGET_EXPORT_HEIGHT / finalCanvas.height;
+            const exportWidth = Math.round(finalCanvas.width * exportScale);
+
+            const scaledCanvas = document.createElement('canvas');
+            scaledCanvas.width = exportWidth;
+            scaledCanvas.height = TARGET_EXPORT_HEIGHT;
+            const scaledCtx = scaledCanvas.getContext('2d');
+
+            // Fond blanc homogène
+            scaledCtx.fillStyle = 'white';
+            scaledCtx.fillRect(0, 0, scaledCanvas.width, scaledCanvas.height);
+
+            scaledCtx.imageSmoothingEnabled = true;
+            scaledCtx.imageSmoothingQuality = 'high';
+
+            scaledCtx.drawImage(finalCanvas, 0, 0, scaledCanvas.width, scaledCanvas.height);
+            exportCanvas = scaledCanvas;
+        }
+
         let fileName;
         if (isCadoExport && cadoData) {
             const { config, a1CornerLat, a1CornerLon } = cadoData;
@@ -695,8 +719,8 @@ async function generateZonePNG() {
             const title = document.getElementById("zone-title").value || "Export de zone";
             fileName = `${title.replace(/[^a-z0-9]/gi, '_')}_${mapLayerName}_z${zoom}${fileExtension}`;
         }
-
-        finalCanvas.toBlob((blob) => {
+        
+        exportCanvas.toBlob((blob) => {
             if (blob) { downloadFile(blob, fileName); } 
             else { 
                 showError("Erreur lors de la création du fichier image (Canvas Tainted?). Vérifiez la console."); 

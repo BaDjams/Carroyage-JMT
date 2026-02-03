@@ -112,8 +112,8 @@ async function generateImageToPrint() {
         const scalePx = config.scale * pixelsPerMeter;
 
         // --- MARGES STRICTES ---
-        // 1.2 distance côté coordonnées, 0.3 distance côté vide
-        const marginLarge = scalePx * 1.2;
+        // 0.8 distance côté coordonnées (réduit), 0.3 distance côté vide
+        const marginLarge = scalePx * 1;
         const marginSmall = scalePx * 0.3;
 
         const marginLeft = marginLarge;  // Toujours chiffres à gauche
@@ -269,8 +269,34 @@ async function generateImageToPrint() {
         }
 
         drawCadoElementsOnCanvas(finalCtx, drawConfig, localLatLonToPixels, [a1GeoForDrawLon, a1GeoForDrawLat], addressValue);
+        
+        // 7. UPSCALING FINAL (si nécessaire)
+        // Si et seulement si l'image finale est plus petite que 2160px de haut,
+        // on crée un nouveau canvas upscalé à 2160px en préservant le ratio.
+        const TARGET_EXPORT_HEIGHT = 2160;
+        let exportCanvas = finalCanvas;
+        if (finalCanvas.height < TARGET_EXPORT_HEIGHT) {
+            const exportScale = TARGET_EXPORT_HEIGHT / finalCanvas.height;
+            const exportWidth = Math.round(finalCanvas.width * exportScale);
+            
+            const scaledCanvas = document.createElement('canvas');
+            scaledCanvas.width = exportWidth;
+            scaledCanvas.height = TARGET_EXPORT_HEIGHT;
+            const scaledCtx = scaledCanvas.getContext('2d');
 
-        // 7. EXPORT
+            // Fond blanc homogène
+            scaledCtx.fillStyle = 'white';
+            scaledCtx.fillRect(0, 0, scaledCanvas.width, scaledCanvas.height);
+
+            // Lissage haute qualité pour l'upscaling global
+            scaledCtx.imageSmoothingEnabled = true;
+            scaledCtx.imageSmoothingQuality = 'high';
+
+            scaledCtx.drawImage(finalCanvas, 0, 0, scaledCanvas.width, scaledCanvas.height);
+            exportCanvas = scaledCanvas;
+        }
+        
+        // 8. EXPORT
         const format = document.querySelector('input[name="image-format-cado"]:checked').value;
         const quality = parseInt(document.getElementById('cado-jpeg-quality').value) / 100;
         const mimeType = format === 'jpeg' ? 'image/jpeg' : 'image/png';
@@ -281,7 +307,7 @@ async function generateImageToPrint() {
         const originString = `_origine=${realA1Coords[1].toFixed(6)},${realA1Coords[0].toFixed(6)}`;
         const fileName = `${finalGridName}${originString}${fileExtension}`;
 
-        finalCanvas.toBlob((blob) => {
+        exportCanvas.toBlob((blob) => {
             if (blob) { downloadFile(blob, fileName); } 
             else { showError("Erreur lors de la création du fichier image."); }
         }, mimeType, quality);
@@ -355,23 +381,25 @@ async function createFinalCanvasWithLayers(boundingBox, zoom, mapConfig, onProgr
     const naturalWidth = Math.abs(sePixel.x - nwPixel.x);
     const naturalHeight = Math.abs(sePixel.y - nwPixel.y);
 
-    // --- LOGIQUE UPSCALING CORRIGÉE ---
-    const TARGET_RESOLUTION = 3840; // 4K UHD
+    // --- LOGIQUE UPSCALING SELON SPÉCIFICATIONS ---
+    // Si la hauteur est < 2160px, on upscale pour atteindre 2160px de hauteur
+    // Le ratio largeur/hauteur est conservé
+    const TARGET_HEIGHT = 2160;
     let scaleFactor = 1;
-    const maxDimension = Math.max(naturalWidth, naturalHeight);
 
-    if (maxDimension < TARGET_RESOLUTION) {
-        // On calcule le facteur exact pour atteindre 4K
-        scaleFactor = TARGET_RESOLUTION / maxDimension;
+    if (naturalHeight < TARGET_HEIGHT) {
+        // Calcul du facteur pour atteindre exactement 2160px de hauteur
+        scaleFactor = TARGET_HEIGHT / naturalHeight;
         
-        // On autorise un agrandissement jusqu'à x16 pour les très petites zones
-        // (Ex: une maison seule au zoom 19 fait ~100px. x16 -> 1600px, c'est encore utile)
-        scaleFactor = Math.min(scaleFactor, 16); 
+        // Limitation raisonnable à x16 pour éviter une qualité trop dégradée
+        scaleFactor = Math.min(scaleFactor, 16);
     }
+    // Si naturalHeight >= 2160px, scaleFactor reste à 1 (pas d'upscaling)
 
-    // Debug pour vérifier (F12 > Console)
+    // Debug console
     console.log(`[CADO] Native: ${Math.round(naturalWidth)}x${Math.round(naturalHeight)}px | Zoom: ${zoom}`);
-    console.log(`[CADO] Upscale appliqué: x${scaleFactor.toFixed(3)} -> Final: ${Math.round(naturalWidth * scaleFactor)}x${Math.round(naturalHeight * scaleFactor)}px`);
+    console.log(`[CADO] Hauteur cible: ${TARGET_HEIGHT}px | Upscale: x${scaleFactor.toFixed(3)}`);
+    console.log(`[CADO] Dimensions finales: ${Math.round(naturalWidth * scaleFactor)}x${Math.round(naturalHeight * scaleFactor)}px`);
 
     const TILE_SIZE = 256;
     const tempCanvas = document.createElement('canvas');
