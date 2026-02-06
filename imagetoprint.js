@@ -46,7 +46,7 @@ function getCellOffsetFromOrigin(n) {
 async function generateImageToPrint() {
     const loadingIndicator = document.getElementById("loading-indicator");
     const loadingMessage = document.getElementById("loading-message");
-
+    const upscaleEnabled = document.getElementById('cado-enable-upscale').checked;
     loadingMessage.textContent = "Calcul de la géométrie...";
     loadingIndicator.classList.remove("hidden");
     hideError();
@@ -92,8 +92,9 @@ async function generateImageToPrint() {
         // 3. TÉLÉCHARGEMENT
         loadingMessage.textContent = `Téléchargement de la zone étendue (0%)...`;
         const { finalCanvas: worldCanvas, scaleFactor } = await createFinalCanvasWithLayers(downloadBoundingBox, zoomLevel, mapConfig, (progress) => {
-            loadingMessage.textContent = `Téléchargement des tuiles (${progress.toFixed(0)}%)...`;
-        });
+            loadingMessage.textContent = `Téléchargement des tuiles (${progress.toFixed(0)}%)...`;}, 
+            upscaleEnabled
+        );
 
         loadingMessage.textContent = "Assemblage et découpe finale...";
 
@@ -275,7 +276,7 @@ async function generateImageToPrint() {
         // on crée un nouveau canvas upscalé à 2160px en préservant le ratio.
         const TARGET_EXPORT_HEIGHT = 2160;
         let exportCanvas = finalCanvas;
-        if (finalCanvas.height < TARGET_EXPORT_HEIGHT) {
+        if (upscaleEnabled && finalCanvas.height < TARGET_EXPORT_HEIGHT) {
             const exportScale = TARGET_EXPORT_HEIGHT / finalCanvas.height;
             const exportWidth = Math.round(finalCanvas.width * exportScale);
             
@@ -373,7 +374,7 @@ function calculateOptimalZoom(boundingBox, mapConfig) {
     return Math.min(Math.floor(zoomApproximation), maxLayerZoom);
 }
 
-async function createFinalCanvasWithLayers(boundingBox, zoom, mapConfig, onProgress) {
+async function createFinalCanvasWithLayers(boundingBox, zoom, mapConfig, onProgress, upscaleEnabled = true) {
     const nwPixel = itpLatLonToWorldPixels(boundingBox.north, boundingBox.west, zoom);
     const sePixel = itpLatLonToWorldPixels(boundingBox.south, boundingBox.east, zoom);
     
@@ -387,7 +388,7 @@ async function createFinalCanvasWithLayers(boundingBox, zoom, mapConfig, onProgr
     const TARGET_HEIGHT = 2160;
     let scaleFactor = 1;
 
-    if (naturalHeight < TARGET_HEIGHT) {
+    if (upscaleEnabled && naturalHeight < TARGET_HEIGHT) {
         // Calcul du facteur pour atteindre exactement 2160px de hauteur
         scaleFactor = TARGET_HEIGHT / naturalHeight;
         

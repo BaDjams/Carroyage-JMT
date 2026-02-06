@@ -53,7 +53,8 @@ body {
 /* Sur écran large (>600px), on prend toute la largeur avec hauteur max 600px */
 @media (min-width: 601px) {
     #zone-interactive-map, 
-    #cado-interactive-map {
+    #cado-interactive-map,
+    #import-interactive-map {
         aspect-ratio: auto; /* Désactive le ratio carré */
         height: 600px; /* Hauteur fixe à 600px */
     }

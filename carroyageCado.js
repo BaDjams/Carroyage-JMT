@@ -18,15 +18,57 @@ function decimalToDMS(decimal, type) {
     return `${deg}°${min}'${sec.toFixed(1)}"${direction}`;
 }
 
-// Fonction centrale de mise à jour depuis le format Décimal
+// 1. Fonction utilitaire de formatage vers DM
+function decimalToDM(decimal, type) {
+    const abs = Math.abs(decimal);
+    const deg = Math.floor(abs);
+    const min = (abs - deg) * 60;
+    const direction = type === 'lat' ? (decimal >= 0 ? 'N' : 'S') : (decimal >= 0 ? 'E' : 'W');
+    // Format : 48° 51.345' N
+    return `${deg}° ${min.toFixed(3)}' ${direction}`;
+}
+
+// 2. Mettre à jour la fonction centrale de mise à jour
 function updateAllFromDecimal(lat, lon) {
     document.getElementById('dms-coords').value = `${decimalToDMS(lat, 'lat')} ${decimalToDMS(lon, 'lng')}`;
+    
+    // NOUVEAU : Mise à jour du champ DM
+    const dmField = document.getElementById('dm-coords');
+    if (dmField) dmField.value = `${decimalToDM(lat, 'lat')} ${decimalToDM(lon, 'lng')}`;
+    
     document.getElementById('mercator-coords').value = `${lngToMercatorX(lon).toFixed(2)}, ${latToMercatorY(lat).toFixed(2)}`;
     if (isPlusCodeLibraryAvailable()) {
         document.getElementById('plus-code').value = new OpenLocationCode().encode(lat, lon);
     }
     const utm = WGS84_to_UTM.fromLatLon(lat, lon);
     document.getElementById('utm-coords').value = `${utm.zoneNumber} ${utm.zoneLetter} ${utm.easting.toFixed(0)} ${utm.northing.toFixed(0)}`;
+}
+
+// 3. Nouvelle fonction de conversion DEPUIS DM
+function convertFromDM() {
+    try {
+        const coordsStr = document.getElementById('dm-coords').value.trim();
+        if (!coordsStr) return showError("Veuillez entrer des coordonnées DM.");
+
+        // Regex flexible pour : 48° 51.395' N 2° 21.132' E  ou  48 51.395 N, 2 21.132 E
+        // Groupe 1: DegLat, 2: MinLat, 3: DirLat, 4: DegLon, 5: MinLon, 6: DirLon
+        const regex = /(\d+)[°\s]+(\d+\.?\d*)['\s]*([NS])[, \t]+(\d+)[°\s]+(\d+\.?\d*)['\s]*([EW])/i;
+        const match = coordsStr.match(regex);
+
+        if (!match) throw new Error("Format DM invalide. Format attendu : 48° 51.395' N 2° 21.132' E");
+
+        let lat = parseInt(match[1]) + parseFloat(match[2]) / 60;
+        if (match[3].toUpperCase() === 'S') lat = -lat;
+
+        let lon = parseInt(match[4]) + parseFloat(match[5]) / 60;
+        if (match[6].toUpperCase() === 'W') lon = -lon;
+
+        document.getElementById('decimal-coords').value = `${lat.toFixed(6)}, ${lon.toFixed(6)}`;
+        updateAllFromDecimal(lat, lon);
+        hideError();
+    } catch (err) {
+        showError("Erreur de conversion depuis DM: " + err.message);
+    }
 }
 
 function convertFromDecimal() {

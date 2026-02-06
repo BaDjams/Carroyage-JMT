@@ -571,7 +571,7 @@ function getZoneCadoConfigAndBounds() {
 async function generateZonePNG() {
     const loadingIndicator = document.getElementById("loading-indicator");
     const loadingMessage = document.getElementById("loading-message");
-    
+    const upscaleEnabled = document.getElementById('zone-enable-upscale').checked;
     loadingMessage.textContent = "Préparation de l'export de la zone...";
     loadingIndicator.classList.remove("hidden");
     hideError();
@@ -620,7 +620,7 @@ async function generateZonePNG() {
         
         const needsExternalMargin = isUtmExport && !isCadoExport;
         
-        const { finalCanvas, dynamicMargin, scaleFactor } = await zdCreateFinalCanvas(finalBoundingBox, zoom, selectedMap, needsExternalMargin);
+        const { finalCanvas, dynamicMargin, scaleFactor } = await zdCreateFinalCanvas(finalBoundingBox, zoom, selectedMap, needsExternalMargin, upscaleEnabled);
         const ctx = finalCanvas.getContext('2d');
         
         const nwPixel = zdLatLonToWorldPixels(finalBoundingBox.north, finalBoundingBox.west, zoom);
@@ -667,7 +667,9 @@ async function generateZonePNG() {
             
             if (isUtmExport) {
                 const cartoucheFontSize = Math.max(10 * scaleFactor, Math.min(48 * scaleFactor, finalCanvas.width * 0.007));
-                const cartoucheMetrics = drawZoneCartouche(ctx, "Export de zone", finalBoundingBox, mapLayerName, zoom, dynamicMargin, cartoucheFontSize);
+                const userTitle = document.getElementById("zone-title").value || "Zone";
+                const cartoucheTitle = `Export de ${userTitle}_zoom ${zoom}`;
+                drawZoneCartouche(ctx, cartoucheTitle, finalBoundingBox, mapLayerName, zoom, dynamicMargin, cartoucheFontSize   );
                 drawZoneCompass(ctx, finalCanvas.width, finalCanvas.height, dynamicMargin, cartoucheMetrics);
             } else {
                 const compassRadius = Math.max(10 * scaleFactor, finalCanvas.width * 0.012); 
@@ -690,7 +692,7 @@ async function generateZonePNG() {
         // on upscale le canvas final pour atteindre 2160px de hauteur.
         const TARGET_EXPORT_HEIGHT = 2160;
         let exportCanvas = finalCanvas;
-        if (finalCanvas.height < TARGET_EXPORT_HEIGHT) {
+        if (upscaleEnabled && finalCanvas.height < TARGET_EXPORT_HEIGHT) {
             const exportScale = TARGET_EXPORT_HEIGHT / finalCanvas.height;
             const exportWidth = Math.round(finalCanvas.width * exportScale);
 
@@ -710,23 +712,45 @@ async function generateZonePNG() {
             exportCanvas = scaledCanvas;
         }
 
-        let fileName;
-        if (isCadoExport && cadoData) {
-            const { config, a1CornerLat, a1CornerLon } = cadoData;
-            const letteringStr = config.letteringDirection === 'descending' ? '_descendant' : '';
-            fileName = `${config.gridNameBase}_${config.scale}m_zone${letteringStr}_${config.colorName}_origine=${a1CornerLat.toFixed(6)},${a1CornerLon.toFixed(6)}${fileExtension}`;
-        } else {
-            const title = document.getElementById("zone-title").value || "Export de zone";
-            fileName = `${title.replace(/[^a-z0-9]/gi, '_')}_${mapLayerName}_z${zoom}${fileExtension}`;
-        }
+         const now = new Date();
+        const day = String(now.getDate()).padStart(2, '0');
+        const month = String(now.getMonth() + 1).padStart(2, '0');
+        const year = now.getFullYear();
+        const dateStr = `${day}.${month}.${year}`;
+
+        let gridTypeStr = "sans_carroyage";
+        if (isCadoExport) gridTypeStr = "CADO";
+        else if (isUtmExport) gridTypeStr = "UTM";
+
+        // Titre de base saisi par l'utilisateur
+        let rawTitle = document.getElementById("zone-title").value || "Export de zone";
+        
+        // On s'assure qu'il commence par "Export de" si l'utilisateur ne l'a pas mis (optionnel, mais garde la cohérence)
+        // Mais si l'utilisateur a mis son propre titre, on le respecte, on l'utilise comme base.
+        // La demande est: "Export de "+Titre+"_zoom "+niveau de zoom
+        
+        // Construction du titre final pour le Cartouche et le Fichier
+        // Note: Le cartouche est déjà dessiné plus haut avec 'drawZoneCartouche(..., "Export de zone", ...)' 
+        // ou avec le titre brut. 
+        // Si vous voulez que le cartouche reflète le nouveau format, il faudrait modifier l'appel à drawZoneCartouche plus haut.
+        // Comme le code est séquentiel, on va juste gérer le nom de fichier ici.
+        
+        // Nom de fichier demandé : "Export de "+Titre+"_zoom "+niveau de zoom+"_"+type de carroyage+"date "+jour+"."+mois+"."+année+extension
+        
+        const zoomLevelStr = `zoom ${zoom}`;
+        // Si le titre brut contient déjà "zoom", on évite de le doubler
+        let titlePart = rawTitle;
+        if (!titlePart.includes("Export de")) titlePart = `Export de ${titlePart}`;
+        if (!titlePart.includes("zoom")) titlePart = `${titlePart}_${zoomLevelStr}`;
+
+        const fileName = `${titlePart}_${gridTypeStr}_date ${dateStr}${fileExtension}`;
         
         exportCanvas.toBlob((blob) => {
             if (blob) { downloadFile(blob, fileName); } 
             else { 
-                showError("Erreur lors de la création du fichier image (Canvas Tainted?). Vérifiez la console."); 
+                showError("Erreur lors de la création du fichier image."); 
             }
         }, mimeType, quality);
-
     } catch (error) {
         console.error("Erreur lors de la génération de l'image de zone :", error);
         let msg = error.message;
@@ -832,7 +856,7 @@ async function generateCadoGridForZone() {
     }
 }
 
-async function zdCreateFinalCanvas(boundingBox, zoom, mapConfig, externalMargin) {
+async function zdCreateFinalCanvas(boundingBox, zoom, mapConfig, externalMargin, upscaleEnabled = true) {
     const nwPx = zdLatLonToWorldPixels(boundingBox.north, boundingBox.west, zoom);
     const sePx = zdLatLonToWorldPixels(boundingBox.south, boundingBox.east, zoom);
     
@@ -841,12 +865,13 @@ async function zdCreateFinalCanvas(boundingBox, zoom, mapConfig, externalMargin)
     
     // --- LOGIQUE UPSCALING ---
     const TARGET = 3840; // 4K
-    const maxDim = Math.max(natW, natH);
     let scale = 1;
-
-    if (maxDim < TARGET) {
-        scale = TARGET / maxDim;
-        scale = Math.min(scale, 16); 
+    if (upscaleEnabled) {
+        const maxDim = Math.max(natW, natH);
+        if (maxDim < TARGET) {
+            scale = TARGET / maxDim;
+            scale = Math.min(scale, 16); 
+        }
     }
     
     console.log(`[ZONE] Native: ${Math.round(natW)}x${Math.round(natH)} | Zoom: ${zoom}`);
