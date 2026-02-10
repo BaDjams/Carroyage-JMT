@@ -31,7 +31,7 @@
 <script src="carroyageCado.js" defer></script>
 <script src="imagetoprint.js" defer></script>
 <script src="zoneDownloader.js" defer></script>
-<!-- Ajout du script spécifique au mode MBTiles -->
+<script src="mbtilesCreator.js" defer></script>
 <script src="mbtilesMode.js" defer></script>
 </head>
 <body class="p-4 md:p-6">
@@ -46,8 +46,8 @@
 <div id="mode-selector" class="flex flex-wrap justify-center items-center gap-2 border border-gray-300 dark:border-gray-600 rounded-lg p-1">
 <button data-mode="cado" class="mode-btn px-3 py-1 rounded text-sm md:text-base transition-colors duration-200 bg-blue-600 text-white">Carroyage rapide</button>
 <button data-mode="zone" class="mode-btn px-3 py-1 rounded text-sm md:text-base transition-colors duration-200 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700">Export de zone</button>
-<!-- NOUVEAU BOUTON -->
-<button data-mode="import" class="mode-btn px-3 py-1 rounded text-sm md:text-base transition-colors duration-200 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700">Mode Hors-Ligne (MBTiles)</button>
+<button data-mode="import" class="mode-btn px-3 py-1 rounded text-sm md:text-base transition-colors duration-200 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700" style="display:none;">Charger MBTiles</button>
+<button data-mode="creator" class="mode-btn px-3 py-1 rounded text-sm md:text-base transition-colors duration-200 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700" style="display:none;">Créer MBTiles</button>
 </div>
 </div>
 </header>
@@ -283,6 +283,14 @@
                                         <label class="inline-flex items-center"><input type="radio" name="lettering-direction" value="ascending" class="custom-radio grid-parameter" checked><span class="px-3 py-1 border border-default rounded cursor-pointer text-sm button-outline">Ascendante (Sud→Nord)</span></label>
                                         <label class="inline-flex items-center"><input type="radio" name="lettering-direction" value="descending" class="custom-radio grid-parameter"><span class="px-3 py-1 border border-default rounded cursor-pointer text-sm button-outline">Descendante (Nord→Sud)</span></label>
                                     </div>
+                                </div>
+                                <div class="flex flex-col space-y-1">
+                                    <label class="text-sm md:text-base text-content">Axes :</label>
+                                    <label class="inline-flex items-center cursor-pointer">
+                                        <input type="checkbox" id="swap-axes" class="sr-only peer grid-parameter">
+                                        <div class="relative w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
+                                        <span class="ms-3 text-sm font-medium text-gray-900 dark:text-gray-300">Inverser Lettres/Chiffres (Lettres en Vertical)</span>
+                                    </label>
                                 </div>
                                 <div class="md:col-span-2 flex flex-col space-y-1">
                                     <label class="text-sm md:text-base text-content">Autres types de grille :</label>
@@ -578,6 +586,11 @@
                                          <label class="inline-flex items-center"><input type="radio" name="cado-overlay-direction" value="ascending" class="custom-radio" checked><span class="px-2 py-1 border border-default rounded cursor-pointer text-xs">Ascendante</span></label>
                                          <label class="inline-flex items-center"><input type="radio" name="cado-overlay-direction" value="descending" class="custom-radio"><span class="px-2 py-1 border border-default rounded cursor-pointer text-xs">Descendante</span></label>
                                     </div>
+                                    <label class="inline-flex items-center cursor-pointer w-full mt-2">
+                                        <input type="checkbox" id="zone-swap-axes" class="sr-only peer">
+                                        <div class="relative w-9 h-5 bg-gray-200 rounded-full peer dark:bg-gray-700 peer-checked:bg-blue-600 peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all"></div>
+                                        <span class="ms-3 text-xs font-medium text-gray-900 dark:text-gray-300">Inverser axes (Lettres V)</span>
+                                    </label>
                                 </div>
                             </div>
 						</div>
@@ -760,6 +773,11 @@
                                          <label class="inline-flex items-center"><input type="radio" name="import-cado-direction" value="ascending" class="custom-radio" checked><span class="px-2 py-1 border border-default rounded cursor-pointer text-xs">Ascendante</span></label>
                                          <label class="inline-flex items-center"><input type="radio" name="import-cado-direction" value="descending" class="custom-radio"><span class="px-2 py-1 border border-default rounded cursor-pointer text-xs">Descendante</span></label>
                                     </div>
+                                    <label class="inline-flex items-center cursor-pointer w-full mt-2">
+                                        <input type="checkbox" id="import-swap-axes" class="sr-only peer">
+                                        <div class="relative w-9 h-5 bg-gray-200 rounded-full peer dark:bg-gray-700 peer-checked:bg-blue-600 peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all"></div>
+                                        <span class="ms-3 text-xs font-medium text-gray-900 dark:text-gray-300">Inverser axes (Lettres V)</span>
+                                    </label>
                                 </div>
                             </div>
                         </div>
@@ -785,7 +803,93 @@
                 </section>
             </div>
         </div> <!-- Fin Import Container -->
+<!-- MODE 4 : CRÉATEUR MBTILES -->
+        <div id="creator-mode-container" class="hidden space-y-6">
+            
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                
+                <!-- Colonne Gauche : Carte & Définition -->
+                <div class="lg:col-span-2 space-y-6">
+                    <!-- Carte -->
+                    <div class="card bg-white shadow-md rounded-lg p-4 md:p-6 dark:bg-gray-800 dark:border dark:border-gray-700">
+                        <h3 class="text-lg font-semibold mb-3 text-content">1. Définir la zone</h3>
+                        <div class="address-search-container">
+                            <input type="text" id="creator-address-search" class="address-search-input input-field px-3 py-2 border rounded shadow-sm w-full dark:bg-gray-700 dark:text-white" placeholder="Rechercher une ville..." autocomplete="off">
+                            <ul id="creator-suggestions" class="hidden absolute top-full z-50 bg-white dark:bg-gray-800 border w-full max-h-48 overflow-y-auto"></ul>
+                        </div>
+                        <div id="creator-interactive-map"></div> <!-- CSS géré par style.css -->
+                        <div class="flex justify-between items-center mt-2 text-sm text-secondary">
+                        <div>
+                            <span>Dessinez un rectangle.</span>
+                            <span class="ml-3 font-bold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-gray-700 px-2 py-0.5 rounded border border-blue-100 dark:border-gray-600">
+                                Zoom carte : <span id="creator-current-map-zoom">--</span>
+                            </span>
+                        </div>
+                        <span id="creator-zone-coords" class="font-mono text-xs">Aucune zone définie</span>
+                    </div>
+                    </div>
 
+                    <!-- Configuration -->
+                    <div class="card bg-white shadow-md rounded-lg p-4 md:p-6 dark:bg-gray-800 dark:border dark:border-gray-700">
+                        <h3 class="text-lg font-semibold mb-3 text-content">2. Configuration des Tuiles</h3>
+                        
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <!-- Source -->
+                            <div>
+                                <label class="block mb-2 text-sm font-bold text-gray-900 dark:text-white">Source du fond de carte :</label>
+                                <select id="creator-layer-select" class="input-field w-full px-3 py-2 border rounded dark:bg-gray-700 dark:text-white"></select>
+                                <p class="text-xs text-gray-500 mt-1">Note : Certains serveurs peuvent bloquer le téléchargement massif.</p>
+                            </div>
+
+                            <!-- Nom -->
+                            <div>
+                                <label class="block mb-2 text-sm font-bold text-gray-900 dark:text-white">Nom du fichier :</label>
+                                <input type="text" id="creator-filename" class="input-field w-full px-3 py-2 border rounded dark:bg-gray-700 dark:text-white" placeholder="Mon_Export_Offline">
+                            </div>
+                        </div>
+
+                        <!-- Sélecteur de Zooms -->
+                        <div class="mt-4">
+                            <label class="block mb-2 text-sm font-bold text-gray-900 dark:text-white">Niveaux de zoom à télécharger :</label>
+                            <div class="grid grid-cols-6 sm:grid-cols-9 gap-2" id="creator-zoom-grid">
+                                <!-- Généré par JS : Checkboxes 0 à 18 -->
+                            </div>
+                            <div class="mt-2 flex justify-between items-center">
+                                <div class="text-xs">
+                                    <button id="creator-select-all-zooms" class="text-blue-600 hover:underline mr-2">Tous</button>
+                                    <button id="creator-select-none-zooms" class="text-blue-600 hover:underline">Aucun</button>
+                                </div>
+                                <div class="text-right">
+                                    <span class="text-sm font-bold text-gray-700 dark:text-gray-300">Total estimé : </span>
+                                    <span id="creator-total-tiles" class="text-sm font-bold text-blue-600">0 tuiles</span>
+                                    <span id="creator-total-size" class="text-xs text-gray-500 block">~ 0 Mo</span>
+                                </div>
+                            </div>
+                            <div id="creator-warning" class="hidden mt-2 p-2 bg-red-100 text-red-700 text-xs rounded font-bold text-center">
+                                Attention : Plus de 10 000 tuiles. Risque de plantage du navigateur. Réduisez la zone ou les zooms.
+                            </div>
+                        </div>
+
+                        <div class="mt-6 text-center">
+                            <button id="creator-start-btn" class="btn-main btn-grid w-full md:w-1/2" disabled>
+                                Lancer la création du MBTiles
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Colonne Droite : Gestionnaire de Tâches -->
+                <div class="lg:col-span-1">
+                    <div class="card bg-white shadow-md rounded-lg p-4 dark:bg-gray-800 dark:border dark:border-gray-700 h-full flex flex-col">
+                        <h3 class="text-lg font-semibold mb-3 text-content">Gestionnaire de Tâches</h3>
+                        <div id="creator-jobs-list" class="flex-grow space-y-4 overflow-y-auto max-h-[600px] pr-1">
+                            <p class="text-sm text-gray-500 text-center italic mt-10">Aucun téléchargement en cours.</p>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
         <div id="loading-indicator" class="hidden mt-4 flex flex-col items-center">
             <div class="loading-spinner mb-2"></div>
             <p id="loading-message" class="text-sm text-secondary">Génération en cours...</p>
@@ -1259,7 +1363,8 @@
             const containers = { 
                 cado: document.getElementById('cado-mode-container'), 
                 zone: document.getElementById('zone-downloader-mode-container'),
-                import: document.getElementById('import-mode-container') 
+                import: document.getElementById('import-mode-container'),
+                creator: document.getElementById('creator-mode-container') 
             };
             
             const buttons = document.querySelectorAll('.mode-btn');
@@ -1283,6 +1388,10 @@
             switch (targetMode) {
                 case 'zone': mapToResize = zoneMap; break;
                 case 'import': mapToResize = window.importMap; break; // Map MBTiles
+                case 'creator': // <--- AJOUT
+                    if (typeof initCreatorMode === 'function') initCreatorMode();
+                    mapToResize = creatorMap; 
+                    break;
                 case 'cado': default: mapToResize = cadoMap; break;
             }
             // Délai léger pour laisser le temps au conteneur de devenir visible

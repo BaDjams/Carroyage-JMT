@@ -312,7 +312,8 @@ function getGridConfiguration(lat, lon) {
         startRow, endRow, startCol, endCol,
         includeGrid: ['grid-only', 'grid-points'].includes(document.querySelector('input[name="content-type"]:checked').value),
         includePoints: ['points-only', 'grid-points'].includes(document.querySelector('input[name="content-type"]:checked').value),
-        outputFormat: document.querySelector('input[name="file-format"]:checked').value
+        outputFormat: document.querySelector('input[name="file-format"]:checked').value,
+        swapAxes: document.getElementById('swap-axes').checked
     };
 }
 
@@ -391,7 +392,17 @@ function calculateGridData(config) {
     for (const row of rowsToDraw) {
         for (const col of colsToDraw) {
             const pointCoords = calculateAndRotatePoint(col + 0.5, row + 0.5, config, a1CornerLat, a1CornerLon);
-            points.push({ name: `${numberToLetter(col)}${row}`, coordinates: pointCoords });
+            
+            let pointName;
+            if (config.swapAxes) {
+                // Mode Inversé : Les lettres sont sur les lignes (row), les chiffres sur les colonnes (col)
+                pointName = `${numberToLetter(row)}${col}`; 
+            } else {
+                // Mode Standard : Les lettres sont sur les colonnes (col), les chiffres sur les lignes (row)
+                pointName = `${numberToLetter(col)}${row}`;
+            }
+            
+            points.push({ name: pointName, coordinates: pointCoords });
         }
     }
     

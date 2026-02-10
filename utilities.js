@@ -419,16 +419,22 @@ function drawCadoElementsOnCanvas(ctx, config, latLonToPixels, a1CornerCoords, a
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
 
+        // Dessin des labels colonnes (Axe Horizontal)
         for (const i of colsToDraw) {
             const labelPoint = calculateAndRotatePoint(i + 0.5, startRowNum - 0.5, config, a1Lat, a1Lon);
             const labelPixels = latLonToPixels(labelPoint[1], labelPoint[0]);
-            drawLabelWithOutline(ctx, numberToLetter(i), labelPixels.x, labelPixels.y, config);
+            // Si swapAxes est vrai, on dessine des chiffres en horizontal
+            const text = config.swapAxes ? i.toString() : numberToLetter(i);
+            drawLabelWithOutline(ctx, text, labelPixels.x, labelPixels.y, config);
         }
 
+        // Dessin des labels lignes (Axe Vertical)
         for (const i of rowsToDraw) {
             const labelPoint = calculateAndRotatePoint(startColNum - 0.5, i + 0.5, config, a1Lat, a1Lon);
             const labelPixels = latLonToPixels(labelPoint[1], labelPoint[0]);
-            drawLabelWithOutline(ctx, i.toString(), labelPixels.x, labelPixels.y, config);
+            // Si swapAxes est vrai, on dessine des lettres en vertical
+            const text = config.swapAxes ? numberToLetter(i) : i.toString();
+            drawLabelWithOutline(ctx, text, labelPixels.x, labelPixels.y, config);
         }
     }
         

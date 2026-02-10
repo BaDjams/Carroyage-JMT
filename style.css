@@ -54,7 +54,8 @@ body {
 @media (min-width: 601px) {
     #zone-interactive-map, 
     #cado-interactive-map,
-    #import-interactive-map {
+    #import-interactive-map,
+    #creator-interactive-map {
         aspect-ratio: auto; /* Désactive le ratio carré */
         height: 600px; /* Hauteur fixe à 600px */
     }
@@ -77,25 +78,54 @@ body {
     display: flex;
     margin-bottom: 1em;
     gap: 0.5em;
+    z-index: 2001; /* Sécurité pour que le conteneur soit au-dessus de la carte */
 }
 .address-search-input { flex-grow: 1; }
-#suggestions, #zone-suggestions {
+
+/* AJOUT DES IDS MANQUANTS ICI */
+#suggestions, 
+#zone-suggestions, 
+#import-suggestions, 
+#creator-suggestions {
     position: absolute; top: 100%; left: 0; right: 0;
     background: var(--light-card-bg);
     border: 1px solid var(--light-border);
     border-top: none; border-radius: 0 0 8px 8px;
     box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-    z-index: 2000; max-height: 220px; overflow-y: auto;
+    z-index: 2000; /* Valeur élevée pour passer au-dessus de Leaflet */
+    max-height: 220px; overflow-y: auto;
     margin: 0; padding: 0; list-style-type: none;
 }
-#suggestions li, #zone-suggestions li { padding: 10px 15px; cursor: pointer; font-size: 14px; }
-#suggestions li:hover, #zone-suggestions li:hover { background-color: var(--light-bg); }
 
-.dark #suggestions, .dark #zone-suggestions {
+#suggestions li, 
+#zone-suggestions li,
+#import-suggestions li,
+#creator-suggestions li { 
+    padding: 10px 15px; cursor: pointer; font-size: 14px; 
+}
+
+#suggestions li:hover, 
+#zone-suggestions li:hover,
+#import-suggestions li:hover,
+#creator-suggestions li:hover { 
+    background-color: var(--light-bg); 
+}
+
+/* Gestion du mode sombre */
+.dark #suggestions, 
+.dark #zone-suggestions,
+.dark #import-suggestions,
+.dark #creator-suggestions {
     background: var(--dark-card-bg);
     border-color: var(--dark-border);
 }
-.dark #suggestions li:hover, .dark #zone-suggestions li:hover { background-color: var(--dark-input-bg); }
+
+.dark #suggestions li:hover, 
+.dark #zone-suggestions li:hover,
+.dark #import-suggestions li:hover,
+.dark #creator-suggestions li:hover { 
+    background-color: var(--dark-input-bg); 
+}
 
 /* Sélecteur de couleur */
 .color-option {
@@ -406,7 +436,34 @@ input[type="radio"].custom-radio:checked + span {
         height: 600px; /* Hauteur fixe à 600px */
     }
 }
-
+/* Style pour la grille de zoom */
+.zoom-checkbox-label {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.5rem;
+    border: 1px solid var(--light-border);
+    border-radius: 0.25rem;
+    cursor: pointer;
+    font-size: 0.75rem;
+    background-color: var(--light-bg);
+    transition: all 0.2s;
+}
+.zoom-checkbox-label:hover { background-color: #e5e7eb; }
+.zoom-checkbox-label.checked {
+    background-color: var(--primary-color);
+    color: white;
+    border-color: var(--primary-color);
+}
+.dark .zoom-checkbox-label {
+    background-color: var(--dark-input-bg);
+    border-color: var(--dark-border);
+    color: var(--dark-text);
+}
+.dark .zoom-checkbox-label.checked {
+    background-color: var(--primary-color);
+    color: white;
+}
 /* --- CSS POUR LES CONTRÔLES DÉTACHÉS (HUD) --- */
 
 /* Ligne rouge de rotation - doit être au-dessus de tout */

@@ -548,6 +548,7 @@ function getZoneCadoConfigAndBounds() {
         startRow: 1, endRow: numRows,
         startCol: 'A', endCol: numberToLetter(numCols),
         includeGrid: true, includePoints: true,
+        swapAxes: document.getElementById('zone-swap-axes').checked,
         outputFormat: 'KMZ'
     };
 
@@ -667,9 +668,14 @@ async function generateZonePNG() {
             
             if (isUtmExport) {
                 const cartoucheFontSize = Math.max(10 * scaleFactor, Math.min(48 * scaleFactor, finalCanvas.width * 0.007));
+                
+                // --- CORRECTION DU TITRE ET DE LA VARIABLE METRICS ---
                 const userTitle = document.getElementById("zone-title").value || "Zone";
                 const cartoucheTitle = `Export de ${userTitle}_zoom ${zoom}`;
-                drawZoneCartouche(ctx, cartoucheTitle, finalBoundingBox, mapLayerName, zoom, dynamicMargin, cartoucheFontSize   );
+
+                // IMPORTANT : Il faut bien mettre "const cartoucheMetrics =" devant l'appel
+                const cartoucheMetrics = drawZoneCartouche(ctx, cartoucheTitle, finalBoundingBox, mapLayerName, zoom, dynamicMargin, cartoucheFontSize);
+                
                 drawZoneCompass(ctx, finalCanvas.width, finalCanvas.height, dynamicMargin, cartoucheMetrics);
             } else {
                 const compassRadius = Math.max(10 * scaleFactor, finalCanvas.width * 0.012); 

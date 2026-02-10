@@ -3,13 +3,13 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Guide Utilisateur - CADO</title>
+<title>Guide Utilisateur Complet - Générateur CADO</title>
 <script src="https://cdn.tailwindcss.com"></script>
 <script>
     tailwind.config = { darkMode: 'class' }
 </script>
 <style>
-    body { background-color: #f8fafc; }
+    body { background-color: #f8fafc; scroll-behavior: smooth; }
     body.dark { background-color: #111827; }
     .diagram-box {
         background-color: #f3f4f6;
@@ -22,11 +22,23 @@
         background-color: #1f2937;
         border-color: #374151;
     }
-    /* Navigation latérale sticky sur grand écran */
     .sticky-nav {
         position: sticky;
         top: 2rem;
     }
+    .badge {
+        display: inline-block;
+        padding: 2px 8px;
+        border-radius: 4px;
+        font-size: 0.75rem;
+        font-weight: bold;
+        text-transform: uppercase;
+        margin-right: 4px;
+    }
+    .badge-blue { background: #dbeafe; color: #1e40af; }
+    .badge-green { background: #dcfce7; color: #166534; }
+    .badge-purple { background: #f3e8ff; color: #6b21a8; }
+    .badge-orange { background: #ffedd5; color: #9a3412; }
 </style>
 </head>
 <body class="text-gray-700 dark:text-gray-300 transition-colors duration-200">
@@ -34,250 +46,210 @@
 <div class="min-h-screen flex flex-col md:flex-row max-w-7xl mx-auto">
     
     <!-- NAVIGATION / SOMMAIRE -->
-    <aside class="w-full md:w-64 bg-white dark:bg-gray-800 border-r dark:border-gray-700 p-6 flex-shrink-0">
+    <aside class="w-full md:w-72 bg-white dark:bg-gray-800 border-r dark:border-gray-700 p-6 flex-shrink-0">
         <div class="sticky-nav">
             <h1 class="text-2xl font-bold text-blue-600 dark:text-blue-400 mb-6">Aide CADO</h1>
             <nav class="space-y-3 text-sm">
-                <a href="#intro" class="block hover:text-blue-500">Introduction</a>
-                <div class="font-bold mt-4 text-gray-900 dark:text-white">Mode 1 : Carroyage Rapide</div>
-                <a href="#m1-geo" class="block ml-4 hover:text-blue-500">Géométrie & Rotation</a>
-                <a href="#m1-formats" class="block ml-4 hover:text-blue-500">Formats de grille</a>
-                <a href="#m1-export" class="block ml-4 hover:text-blue-500">Exports (KMZ, GPX...)</a>
+                <a href="#intro" class="block hover:text-blue-500 font-bold">🚀 Introduction</a>
                 
-                <div class="font-bold mt-4 text-gray-900 dark:text-white">Mode 2 : Export de Zone</div>
-                <a href="#m2-zone" class="block ml-4 hover:text-blue-500">Définir la zone</a>
+                <div class="pt-4 font-bold text-gray-900 dark:text-white border-t dark:border-gray-700">
+                    <span class="badge badge-blue">Mode 1</span> Carroyage Rapide
+                </div>
+                <a href="#m1-ref" class="block ml-4 hover:text-blue-500">Points de référence</a>
+                <a href="#m1-rot" class="block ml-4 hover:text-blue-500">Rotation & Orientation</a>
+                <a href="#m1-export" class="block ml-4 hover:text-blue-500">Formats (KMZ, GPX...)</a>
+                
+                <div class="pt-4 font-bold text-gray-900 dark:text-white border-t dark:border-gray-700">
+                    <span class="badge badge-green">Mode 2</span> Export de Zone
+                </div>
+                <a href="#m2-zone" class="block ml-4 hover:text-blue-500">Définir une zone</a>
                 <a href="#m2-poi" class="block ml-4 hover:text-blue-500">Points d'intérêt (POI)</a>
-                <a href="#m2-overlays" class="block ml-4 hover:text-blue-500">Calques (UTM/CADO)</a>
-                <a href="#m2-image" class="block ml-4 hover:text-blue-500">Qualité d'image</a>
+                <a href="#m2-grid" class="block ml-4 hover:text-blue-500">Superposition UTM/CADO</a>
 
-                <div class="font-bold mt-4 text-gray-900 dark:text-white">Paramètres</div>
-                <a href="#icons" class="block ml-4 hover:text-blue-500">Gestion des icônes</a>
+                <div class="pt-4 font-bold text-gray-900 dark:text-white border-t dark:border-gray-700">
+                    <span class="badge badge-orange">Mode 3</span> Import MBTiles
+                </div>
+                <a href="#m3-load" class="block ml-4 hover:text-blue-500">Cartes Hors-ligne</a>
+                <a href="#m3-hybrid" class="block ml-4 hover:text-blue-500">Mode Hybride</a>
+
+                <div class="pt-4 font-bold text-gray-900 dark:text-white border-t dark:border-gray-700">
+                    <span class="badge badge-purple">Mode 4</span> Créateur MBTiles
+                </div>
+                <a href="#m4-logic" class="block ml-4 hover:text-blue-500">Principe des Tuiles</a>
+                <a href="#m4-jobs" class="block ml-4 hover:text-blue-500">Gestionnaire de tâches</a>
+
+                <div class="pt-4 font-bold text-gray-900 dark:text-white border-t dark:border-gray-700">⚙️ Configuration</div>
+                <a href="#config-icons" class="block ml-4 hover:text-blue-500">Icônes personnalisées</a>
+                <a href="#config-upscale" class="block ml-4 hover:text-blue-500">Qualité & Upscaling</a>
             </nav>
             <div class="mt-8 pt-6 border-t dark:border-gray-700">
                 <a href="index.html" class="flex items-center gap-2 text-blue-600 font-bold hover:underline">
-                    <span>← Retour à l'application</span>
+                    <span>← Retour au Générateur</span>
                 </a>
             </div>
         </div>
     </aside>
 
     <!-- CONTENU PRINCIPAL -->
-    <main class="flex-1 p-6 md:p-12">
+    <main class="flex-1 p-6 md:p-12 overflow-y-auto">
         
         <section id="intro" class="mb-16">
             <h2 class="text-3xl font-bold text-gray-900 dark:text-white mb-4">Introduction</h2>
             <p class="text-lg leading-relaxed">
-                Le <strong>Générateur CADO</strong> est un outil de cartographie opérationnelle. Il permet de créer des grilles de repérage alphanumériques (Ex: A1, B2) sur des fonds de carte, et d'exporter ces données pour l'impression ou l'intégration dans des GPS et Google Earth.
+                Le <strong>Générateur CADO</strong> est un outil professionnel de cartographie tactique. Il permet de transformer des cartes satellites ou plans en outils de repérage opérationnels. Que vous ayez besoin d'un quadrillage rapide pour une intervention ou d'une carte complète pour une zone blanche (sans réseau), CADO offre une solution complète.
             </p>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
-                <div class="p-4 bg-blue-50 dark:bg-blue-900/20 rounded border border-blue-200 dark:border-blue-800">
-                    <h3 class="font-bold text-blue-800 dark:text-blue-300">Mode Carroyage Rapide</h3>
-                    <p class="text-sm">Idéal pour créer rapidement une grille standardisée autour d'un point central (ex: une intervention, un lieu de rendez-vous).</p>
-                </div>
-                <div class="p-4 bg-green-50 dark:bg-green-900/20 rounded border border-green-200 dark:border-green-800">
-                    <h3 class="font-bold text-green-800 dark:text-green-300">Mode Export de Zone</h3>
-                    <p class="text-sm">Idéal pour préparer une carte d'une zone géographique spécifique (rectangle), avec ajout de points d'intérêt et téléchargement haute définition.</p>
-                </div>
-            </div>
         </section>
 
         <hr class="border-gray-200 dark:border-gray-700 my-10">
 
         <!-- MODE 1 -->
-        <section id="m1-geo" class="mb-16">
-            <h2 class="text-2xl font-bold text-blue-600 dark:text-blue-400 mb-6">Mode 1 : Carroyage Rapide</h2>
+        <section id="m1-ref" class="mb-12">
+            <h2 class="text-2xl font-bold text-blue-600 dark:text-blue-400 mb-6"><span class="badge badge-blue text-lg">Mode 1</span> Carroyage Rapide</h2>
+            <p class="mb-4">Ce mode crée une grille alphanumérique (A1, B2...) centrée ou ancrée sur un point précis.</p>
             
-            <h3 class="text-xl font-semibold mb-4 text-gray-900 dark:text-white">1. Point de Référence et Géométrie</h3>
-            <p class="mb-4">Ce mode génère une grille mathématique parfaite. Vous devez d'abord définir un point sur la carte (par recherche d'adresse, coordonnées GPS ou clic). Ce point sert d'ancre à votre grille.</p>
-
             <div class="diagram-box">
-                <h4 class="font-bold text-center mb-6">Comprendre le "Point de Référence"</h4>
-                <div class="flex flex-col md:flex-row justify-around gap-8">
-                    <div class="flex-1 text-center">
-                        <div class="font-bold text-blue-600 mb-2">Option A : Milieu du carroyage</div>
-                        <p class="text-sm mb-2">Le point que vous choisissez devient le <strong>centre exact</strong> de la grille.</p>
-                        <svg width="140" height="140" viewBox="0 0 140 140" class="mx-auto bg-white dark:bg-gray-800 border rounded">
-                            <defs><pattern id="g1" width="20" height="20" patternUnits="userSpaceOnUse"><path d="M 20 0 L 0 0 0 20" fill="none" stroke="#ccc" stroke-width="1"/></pattern></defs>
-                            <rect x="20" y="20" width="100" height="100" fill="url(#g1)" stroke="#2563eb" stroke-width="2"/>
-                            <circle cx="70" cy="70" r="4" fill="red"/>
-                            <text x="70" y="90" text-anchor="middle" font-size="10" fill="currentColor">Votre Point</text>
-                        </svg>
+                <h4 class="font-bold text-center mb-6">Options de placement</h4>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <div class="text-center">
+                        <span class="font-bold text-blue-600">Milieu du carroyage</span>
+                        <p class="text-xs mt-2">Le point GPS est le centre de la grille (ex: le foyer d'un incendie).</p>
                     </div>
-                    <div class="flex-1 text-center">
-                        <div class="font-bold text-blue-600 mb-2">Option B : Origine (A1)</div>
-                        <p class="text-sm mb-2">Le point que vous choisissez devient le <strong>coin Sud-Ouest (Case A1)</strong>.</p>
-                        <svg width="140" height="140" viewBox="0 0 140 140" class="mx-auto bg-white dark:bg-gray-800 border rounded">
-                            <rect x="70" y="20" width="50" height="50" fill="url(#g1)" stroke="#2563eb" stroke-width="2"/>
-                            <circle cx="70" cy="70" r="4" fill="red"/>
-                            <text x="70" y="90" text-anchor="middle" font-size="10" fill="currentColor">Votre Point (A1)</text>
-                        </svg>
+                    <div class="text-center">
+                        <span class="font-bold text-blue-600">Origine (A1)</span>
+                        <p class="text-xs mt-2">Le point GPS est le coin inférieur gauche de la zone.</p>
                     </div>
                 </div>
             </div>
+        </section>
 
-            <h3 class="text-xl font-semibold mb-4 text-gray-900 dark:text-white mt-8">2. La Rotation (Déviation)</h3>
-            <p class="mb-4">
-                Les villes et les routes ne sont pas toujours alignées sur le Nord géographique.
-                Utilisez le curseur de rotation (sous la carte) pour aligner votre grille parallèlement à une route principale ou un bâtiment.
-                Cela facilite le repérage sur le terrain : "Avance de 2 cases tout droit" devient plus logique que "Avance de 2 cases en diagonale".
-            </p>
-            <ul class="list-disc pl-5 space-y-1 text-sm text-gray-600 dark:text-gray-400">
-                <li><strong>Réglage grossier :</strong> Utilisez le curseur glissière.</li>
-                <li><strong>Réglage fin :</strong> Utilisez les boutons <span class="px-1 border rounded bg-gray-100 dark:bg-gray-700">↺</span> et <span class="px-1 border rounded bg-gray-100 dark:bg-gray-700">↻</span> pour tourner degré par degré.</li>
+        <section id="m1-rot" class="mb-12">
+            <h3 class="text-xl font-semibold mb-4 text-gray-900 dark:text-white">Rotation et Alignement</h3>
+            <p class="mb-4">Contrairement aux cartes classiques toujours orientées au Nord, le carroyage CADO peut être <strong>pivoté</strong> pour s'aligner sur le terrain (une route, une piste d'aéroport, une rive).</p>
+            <ul class="list-disc pl-5 space-y-2 text-sm">
+                <li><strong>Curseur Rotation :</strong> Faites pivoter la carte sous la grille.</li>
+                <li><strong>Sens des lettres :</strong> "Ascendant" (A1 en bas) ou "Descendant" (A1 en haut, standard Google Earth).</li>
             </ul>
+            <div class="mt-4 p-3 bg-blue-50 dark:bg-blue-900/20 border-l-4 border-blue-500 rounded">
+                <p class="text-sm">
+                    <strong>💡 Option Inversion d'Axes :</strong> Par défaut, les lettres sont en haut (horizontal) et les chiffres sur le côté (vertical). 
+                    En activant l'inversion, vous obtenez des <strong>chiffres en haut</strong> et des <strong>lettres sur le côté</strong>. 
+                    Le nom des cases s'adapte automatiquement (ex: la case <code>A1</code> devient <code>1A</code>).
+                </p>
+            </div>
         </section>
 
-        <section id="m1-formats" class="mb-16">
-            <h3 class="text-xl font-semibold mb-4 text-gray-900 dark:text-white">3. Formats de Grille</h3>
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div class="p-4 border rounded dark:border-gray-700">
-                    <span class="font-bold block text-lg mb-1">Q12 (Standard)</span>
-                    <span class="text-xs text-gray-500 uppercase">Format Paysage / A4</span>
-                    <p class="text-sm mt-2">17 colonnes (A-Q) x 12 lignes. C'est le format le plus courant pour l'impression A4.</p>
+        <section id="m1-export" class="mb-12">
+            <h3 class="text-xl font-semibold mb-4 text-gray-900 dark:text-white">Les formats d'export</h3>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div class="p-3 bg-white dark:bg-gray-800 border rounded shadow-sm">
+                    <strong class="text-blue-600">KMZ :</strong> Le format universel pour <strong>Google Earth</strong>. Inclut la grille, les noms de cases et les icônes.
                 </div>
-                <div class="p-4 border rounded dark:border-gray-700">
-                    <span class="font-bold block text-lg mb-1">Z18</span>
-                    <span class="text-xs text-gray-500 uppercase">Format A3</span>
-                    <p class="text-sm mt-2">26 colonnes (A-Z) x 18 lignes. Couvre une zone plus large.</p>
+                <div class="p-3 bg-white dark:bg-gray-800 border rounded shadow-sm">
+                    <strong class="text-green-600">GPX :</strong> Pour les <strong>GPS de poche (Garmin)</strong>. La grille devient un tracé et les centres de cases des waypoints.
                 </div>
-                <div class="p-4 border rounded dark:border-gray-700">
-                    <span class="font-bold block text-lg mb-1">Z26</span>
-                    <span class="text-xs text-gray-500 uppercase">Carré Géant</span>
-                    <p class="text-sm mt-2">26 colonnes x 26 lignes. Le maximum standard.</p>
+                <div class="p-3 bg-white dark:bg-gray-800 border rounded shadow-sm">
+                    <strong class="text-purple-600">GeoJSON :</strong> Pour les logiciels experts (QGIS, ArcGIS).
+                </div>
+                <div class="p-3 bg-white dark:bg-gray-800 border rounded shadow-sm">
+                    <strong class="text-orange-600">Image (JPG/PNG) :</strong> Pour impression. Inclut un cartouche d'infos, une boussole et une barre d'échelle.
                 </div>
             </div>
-            <p class="mt-4 text-sm bg-yellow-50 dark:bg-yellow-900/20 p-3 rounded border border-yellow-200 dark:border-yellow-800">
-                <strong>Note sur l'échelle :</strong> L'échelle (ex: 20m) définit la taille d'une <em>seule case</em>. Une grille Q12 à 20m fera donc 340m de large (17x20) par 240m de haut (12x20).
-            </p>
-        </section>
-
-        <section id="m1-export" class="mb-16">
-            <h3 class="text-xl font-semibold mb-4 text-gray-900 dark:text-white">4. Formats d'Export</h3>
-            <table class="w-full text-sm text-left border rounded overflow-hidden dark:border-gray-700">
-                <thead class="bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 uppercase">
-                    <tr><th class="px-4 py-3">Format</th><th class="px-4 py-3">Usage</th></tr>
-                </thead>
-                <tbody class="divide-y dark:divide-gray-700">
-                    <tr>
-                        <td class="px-4 py-3 font-bold text-blue-600">Image (JPG/PNG)</td>
-                        <td class="px-4 py-3">Pour impression papier ou envoi par email/MMS. L'image contient la carte, la grille dessinée par-dessus et un cartouche d'information.</td>
-                    </tr>
-                    <tr>
-                        <td class="px-4 py-3 font-bold text-green-600">KMZ</td>
-                        <td class="px-4 py-3">Pour <strong>Google Earth</strong>. C'est un calque interactif qui se superpose à la planète en 3D. Contient les lignes et les labels.</td>
-                    </tr>
-                    <tr>
-                        <td class="px-4 py-3 font-bold text-orange-600">GPX</td>
-                        <td class="px-4 py-3">Pour <strong>GPS de randonnée</strong> (Garmin, TwoNav). Contient la grille sous forme de "Traces" et les intersections sous forme de "Waypoints".</td>
-                    </tr>
-                    <tr>
-                        <td class="px-4 py-3 font-bold text-purple-600">GeoJSON</td>
-                        <td class="px-4 py-3">Pour les logiciels <strong>SIG</strong> professionnels (QGIS, ArcGIS).</td>
-                    </tr>
-                </tbody>
-            </table>
         </section>
 
         <hr class="border-gray-200 dark:border-gray-700 my-10">
 
         <!-- MODE 2 -->
-        <section id="m2-zone" class="mb-16">
-            <h2 class="text-2xl font-bold text-green-600 dark:text-green-400 mb-6">Mode 2 : Export de Zone</h2>
-            
-            <p class="mb-4">Ce mode ne part pas d'un point central, mais d'une <strong>zone rectangulaire</strong> que vous dessinez. Il sert principalement à créer des fonds de carte personnalisés.</p>
+        <section id="m2-zone" class="mb-12">
+            <h2 class="text-2xl font-bold text-green-600 dark:text-green-400 mb-6"><span class="badge badge-green text-lg">Mode 2</span> Export de Zone</h2>
+            <p class="mb-4">Ici, vous ne centrez pas un point, vous <strong>dessinez un rectangle</strong> sur la carte pour définir précisément l'emprise de votre export.</p>
+        </section>
 
-            <h3 class="text-xl font-semibold mb-3 text-gray-900 dark:text-white">1. Définir la zone</h3>
-            <ul class="list-disc pl-5 space-y-2 mb-4">
-                <li><strong>Dessin manuel :</strong> Utilisez l'outil <span class="inline-block w-4 h-4 border border-black bg-white"></span> à gauche de la carte pour tracer un rectangle.</li>
-                <li><strong>Import KML :</strong> Si vous avez déjà un fichier KML avec une zone ou des points, importez-le. La carte zoomera automatiquement dessus.</li>
-                <li><strong>Recherche :</strong> Tapez le nom d'une ville pour centrer la carte, puis dessinez.</li>
+        <section id="m2-poi" class="mb-12">
+            <h3 class="text-xl font-semibold mb-4 text-gray-900 dark:text-white">Points d'Intérêt (POI)</h3>
+            <p class="mb-4">Vous pouvez enrichir votre carte avant l'export :</p>
+            <ul class="list-disc pl-5 space-y-2 text-sm">
+                <li>Sélectionnez une icône (incendie, victime, barrage, hélico...).</li>
+                <li>Cliquez sur "+ Ajouter un point" puis cliquez sur la carte.</li>
+                <li>Les points sont exportés dans l'image finale et dans le fichier KMZ.</li>
             </ul>
         </section>
 
-        <section id="m2-poi" class="mb-16">
-            <h3 class="text-xl font-semibold mb-4 text-gray-900 dark:text-white">2. Ajouter des Points d'Intérêt (POI)</h3>
-            <p class="mb-4">Vous pouvez placer des icônes sur la carte avant de l'exporter. Ces icônes seront "imprimées" dans l'image finale ou incluses dans le fichier KMZ.</p>
-            
-            <div class="bg-gray-50 dark:bg-gray-800 p-4 rounded border dark:border-gray-700">
-                <ol class="list-decimal pl-5 space-y-2">
-                    <li>Sélectionnez une icône dans la bibliothèque (vous pouvez filtrer par catégorie).</li>
-                    <li>Réglez la taille avec le curseur si besoin.</li>
-                    <li>(Optionnel) Donnez un nom au point.</li>
-                    <li>Cliquez sur <strong>"+ Activer l'ajout"</strong>.</li>
-                    <li>Cliquez sur la carte à l'endroit désiré pour poser le point.</li>
+        <section id="m2-grid" class="mb-12">
+            <h3 class="text-xl font-semibold mb-4 text-gray-900 dark:text-white">Quadrillages UTM et CADO</h3>
+            <p class="mb-4">Pour les images de zone, vous pouvez superposer :</p>
+            <ul class="list-disc pl-5 space-y-2 text-sm">
+                <li><strong>Grille UTM :</strong> Le standard international (cases de 1km). Précis et immuable.</li>
+                <li><strong>Grille CADO :</strong> Une grille alphanumérique qui s'ajuste à votre rectangle (ex: cases de 50m).</li>
+            </ul>
+        </section>
+
+        <hr class="border-gray-200 dark:border-gray-700 my-10">
+
+        <!-- MODE 3 -->
+        <section id="m3-load" class="mb-12">
+            <h2 class="text-2xl font-bold text-orange-600 dark:text-orange-400 mb-6"><span class="badge badge-orange text-lg">Mode 3</span> Charger MBTiles (Hors-ligne)</h2>
+            <p class="mb-4">Le format <strong>MBTiles</strong> permet de stocker des milliers de tuiles de cartes dans un seul fichier. C'est la solution pour travailler <strong>sans connexion internet</strong>.</p>
+            <div class="bg-orange-50 dark:bg-orange-900/20 p-4 border border-orange-200 dark:border-orange-800 rounded">
+                <h4 class="font-bold mb-2">Comment faire ?</h4>
+                <ol class="list-decimal pl-5 space-y-2 text-sm">
+                    <li>Sélectionnez votre fichier <code>.mbtiles</code>.</li>
+                    <li>L'application bascule sur la carte locale stockée.</li>
+                    <li>Vous pouvez toujours ajouter des POI ou superposer des grilles UTM/CADO.</li>
+                    <li>L'export d'image fonctionne même sans réseau.</li>
                 </ol>
-                <p class="mt-3 text-sm text-gray-500"><em>Astuce : Vous pouvez ajouter vos propres icônes perso via le bouton ⚙️ en haut de la page.</em></p>
-            </div>
-        </section>
-
-        <section id="m2-overlays" class="mb-16">
-            <h3 class="text-xl font-semibold mb-4 text-gray-900 dark:text-white">3. Les Calques (Surcouches)</h3>
-            <p class="mb-4">Lors de l'export d'image ou de KMZ, vous pouvez choisir d'apposer une grille par-dessus la carte :</p>
-            
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                    <h4 class="font-bold text-gray-900 dark:text-white">Grille UTM (Standard)</h4>
-                    <p class="text-sm mb-2">C'est le standard militaire et secours international.</p>
-                    <ul class="list-disc pl-5 text-sm text-gray-600 dark:text-gray-400">
-                        <li>Quadrillage kilométrique (cases de 1km x 1km).</li>
-                        <li>Toujours orienté au Nord.</li>
-                        <li>Les lignes principales (tous les 5km) sont plus épaisses.</li>
-                        <li>Idéal pour la coordination inter-services.</li>
-                    </ul>
-                </div>
-                <div>
-                    <h4 class="font-bold text-gray-900 dark:text-white">Carroyage CADO (Tactique)</h4>
-                    <p class="text-sm mb-2">C'est une grille personnalisée adaptée à la zone.</p>
-                    <ul class="list-disc pl-5 text-sm text-gray-600 dark:text-gray-400">
-                        <li>Cases A1, A2, B1...</li>
-                        <li>Taille des cases réglable (ex: 50m).</li>
-                        <li>La grille couvre exactement la zone dessinée.</li>
-                        <li>L'origine (A1) est le coin supérieur gauche (ou inférieur gauche selon réglage).</li>
-                    </ul>
-                </div>
-            </div>
-        </section>
-
-        <section id="m2-image" class="mb-16">
-            <h3 class="text-xl font-semibold mb-4 text-gray-900 dark:text-white">4. Qualité d'image & Upscaling</h3>
-            <div class="flex items-start gap-4">
-                <div class="text-4xl">🚀</div>
-                <div>
-                    <p class="mb-2">
-                        L'application utilise une technologie d'<strong>Upscaling Intelligent (Mise à l'échelle)</strong>.
-                    </p>
-                    <p class="text-sm text-gray-600 dark:text-gray-400">
-                        Si vous dessinez une petite zone sur la carte, une simple capture d'écran serait floue à l'impression.
-                        CADO télécharge automatiquement les tuiles de carte à la résolution maximale disponible et reconstitue une image géante (souvent supérieure à la 4K / 3840px).
-                    </p>
-                    <p class="text-sm font-bold mt-2 text-green-600 dark:text-green-400">
-                        Résultat : Vos cartes sont toujours nettes, même imprimées en grand format.
-                    </p>
-                </div>
             </div>
         </section>
 
         <hr class="border-gray-200 dark:border-gray-700 my-10">
 
-        <!-- PARAMÈTRES -->
-        <section id="icons" class="mb-16">
-            <h2 class="text-2xl font-bold text-purple-600 dark:text-purple-400 mb-6">Paramètres : Gestion des Icônes</h2>
-            <p class="mb-4">Cliquez sur le bouton ⚙️ en haut de la page principale pour ouvrir le gestionnaire.</p>
+        <!-- MODE 4 -->
+        <section id="m4-logic" class="mb-12">
+            <h2 class="text-2xl font-bold text-purple-600 dark:text-purple-400 mb-6"><span class="badge badge-purple text-lg">Mode 4</span> Créateur MBTiles</h2>
+            <p class="mb-4">Ce mode vous permet de fabriquer vos propres cartes hors-ligne pour les utiliser plus tard dans le Mode 3 ou dans des applications comme AlpineQuest ou OsmAnd.</p>
             
-            <ul class="space-y-4">
-                <li class="flex items-start gap-3">
-                    <span class="bg-purple-100 text-purple-800 font-bold px-2 py-1 rounded text-xs">Ajouter</span>
-                    <span class="text-sm">Glissez-déposez une image PNG directement dans la zone pointillée pour l'ajouter à votre bibliothèque personnelle.</span>
-                </li>
-                <li class="flex items-start gap-3">
-                    <span class="bg-purple-100 text-purple-800 font-bold px-2 py-1 rounded text-xs">Organiser</span>
-                    <span class="text-sm">Changez l'ordre des icônes ou renommez-les pour les retrouver plus facilement dans les listes.</span>
-                </li>
-                <li class="flex items-start gap-3">
-                    <span class="bg-purple-100 text-purple-800 font-bold px-2 py-1 rounded text-xs">Sauvegarder</span>
-                    <span class="text-sm">Vos icônes sont sauvegardées dans votre navigateur. Vous pouvez aussi utiliser les boutons <strong>Exporter JSON</strong> / <strong>Importer JSON</strong> pour transférer votre configuration sur un autre ordinateur.</span>
-                </li>
+            <h3 class="text-xl font-semibold mb-3 text-gray-900 dark:text-white">Le concept des Zooms</h3>
+            <p class="text-sm mb-4">
+                Une carte numérique est composée de "tuiles". Plus vous zoomez, plus il y a de tuiles.
+                <br><strong>Attention :</strong> Cocher les zooms élevés (17, 18, 19) sur une grande zone peut générer des millions de tuiles.
+            </p>
+        </section>
+
+        <section id="m4-jobs" class="mb-12">
+            <h3 class="text-xl font-semibold mb-4 text-gray-900 dark:text-white">Gestionnaire de téléchargement</h3>
+            <p class="mb-4 text-sm">CADO intègre un gestionnaire de tâches robuste :</p>
+            <ul class="list-disc pl-5 space-y-2 text-sm">
+                <li><strong>Multi-tâches :</strong> Vous pouvez lancer plusieurs exports de zones différentes en même temps.</li>
+                <li><strong>Contrôle :</strong> Vous pouvez mettre en pause un téléchargement si votre connexion faiblit, ou l'annuler.</li>
+                <li><strong>Limites :</strong> L'application vous avertit si vous dépassez 10 000 tuiles (risque de saturation de la mémoire du navigateur).</li>
             </ul>
+        </section>
+
+        <hr class="border-gray-200 dark:border-gray-700 my-10">
+
+        <!-- CONFIGURATION -->
+        <section id="config-icons" class="mb-12">
+            <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-6">⚙️ Gestion des Icônes</h2>
+            <p class="mb-4">L'application contient un catalogue d'icônes opérationnelles, mais vous pouvez créer la vôtre :</p>
+            <ol class="list-decimal pl-5 space-y-2 text-sm">
+                <li>Ouvrez la <strong>Gestion ⚙️</strong>.</li>
+                <li>Glissez un fichier <strong>PNG</strong> (idéalement 64x64px avec transparence).</li>
+                <li>Donnez-lui un nom et une catégorie.</li>
+                <li>Utilisez les boutons <strong>Import/Export JSON</strong> pour sauvegarder votre bibliothèque sur un autre appareil.</li>
+            </ol>
+        </section>
+
+        <section id="config-upscale" class="mb-24">
+            <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-6">Qualité d'image & Upscaling HD</h2>
+            <div class="flex items-start gap-4 bg-blue-50 dark:bg-blue-900/20 p-6 rounded-lg border border-blue-200 dark:border-blue-800">
+                <div class="text-3xl">ℹ️</div>
+                <div>
+                    <h4 class="font-bold mb-2">Le secret de la netteté CADO</h4>
+                    <p class="text-sm">
+                        Contrairement à une simple capture d'écran, CADO recalcule l'image finale en téléchargeant les tuiles sources à leur résolution d'origine. 
+                        L'option <strong>Upscaling HD (4K)</strong> force l'image à atteindre une hauteur minimale de 2160 pixels, garantissant une impression papier d'une grande finesse, même pour de petites zones.
+                    </p>
+                </div>
+            </div>
         </section>
 
     </main>
