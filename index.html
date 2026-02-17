@@ -33,6 +33,7 @@
 <script src="zoneDownloader.js" defer></script>
 <script src="mbtilesCreator.js" defer></script>
 <script src="mbtilesMode.js" defer></script>
+<script src="carroyageCFSI.js" defer></script>
 </head>
 <body class="p-4 md:p-6">
 <div class="max-w-5xl mx-auto">
@@ -201,6 +202,14 @@
                                         <button id="view-on-maps-utm" class="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-sm md:text-base">Voir sur la carte</button>
                                     </div>
                                 </div>
+                            </div>
+                            <div class="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+                                <label class="block text-sm font-medium text-content mb-2">Importer un calque (KML/KMZ) :</label>
+                                <div class="flex items-center gap-2">
+                                    <input type="file" id="cado-kmz-input" accept=".kml,.kmz" class="block w-full text-sm text-gray-900 border border-gray-300 rounded-lg cursor-pointer bg-gray-50 dark:text-gray-400 focus:outline-none dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400">
+                                    <button id="cado-clear-kmz-btn" class="hidden px-3 py-2 bg-red-100 text-red-600 rounded hover:bg-red-200 text-xs font-bold" title="Supprimer le calque">X</button>
+                                </div>
+                                <p class="text-xs text-secondary mt-1">Le fichier sera visible sur la carte, l'image générée et le KMZ final.</p>
                             </div>
                         </div>
                     </section>
@@ -518,36 +527,99 @@
                 </section>
             </div>
             
-            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
-                <!-- Action 1 : UTM KMZ -->
-                <div class="card bg-white shadow-md rounded-lg p-4 md:p-6 dark:bg-gray-800 dark:border dark:border-gray-700 flex flex-col justify-between">
-                    <h3 class="text-lg font-semibold mb-3 text-content text-center">Export Grille UTM</h3>
-                    <div class="space-y-4 flex-grow flex flex-col justify-center">
-                        <div class="flex flex-col space-y-1">
-                            <label for="utm-grid-name" class="text-sm md:text-base text-content">Nom du fichier :</label>
-                            <input type="text" id="utm-grid-name" class="input-field px-3 py-2 border rounded shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white text-base" value="Grille_UTM_1km">
-                        </div>
-                        <p class="text-center text-xs text-secondary">Génère un fichier KMZ avec la grille UTM 1km.</p>
+<!-- PANEL 5 : CHOIX DES CARROYAGES (Toute largeur) -->
+<div class="card bg-white shadow-md rounded-lg p-4 md:p-6 dark:bg-gray-800 dark:border dark:border-gray-700 mt-6">
+    <section>
+        <h3 class="text-lg font-semibold mb-3 text-content">5. Choix du Carroyage</h3>
+        <div class="space-y-4">
+            <p class="text-sm text-secondary">Sélectionnez le type de grille à appliquer (Choix unique).</p>
+            
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <!-- Option AUCUN -->
+                <label class="flex items-start p-3 border rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer transition-colors h-full dark:border-gray-600">
+                    <div class="flex items-center h-5">
+                        <input type="radio" name="zone-grid-choice" value="none" class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 focus:ring-blue-500 dark:bg-gray-600 dark:border-gray-500">
                     </div>
-                    <div class="flex justify-center mt-4">
-                        <button id="generate-utm-button" class="btn-main btn-grid w-full sm:w-auto">Générer KMZ (UTM)</button>
+                    <div class="ml-3 text-sm">
+                        <span class="font-medium text-gray-900 dark:text-white">Aucun</span>
+                        <p class="text-gray-500 dark:text-gray-400 text-xs mt-1">Image satellite/plan vierge.</p>
                     </div>
-                </div>
-                
-                <!-- Action 2 : CADO KMZ -->
-                <div class="card bg-white shadow-md rounded-lg p-4 md:p-6 dark:bg-gray-800 dark:border dark:border-gray-700 flex flex-col justify-between">
-                    <h3 class="text-lg font-semibold mb-3 text-content text-center">Export Carroyage CADO</h3>
-                    <div class="space-y-4 flex-grow flex flex-col justify-center">
-                        <p class="text-center text-sm text-secondary mb-4">Utilise les options définies dans la colonne "Image" et le "Style Commun".</p>
-                    </div>
-                    <div class="flex justify-center mt-4">
-                        <button id="generate-zone-cado-kmz-button" class="btn-main btn-grid w-full sm:w-auto">Générer KMZ (CADO)</button>
-                    </div>
-                </div>
+                </label>
 
-                <!-- Action 3 : Image -->
-                <div class="card bg-white shadow-md rounded-lg p-4 md:p-6 dark:bg-gray-800 dark:border dark:border-gray-700 flex flex-col justify-between">
-                    <h3 class="text-lg font-semibold mb-3 text-content text-center">Télécharger l'image</h3>
+                <!-- Option UTM -->
+                <label class="flex items-start p-3 border rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer transition-colors h-full dark:border-gray-600">
+                    <div class="flex items-center h-5">
+                        <input type="radio" name="zone-grid-choice" value="utm" class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 focus:ring-blue-500 dark:bg-gray-600 dark:border-gray-500">
+                    </div>
+                    <div class="ml-3 text-sm">
+                        <span class="font-medium text-gray-900 dark:text-white">Grille UTM (1km)</span>
+                        <p class="text-gray-500 dark:text-gray-400 text-xs mt-1">Standard international/militaire.</p>
+                    </div>
+                </label>
+
+                <!-- Option CFSI -->
+                <label class="flex items-start p-3 border rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer transition-colors h-full dark:border-gray-600">
+                    <div class="flex items-center h-5">
+                        <input type="radio" name="zone-grid-choice" value="cfsi" class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 focus:ring-blue-500 dark:bg-gray-600 dark:border-gray-500">
+                    </div>
+                    <div class="ml-3 text-sm">
+                        <span class="font-medium text-gray-900 dark:text-white">Carroyage CFSI</span>
+                        <p class="text-gray-500 dark:text-gray-400 text-xs mt-1">Sécurité Civile (DFCI).</p>
+                    </div>
+                </label>
+
+                <!-- Option CADO -->
+                <label class="flex items-start p-3 border rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer transition-colors h-full dark:border-gray-600">
+                    <div class="flex items-center h-5">
+                        <input type="radio" name="zone-grid-choice" value="cado" class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 focus:ring-blue-500 dark:bg-gray-600 dark:border-gray-500" checked>
+                    </div>
+                    <div class="ml-3 text-sm">
+                        <span class="font-medium text-gray-900 dark:text-white">Carroyage CADO</span>
+                        <p class="text-gray-500 dark:text-gray-400 text-xs mt-1">Grille tactique ajustable.</p>
+                    </div>
+                </label>
+            </div>
+
+            <!-- Sous-options CADO (Visibles seulement si CADO coché) -->
+            <!-- Ajout des classes dark pour corriger le style -->
+            <div id="zone-cado-options" class="p-4 bg-blue-50 dark:bg-gray-700 rounded-lg border border-blue-100 dark:border-gray-600 mt-2">
+                <h4 class="text-sm font-bold text-blue-800 dark:text-blue-300 mb-3">Configuration CADO</h4>
+                <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                    <div class="flex flex-col space-y-1">
+                        <label for="zone-cado-scale" class="text-sm text-content">Échelle (mètres) :</label>
+                        <input type="number" id="zone-cado-scale" class="input-field px-2 py-1 border rounded text-sm bg-white dark:bg-gray-600 dark:border-gray-500 dark:text-white" value="50" min="10">
+                    </div>
+                    <div class="flex flex-col space-y-1">
+                        <label class="text-sm text-content">Orientation Lettres :</label>
+                        <div class="flex gap-2 mt-1">
+                             <label class="inline-flex items-center">
+                                <input type="radio" name="zone-cado-direction" value="ascending" class="custom-radio" checked>
+                                <span class="px-2 py-1 border border-default rounded cursor-pointer text-xs button-outline bg-white dark:bg-gray-600 dark:text-gray-200 dark:border-gray-500">Ascendante (S→N)</span>
+                            </label>
+                             <label class="inline-flex items-center">
+                                <input type="radio" name="zone-cado-direction" value="descending" class="custom-radio">
+                                <span class="px-2 py-1 border border-default rounded cursor-pointer text-xs button-outline bg-white dark:bg-gray-600 dark:text-gray-200 dark:border-gray-500">Descendante (N→S)</span>
+                            </label>
+                        </div>
+                    </div>
+                    <div class="flex flex-col space-y-1 justify-center">
+                        <label class="inline-flex items-center cursor-pointer">
+                            <input type="checkbox" id="zone-cado-swap-axes" class="sr-only peer">
+                            <div class="relative w-9 h-5 bg-gray-300 rounded-full peer dark:bg-gray-600 peer-checked:bg-blue-600 peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all"></div>
+                            <span class="ms-3 text-sm text-content">Inverser axes (V/H)</span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+</div>
+            
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
+                
+                <!-- PANEL 6 (Gauche) : Image -->
+                <div class="card bg-white shadow-md rounded-lg p-4 md:p-6 dark:bg-gray-800 dark:border dark:border-gray-700 flex flex-col justify-between order-1">
+                    <h3 class="text-lg font-semibold mb-3 text-content text-center">6. Générer l'image</h3>
                      <div class="flex flex-col items-center justify-center gap-4 mt-4">
                         <div class="flex items-center gap-4">
                             <label class="inline-flex items-center"><input type="radio" name="image-format-zone" value="png" class="custom-radio"><span class="ml-2 text-content">PNG</span></label>
@@ -557,49 +629,55 @@
                             <label for="zone-jpeg-quality" class="text-sm text-content">Qualité JPEG : <span id="zone-jpeg-quality-value">92%</span></label>
                             <input type="range" id="zone-jpeg-quality" class="w-full" min="70" max="100" value="92">
                         </div>
-                        <div class="mt-2 mb-2 w-full flex justify-center">
+                        <div class="mt-2 w-full flex justify-center">
                             <label class="inline-flex items-center cursor-pointer">
                                 <input type="checkbox" id="zone-enable-upscale" class="sr-only peer" checked>
                                 <div class="relative w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
                                 <span class="ms-3 text-sm font-medium text-gray-900 dark:text-gray-300">Upscaling HD (4K)</span>
                             </label>
                         </div>
-                        <div class="mt-4 space-y-3 w-full">
-							<label class="inline-flex items-center cursor-pointer w-full">
-							  <input type="checkbox" id="overlay-utm-grid-checkbox" class="sr-only peer">
-							  <div class="relative w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
-							  <span class="ms-3 text-sm font-medium text-gray-900 dark:text-gray-300">Apposer le quadrillage UTM</span>
-							</label>
-                            <label class="inline-flex items-center cursor-pointer w-full">
-                              <input type="checkbox" id="overlay-cado-grid-checkbox" class="sr-only peer">
-                              <div class="relative w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
-                              <span class="ms-3 text-sm font-medium text-gray-900 dark:text-gray-300">Apposer le carroyage CADO</span>
-                            </label>
-                            <div id="cado-overlay-options" class="hidden pl-8 space-y-3 pt-2">
-                                <div class="flex flex-col space-y-1">
-                                    <label for="cado-overlay-scale" class="text-sm text-content">Échelle (m) :</label>
-                                    <input type="number" id="cado-overlay-scale" class="input-field px-2 py-1 border rounded shadow-sm text-sm text-gray-900 dark:bg-gray-600 dark:border-gray-500 dark:text-white" value="50">
-                                </div>
-                                <div class="flex flex-col space-y-1">
-                                    <label class="text-sm text-content">Orientation :</label>
-                                    <div class="flex gap-2">
-                                         <label class="inline-flex items-center"><input type="radio" name="cado-overlay-direction" value="ascending" class="custom-radio" checked><span class="px-2 py-1 border border-default rounded cursor-pointer text-xs">Ascendante</span></label>
-                                         <label class="inline-flex items-center"><input type="radio" name="cado-overlay-direction" value="descending" class="custom-radio"><span class="px-2 py-1 border border-default rounded cursor-pointer text-xs">Descendante</span></label>
-                                    </div>
-                                    <label class="inline-flex items-center cursor-pointer w-full mt-2">
-                                        <input type="checkbox" id="zone-swap-axes" class="sr-only peer">
-                                        <div class="relative w-9 h-5 bg-gray-200 rounded-full peer dark:bg-gray-700 peer-checked:bg-blue-600 peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all"></div>
-                                        <span class="ms-3 text-xs font-medium text-gray-900 dark:text-gray-300">Inverser axes (Lettres V)</span>
-                                    </label>
-                                </div>
-                            </div>
-						</div>
+                        <p class="text-xs text-secondary italic text-center">L'image inclura les grilles sélectionnées dans le Panel 5.</p>
                     </div>
-                    <div class="flex justify-center mt-4">
+                    <div class="flex justify-center mt-6">
                         <button id="generate-zone-png-button" class="btn-main btn-image w-full sm:w-auto">Télécharger l'image</button>
                     </div>
                 </div>
+
+                <!-- PANEL 7 (Droite) : Export Fichier -->
+                <div class="card bg-white shadow-md rounded-lg p-4 md:p-6 dark:bg-gray-800 dark:border dark:border-gray-700 flex flex-col justify-between order-2">
+                    <h3 class="text-lg font-semibold mb-3 text-content text-center">7. Générer le fichier vectoriel</h3>
+                    
+                    <div class="space-y-6 flex-grow flex flex-col justify-center px-4">
+                        
+                        <div class="flex flex-col space-y-2">
+                            <label for="zone-export-filename" class="text-sm font-medium text-content">Nom du fichier :</label>
+                            <input type="text" id="zone-export-filename" class="input-field px-3 py-2 border rounded shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white text-base" value="Export_Zone">
+                        </div>
+
+                        <div>
+                            <h4 class="font-medium text-content mb-2 text-sm">Format du fichier :</h4>
+                            <div class="flex flex-wrap gap-2 justify-center">
+                                <label class="inline-flex items-center"><input type="radio" name="zone-file-format" value="KMZ" class="custom-radio" checked><span class="px-3 py-1 border border-default rounded cursor-pointer text-sm button-outline w-24 text-center">KMZ</span></label>
+                                <label class="inline-flex items-center"><input type="radio" name="zone-file-format" value="KML" class="custom-radio"><span class="px-3 py-1 border border-default rounded cursor-pointer text-sm button-outline w-24 text-center">KML</span></label>
+                                <label class="inline-flex items-center"><input type="radio" name="zone-file-format" value="GeoJSON" class="custom-radio"><span class="px-3 py-1 border border-default rounded cursor-pointer text-sm button-outline w-24 text-center">GeoJSON</span></label>
+                                <label class="inline-flex items-center"><input type="radio" name="zone-file-format" value="GPX" class="custom-radio"><span class="px-3 py-1 border border-default rounded cursor-pointer text-sm button-outline w-24 text-center">GPX</span></label>
+                            </div>
+                        </div>
+
+                        <div class="text-xs text-secondary text-center italic">
+                            Génère un fichier contenant toutes les grilles cochées dans le panel 5 ainsi que les points d'intérêt.
+                        </div>
+                    </div>
+
+                    <div class="flex justify-center mt-6">
+                        <button id="generate-zone-vector-button" class="btn-main btn-grid w-full sm:w-auto">Générer le fichier KMZ</button>
+                    </div>
+                </div>
             </div>
+            
+            <!-- ÉLÉMENTS CACHÉS POUR COMPATIBILITÉ (S'ils sont appelés par d'autres scripts) -->
+            <input type="hidden" id="utm-grid-name" value="Grille_UTM">
+            <input type="hidden" id="zone-title" value="Zone">
         </div>
 
         <!-- MODE 3 : IMPORT MBTILES (Hors-Ligne) -->
@@ -755,7 +833,11 @@
                                 <div class="relative w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-gray-700 peer-checked:bg-blue-600 peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all"></div>
                                 <span class="ms-3 text-sm font-medium text-gray-900 dark:text-gray-300">Apposer grille UTM</span>
                             </label>
-                            
+                            <label class="inline-flex items-center cursor-pointer w-full mt-2">
+                                <input type="checkbox" id="overlay-cfsi-grid-checkbox" class="sr-only peer">
+                                <div class="relative w-11 h-6 bg-gray-200 rounded-full peer dark:bg-gray-700 peer-checked:bg-blue-600 peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all"></div>
+                                <span class="ms-3 text-sm font-medium text-gray-900 dark:text-gray-300">Apposer le carroyage CFSI (Sécurité Civile)</span>
+                            </label>
                             <label class="inline-flex items-center cursor-pointer w-full">
                                 <input type="checkbox" id="import-overlay-cado" class="sr-only peer">
                                 <div class="relative w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-gray-700 peer-checked:bg-blue-600 peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all"></div>
@@ -913,30 +995,27 @@
     </button>
 </div>
 
-<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
+<script>
     document.addEventListener('DOMContentLoaded', function() {
         let cadoMap = null;
-        let zoneMap = null;
+        let zoneMap = null; // Variable globale pour la carte de zone
         let clickMarker = null;
         let debounceTimeout = null;
         let drawnItems = null;
         const TILE_LIMIT = 2000;
 
-        // Fonction utilitaire pour la rotation (doit être définie avant setupEventListeners)
+        // Fonction utilitaire pour la rotation
         window.updateDeviation = function(change) {
             const devInput = document.getElementById('deviation');
+            if (!devInput) return;
             let currentVal = parseInt(devInput.value, 10);
             let newVal = currentVal + change;
-            
-            // Boucle -180 / 180
             if (newVal > 180) newVal = -179;
             if (newVal < -180) newVal = 179;
-            
             devInput.value = newVal;
             devInput.dispatchEvent(new Event('input'));
         };
 
-        // Nouvelle version de setupToggle avec paramètre 'label'
         function setupToggle(buttonId, contentId, label = "Options avancées") {
             const button = document.getElementById(buttonId);
             const content = document.getElementById(contentId);
@@ -948,19 +1027,14 @@
             }
         }
 
-
         function initializeApp() {
             try {
                 setupTheme();
                 initializeCadoMap();
                 initializeZoneMap();
                 
-                // APPEL EXPLICITE DE L'INIT DU 3ÈME MODE
-                // On vérifie que le script est bien chargé avant de l'appeler
                 if (typeof initMbtilesMode === 'function') {
                     initMbtilesMode();
-                } else {
-                    console.error("mbtilesMode.js non chargé ou fonction initMbtilesMode manquante.");
                 }
 
                 populateMapSelectorForPNG();
@@ -983,24 +1057,25 @@
             }
         }
 
-        // ... (Création des baseLayers) ...
+        // Création des couches de base (Base Layers)
         function createBaseLayers() {
-                const baseMaps = {};
-                const L_QuadKeyLayer = L.TileLayer.extend({
-                    getTileUrl: function (coords) {
-                        const x = coords.x, y = coords.y, z = coords.z;
-                        let quadKey = '';
-                        for (let i = z; i > 0; i--) {
-                            let digit = 0;
-                            const mask = 1 << (i - 1);
-                            if ((y & mask) !== 0) { digit += 2; }
-                            if ((x & mask) !== 0) { digit += 1; }
-                            quadKey += digit.toString();
-                        }
-                        return L.Util.template(this._url, { s: (x + y) % 4, q: quadKey, z: z });
+            const baseMaps = {};
+            const L_QuadKeyLayer = L.TileLayer.extend({
+                getTileUrl: function (coords) {
+                    const x = coords.x, y = coords.y, z = coords.z;
+                    let quadKey = '';
+                    for (let i = z; i > 0; i--) {
+                        let digit = 0;
+                        const mask = 1 << (i - 1);
+                        if ((y & mask) !== 0) { digit += 2; }
+                        if ((x & mask) !== 0) { digit += 1; }
+                        quadKey += digit.toString();
                     }
-                });
+                    return L.Util.template(this._url, { s: (x + y) % 4, q: quadKey, z: z });
+                }
+            });
 
+            if (typeof MAP_LAYERS !== 'undefined') {
                 MAP_LAYERS.forEach(layerConfig => {
                     let leafletLayer;
                     if (layerConfig.layers.length > 1) {
@@ -1020,41 +1095,44 @@
                     }
                     if (leafletLayer) baseMaps[layerConfig.name] = leafletLayer;
                 });
-                return baseMaps;
             }
+            return baseMaps;
+        }
 
         function initializeCadoMap() {
-                cadoMap = L.map('cado-interactive-map', { attributionControl: false }).setView([46.2276, 2.2137], 5);
-                const baseMaps = createBaseLayers();
-                const defaultLayer = baseMaps["Ortho IGN + Routes Google"] || baseMaps["Google Hybrid"] || baseMaps[Object.keys(baseMaps)[0]];
-                if(defaultLayer) defaultLayer.addTo(cadoMap);
-                L.control.layers(baseMaps).addTo(cadoMap);
-                cadoMap.on('click', handleCadoMapClick);
-                
-                // SUPPRESSION DES CONTROLES ROTATION LEAFLET (Ils sont maintenant sous la carte)
-
-                cadoMap.on('baselayerchange', function(e) {
-                    const selector = document.getElementById('map-tile-provider');
+            cadoMap = L.map('cado-interactive-map', { attributionControl: false }).setView([46.2276, 2.2137], 5);
+            const baseMaps = createBaseLayers();
+            const defaultLayer = baseMaps["Ortho IGN + Routes Google"] || baseMaps["Google Hybrid"] || (Object.keys(baseMaps).length > 0 ? baseMaps[Object.keys(baseMaps)[0]] : null);
+            
+            if(defaultLayer) defaultLayer.addTo(cadoMap);
+            if(Object.keys(baseMaps).length > 0) L.control.layers(baseMaps).addTo(cadoMap);
+            
+            cadoMap.on('click', handleCadoMapClick);
+            
+            cadoMap.on('baselayerchange', function(e) {
+                const selector = document.getElementById('map-tile-provider');
+                if (typeof MAP_LAYERS !== 'undefined') {
                     const correspondingMapLayer = MAP_LAYERS.find(layer => layer.name === e.name);
-                    if (correspondingMapLayer) selector.value = correspondingMapLayer.id;
-                });
+                    if (correspondingMapLayer && selector) selector.value = correspondingMapLayer.id;
+                }
+            });
 
-                setTimeout(() => {
-                    const viewport = document.getElementById('map-viewport');
-                    const mapDiv = document.getElementById('cado-interactive-map');
-                    if (viewport && mapDiv) {
-                        const controls = mapDiv.querySelector('.leaflet-control-container');
-                        if (controls) viewport.appendChild(controls);
-                    }
-                }, 100);
-            }
+            setTimeout(() => {
+                const viewport = document.getElementById('map-viewport');
+                const mapDiv = document.getElementById('cado-interactive-map');
+                if (viewport && mapDiv) {
+                    const controls = mapDiv.querySelector('.leaflet-control-container');
+                    if (controls) viewport.appendChild(controls);
+                }
+            }, 100);
+        }
 
         function initializeZoneMap() {
             zoneMap = L.map('zone-interactive-map', { attributionControl: false }).setView([46.2276, 2.2137], 5);
             const baseMaps = createBaseLayers();
             const defaultLayer = baseMaps["Ortho IGN + Routes Google"] || baseMaps["Google Hybrid"];
             if(defaultLayer) defaultLayer.addTo(zoneMap);
-            L.control.layers(baseMaps).addTo(zoneMap);
+            if(Object.keys(baseMaps).length > 0) L.control.layers(baseMaps).addTo(zoneMap);
             
             drawnItems = new L.FeatureGroup();
             zoneMap.addLayer(drawnItems);
@@ -1072,8 +1150,10 @@
             });
             zoneMap.on(L.Draw.Event.EDITED, (e) => e.layers.eachLayer((layer) => updateZoneCoordsFromBounds(layer.getBounds())));
             zoneMap.on(L.Draw.Event.DELETED, () => {
-                document.getElementById('zone-nw-coords').value = '';
-                document.getElementById('zone-se-coords').value = '';
+                const nwInput = document.getElementById('zone-nw-coords');
+                const seInput = document.getElementById('zone-se-coords');
+                if(nwInput) nwInput.value = '';
+                if(seInput) seInput.value = '';
                 updateZoneTileCount();
             });
             zoneMap.on('zoomend', updateZoneInfo);
@@ -1095,10 +1175,17 @@
             if (!nwCoordsStr || !seCoordsStr) return;
             const [nwLat, nwLon] = nwCoordsStr.split(',').map(c => parseFloat(c.trim()));
             const [seLat, seLon] = seCoordsStr.split(',').map(c => parseFloat(c.trim()));
-            const widthMeters = haversineDistance({lat: nwLat, lon: nwLon}, {lat: nwLat, lon: seLon});
+            // Utilise la fonction haversine si disponible, sinon approx
+            const widthMeters = (typeof haversineDistance === 'function') ? 
+                haversineDistance({lat: nwLat, lon: nwLon}, {lat: nwLat, lon: seLon}) : 1000;
+            
             if (widthMeters > 0) {
                 const newScale = Math.round(widthMeters / 26);
-                document.getElementById('cado-overlay-scale').value = newScale > 0 ? newScale : 1;
+                const scaleInput = document.getElementById('cado-overlay-scale');
+                const zoneScaleInput = document.getElementById('zone-cado-scale'); // Nouveau champ Panel 5
+                
+                if(scaleInput) scaleInput.value = newScale > 0 ? newScale : 1;
+                if(zoneScaleInput) zoneScaleInput.value = newScale > 0 ? newScale : 1;
             }
         }
 
@@ -1112,7 +1199,9 @@
         }
         
         function updateZoneInfo(e) {
-            document.getElementById('zone-info-zoom').textContent = zoneMap.getZoom();
+            const zoomLabel = document.getElementById('zone-info-zoom');
+            if(zoomLabel) zoomLabel.textContent = zoneMap.getZoom();
+            
             let layerName = "N/A";
             if (e && e.name) {
                 layerName = e.name;
@@ -1123,32 +1212,39 @@
                      }
                 });
             }
-            document.getElementById('zone-info-layer').textContent = layerName;
+            const layerLabel = document.getElementById('zone-info-layer');
+            if(layerLabel) layerLabel.textContent = layerName;
+            
             updateZoneTileCount();
         }
         
         function updateZoneTileCount() {
-            const nwCoordsStr = document.getElementById("zone-nw-coords").value;
-            const seCoordsStr = document.getElementById("zone-se-coords").value;
-            const zoom = zoneMap.getZoom();
+            const nwCoordsStr = document.getElementById("zone-nw-coords")?.value;
+            const seCoordsStr = document.getElementById("zone-se-coords")?.value;
+            const zoom = zoneMap ? zoneMap.getZoom() : 10;
+            
             const tileInfoSpan = document.getElementById('zone-info-tiles');
             const warningSpan = document.getElementById('zone-tile-warning');
             const warningLowSpan = document.getElementById('zone-tile-warning-low');
+            
+            // --- CORRECTION MAJEURE ICI ---
             const downloadBtn = document.getElementById('generate-zone-png-button');
-            const generateUtmBtn = document.getElementById('generate-utm-button');
+            const exportBtn = document.getElementById('generate-zone-vector-button'); // Nouveau bouton unifié
 
             if (!nwCoordsStr || !seCoordsStr) {
-                tileInfoSpan.textContent = 'N/A';
-                warningSpan.style.display = 'none';
-                warningLowSpan.style.display = 'none';
-                downloadBtn.disabled = true;
-                generateUtmBtn.disabled = true;
+                if(tileInfoSpan) tileInfoSpan.textContent = 'N/A';
+                if(warningSpan) warningSpan.style.display = 'none';
+                if(warningLowSpan) warningLowSpan.style.display = 'none';
+                if(downloadBtn) downloadBtn.disabled = true;
+                if(exportBtn) exportBtn.disabled = true;
                 return;
             }
 
             const [north, west] = nwCoordsStr.split(',').map(c => parseFloat(c.trim()));
             const [south, east] = seCoordsStr.split(',').map(c => parseFloat(c.trim()));
             
+            if (typeof zdLatLonToWorldPixels !== 'function') return; // Sécurité si zoneDownloader.js pas chargé
+
             const nwPixel = zdLatLonToWorldPixels(north, west, zoom);
             const sePixel = zdLatLonToWorldPixels(south, east, zoom);
 
@@ -1159,64 +1255,42 @@
             const tileHeight = Math.abs(seTile.y - nwTile.y) + 1;
             const totalTiles = tileWidth * tileHeight;
 
-            tileInfoSpan.textContent = `${tileWidth} x ${tileHeight} (${totalTiles} au total)`;
+            if(tileInfoSpan) {
+                tileInfoSpan.textContent = `${tileWidth} x ${tileHeight} (${totalTiles} au total)`;
+                tileInfoSpan.classList.remove('text-red-500', 'text-yellow-500', 'font-bold');
+            }
             
-            warningSpan.style.display = 'none';
-            warningLowSpan.style.display = 'none';
-            tileInfoSpan.classList.remove('text-red-500', 'text-yellow-500', 'font-bold');
+            if(warningSpan) warningSpan.style.display = 'none';
+            if(warningLowSpan) warningLowSpan.style.display = 'none';
 
             if (totalTiles > TILE_LIMIT) {
-                tileInfoSpan.classList.add('text-red-500', 'font-bold');
-                warningSpan.style.display = 'block';
-                downloadBtn.disabled = true;
-                generateUtmBtn.disabled = true;
+                if(tileInfoSpan) tileInfoSpan.classList.add('text-red-500', 'font-bold');
+                if(warningSpan) warningSpan.style.display = 'block';
+                if(downloadBtn) downloadBtn.disabled = true;
+                if(exportBtn) exportBtn.disabled = true;
             } else {
-                downloadBtn.disabled = false;
-                generateUtmBtn.disabled = false;
+                if(downloadBtn) downloadBtn.disabled = false;
+                if(exportBtn) exportBtn.disabled = false;
                 if (totalTiles < 12) {
-                    tileInfoSpan.classList.add('text-yellow-500', 'font-bold');
-                    warningLowSpan.style.display = 'block';
+                    if(tileInfoSpan) tileInfoSpan.classList.add('text-yellow-500', 'font-bold');
+                    if(warningLowSpan) warningLowSpan.style.display = 'block';
                 }
             }
         }
 
         function setupZoneAddressSearch() {
-            const searchInput = document.getElementById('zone-address-search-input');
-            const suggestionsList = document.getElementById('zone-suggestions');
-            searchInput.addEventListener('input', () => {
-                const query = searchInput.value.trim();
-                if (query.length < 3) { suggestionsList.classList.add('hidden'); return; }
-                clearTimeout(debounceTimeout);
-                debounceTimeout = setTimeout(async () => {
-                    try {
-                        const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=5`);
-                        const results = await response.json();
-                        const suggestions = results.map(r => ({ label: r.display_name, lat: parseFloat(r.lat), lon: parseFloat(r.lon) }));
-                        suggestionsList.innerHTML = '';
-                        if (suggestions.length > 0) {
-                            suggestions.forEach(item => {
-                                const li = document.createElement('li');
-                                li.textContent = item.label;
-                                li.addEventListener('click', () => {
-                                    searchInput.value = item.label;
-                                    suggestionsList.classList.add('hidden');
-                                    zoneMap.flyTo([item.lat, item.lon], 15);
-                                });
-                                suggestionsList.appendChild(li);
-                            });
-                            suggestionsList.classList.remove('hidden');
-                        }
-                    } catch (error) { console.error("Erreur avec l'API Nominatim:", error); }
-                }, 300);
-            });
+            // Déjà géré dans zoneDownloader.js normalement, mais on garde la compatibilité
+            // si besoin. La fonction dans zoneDownloader.js est plus complète.
         }
 
         function handleCadoMapClick(e) {
             const lat = e.latlng.lat.toFixed(6);
             const lon = e.latlng.lng.toFixed(6);
             const decimalCoordsInput = document.getElementById('decimal-coords');
-            decimalCoordsInput.value = `${lat}, ${lon}`;
-            decimalCoordsInput.dispatchEvent(new Event('input'));
+            if(decimalCoordsInput) {
+                decimalCoordsInput.value = `${lat}, ${lon}`;
+                decimalCoordsInput.dispatchEvent(new Event('input'));
+            }
             if (!clickMarker) {
                 clickMarker = L.marker(e.latlng).addTo(cadoMap);
             } else {
@@ -1226,14 +1300,16 @@
 
         const searchInput = document.getElementById('address-search-input');
         const suggestionsList = document.getElementById('suggestions');
-        searchInput.addEventListener('input', () => {
-            const query = searchInput.value.trim();
-            suggestionsList.innerHTML = '';
-            suggestionsList.classList.add('hidden');
-            if (query.length < 3) return;
-            clearTimeout(debounceTimeout);
-            debounceTimeout = setTimeout(() => { fetchSuggestions(query); }, 300);
-        });
+        if(searchInput) {
+            searchInput.addEventListener('input', () => {
+                const query = searchInput.value.trim();
+                suggestionsList.innerHTML = '';
+                suggestionsList.classList.add('hidden');
+                if (query.length < 3) return;
+                clearTimeout(debounceTimeout);
+                debounceTimeout = setTimeout(() => { fetchSuggestions(query); }, 300);
+            });
+        }
 
         async function fetchSuggestions(query) {
             try {
@@ -1270,7 +1346,7 @@
         }
         
         document.addEventListener('click', (e) => {
-            if (!document.querySelector('.address-search-container').contains(e.target)) {
+            if (suggestionsList && !document.querySelector('.address-search-container').contains(e.target)) {
                 suggestionsList.classList.add('hidden');
             }
         });
@@ -1328,7 +1404,7 @@
                     this.classList.add('selected');
                     document.getElementById('grid-color').value = this.dataset.color;
                     document.getElementById('grid-color-name').value = this.dataset.name;
-                    updateDynamicGridName();
+                    if(typeof updateDynamicGridName === 'function') updateDynamicGridName();
                 });
             });
             
@@ -1343,13 +1419,20 @@
                 });
             });
 
-            document.getElementById('transparency-value').textContent = `${document.getElementById('transparency').value}%`;
-            document.getElementById('deviation-value').textContent = `${document.getElementById('deviation').value}°`;
-            document.getElementById('utm-transparency-value').textContent = `${document.getElementById('utm-transparency').value}%`;
+            const transEl = document.getElementById('transparency');
+            if(transEl) document.getElementById('transparency-value').textContent = `${transEl.value}%`;
+            
+            const devEl = document.getElementById('deviation');
+            if(devEl) document.getElementById('deviation-value').textContent = `${devEl.value}°`;
+            
+            const utmTransEl = document.getElementById('utm-transparency');
+            if(utmTransEl) document.getElementById('utm-transparency-value').textContent = `${utmTransEl.value}%`;
+            
             document.querySelectorAll('input[name="grid-type"]').forEach(radio => {
                 radio.addEventListener('change', function() {
-                    document.getElementById('custom-grid-options').classList.toggle('hidden', this.value !== 'custom');
-                    updateDynamicGridName();
+                    const customOpts = document.getElementById('custom-grid-options');
+                    if(customOpts) customOpts.classList.toggle('hidden', this.value !== 'custom');
+                    if(typeof updateDynamicGridName === 'function') updateDynamicGridName();
                 });
             });
 
@@ -1358,7 +1441,7 @@
             }
         }
 
-        // --- MISE À JOUR DE TOGGLE MODE POUR LE 3ème MODE ---
+        // --- GESTION DU TOGGLE MODE ---
         function toggleMode(targetMode) {
             const containers = { 
                 cado: document.getElementById('cado-mode-container'), 
@@ -1387,17 +1470,19 @@
             let mapToResize = null;
             switch (targetMode) {
                 case 'zone': mapToResize = zoneMap; break;
-                case 'import': mapToResize = window.importMap; break; // Map MBTiles
-                case 'creator': // <--- AJOUT
+                case 'import': mapToResize = window.importMap; break; 
+                case 'creator': 
                     if (typeof initCreatorMode === 'function') initCreatorMode();
-                    mapToResize = creatorMap; 
+                    mapToResize = window.creatorMap; 
                     break;
                 case 'cado': default: mapToResize = cadoMap; break;
             }
-            // Délai léger pour laisser le temps au conteneur de devenir visible
             if (mapToResize) setTimeout(() => mapToResize.invalidateSize(), 50);
         }
 
+        // =============================================================================
+        // SETUP EVENT LISTENERS (CORRIGÉ ET SÉCURISÉ)
+        // =============================================================================
         function setupEventListeners() {
             document.getElementById('mode-selector').addEventListener('click', (e) => {
                 if (e.target.matches('.mode-btn')) toggleMode(e.target.getAttribute('data-mode'));
@@ -1407,34 +1492,53 @@
             setupToggle('toggle-grid-config-btn', 'advanced-grid-config', 'Options avancées');
             setupToggle('toggle-rotation-btn', 'rotation-controls', '🔄 Configurer la rotation');
 
-            document.getElementById('rotate-left-btn').addEventListener('click', () => updateDeviation(-1));
-            document.getElementById('rotate-right-btn').addEventListener('click', () => updateDeviation(1));
-            document.getElementById('reset-deviation').addEventListener('click', () => {
+            const rotateLeft = document.getElementById('rotate-left-btn');
+            if(rotateLeft) rotateLeft.addEventListener('click', () => updateDeviation(-1));
+            
+            const rotateRight = document.getElementById('rotate-right-btn');
+            if(rotateRight) rotateRight.addEventListener('click', () => updateDeviation(1));
+            
+            const resetDev = document.getElementById('reset-deviation');
+            if(resetDev) resetDev.addEventListener('click', () => {
                 const devInput = document.getElementById('deviation');
-                devInput.value = 0;
-                devInput.dispatchEvent(new Event('input'));
+                if(devInput) {
+                    devInput.value = 0;
+                    devInput.dispatchEvent(new Event('input'));
+                }
             });
 
-            document.getElementById('transparency').addEventListener('input', e => { document.getElementById('transparency-value').textContent = `${e.target.value}%`; });
-            document.getElementById('utm-transparency').addEventListener('input', e => { document.getElementById('utm-transparency-value').textContent = `${e.target.value}%`; });
-            document.getElementById('convert-from-decimal').addEventListener('click', convertFromDecimal);
-            document.getElementById('convert-from-dms').addEventListener('click', convertFromDMS);
-            document.getElementById('convert-from-dm').addEventListener('click', convertFromDM);
-            document.getElementById('convert-from-mercator').addEventListener('click', convertFromMercator);
-            document.getElementById('convert-from-utm').addEventListener('click', convertFromUTM);
-            document.getElementById('view-on-maps-decimal').addEventListener('click', () => viewOnMap('decimal'));
-            document.getElementById('view-on-maps-dms').addEventListener('click', () => viewOnMap('dms'));
-            document.getElementById('view-on-maps-dm').addEventListener('click', () => viewOnMap('dm'));
-            document.getElementById('view-on-maps-mercator').addEventListener('click', () => viewOnMap('mercator'));
-            document.getElementById('view-on-maps-utm').addEventListener('click', () => viewOnMap('utm'));
+            const transInput = document.getElementById('transparency');
+            if(transInput) transInput.addEventListener('input', e => { document.getElementById('transparency-value').textContent = `${e.target.value}%`; });
+            
+            const utmTransInput = document.getElementById('utm-transparency');
+            if(utmTransInput) utmTransInput.addEventListener('input', e => { document.getElementById('utm-transparency-value').textContent = `${e.target.value}%`; });
 
+            // Boutons de conversion
+            const addClick = (id, fn) => {
+                const el = document.getElementById(id);
+                if(el) el.addEventListener('click', fn);
+            };
+
+            addClick('convert-from-decimal', convertFromDecimal);
+            addClick('convert-from-dms', convertFromDMS);
+            addClick('convert-from-dm', convertFromDM);
+            addClick('convert-from-mercator', convertFromMercator);
+            addClick('convert-from-utm', convertFromUTM);
+            addClick('view-on-maps-decimal', () => viewOnMap('decimal'));
+            addClick('view-on-maps-dms', () => viewOnMap('dms'));
+            addClick('view-on-maps-dm', () => viewOnMap('dm'));
+            addClick('view-on-maps-mercator', () => viewOnMap('mercator'));
+            addClick('view-on-maps-utm', () => viewOnMap('utm'));
+
+            // Rotation Slider
             const deviationInput = document.getElementById('deviation');
             const deviationValueSpan = document.getElementById('deviation-value');
             const mapContainer = document.getElementById('cado-interactive-map');
             const rotationGuide = document.getElementById('rotation-guide');
             let guideTimeout;
 
-           const updateMapRotation = (val) => {
+            if(deviationInput && deviationValueSpan && mapContainer && rotationGuide) {
+               const updateMapRotation = (val) => {
                     deviationValueSpan.textContent = `${val}°`; 
                     mapContainer.style.transform = `translate(-50%, -50%) rotate(${-val}deg)`;
                     rotationGuide.style.opacity = '1';
@@ -1444,20 +1548,19 @@
                     }, 1500);
                 };
 
-            deviationInput.addEventListener('input', () => { 
-                const val = parseInt(deviationInput.value, 10);
-                updateMapRotation(val);
-            });
-
-            const generateImageButton = document.getElementById('generate-image-button');
-            const iconScaleInput = document.getElementById('zone-icon-scale');
-            if (iconScaleInput) {
-                iconScaleInput.addEventListener('input', (e) => {
-                    // Update label removed in HTML, keeping logic just in case
+                deviationInput.addEventListener('input', () => { 
+                    const val = parseInt(deviationInput.value, 10);
+                    updateMapRotation(val);
                 });
+                
+                // Init value
+                deviationValueSpan.textContent = `${deviationInput.value}°`;
             }
-            
+
+            // Boutons d'action Mode CADO
+            const generateImageButton = document.getElementById('generate-image-button');
             const updateImageButtonState = () => {
+                if(!generateImageButton || !deviationInput) return;
                 generateImageButton.disabled = false;
                 const dev = parseInt(deviationInput.value, 10);
                 if (dev !== 0) {
@@ -1468,7 +1571,7 @@
                     generateImageButton.classList.remove('ring-2', 'ring-yellow-400');
                 }
             };
-            
+
             document.querySelectorAll('.grid-parameter').forEach(el => {
                 const eventType = (el.tagName === 'INPUT' && ['range', 'number', 'text'].includes(el.type)) ? 'input' : 'change';
                 el.addEventListener(eventType, () => {
@@ -1476,55 +1579,54 @@
                     updateImageButtonState();
                 });
             });
-            deviationInput.addEventListener('input', () => { deviationValueSpan.textContent = `${deviationInput.value}°`; });
             
-            document.getElementById('generate-image-button').addEventListener('click', generateImageToPrint);
-            document.getElementById('generate-button').addEventListener('click', generateGrid);
-            document.getElementById('generate-utm-button').addEventListener('click', generateUTMGrid);
-            document.getElementById('generate-zone-png-button').addEventListener('click', generateZonePNG);
-            document.getElementById('zone-kmz-input').addEventListener('change', handleZoneKmzFile);
-            
-            document.getElementById('generate-zone-cado-kmz-button').addEventListener('click', generateCadoGridForZone);
-            const cadoOverlayCheckbox = document.getElementById('overlay-cado-grid-checkbox');
-            const cadoOverlayOptions = document.getElementById('cado-overlay-options');
-            cadoOverlayCheckbox.addEventListener('change', (e) => {
-                cadoOverlayOptions.classList.toggle('hidden', !e.target.checked);
-                if (e.target.checked) {
-                    document.getElementById('overlay-utm-grid-checkbox').checked = false;
-                }
-            });
-            document.getElementById('overlay-utm-grid-checkbox').addEventListener('change', (e) => {
-                if (e.target.checked) {
-                    cadoOverlayCheckbox.checked = false;
-                    cadoOverlayOptions.classList.add('hidden');
-                }
-            });
+            if(generateImageButton) generateImageButton.addEventListener('click', generateImageToPrint);
+            const genBtn = document.getElementById('generate-button');
+            if(genBtn) genBtn.addEventListener('click', generateGrid);
 
-            // GESTION DES POIS
+            // GESTION DU MODE ZONE (Listeners spécifiques déjà gérés en partie dans zoneDownloader.js mais sécurité ici)
+            // Note: generate-utm-button et generate-zone-cado-kmz-button ont été remplacés par le bouton unifié
+            // dans zoneDownloader.js. On ne met plus de listener ici pour éviter les erreurs "Cannot read property of null".
+            
+            const zoneKmzInput = document.getElementById('zone-kmz-input');
+            if(zoneKmzInput) zoneKmzInput.addEventListener('change', handleZoneKmzFile);
+            
+            const cadoKmzInput = document.getElementById('cado-kmz-input');
+            if(cadoKmzInput && typeof handleCadoKmzFile === 'function') {
+                cadoKmzInput.addEventListener('change', handleCadoKmzFile);
+            }
+            // POI
             const addPoiBtn = document.getElementById('add-poi-btn');
-            addPoiBtn.addEventListener('click', () => {
-                if (typeof toggleAddPointMode === 'function') {
-                    const isAdding = toggleAddPointMode();
-                    addPoiBtn.textContent = isAdding ? "Annuler l'ajout" : "+ Ajouter un point";
-                    addPoiBtn.classList.toggle('bg-red-600', isAdding);
-                    addPoiBtn.classList.toggle('hover:bg-red-700', isAdding);
-                    addPoiBtn.classList.toggle('bg-blue-600', !isAdding);
-                    addPoiBtn.classList.toggle('hover:bg-blue-700', !isAdding);
-                }
-            });
+            if(addPoiBtn) {
+                addPoiBtn.addEventListener('click', () => {
+                    if (typeof toggleAddPointMode === 'function') {
+                        const isAdding = toggleAddPointMode();
+                        addPoiBtn.textContent = isAdding ? "Annuler l'ajout" : "+ Ajouter un point";
+                        addPoiBtn.classList.toggle('bg-red-600', isAdding);
+                        addPoiBtn.classList.toggle('hover:bg-red-700', isAdding);
+                        addPoiBtn.classList.toggle('bg-blue-600', !isAdding);
+                        addPoiBtn.classList.toggle('hover:bg-blue-700', !isAdding);
+                    }
+                });
+            }
 
+            // Init state
 			updateImageButtonState();
             
             function handleFormatChange(event) {
                 const mode = event.target.name.includes('cado') ? 'cado' : 'zone';
                 const qualityContainer = document.getElementById(`${mode}-jpeg-quality-container`);
-                qualityContainer.classList.toggle('visible', event.target.value === 'jpeg');
+                if(qualityContainer) qualityContainer.classList.toggle('visible', event.target.value === 'jpeg');
             }
 
             document.querySelectorAll('input[name="image-format-cado"]').forEach(radio => radio.addEventListener('change', handleFormatChange));
             document.querySelectorAll('input[name="image-format-zone"]').forEach(radio => radio.addEventListener('change', handleFormatChange));
-            document.getElementById('cado-jpeg-quality').addEventListener('input', (e) => { document.getElementById('cado-jpeg-quality-value').textContent = `${e.target.value}%`; });
-            document.getElementById('zone-jpeg-quality').addEventListener('input', (e) => { document.getElementById('zone-jpeg-quality-value').textContent = `${e.target.value}%`; });
+            
+            const cadoJpegSlider = document.getElementById('cado-jpeg-quality');
+            if(cadoJpegSlider) cadoJpegSlider.addEventListener('input', (e) => { document.getElementById('cado-jpeg-quality-value').textContent = `${e.target.value}%`; });
+            
+            const zoneJpegSlider = document.getElementById('zone-jpeg-quality');
+            if(zoneJpegSlider) zoneJpegSlider.addEventListener('input', (e) => { document.getElementById('zone-jpeg-quality-value').textContent = `${e.target.value}%`; });
         }
         
         function displayAppVersion() {

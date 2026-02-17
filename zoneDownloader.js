@@ -13,27 +13,85 @@ let isAddingPoint = false;
 let poiMarkersLayer = null;
 
 // =============================================================================
+// INITIALISATION ET LISTENERS
+// =============================================================================
+
+document.addEventListener('DOMContentLoaded', () => {
+    
+    // 1. GESTION DU PANEL 5 (Choix des carroyages - EXCLUSIF)
+    const gridRadios = document.querySelectorAll('input[name="zone-grid-choice"]');
+    const cadoOptions = document.getElementById('zone-cado-options');
+
+    // Fonction pour mettre à jour la visibilité des options CADO
+    const updateCadoVisibility = () => {
+        const selected = document.querySelector('input[name="zone-grid-choice"]:checked');
+        if (selected && selected.value === 'cado') {
+            cadoOptions.classList.remove('hidden');
+        } else {
+            cadoOptions.classList.add('hidden');
+        }
+    };
+
+    if (gridRadios.length > 0) {
+        gridRadios.forEach(radio => {
+            radio.addEventListener('change', updateCadoVisibility);
+        });
+        // Init au chargement
+        updateCadoVisibility();
+    }
+
+    // 2. GESTION DU PANEL 7 (Bouton Export Fichier Vectoriel)
+    const formatRadios = document.querySelectorAll('input[name="zone-file-format"]');
+    const exportBtn = document.getElementById('generate-zone-vector-button');
+    
+    if (exportBtn) {
+        // Mise à jour du texte du bouton selon le format
+        if (formatRadios.length > 0) {
+            formatRadios.forEach(radio => {
+                radio.addEventListener('change', (e) => {
+                    exportBtn.textContent = `Générer le fichier ${e.target.value}`;
+                });
+            });
+        }
+        // Listener sur le bouton d'export
+        exportBtn.addEventListener('click', handleZoneVectorExport);
+    }
+    
+    // 3. GESTION DU PANEL 6 (Bouton Image)
+    const imgBtn = document.getElementById('generate-zone-png-button');
+    if (imgBtn) {
+        // Remplacement du listener pour éviter les doublons
+        const newBtn = imgBtn.cloneNode(true);
+        if (imgBtn.parentNode) {
+            imgBtn.parentNode.replaceChild(newBtn, imgBtn);
+            newBtn.addEventListener('click', generateZonePNG);
+        }
+    }
+    
+    // 4. Initialisation des composants graphiques
+    if (typeof initVisualIconSelector === 'function') {
+        setTimeout(initVisualIconSelector, 500);
+    }
+});
+
+// =============================================================================
 // GESTION DE LA BIBLIOTHEQUE D'ICONES
 // =============================================================================
 
 function getIconsSync() {
     let finalIcons = [];
 
-    // 1. Icônes Perso (LocalStorage) - Ce sont "Mes Icônes"
+    // 1. Icônes Perso (LocalStorage)
     const storedCustom = localStorage.getItem('userIcons');
     if (storedCustom) {
         try {
             const customIcons = JSON.parse(storedCustom);
-            // On les marque simplement comme 'Mes Icônes'
             customIcons.forEach(icon => { icon.path = ['00_Mes Icônes']; });
             finalIcons = finalIcons.concat(customIcons);
         } catch(e) { console.error("Erreur lecture localstorage icons:", e); }
     }
 
-    // 2. SUPPRESSION : On ne charge plus ICON_LIBRARY ici pour éviter les doublons
-    // Le bloc qui chargeait "01_Icônes Application" a été supprimé.
-
-    // 3. Icônes Pro (Catalogue)
+    // 2. Icônes Pro (Catalogue)
     if (typeof ICON_CATALOG !== 'undefined') {
         finalIcons = finalIcons.concat(ICON_CATALOG);
     }
@@ -366,7 +424,7 @@ function updatePOIList() {
 window.removePOI = removePOI;
 
 // =============================================================================
-// FONCTIONS UTILITAIRES / EXPORT / DESSIN
+// FONCTIONS UTILITAIRES / CONFIG
 // =============================================================================
 
 function getIconData(url) {
@@ -492,6 +550,7 @@ function zdLatLonToWorldPixels(lat, lon, zoom) {
     return { x: x * mapSize, y: y * mapSize };
 }
 
+// CONFIGURATION CADO
 function getZoneCadoConfigAndBounds() {
     const nwCoordsStr = document.getElementById("zone-nw-coords").value;
     const seCoordsStr = document.getElementById("zone-se-coords").value;
@@ -500,8 +559,12 @@ function getZoneCadoConfigAndBounds() {
     const [nwLat, nwLon] = nwCoordsStr.split(',').map(c => parseFloat(c.trim()));
     const [seLat, seLon] = seCoordsStr.split(',').map(c => parseFloat(c.trim()));
 
-    const scale = parseFloat(document.getElementById('cado-overlay-scale').value);
+    // Lecture du Panel 5 (Nouvelle logique)
+    const scale = parseFloat(document.getElementById('zone-cado-scale').value);
     if (isNaN(scale) || scale <= 0) throw new Error("L'échelle doit être un nombre positif.");
+    
+    const direction = document.querySelector('input[name="zone-cado-direction"]:checked').value;
+    const swapAxes = document.getElementById('zone-cado-swap-axes').checked;
 
     const widthMeters = haversineDistance({lat: nwLat, lon: nwLon}, {lat: nwLat, lon: seLon});
     const heightMeters = haversineDistance({lat: nwLat, lon: nwLon}, {lat: seLat, lon: nwLon});
@@ -521,11 +584,9 @@ function getZoneCadoConfigAndBounds() {
     const xOffsetMeters = (numCols / 2) * scale;
     const yOffsetMeters = (numRows / 2) * scale;
     
-    const letteringDirection = document.querySelector('input[name="cado-overlay-direction"]:checked').value;
-    
     const a1CornerLon = refLon - metersToLonDegrees(xOffsetMeters, refLat);
     let a1CornerLat;
-    if (letteringDirection === 'ascending') {
+    if (direction === 'ascending') {
         a1CornerLat = refLat - metersToLatDegrees(yOffsetMeters);
     } else {
         a1CornerLat = refLat + metersToLatDegrees(yOffsetMeters);
@@ -536,19 +597,20 @@ function getZoneCadoConfigAndBounds() {
         longitude: refLon,
         scale: scale,
         lineWidth: parseInt(document.getElementById('common-grid-thickness').value, 10) || 1,
-        letteringDirection: letteringDirection,
+        letteringDirection: direction,
         gridColor: document.getElementById('utm-grid-color').value,
         colorName: document.getElementById('utm-grid-color-name').value,
         colorOpacity: (100 - parseInt(document.getElementById('utm-transparency').value)) / 100,
-        gridNameBase: document.getElementById("zone-title").value || "Carroyage CADO de Zone",
+        gridNameBase: document.getElementById("zone-export-filename").value || "Carroyage CADO",
+        gridName: document.getElementById("zone-export-filename").value || "Carroyage CADO",
         deviation: 0,
-        labelSize: parseFloat(document.getElementById('label-size').value),
-        iconSize: parseFloat(document.getElementById('icon-size').value || 2),
+        labelSize: 1.2,
+        iconSize: 1.0,
         referencePointChoice: 'no_cross', 
         startRow: 1, endRow: numRows,
         startCol: 'A', endCol: numberToLetter(numCols),
         includeGrid: true, includePoints: true,
-        swapAxes: document.getElementById('zone-swap-axes').checked,
+        swapAxes: swapAxes,
         outputFormat: 'KMZ'
     };
 
@@ -569,17 +631,28 @@ function getZoneCadoConfigAndBounds() {
     return { config, gridBounds, a1CornerLat, a1CornerLon };
 }
 
+// =============================================================================
+// GENERATION IMAGE (PNG/JPEG) AVEC NOUVELLE LOGIQUE ET ORDRE Z-INDEX STRICT
+// =============================================================================
+
 async function generateZonePNG() {
     const loadingIndicator = document.getElementById("loading-indicator");
     const loadingMessage = document.getElementById("loading-message");
     const upscaleEnabled = document.getElementById('zone-enable-upscale').checked;
+    
+    // LECTURE DU PANEL 5
+    const gridChoiceEl = document.querySelector('input[name="zone-grid-choice"]:checked');
+    const gridChoice = gridChoiceEl ? gridChoiceEl.value : 'none';
+
+    const useUtm = (gridChoice === 'utm');
+    const useCfsi = (gridChoice === 'cfsi');
+    const useCado = (gridChoice === 'cado');
+
     loadingMessage.textContent = "Préparation de l'export de la zone...";
     loadingIndicator.classList.remove("hidden");
     hideError();
 
     try {
-        const isCadoExport = document.getElementById('overlay-cado-grid-checkbox').checked;
-        const isUtmExport = document.getElementById('overlay-utm-grid-checkbox').checked;
         let cadoData = null;
         let finalBoundingBox;
 
@@ -590,7 +663,7 @@ async function generateZonePNG() {
         
         const baseThickness = parseInt(document.getElementById('common-grid-thickness').value, 10) || 1;
 
-        if(isCadoExport) {
+        if(useCado) {
             cadoData = getZoneCadoConfigAndBounds();
             const { config, gridBounds } = cadoData;
             const avgLat = (gridBounds.minLat + gridBounds.maxLat) / 2;
@@ -619,8 +692,10 @@ async function generateZonePNG() {
 
         loadingMessage.textContent = "Téléchargement et assemblage des fonds de carte...";
         
-        const needsExternalMargin = isUtmExport && !isCadoExport;
+        // --- CORRECTION ICI : Seul UTM a besoin de marges externes ---
+        const needsExternalMargin = useUtm;
         
+        // 1. Fond de Carte (Tuiles) - Z-INDEX 1
         const { finalCanvas, dynamicMargin, scaleFactor } = await zdCreateFinalCanvas(finalBoundingBox, zoom, selectedMap, needsExternalMargin, upscaleEnabled);
         const ctx = finalCanvas.getContext('2d');
         
@@ -638,9 +713,47 @@ async function generateZonePNG() {
             cadoData.config.lineWidth = cadoData.config.lineWidth * scaleFactor;
         }
 
+        // 2. DESSIN DES GRILLES - Z-INDEX 2
+        
+        if (useUtm) {
+            loadingMessage.textContent = "Dessin de la grille UTM...";
+            const cartoucheFontSize = Math.max(10 * scaleFactor, Math.min(48 * scaleFactor, finalCanvas.width * 0.007));
+            await drawUtmGridOnCanvas(ctx, finalBoundingBox, latLonToCanvasPixels, dynamicMargin, cartoucheFontSize, baseThickness * scaleFactor);
+        }
+        
+        if (useCfsi) {
+            loadingMessage.textContent = "Dessin du carroyage CFSI...";
+            const cfsiFontSize = Math.max(10 * scaleFactor, finalCanvas.width * 0.006); 
+            // Note : dynamicMargin sera à 0 ici, ce qui est correct pour CFSI
+            await drawCfsiGridOnCanvas(ctx, finalBoundingBox, latLonToCanvasPixels, dynamicMargin, cfsiFontSize, baseThickness * scaleFactor);
+        }
+
+        if (useCado && cadoData) {
+            loadingMessage.textContent = "Dessin du carroyage CADO...";
+            const { config, a1CornerLat, a1CornerLon } = cadoData;
+            drawCadoElementsOnCanvas(ctx, config, latLonToCanvasPixels, [a1CornerLon, a1CornerLat]);
+            config.lineWidth = config.lineWidth / scaleFactor;
+        }
+
+        // 3. DESSIN DES TRACES (LINESTRING) KML - Z-INDEX 3
         if (loadedZoneKmlFeatures.length > 0) {
-            loadingMessage.textContent = "Dessin des éléments KML...";
-            drawZoneKmlFeatures(ctx, zoom, loadedZoneKmlFeatures, latLonToCanvasPixels);
+            loadingMessage.textContent = "Dessin des Traces KML...";
+            const lineFeatures = loadedZoneKmlFeatures.filter(f => f.type === 'LineString');
+            if (lineFeatures.length > 0) drawZoneKmlFeatures(ctx, zoom, lineFeatures, latLonToCanvasPixels);
+        }
+
+        // 4. DESSIN DES ZONES (POLYGON) KML - Z-INDEX 4
+        if (loadedZoneKmlFeatures.length > 0) {
+            loadingMessage.textContent = "Dessin des Zones KML...";
+            const polyFeatures = loadedZoneKmlFeatures.filter(f => f.type === 'Polygon');
+            if (polyFeatures.length > 0) drawZoneKmlFeatures(ctx, zoom, polyFeatures, latLonToCanvasPixels);
+        }
+
+        // 5. DESSIN DES POINTS (KML + POI USER) - Z-INDEX 5
+        if (loadedZoneKmlFeatures.length > 0) {
+            loadingMessage.textContent = "Dessin des Points KML...";
+            const pointFeatures = loadedZoneKmlFeatures.filter(f => f.type === 'Point');
+            if (pointFeatures.length > 0) drawZoneKmlFeatures(ctx, zoom, pointFeatures, latLonToCanvasPixels);
         }
 
         if (userPOIs.length > 0) {
@@ -650,34 +763,19 @@ async function generateZonePNG() {
             await drawUserPOIsOnCanvas(ctx, latLonToCanvasPixels, scaleFactor * userScalePreference);
         }
 
-        if (isUtmExport) {
-            loadingMessage.textContent = "Dessin de la grille UTM...";
-            const cartoucheFontSize = Math.max(10 * scaleFactor, Math.min(48 * scaleFactor, finalCanvas.width * 0.007));
-            await drawUtmGridOnCanvas(ctx, finalBoundingBox, latLonToCanvasPixels, dynamicMargin, cartoucheFontSize, baseThickness * scaleFactor);
-        }
-        
-        if (isCadoExport && cadoData) {
-            loadingMessage.textContent = "Dessin du carroyage CADO...";
-            const { config, a1CornerLat, a1CornerLon } = cadoData;
-            drawCadoElementsOnCanvas(ctx, config, latLonToCanvasPixels, [a1CornerLon, a1CornerLat]);
-            config.lineWidth = config.lineWidth / scaleFactor;
-        }
-
-        if (!isCadoExport) {
+        // FINITIONS (CARTOUCHE)
+        // Le cartouche est dessiné si on n'est PAS en CADO (CADO a son propre cartouche interne)
+        if (!useCado) {
             loadingMessage.textContent = "Finalisation de l'image...";
+            const userTitle = document.getElementById("zone-export-filename").value || "Zone";
             
-            if (isUtmExport) {
+            if (useUtm) {
                 const cartoucheFontSize = Math.max(10 * scaleFactor, Math.min(48 * scaleFactor, finalCanvas.width * 0.007));
-                
-                // --- CORRECTION DU TITRE ET DE LA VARIABLE METRICS ---
-                const userTitle = document.getElementById("zone-title").value || "Zone";
                 const cartoucheTitle = `Export de ${userTitle}_zoom ${zoom}`;
-
-                // IMPORTANT : Il faut bien mettre "const cartoucheMetrics =" devant l'appel
                 const cartoucheMetrics = drawZoneCartouche(ctx, cartoucheTitle, finalBoundingBox, mapLayerName, zoom, dynamicMargin, cartoucheFontSize);
-                
                 drawZoneCompass(ctx, finalCanvas.width, finalCanvas.height, dynamicMargin, cartoucheMetrics);
             } else {
+                // Pour CFSI ou Aucun, on dessine échelle et boussole simples
                 const compassRadius = Math.max(10 * scaleFactor, finalCanvas.width * 0.012); 
                 const padding = compassRadius * 0.8; 
                 const compassCenterX = finalCanvas.width - dynamicMargin - padding - compassRadius;
@@ -690,12 +788,12 @@ async function generateZonePNG() {
                 const mapPixelWidth = finalCanvas.width - (2 * dynamicMargin);
                 const metersPerPixel = realWidthMeters / mapPixelWidth; 
 
-                drawSmartScaleBar(ctx, finalCanvas.width, finalCanvas.height, 0, metersPerPixel);
+                // Marge interne par défaut si 0
+                const scaleBarMargin = (dynamicMargin === 0) ? 20 * scaleFactor : 0;
+                drawSmartScaleBar(ctx, finalCanvas.width, finalCanvas.height, scaleBarMargin, metersPerPixel);
             }
         }
         
-        // UPSCALING FINAL (si nécessaire) : si la hauteur de l'image est < 2160px,
-        // on upscale le canvas final pour atteindre 2160px de hauteur.
         const TARGET_EXPORT_HEIGHT = 2160;
         let exportCanvas = finalCanvas;
         if (upscaleEnabled && finalCanvas.height < TARGET_EXPORT_HEIGHT) {
@@ -707,49 +805,25 @@ async function generateZonePNG() {
             scaledCanvas.height = TARGET_EXPORT_HEIGHT;
             const scaledCtx = scaledCanvas.getContext('2d');
 
-            // Fond blanc homogène
             scaledCtx.fillStyle = 'white';
             scaledCtx.fillRect(0, 0, scaledCanvas.width, scaledCanvas.height);
-
             scaledCtx.imageSmoothingEnabled = true;
             scaledCtx.imageSmoothingQuality = 'high';
-
             scaledCtx.drawImage(finalCanvas, 0, 0, scaledCanvas.width, scaledCanvas.height);
             exportCanvas = scaledCanvas;
         }
 
-         const now = new Date();
-        const day = String(now.getDate()).padStart(2, '0');
-        const month = String(now.getMonth() + 1).padStart(2, '0');
-        const year = now.getFullYear();
-        const dateStr = `${day}.${month}.${year}`;
+        const now = new Date();
+        const dateStr = `${String(now.getDate()).padStart(2, '0')}.${String(now.getMonth() + 1).padStart(2, '0')}.${now.getFullYear()}`;
 
-        let gridTypeStr = "sans_carroyage";
-        if (isCadoExport) gridTypeStr = "CADO";
-        else if (isUtmExport) gridTypeStr = "UTM";
+        let gridTypeStr = "Map";
+        if (useCado) gridTypeStr += "_CADO";
+        if (useUtm) gridTypeStr += "_UTM";
+        if (useCfsi) gridTypeStr += "_CFSI";
 
-        // Titre de base saisi par l'utilisateur
-        let rawTitle = document.getElementById("zone-title").value || "Export de zone";
-        
-        // On s'assure qu'il commence par "Export de" si l'utilisateur ne l'a pas mis (optionnel, mais garde la cohérence)
-        // Mais si l'utilisateur a mis son propre titre, on le respecte, on l'utilise comme base.
-        // La demande est: "Export de "+Titre+"_zoom "+niveau de zoom
-        
-        // Construction du titre final pour le Cartouche et le Fichier
-        // Note: Le cartouche est déjà dessiné plus haut avec 'drawZoneCartouche(..., "Export de zone", ...)' 
-        // ou avec le titre brut. 
-        // Si vous voulez que le cartouche reflète le nouveau format, il faudrait modifier l'appel à drawZoneCartouche plus haut.
-        // Comme le code est séquentiel, on va juste gérer le nom de fichier ici.
-        
-        // Nom de fichier demandé : "Export de "+Titre+"_zoom "+niveau de zoom+"_"+type de carroyage+"date "+jour+"."+mois+"."+année+extension
-        
-        const zoomLevelStr = `zoom ${zoom}`;
-        // Si le titre brut contient déjà "zoom", on évite de le doubler
-        let titlePart = rawTitle;
-        if (!titlePart.includes("Export de")) titlePart = `Export de ${titlePart}`;
-        if (!titlePart.includes("zoom")) titlePart = `${titlePart}_${zoomLevelStr}`;
-
-        const fileName = `${titlePart}_${gridTypeStr}_date ${dateStr}${fileExtension}`;
+        let rawTitle = document.getElementById("zone-export-filename").value || "Export";
+        if (!rawTitle.startsWith("Export")) rawTitle = `Export_${rawTitle}`;
+        const fileName = `${rawTitle}_zoom${zoom}_${gridTypeStr}_${dateStr}${fileExtension}`;
         
         exportCanvas.toBlob((blob) => {
             if (blob) { downloadFile(blob, fileName); } 
@@ -758,109 +832,269 @@ async function generateZonePNG() {
             }
         }, mimeType, quality);
     } catch (error) {
-        console.error("Erreur lors de la génération de l'image de zone :", error);
-        let msg = error.message;
-        if (msg.includes("Tainted")) {
-            msg = "Erreur de sécurité navigateur (Tainted Canvas).";
-        }
-        showError(msg);
-    } finally {
-        loadingIndicator.classList.add("hidden");
-    }
-}
-
-async function generateCadoGridForZone() {
-    const loadingIndicator = document.getElementById("loading-indicator");
-    const loadingMessage = document.getElementById("loading-message");
-    
-    loadingMessage.textContent = "Génération du carroyage CADO (KMZ)...";
-    loadingIndicator.classList.remove("hidden");
-    hideError();
-
-    try {
-        const { config, a1CornerLat, a1CornerLon } = getZoneCadoConfigAndBounds();
-        const gridData = calculateGridData(config);
-        
-        let kmlContent = generateKML(config, gridData);
-        const zip = new JSZip(); 
-        
-        if (userPOIs.length > 0) {
-            let poiKml = "";
-            const imagesToZip = new Map();
-            const allIcons = getIconsSync();
-            
-            for (const [index, poi] of userPOIs.entries()) {
-                let iconUrl = "https://maps.google.com/mapfiles/kml/paddle/wht-blank.png";
-                
-                const iconDef = allIcons.find(i => i.id === poi.type);
-                if(iconDef) iconUrl = iconDef.url;
-                if(poi.url) iconUrl = poi.url;
-
-                if (!iconUrl.startsWith('http')) {
-                    const iconFilename = `icon_${index}.png`;
-                    const zipPath = `files/${iconFilename}`;
-                    
-                    const base64Data = await getIconData(iconUrl);
-                    if (base64Data) {
-                        const cleanBase64 = base64Data.split(',')[1];
-                        imagesToZip.set(zipPath, cleanBase64);
-                        iconUrl = zipPath; 
-                    }
-                }
-
-                poiKml += `
-                <Placemark>
-                    <name>${poi.name || poi.type}</name>
-                    <Style><IconStyle><scale>1.2</scale><Icon><href>${iconUrl}</href></Icon></IconStyle></Style>
-                    <Point><coordinates>${poi.lon},${poi.lat},0</coordinates></Point>
-                </Placemark>`;
-            }
-            
-            for (const [path, data] of imagesToZip) {
-                zip.file(path, data, {base64: true});
-            }
-            
-            kmlContent = kmlContent.replace('</Document>', `<Folder><name>Points d'intérêt</name>${poiKml}</Folder></Document>`);
-        }
-
-        zip.file("doc.kml", kmlContent);
-
-        if (config.includePoints) {
-            const iconsFolder = zip.folder("icons");
-            const canvas = document.createElement("canvas");
-            canvas.setAttribute("width", 64);
-            canvas.setAttribute("height", 64);
-            const ctx = canvas.getContext("2d");
-            ctx.font = "bold 24px Arial";
-            ctx.fillStyle = config.gridColor;
-            ctx.textAlign = "center";
-            ctx.textBaseline =  "middle";
-
-            for (const point of gridData.points) {
-                ctx.clearRect(0, 0, canvas.width, canvas.height);
-                ctx.fillText(point.name, 32, 32);
-                if (config.gridColor.toUpperCase() === "#FFFFFF") {
-                    ctx.strokeText(point.name, 32, 32);
-                }
-                const dataUrl = canvas.toDataURL("image/png");
-                iconsFolder.file(`${point.name}.png`, dataUrl.split(',')[1], { base64: true });
-            }
-        }
-
-        const kmzBlob = await zip.generateAsync({ type: "blob", mimeType: 'application/vnd.google-earth.kmz' });
-        
-        const letteringStr = config.letteringDirection === 'descending' ? '_descendant' : '';
-        const fileName = `${config.gridNameBase}_${config.scale}m_zone${letteringStr}_${config.colorName}_origine=${a1CornerLat.toFixed(6)},${a1CornerLon.toFixed(6)}.kmz`;
-
-        downloadFile(kmzBlob, fileName);
-
-    } catch (error) {
-        console.error("Erreur lors de la génération du KMZ CADO:", error);
+        console.error("Erreur image:", error);
         showError(error.message);
     } finally {
         loadingIndicator.classList.add("hidden");
     }
 }
+
+// =============================================================================
+// GENERATION VECTORIELLE (KMZ/KML/GPX/GeoJSON) - PANEL 7
+// =============================================================================
+
+async function handleZoneVectorExport() {
+    const loadingIndicator = document.getElementById("loading-indicator");
+    const loadingMessage = document.getElementById("loading-message");
+    
+    // Récupération des choix
+    const gridChoiceEl = document.querySelector('input[name="zone-grid-choice"]:checked');
+    const gridChoice = gridChoiceEl ? gridChoiceEl.value : 'none';
+
+    const useUtm = (gridChoice === 'utm');
+    const useCfsi = (gridChoice === 'cfsi');
+    const useCado = (gridChoice === 'cado');
+    
+    const format = document.querySelector('input[name="zone-file-format"]:checked').value; 
+    const filenameBase = document.getElementById('zone-export-filename').value || "Export_Zone";
+
+    if (!useUtm && !useCfsi && !useCado && userPOIs.length === 0) {
+        if (!confirm("Aucune grille sélectionnée. Voulez-vous exporter uniquement les points d'intérêt ?")) {
+            return;
+        }
+    }
+
+    loadingMessage.textContent = `Génération du fichier ${format}...`;
+    loadingIndicator.classList.remove("hidden");
+    hideError();
+
+    try {
+        let kmlFolders = "";
+        const zip = new JSZip();
+        const imagesToZip = new Map();
+
+        // 1. GENERATION DES DOSSIERS KML
+        if (useUtm) {
+            kmlFolders += await generateUtmKmlFolder();
+        }
+        if (useCfsi) {
+            kmlFolders += await generateCfsiKmlFolder();
+        }
+        if (useCado) {
+            kmlFolders += await generateCadoKmlFolder(imagesToZip, format === 'KMZ');
+        }
+        if (userPOIs.length > 0) {
+            kmlFolders += await generatePoiKmlFolder(userPOIs, imagesToZip, format === 'KMZ');
+        }
+
+        // 2. CONSTRUCTION KML GLOBAL
+        const colorHex = document.getElementById('utm-grid-color').value || "#000000";
+        const opacityVal = (100 - parseInt(document.getElementById('utm-transparency').value || 30)) / 100;
+        const kmlColor = rgbToKmlColor(colorHex, opacityVal);
+        const kmlLabelColor = rgbToKmlColor(colorHex, 1.0);
+
+        let kmlContent = `<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2">
+  <Document>
+    <name>${filenameBase}</name>
+    <Style id="commonLineStyle"><LineStyle><color>${kmlColor}</color><width>2</width></LineStyle><IconStyle><scale>0</scale></IconStyle></Style>
+    <Style id="commonLabelStyle"><IconStyle><scale>0</scale></IconStyle><LabelStyle><scale>0.8</scale><color>${kmlLabelColor}</color></LabelStyle></Style>
+    ${kmlFolders}
+  </Document>
+</kml>`;
+
+        // 3. EXPORT
+        if (format === 'KMZ') {
+            zip.file("doc.kml", kmlContent);
+            for (const [path, data] of imagesToZip) {
+                zip.file(path, data, {base64: true});
+            }
+            const blob = await zip.generateAsync({ type: "blob", mimeType: 'application/vnd.google-earth.kmz' });
+            downloadFile(blob, `${filenameBase}.kmz`);
+        } 
+        else if (format === 'KML') {
+            const blob = new Blob([kmlContent], { type: "application/vnd.google-earth.kml+xml" });
+            downloadFile(blob, `${filenameBase}.kml`);
+        }
+        else if (format === 'GeoJSON' || format === 'GPX') {
+            if (useCado) {
+                 const { config } = getZoneCadoConfigAndBounds();
+                 const gridData = calculateGridData(config); 
+                 
+                 if (format === 'GeoJSON') {
+                     const json = generateGeoJSON(config, gridData); 
+                     const blob = new Blob([json], { type: "application/geo+json" });
+                     downloadFile(blob, `${filenameBase}.geojson`);
+                 } else { 
+                     const gpx = generateGPX(config, gridData); 
+                     const blob = new Blob([gpx], { type: "application/gpx+xml" });
+                     downloadFile(blob, `${filenameBase}.gpx`);
+                 }
+            } else {
+                alert("L'export GeoJSON/GPX n'est implémenté complètement que pour le carroyage CADO. Veuillez sélectionner CADO ou utiliser KMZ.");
+            }
+        }
+
+    } catch (e) {
+        console.error(e);
+        alert("Erreur lors de l'export vecteur : " + e.message);
+    } finally {
+        loadingIndicator.classList.add("hidden");
+    }
+}
+
+// --- GENERATEURS DE DOSSIERS KML ---
+
+async function generateUtmKmlFolder() {
+    const nwCoordsStr = document.getElementById("zone-nw-coords").value;
+    const seCoordsStr = document.getElementById("zone-se-coords").value;
+    const [nwLat, nwLon] = nwCoordsStr.split(',').map(c => parseFloat(c.trim()));
+    const [seLat, seLon] = seCoordsStr.split(',').map(c => parseFloat(c.trim()));
+
+    const startZone = WGS84_to_UTM.fromLatLon(nwLat, nwLon).zoneNumber;
+    const endZone = WGS84_to_UTM.fromLatLon(seLat, seLon).zoneNumber;
+    let kml = "<Folder><name>Grille UTM</name>";
+
+    for (let zone = startZone; zone <= endZone; zone++) {
+        const zoneBoundaryLeft = (zone - 1) * 6 - 180;
+        const zoneBoundaryRight = zone * 6 - 180;
+        const clipLonStart = Math.max(nwLon, zoneBoundaryLeft);
+        const clipLonEnd = Math.min(seLon, zoneBoundaryRight);
+        if (clipLonStart >= clipLonEnd) continue;
+
+        const gridData = calculateGridForZoneStrip(nwLat, clipLonStart, seLat, clipLonEnd, zone);
+        
+        [...gridData.eastingLines, ...gridData.northingLines].forEach(line => {
+             kml += `
+             <Placemark>
+                <name>${line.name}</name>
+                <styleUrl>#commonLineStyle</styleUrl>
+                <LineString><coordinates>${line.coordinates.map(c=>c.join(',')).join(' ')}</coordinates></LineString>
+             </Placemark>`;
+        });
+    }
+    kml += "</Folder>";
+    return kml;
+}
+
+async function generateCfsiKmlFolder() {
+    const nwCoordsStr = document.getElementById("zone-nw-coords").value;
+    const seCoordsStr = document.getElementById("zone-se-coords").value;
+    const [north, west] = nwCoordsStr.split(',').map(c => parseFloat(c.trim()));
+    const [south, east] = seCoordsStr.split(',').map(c => parseFloat(c.trim()));
+
+    const nwL2 = CFSI_UTILS.wgs84ToL2E(north, west);
+    const seL2 = CFSI_UTILS.wgs84ToL2E(south, east);
+    const lMinX = Math.floor(Math.min(nwL2.x, seL2.x) / 2000) * 2000;
+    const lMaxX = Math.ceil(Math.max(nwL2.x, seL2.x) / 2000) * 2000;
+    const lMinY = Math.floor(Math.min(nwL2.y, seL2.y) / 2000) * 2000;
+    const lMaxY = Math.ceil(Math.max(nwL2.y, seL2.y) / 2000) * 2000;
+
+    let kml = "<Folder><name>Grille CFSI</name>";
+    
+    // Lignes
+    for (let x = lMinX; x <= lMaxX; x += 2000) {
+        const p1 = CFSI_UTILS.l2EToWgs84(x, lMinY);
+        const p2 = CFSI_UTILS.l2EToWgs84(x, lMaxY);
+        kml += `<Placemark><styleUrl>#commonLineStyle</styleUrl><LineString><coordinates>${p1.lon},${p1.lat},0 ${p2.lon},${p2.lat},0</coordinates></LineString></Placemark>`;
+    }
+    for (let y = lMinY; y <= lMaxY; y += 2000) {
+        const p1 = CFSI_UTILS.l2EToWgs84(lMinX, y);
+        const p2 = CFSI_UTILS.l2EToWgs84(lMaxX, y);
+        kml += `<Placemark><styleUrl>#commonLineStyle</styleUrl><LineString><coordinates>${p1.lon},${p1.lat},0 ${p2.lon},${p2.lat},0</coordinates></LineString></Placemark>`;
+    }
+
+    // Labels
+    for (let x = lMinX; x < lMaxX; x += 2000) {
+        for (let y = lMinY; y < lMaxY; y += 2000) {
+            const centerX = x + 1000;
+            const centerY = y + 1000;
+            const comps = CFSI_UTILS.getComponentsFromLambert(centerX, centerY);
+            if (comps) {
+                const centerGeo = CFSI_UTILS.l2EToWgs84(centerX, centerY);
+                kml += `<Placemark><name>${comps.full2k}</name><styleUrl>#commonLabelStyle</styleUrl><Point><coordinates>${centerGeo.lon},${centerGeo.lat},0</coordinates></Point></Placemark>`;
+            }
+        }
+    }
+    kml += "</Folder>";
+    return kml;
+}
+
+async function generateCadoKmlFolder(imagesToZip, isKmz) {
+    const { config } = getZoneCadoConfigAndBounds();
+    const gridData = calculateGridData(config); 
+    
+    let kml = "<Folder><name>Grille CADO</name>";
+    
+    gridData.horizontalLines.concat(gridData.verticalLines).forEach(line => {
+        kml += `<Placemark><name>${line.name}</name><styleUrl>#commonLineStyle</styleUrl><LineString><coordinates>${line.points.map(p=>p.join(',')).join(' ')}</coordinates></LineString></Placemark>`;
+    });
+
+    if (config.includePoints) {
+        const canvas = document.createElement("canvas");
+        canvas.width = 64; canvas.height = 64;
+        const ctx = canvas.getContext("2d");
+        ctx.font = "bold 24px Arial"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+
+        for (const point of gridData.points) {
+            ctx.clearRect(0, 0, 64, 64);
+            ctx.fillStyle = config.gridColor;
+            ctx.fillText(point.name, 32, 32);
+            if(config.gridColor.toUpperCase() === "#FFFFFF") ctx.strokeText(point.name, 32, 32);
+            
+            const iconName = `cado_${point.name}.png`;
+            if (isKmz) {
+                const dataUrl = canvas.toDataURL("image/png");
+                imagesToZip.set(`icons/${iconName}`, dataUrl.split(',')[1]);
+                kml += `
+                <Placemark>
+                    <name>${point.name}</name>
+                    <Style><IconStyle><scale>1.0</scale><Icon><href>icons/${iconName}</href></Icon></IconStyle><LabelStyle><scale>0</scale></LabelStyle></Style>
+                    <Point><coordinates>${point.coordinates.join(',')}</coordinates></Point>
+                </Placemark>`;
+            } else {
+                 kml += `<Placemark><name>${point.name}</name><styleUrl>#commonLabelStyle</styleUrl><Point><coordinates>${point.coordinates.join(',')}</coordinates></Point></Placemark>`;
+            }
+        }
+    }
+    kml += "</Folder>";
+    return kml;
+}
+
+async function generatePoiKmlFolder(pois, imagesToZip, isKmz) {
+    let kml = "<Folder><name>Points d'intérêt</name>";
+    const allIcons = window.getIconLibrary ? window.getIconLibrary() : [];
+
+    for (const [index, poi] of pois.entries()) {
+        let iconUrl = "https://maps.google.com/mapfiles/kml/paddle/wht-blank.png";
+        const iconDef = allIcons.find(i => i.id === poi.type);
+        if (iconDef) iconUrl = iconDef.url;
+        if (poi.url) iconUrl = poi.url;
+
+        let href = iconUrl;
+        if (isKmz && !iconUrl.startsWith('http') && window.getIconDataGlobal) {
+            const iconFilename = `poi_${index}.png`;
+            const base64Data = await window.getIconDataGlobal(iconUrl);
+            if (base64Data) {
+                imagesToZip.set(`files/${iconFilename}`, base64Data.split(',')[1]);
+                href = `files/${iconFilename}`;
+            }
+        }
+
+        kml += `
+        <Placemark>
+            <name>${poi.name || poi.type}</name>
+            <Style><IconStyle><scale>1.2</scale><Icon><href>${href}</href></Icon></IconStyle></Style>
+            <Point><coordinates>${poi.lon},${poi.lat},0</coordinates></Point>
+        </Placemark>`;
+    }
+    kml += "</Folder>";
+    return kml;
+}
+
+// =============================================================================
+// FONCTIONS CANEVAS / HELPERS
+// =============================================================================
 
 async function zdCreateFinalCanvas(boundingBox, zoom, mapConfig, externalMargin, upscaleEnabled = true) {
     const nwPx = zdLatLonToWorldPixels(boundingBox.north, boundingBox.west, zoom);
@@ -869,7 +1103,6 @@ async function zdCreateFinalCanvas(boundingBox, zoom, mapConfig, externalMargin,
     const natW = Math.abs(sePx.x - nwPx.x);
     const natH = Math.abs(sePx.y - nwPx.y);
     
-    // --- LOGIQUE UPSCALING ---
     const TARGET = 3840; // 4K
     let scale = 1;
     if (upscaleEnabled) {
@@ -880,8 +1113,7 @@ async function zdCreateFinalCanvas(boundingBox, zoom, mapConfig, externalMargin,
         }
     }
     
-    console.log(`[ZONE] Native: ${Math.round(natW)}x${Math.round(natH)} | Zoom: ${zoom}`);
-    console.log(`[ZONE] Upscale x${scale.toFixed(2)}`);
+    console.log(`[ZONE] Native: ${Math.round(natW)}x${Math.round(natH)} | Zoom: ${zoom} | Scale: ${scale}`);
 
     const finalW = Math.round(natW * scale);
     const finalH = Math.round(natH * scale);
@@ -906,7 +1138,6 @@ async function zdCreateFinalCanvas(boundingBox, zoom, mapConfig, externalMargin,
     ctx.imageSmoothingEnabled = true; 
     ctx.imageSmoothingQuality = 'high';
 
-    // Calcul des index de tuiles
     const nwTile = { x: Math.floor(nwPx.x / ZD_TILE_SIZE), y: Math.floor(nwPx.y / ZD_TILE_SIZE) };
     const seTile = { x: Math.floor(sePx.x / ZD_TILE_SIZE), y: Math.floor(sePx.y / ZD_TILE_SIZE) };
     
@@ -931,26 +1162,15 @@ async function zdCreateFinalCanvas(boundingBox, zoom, mapConfig, externalMargin,
             }
         }
         
-        // Dessin des tuiles sur le canvas temporaire
         (await Promise.all(promises)).forEach(res => {
             if (res.ok) {
-                // --- CORRECTION ANTI-ALIASING ---
                 const destX = Math.floor((res.x * ZD_TILE_SIZE) - nwPx.x);
                 const destY = Math.floor((res.y * ZD_TILE_SIZE) - nwPx.y);
-
-                // 3. "Bleeding" : On dessine la tuile avec +1px de largeur/hauteur
-                tempCtx.drawImage(
-                    res.i, 
-                    destX, 
-                    destY, 
-                    ZD_TILE_SIZE + 1, // Largeur + 1px
-                    ZD_TILE_SIZE + 1  // Hauteur + 1px
-                );
+                tempCtx.drawImage(res.i, destX, destY, ZD_TILE_SIZE + 1, ZD_TILE_SIZE + 1);
             }
         });
     }
     
-    // Dessin final avec marge et échelle
     ctx.drawImage(tempC, margin, margin, finalW, finalH);
     return { finalCanvas: finalC, dynamicMargin: margin, scaleFactor: scale };
 }
@@ -996,7 +1216,6 @@ function drawZoneCompass(ctx, canvasWidth, canvasHeight, margin, cartoucheMetric
 function drawSimpleCompass(ctx, x, y, radius, fontSize) {
     ctx.save();
     ctx.translate(x, y);
-    
     ctx.beginPath();
     ctx.arc(0, 0, radius, 0, 2 * Math.PI, false);
     ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
@@ -1015,8 +1234,6 @@ function drawSimpleCompass(ctx, x, y, radius, fontSize) {
     ctx.closePath();
     ctx.fillStyle = 'red';
     ctx.fill();
-    ctx.strokeStyle = 'black';
-    ctx.lineWidth = 1;
     ctx.stroke();
 
     ctx.beginPath();
@@ -1026,19 +1243,15 @@ function drawSimpleCompass(ctx, x, y, radius, fontSize) {
     ctx.closePath();
     ctx.fillStyle = 'white';
     ctx.fill();
-    ctx.strokeStyle = 'black';
-    ctx.lineWidth = 1;
     ctx.stroke();
 
     ctx.font = `bold ${radius * 0.6}px Arial`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'bottom';
-    
     ctx.lineWidth = radius * 0.15; 
     ctx.strokeStyle = 'white';
     ctx.lineJoin = 'round';
     ctx.strokeText('N', 0, -arrowLen - (radius * 0.1));
-    
     ctx.fillStyle = 'black';
     ctx.fillText('N', 0, -arrowLen - (radius * 0.1));
 
@@ -1048,7 +1261,6 @@ function drawSimpleCompass(ctx, x, y, radius, fontSize) {
 function drawSmartScaleBar(ctx, canvasWidth, canvasHeight, margin, metersPerPixel) {
     const targetWidthPx = canvasWidth * 0.04;
     const rawMeters = targetWidthPx * metersPerPixel;
-    
     const magnitude = Math.pow(10, Math.floor(Math.log10(rawMeters)));
     const residual = rawMeters / magnitude;
     let roundedMeters;
@@ -1127,12 +1339,8 @@ function setupZoneAddressSearch() {
                     });
                 } catch(e){}
             }
-            
-            if (list.children.length > 0) {
-                list.classList.remove('hidden');
-            } else {
-                list.classList.add('hidden');
-            }
+            if (list.children.length > 0) list.classList.remove('hidden');
+            else list.classList.add('hidden');
 
         }, 300);
     });
@@ -1157,9 +1365,6 @@ async function handleZoneKmzFile(event) {
 
         const zip = file.name.toLowerCase().endsWith('.kmz') ? await JSZip.loadAsync(file) : null;
         const kmlFile = zip ? zip.file(/(\.kml)$/i)[0] : null;
-        
-        if (zip && !kmlFile) throw new Error("Aucun fichier KML trouvé dans le KMZ.");
-        
         const kmlText = zip ? await kmlFile.async("string") : await file.text();
         const parser = new DOMParser();
         const kmlDoc = parser.parseFromString(kmlText, "text/xml");
@@ -1178,8 +1383,6 @@ async function handleZoneKmzFile(event) {
     } catch (error) {
         console.error("Erreur lors du chargement du fichier KML/KMZ:", error);
         showError("Impossible de lire le fichier. " + error.message);
-        loadedZoneKmlFeatures = [];
-        kmlResources = { images: {} };
     } finally {
         document.getElementById("loading-indicator").classList.add("hidden");
     }
@@ -1196,20 +1399,15 @@ function parseSharedKmlStyles(kmlDoc) {
                 p => p.querySelector('key')?.textContent === 'normal'
             );
             const styleUrl = normalPair?.querySelector('styleUrl')?.textContent;
-            if (styleUrl) {
-                 styles[styleId] = { isMap: true, normalUrl: styleUrl };
-            }
+            if (styleUrl) styles[styleId] = { isMap: true, normalUrl: styleUrl };
         } else {
             styles[styleId] = parseStyleElement(styleEl);
         }
     });
 
     Object.values(styles).forEach(style => {
-        if (style.isMap && styles[style.normalUrl]) {
-            Object.assign(style, styles[style.normalUrl]);
-        }
+        if (style.isMap && styles[style.normalUrl]) Object.assign(style, styles[style.normalUrl]);
     });
-
     return styles;
 }
 
@@ -1226,14 +1424,15 @@ function parseStyleElement(styleEl) {
     }
     if (labelStyle) {
         style.labelColor = kmlColorToCss(labelStyle.querySelector('color')?.textContent || 'ffffffff');
-        style.labelScale = parseFloat(labelStyle.querySelector('scale')?.textContent || 1.0);
     }
     if (lineStyle) {
         style.lineColor = kmlColorToCss(lineStyle.querySelector('color')?.textContent || 'ff0000ff');
         style.lineWidth = parseFloat(lineStyle.querySelector('width')?.textContent || 2);
     }
     if (polyStyle) {
-        style.polyColor = kmlColorToCss(polyStyle.querySelector('color')?.textContent || 'ff0000ff');
+        style.polyColor = kmlColorToCss(polyStyle.querySelector('color')?.textContent || '7f0000ff'); // Semi-transparent par défaut
+        // Bugfix: Si fill ou outline ne sont pas présents, ils sont true par défaut en KML.
+        // On ne les met à false que si c'est explicitement '0'.
         style.polyFill = polyStyle.querySelector('fill')?.textContent !== '0';
         style.polyOutline = polyStyle.querySelector('outline')?.textContent !== '0';
     }
@@ -1245,15 +1444,11 @@ function parseKmlPlacemarksFromDoc(kmlDoc, sharedStyles) {
     kmlDoc.querySelectorAll('Placemark').forEach(placemark => {
         const name = placemark.querySelector('name')?.textContent || '';
         let style = {};
-
         const styleUrl = placemark.querySelector('styleUrl')?.textContent;
         const inlineStyleEl = placemark.querySelector('Style');
 
-        if (styleUrl && sharedStyles[styleUrl]) {
-            style = sharedStyles[styleUrl];
-        } else if (inlineStyleEl) {
-            style = parseStyleElement(inlineStyleEl);
-        }
+        if (styleUrl && sharedStyles[styleUrl]) style = sharedStyles[styleUrl];
+        else if (inlineStyleEl) style = parseStyleElement(inlineStyleEl);
 
         const point = placemark.getElementsByTagName('Point')[0];
         const lineString = placemark.getElementsByTagName('LineString')[0];
@@ -1268,14 +1463,23 @@ function parseKmlPlacemarksFromDoc(kmlDoc, sharedStyles) {
         } else if (lineString) {
             const coordsStr = lineString.getElementsByTagName('coordinates')[0]?.textContent.trim();
             if (coordsStr) {
-                const coordinates = coordsStr.split(' ').filter(c => c).map(c => c.split(',').map(parseFloat));
+                const coordinates = coordsStr.split(/\s+/).map(c => c.split(',').map(parseFloat));
                 features.push({ type: 'LineString', name, style, coordinates });
             }
         } else if (polygon) {
-            const outerBoundary = polygon.querySelector('outerBoundaryIs > LinearRing > coordinates')?.textContent.trim();
+            // BUGFIX ZONES : Gestion des namespaces et structures variées
+            const outerBoundary = polygon.getElementsByTagName('outerBoundaryIs')[0];
             if (outerBoundary) {
-                const coordinates = outerBoundary.split(' ').filter(c => c).map(c => c.split(',').map(parseFloat));
-                features.push({ type: 'Polygon', name, style, coordinates });
+                const ring = outerBoundary.getElementsByTagName('LinearRing')[0];
+                if(ring) {
+                    const coordsEl = ring.getElementsByTagName('coordinates')[0];
+                    if (coordsEl) {
+                        const coordsStr = coordsEl.textContent.trim();
+                        // Supporte les séparateurs espace ou retour à la ligne
+                        const coordinates = coordsStr.split(/\s+/).map(c => c.split(',').map(parseFloat));
+                        features.push({ type: 'Polygon', name, style, coordinates });
+                    }
+                }
             }
         }
     });
@@ -1285,26 +1489,17 @@ function parseKmlPlacemarksFromDoc(kmlDoc, sharedStyles) {
 async function loadKmlIcons(placemarksData, zip) {
     const iconPromises = [];
     const loadedUrls = new Set();
-
     placemarksData.forEach(feature => {
         if (feature.type === 'Point' && feature.style?.iconUrl && !loadedUrls.has(feature.style.iconUrl)) {
             const iconUrl = feature.style.iconUrl;
             loadedUrls.add(iconUrl);
-
             let promise;
-
             if (iconUrl.startsWith('http')) {
                 promise = new Promise((resolve) => {
                     const img = new Image();
                     img.crossOrigin = "Anonymous";
-                    img.onload = () => {
-                        kmlResources.images[iconUrl] = img;
-                        resolve();
-                    };
-                    img.onerror = () => {
-                        console.warn(`Impossible de charger l'icône depuis l'URL: ${iconUrl}`);
-                        resolve();
-                    };
+                    img.onload = () => { kmlResources.images[iconUrl] = img; resolve(); };
+                    img.onerror = () => { resolve(); };
                     img.src = iconUrl;
                 });
             } else if (zip) {
@@ -1313,20 +1508,14 @@ async function loadKmlIcons(placemarksData, zip) {
                     promise = iconFile.async('base64').then(base64 => {
                         return new Promise((resolve) => {
                             const img = new Image();
-                            img.onload = () => {
-                                kmlResources.images[iconUrl] = img;
-                                resolve();
-                            };
+                            img.onload = () => { kmlResources.images[iconUrl] = img; resolve(); };
                             img.onerror = () => resolve();
                             img.src = 'data:image/png;base64,' + base64;
                         });
                     });
                 }
             }
-
-            if (promise) {
-                iconPromises.push(promise);
-            }
+            if (promise) iconPromises.push(promise);
         }
     });
     await Promise.all(iconPromises);
@@ -1347,21 +1536,16 @@ function getContrastingOutlineColor(rgbaColor) {
         const [r, g, b] = rgbaColor.match(/\d+/g).map(Number);
         const luminance = (0.299 * r + 0.587 * g + 0.114 * b);
         return luminance > 186 ? 'black' : 'white';
-    } catch (e) {
-        return 'black';
-    }
+    } catch (e) { return 'black'; }
 }
 
 function drawZoneKmlFeatures(ctx, zoom, features, latLonToCanvasPixels) {
     features.forEach(feature => {
         const style = feature.style || {};
-
         if (feature.type === 'Point') {
             const center = latLonToCanvasPixels(feature.coordinates[1], feature.coordinates[0]);
             const iconImg = style.iconUrl ? kmlResources.images[style.iconUrl] : null;
-
             let iconHeight = 32;
-
             if (iconImg && iconImg.complete && iconImg.naturalWidth > 0) {
                 const scale = style.iconScale || 1.0;
                 const w = iconImg.naturalWidth * scale;
@@ -1369,28 +1553,15 @@ function drawZoneKmlFeatures(ctx, zoom, features, latLonToCanvasPixels) {
                 iconHeight = h;
                 ctx.drawImage(iconImg, center.x - w / 2, center.y - h / 2, w, h);
             } else {
-                ctx.beginPath();
-                ctx.arc(center.x, center.y, 6, 0, 2 * Math.PI, false);
-                ctx.fillStyle = '#f0e100';
-                ctx.fill();
-                ctx.lineWidth = 2;
-                ctx.strokeStyle = 'black';
-                ctx.stroke();
+                ctx.beginPath(); ctx.arc(center.x, center.y, 6, 0, 2 * Math.PI, false);
+                ctx.fillStyle = '#f0e100'; ctx.fill(); ctx.stroke();
             }
-
             if (feature.name) {
                 const textYOffset = (iconHeight / 2) + 5;
                 const labelColor = style.labelColor || 'rgba(0, 0, 0, 1)'; 
-                const outlineColor = getContrastingOutlineColor(labelColor);
-
-                ctx.font = `bold ${16 * (style.labelScale || 1.0)}px Arial`;
-                ctx.textAlign = 'center';
-                ctx.textBaseline = 'top';
-                
-                ctx.strokeStyle = outlineColor;
-                ctx.lineWidth = 3;
+                ctx.font = `bold ${16}px Arial`; ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+                ctx.strokeStyle = getContrastingOutlineColor(labelColor); ctx.lineWidth = 3;
                 ctx.strokeText(feature.name, center.x, center.y + textYOffset);
-
                 ctx.fillStyle = labelColor;
                 ctx.fillText(feature.name, center.x, center.y + textYOffset);
             }
@@ -1401,8 +1572,7 @@ function drawZoneKmlFeatures(ctx, zoom, features, latLonToCanvasPixels) {
             ctx.beginPath();
             feature.coordinates.forEach((coord, index) => {
                 const px = latLonToCanvasPixels(coord[1], coord[0]);
-                if (index === 0) ctx.moveTo(px.x, px.y);
-                else ctx.lineTo(px.x, px.y);
+                if (index === 0) ctx.moveTo(px.x, px.y); else ctx.lineTo(px.x, px.y);
             });
             ctx.stroke();
         } 
@@ -1410,20 +1580,16 @@ function drawZoneKmlFeatures(ctx, zoom, features, latLonToCanvasPixels) {
             ctx.beginPath();
             feature.coordinates.forEach((coord, index) => {
                 const px = latLonToCanvasPixels(coord[1], coord[0]);
-                if (index === 0) ctx.moveTo(px.x, px.y);
-                else ctx.lineTo(px.x, px.y);
+                if (index === 0) ctx.moveTo(px.x, px.y); else ctx.lineTo(px.x, px.y);
             });
             ctx.closePath();
-
+            
             if (style.polyFill !== false) {
-                ctx.fillStyle = style.polyColor || 'rgba(255, 0, 0, 0.5)';
-                ctx.fill();
+                ctx.fillStyle = style.polyColor || 'rgba(255, 0, 0, 0.5)'; ctx.fill();
             }
-
             if (style.polyOutline !== false) {
                 ctx.strokeStyle = style.lineColor || 'rgba(255, 0, 0, 1)';
-                ctx.lineWidth = style.lineWidth || 2;
-                ctx.stroke();
+                ctx.lineWidth = style.lineWidth || 2; ctx.stroke();
             }
         }
     });
@@ -1438,15 +1604,10 @@ async function drawUtmGridOnCanvas(ctx, boundingBox, latLonToCanvasPixels, margi
     const drawingBox = { x: margin, y: margin, width: ctx.canvas.width - margin * 2, height: ctx.canvas.height - margin * 2 };
     const startZone = WGS84_to_UTM.fromLatLon(nwLat, nwLon).zoneNumber;
     const endZone = WGS84_to_UTM.fromLatLon(seLat, seLon).zoneNumber;
-    const labelFontSize = cartoucheFontSize * 0.75;
-    const labelPadding = 5;
     const labelsToDraw = [];
     
     ctx.save();
-    // Clipping pour que rien ne dépasse du cadre blanc
-    ctx.beginPath();
-    ctx.rect(drawingBox.x, drawingBox.y, drawingBox.width, drawingBox.height);
-    ctx.clip();
+    ctx.beginPath(); ctx.rect(drawingBox.x, drawingBox.y, drawingBox.width, drawingBox.height); ctx.clip();
     
     for (let zone = startZone; zone <= endZone; zone++) {
         const zoneBoundaryLeft = (zone - 1) * 6 - 180;
@@ -1454,18 +1615,12 @@ async function drawUtmGridOnCanvas(ctx, boundingBox, latLonToCanvasPixels, margi
         const clipLonEnd = Math.min(seLon, zone * 6 - 180);
         if (clipLonStart >= clipLonEnd) continue;
         
-        const latPadding = (nwLat - seLat) * 0.1;
-        // Calcul des lignes de grille
-        const gridData = calculateGridForZoneStrip(nwLat + latPadding, clipLonStart, seLat - latPadding, clipLonEnd, zone);
+        const gridData = calculateGridForZoneStrip(nwLat, clipLonStart, seLat, clipLonEnd, zone);
         const allLines = [...gridData.eastingLines, ...gridData.northingLines];
-        const utmInfo = WGS84_to_UTM.fromLatLon((nwLat + seLat) / 2, clipLonStart);
-        const zoneDesignator = `${zone}${utmInfo.zoneLetter}`;
-        
-        // 1. DESSIN DE LA GRILLE STANDARD
+
         for (const line of allLines) {
             const isMajorLine = (parseInt(line.name.split(' ')[1], 10) % 5 === 0);
             ctx.lineWidth = isMajorLine ? lineWidth * 2 : lineWidth;
-            
             ctx.strokeStyle = gridLineColor;
             ctx.beginPath();
             let firstCanvasPoint = null, lastCanvasPoint = null;
@@ -1477,10 +1632,8 @@ async function drawUtmGridOnCanvas(ctx, boundingBox, latLonToCanvasPixels, margi
             }
             ctx.stroke();
             
-            // Stockage des labels
             if (firstCanvasPoint && lastCanvasPoint) {
                 const labelText = line.name;
-                
                 if (line.type === 'easting') {
                     labelsToDraw.push({ type: 'top', anchor: { x: lastCanvasPoint.x, y: drawingBox.y }, text: labelText });
                     labelsToDraw.push({ type: 'bottom', anchor: { x: firstCanvasPoint.x, y: drawingBox.y + drawingBox.height }, text: labelText });
@@ -1490,56 +1643,41 @@ async function drawUtmGridOnCanvas(ctx, boundingBox, latLonToCanvasPixels, margi
                 }
             }
         }
-
-        // 2. DESSIN DE LA LIGNE JAUNE DE SÉPARATION DES FUSEAUX (NOUVEAU)
-        // Si ce n'est pas le dernier fuseau de la boucle, c'est qu'il y a une frontière à droite
         if (zone < endZone) {
-            const boundaryLon = zone * 6 - 180; // Longitude exacte de la séparation (ex: 0°, 6°, 12°...)
-            
-            ctx.beginPath();
-            ctx.strokeStyle = '#FFFF00'; // Jaune pur
-            ctx.lineWidth = lineWidth * 2; // Trait épais pour bien le distinguer
-            
-            // On trace la ligne verticale du Nord au Sud
-            const segments = 20; // Segmentation pour suivre la courbure éventuelle de la projection
+            const boundaryLon = zone * 6 - 180;
+            ctx.beginPath(); ctx.strokeStyle = '#FFFF00'; ctx.lineWidth = lineWidth * 2;
+            const segments = 20;
             for (let i = 0; i <= segments; i++) {
-                // Interpolation linéaire de la latitude
                 const lat = nwLat + (i / segments) * (seLat - nwLat);
                 const p = latLonToCanvasPixels(lat, boundaryLon);
-                
-                if (i === 0) ctx.moveTo(p.x, p.y);
-                else ctx.lineTo(p.x, p.y);
+                if (i === 0) ctx.moveTo(p.x, p.y); else ctx.lineTo(p.x, p.y);
             }
             ctx.stroke();
         }
     }
     ctx.restore();
 
-    // Dessin du cadre blanc autour (Masque les dépassements)
     ctx.fillStyle = 'white';
     ctx.fillRect(0, 0, ctx.canvas.width, margin);
     ctx.fillRect(0, ctx.canvas.height - margin, ctx.canvas.width, margin);
     ctx.fillRect(0, 0, margin, ctx.canvas.height);
     ctx.fillRect(ctx.canvas.width - margin, 0, margin, ctx.canvas.height);
 
-    // Dessin des textes (Labels)
     ctx.fillStyle = 'black';
-    ctx.font = `bold ${labelFontSize}px Arial`;
+    ctx.font = `bold ${cartoucheFontSize * 0.75}px Arial`;
     for (const label of labelsToDraw) {
         ctx.save();
         ctx.translate(label.anchor.x, label.anchor.y);
         switch(label.type) {
-            case 'top': ctx.rotate(-Math.PI / 2); ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.fillText(label.text, labelPadding, 0); break;
-            case 'bottom': ctx.rotate(-Math.PI / 2); ctx.textAlign = 'right'; ctx.textBaseline = 'middle'; ctx.fillText(label.text, -labelPadding, 0); break;
-            case 'left': ctx.textAlign = 'right'; ctx.textBaseline = 'middle'; ctx.fillText(label.text, -labelPadding, 0); break;
-            case 'right': ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.fillText(label.text, labelPadding, 0); break;
+            case 'top': ctx.rotate(-Math.PI / 2); ctx.textAlign = 'left'; ctx.fillText(label.text, 5, 0); break;
+            case 'bottom': ctx.rotate(-Math.PI / 2); ctx.textAlign = 'right'; ctx.fillText(label.text, -5, 0); break;
+            case 'left': ctx.textAlign = 'right'; ctx.fillText(label.text, -5, 0); break;
+            case 'right': ctx.textAlign = 'left'; ctx.fillText(label.text, 5, 0); break;
         }
         ctx.restore();
     }
 }
 
 // --- EXPORT GLOBAL POUR UTM ---
-window.getUserPOIs = function() {
-    return userPOIs;
-};
+window.getUserPOIs = function() { return userPOIs; };
 window.getIconDataGlobal = getIconData;

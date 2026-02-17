@@ -1,5 +1,10 @@
 // carroyageCado.js
 
+// --- VARIABLES GLOBALES POUR L'IMPORT CADO ---
+let loadedCadoKmlFeatures = [];
+let cadoKmlResources = { images: {} };
+let cadoKmlLayerGroup = null;
+
 // --- CONVERSIONS DE COORDONNÉES SPÉCIFIQUES ---
 function mercatorXToLng(x) { return toDeg(x / R); }
 function mercatorYToLat(y) { return toDeg(2 * Math.atan(Math.exp(y / R)) - Math.PI / 2); }
@@ -18,40 +23,38 @@ function decimalToDMS(decimal, type) {
     return `${deg}°${min}'${sec.toFixed(1)}"${direction}`;
 }
 
-// 1. Fonction utilitaire de formatage vers DM
 function decimalToDM(decimal, type) {
     const abs = Math.abs(decimal);
     const deg = Math.floor(abs);
     const min = (abs - deg) * 60;
     const direction = type === 'lat' ? (decimal >= 0 ? 'N' : 'S') : (decimal >= 0 ? 'E' : 'W');
-    // Format : 48° 51.345' N
     return `${deg}° ${min.toFixed(3)}' ${direction}`;
 }
 
-// 2. Mettre à jour la fonction centrale de mise à jour
 function updateAllFromDecimal(lat, lon) {
     document.getElementById('dms-coords').value = `${decimalToDMS(lat, 'lat')} ${decimalToDMS(lon, 'lng')}`;
     
-    // NOUVEAU : Mise à jour du champ DM
     const dmField = document.getElementById('dm-coords');
     if (dmField) dmField.value = `${decimalToDM(lat, 'lat')} ${decimalToDM(lon, 'lng')}`;
     
     document.getElementById('mercator-coords').value = `${lngToMercatorX(lon).toFixed(2)}, ${latToMercatorY(lat).toFixed(2)}`;
     if (isPlusCodeLibraryAvailable()) {
-        document.getElementById('plus-code').value = new OpenLocationCode().encode(lat, lon);
+        const pcEl = document.getElementById('plus-code');
+        if(pcEl) pcEl.value = new OpenLocationCode().encode(lat, lon);
     }
     const utm = WGS84_to_UTM.fromLatLon(lat, lon);
     document.getElementById('utm-coords').value = `${utm.zoneNumber} ${utm.zoneLetter} ${utm.easting.toFixed(0)} ${utm.northing.toFixed(0)}`;
+    
+    if (typeof CFSI_UTILS !== 'undefined') {
+        // Optionnel : Mise à jour affichage CFSI si un champ existe
+    }
 }
 
-// 3. Nouvelle fonction de conversion DEPUIS DM
 function convertFromDM() {
     try {
         const coordsStr = document.getElementById('dm-coords').value.trim();
         if (!coordsStr) return showError("Veuillez entrer des coordonnées DM.");
 
-        // Regex flexible pour : 48° 51.395' N 2° 21.132' E  ou  48 51.395 N, 2 21.132 E
-        // Groupe 1: DegLat, 2: MinLat, 3: DirLat, 4: DegLon, 5: MinLon, 6: DirLon
         const regex = /(\d+)[°\s]+(\d+\.?\d*)['\s]*([NS])[, \t]+(\d+)[°\s]+(\d+\.?\d*)['\s]*([EW])/i;
         const match = coordsStr.match(regex);
 
@@ -146,8 +149,6 @@ function convertFromUTM() {
     }
 }
 
-async function convertFromPlusCode() { /* Stub */ }
-
 function isPlusCodeLibraryAvailable() { return typeof OpenLocationCode === 'function'; }
 
 function viewOnMaps(type) {
@@ -174,6 +175,81 @@ function viewOnMaps(type) {
         hideError();
     } catch (err) {
         showError("Impossible d'afficher sur la carte: " + err.message);
+    }
+}
+
+// --- GESTION DU CHARGEMENT KML/KMZ POUR CADO ---
+
+async function handleCadoKmzFile(event) {
+    const file = event.target.files[0];
+    const clearBtn = document.getElementById('cado-clear-kmz-btn');
+    
+    // Reset des anciennes données
+    if (cadoKmlLayerGroup && window.cadoMap) {
+        window.cadoMap.removeLayer(cadoKmlLayerGroup);
+    }
+    loadedCadoKmlFeatures = [];
+    cadoKmlResources = { images: {} };
+    if (clearBtn) clearBtn.classList.add('hidden');
+
+    if (!file) return;
+
+    try {
+        const loadingIndicator = document.getElementById("loading-indicator");
+        if(loadingIndicator) loadingIndicator.classList.remove("hidden");
+
+        const zip = file.name.toLowerCase().endsWith('.kmz') ? await JSZip.loadAsync(file) : null;
+        const kmlFile = zip ? zip.file(/(\.kml)$/i)[0] : null;
+        const kmlText = zip ? await kmlFile.async("string") : await file.text();
+        const parser = new DOMParser();
+        const kmlDoc = parser.parseFromString(kmlText, "text/xml");
+
+        // Utilisation des fonctions de parsing de zoneDownloader.js
+        if (typeof parseSharedKmlStyles !== 'function' || typeof parseKmlPlacemarksFromDoc !== 'function') {
+            throw new Error("Modules de lecture KML manquants (zoneDownloader.js est-il chargé ?).");
+        }
+
+        const sharedStyles = parseSharedKmlStyles(kmlDoc);
+        const placemarksData = parseKmlPlacemarksFromDoc(kmlDoc, sharedStyles);
+
+        if (zip && typeof loadKmlIcons === 'function') {
+            // Astuce : on utilise une variable temporaire pour utiliser loadKmlIcons qui cible window.kmlResources
+            const backupRes = window.kmlResources;
+            window.kmlResources = cadoKmlResources; 
+            await loadKmlIcons(placemarksData, zip);
+            window.kmlResources = backupRes; // Restauration
+        }
+
+        loadedCadoKmlFeatures = placemarksData;
+
+        // Affichage sur la carte CADO
+        const leaflets = loadedCadoKmlFeatures.map(f => {
+            if(f.type === 'Point') return L.marker([f.coordinates[1], f.coordinates[0]]);
+            else if(f.type === 'LineString') return L.polyline(f.coordinates.map(c => [c[1], c[0]]), {color:'red'});
+            else if(f.type === 'Polygon') return L.polygon(f.coordinates.map(c => [c[1], c[0]]), {color:'blue'});
+            return null;
+        }).filter(l => l !== null);
+
+        if (leaflets.length > 0 && window.cadoMap) {
+            cadoKmlLayerGroup = L.featureGroup(leaflets).addTo(window.cadoMap);
+        }
+
+        if (clearBtn) {
+            clearBtn.classList.remove('hidden');
+            clearBtn.onclick = () => {
+                document.getElementById('cado-kmz-input').value = "";
+                handleCadoKmzFile({target: {files: []}});
+            };
+        }
+
+        alert(`${loadedCadoKmlFeatures.length} éléments chargés pour le mode CADO.`);
+
+    } catch (error) {
+        console.error(error);
+        alert("Erreur KML CADO : " + error.message);
+    } finally {
+        const loadingIndicator = document.getElementById("loading-indicator");
+        if(loadingIndicator) loadingIndicator.classList.add("hidden");
     }
 }
 
@@ -206,10 +282,11 @@ function updateDynamicGridName() {
         
         const fullName = `${baseName}_${scale}m_${refPoint}${letteringStr}${gridTypeStr}${deviationStr}_${colorName}`;
         
-        document.getElementById('full-grid-name').textContent = fullName;
+        const disp = document.getElementById('full-grid-name');
+        if(disp) disp.textContent = fullName;
         document.getElementById('grid-name').value = fullName;
     } catch (e) {
-        console.warn("Could not update dynamic grid name, likely due to an element not being ready.", e);
+        console.warn("Update dynamic name error", e);
     }
 }
 
@@ -234,7 +311,9 @@ async function generateGrid() {
         const originCoords = gridData.originPointPlacemark.coordinates;
         const originString = `_origine=${originCoords[1].toFixed(6)},${originCoords[0].toFixed(6)}`;
         config.gridName += originString;
-        document.getElementById("full-grid-name").textContent = config.gridName;
+        
+        const disp = document.getElementById("full-grid-name");
+        if(disp) disp.textContent = config.gridName;
 
         const fileFormat = config.outputFormat;
         let fileBlob, fileName, mimeType;
@@ -291,7 +370,7 @@ function getGridConfiguration(lat, lon) {
             startCol = document.getElementById('start-col').value.toUpperCase();
             endCol = document.getElementById('end-col').value.toUpperCase();
             break;
-        default: // Fallback de sécurité
+        default: 
             startRow = 1; endRow = 12; startCol = 'A'; endCol = 'Q';
     }
 
@@ -306,7 +385,6 @@ function getGridConfiguration(lat, lon) {
         deviation: parseInt(document.getElementById('deviation').value),
         labelSize: parseFloat(document.getElementById('label-size').value),
         iconSize: parseFloat(document.getElementById('icon-size').value || 2),
-        needsDarkOutline: ['white', 'orange', 'yellow'].includes(document.getElementById('grid-color-name').value),
         referencePointChoice: document.querySelector('input[name="reference-point"]:checked').value,
         letteringDirection: document.querySelector('input[name="lettering-direction"]:checked').value,
         startRow, endRow, startCol, endCol,
@@ -358,7 +436,7 @@ function calculateGridData(config) {
 
 		if (config.letteringDirection === 'ascending') {
 			a1CornerLat = refLat - metersToLatDegrees(yOffsetMeters);
-		} else { // 'descending'
+		} else { 
 			a1CornerLat = refLat + metersToLatDegrees(yOffsetMeters);
 		}
     }
@@ -395,10 +473,8 @@ function calculateGridData(config) {
             
             let pointName;
             if (config.swapAxes) {
-                // Mode Inversé : Les lettres sont sur les lignes (row), les chiffres sur les colonnes (col)
                 pointName = `${numberToLetter(row)}${col}`; 
             } else {
-                // Mode Standard : Les lettres sont sur les colonnes (col), les chiffres sur les lignes (row)
                 pointName = `${numberToLetter(col)}${row}`;
             }
             
@@ -437,6 +513,8 @@ function rgbToKmlColor(hex, opacity) {
     return `${a}${b}${g}${r}`;
 }
 
+// --- GENERATION KML AVEC SUPPORT IMPORT ---
+
 function generateKML(config, gridData) {
     const isKmz = config.outputFormat === 'KMZ';
     const iconScale = isKmz ? config.iconSize : 0;
@@ -447,9 +525,14 @@ function generateKML(config, gridData) {
 
     let kml = '<?xml version="1.0" encoding="UTF-8"?><kml xmlns="http://www.opengis.net/kml/2.2"><Document><name>' + config.gridName + '</name>';
     
+    // Styles de base
     kml += '<Style id="gridLineStyle"><LineStyle><color>' + lineColor + '</color><width>2</width></LineStyle></Style>';
     kml += '<Style id="referenceCircleStyle"><LineStyle><color>' + yellowLineColor + '</color><width>3</width></LineStyle><PolyStyle><fill>0</fill></PolyStyle></Style>';
     kml += '<Style id="originPointStyle"><IconStyle><Icon><href>http://maps.google.com/mapfiles/kml/pushpin/ylw-pushpin.png</href></Icon><scale>1.1</scale></IconStyle></Style>';
+    
+    // Style générique pour imports
+    kml += '<Style id="importedLineStyle"><LineStyle><color>ff0000ff</color><width>2</width></LineStyle></Style>';
+    kml += '<Style id="importedPolyStyle"><LineStyle><color>ff0000ff</color><width>2</width></LineStyle><PolyStyle><color>7f0000ff</color></PolyStyle></Style>';
 
     if (config.includePoints) {
         gridData.points.forEach(point => {
@@ -463,6 +546,47 @@ function generateKML(config, gridData) {
         });
     }
 
+    // --- INTEGRATION DU KML IMPORTÉ ---
+    if (loadedCadoKmlFeatures && loadedCadoKmlFeatures.length > 0) {
+        kml += '<Folder><name>Calque Importé</name>';
+        
+        loadedCadoKmlFeatures.forEach((f, idx) => {
+            let styleUrl = "#importedLineStyle";
+            let coordsStr = "";
+            let geomTag = "";
+
+            if (f.type === 'Point') {
+                styleUrl = "#originPointStyle"; 
+                coordsStr = `${f.coordinates[0]},${f.coordinates[1]},0`;
+                geomTag = `<Point><coordinates>${coordsStr}</coordinates></Point>`;
+            } 
+            else if (f.type === 'LineString') {
+                coordsStr = f.coordinates.map(c => `${c[0]},${c[1]},0`).join(' ');
+                geomTag = `<LineString><coordinates>${coordsStr}</coordinates></LineString>`;
+            } 
+            else if (f.type === 'Polygon') {
+                styleUrl = "#importedPolyStyle";
+                coordsStr = f.coordinates.map(c => `${c[0]},${c[1]},0`).join(' ');
+                geomTag = `<Polygon><outerBoundaryIs><LinearRing><coordinates>${coordsStr}</coordinates></LinearRing></outerBoundaryIs></Polygon>`;
+            }
+
+            let inlineStyle = "";
+            if (isKmz && f.type === 'Point' && f.style && f.style.iconUrl) {
+                const iconFilename = `imported_icon_${idx}.png`;
+                inlineStyle = `<Style><IconStyle><Icon><href>files/${iconFilename}</href></Icon></IconStyle></Style>`;
+                styleUrl = ""; 
+            }
+
+            kml += `<Placemark>
+                <name>${f.name || 'Element'}</name>
+                ${styleUrl ? `<styleUrl>${styleUrl}</styleUrl>` : inlineStyle}
+                ${geomTag}
+            </Placemark>`;
+        });
+        kml += '</Folder>';
+    }
+
+    // --- CARROYAGE ---
     kml += '<Folder><name>Carroyage CADO</name>';
     kml += '<Placemark><name>Point de Référence</name><styleUrl>#referenceCircleStyle</styleUrl><Polygon><outerBoundaryIs><LinearRing><coordinates>' + gridData.referencePointCircle.map(p => p.join(",") + ",0").join(" ") + '</coordinates></LinearRing></outerBoundaryIs></Polygon></Placemark>';
     kml += '<Placemark><name>' + gridData.originPointPlacemark.name + '</name><styleUrl>#originPointStyle</styleUrl><Point><coordinates>' + gridData.originPointPlacemark.coordinates.join(",") + ',0</coordinates></Point></Placemark>';
@@ -488,33 +612,65 @@ function generateKML(config, gridData) {
     return kml;
 }
 
+// --- GENERATION KMZ AVEC ASSETS IMPORTÉS ---
+
 async function generateKMZ(config, gridData, kmlContent, mimeType) {
     const zip = new JSZip();
     zip.file("doc.kml", kmlContent);
+    
+    // 1. Icônes CADO (Lettres)
     if (config.includePoints) {
         const iconsFolder = zip.folder("icons");
-
-        const canvas = document.createElement("canvas")
-        canvas.setAttribute("width", 64)
-        canvas.setAttribute("height", 64)
-        canvas.style.letterSpacing = '-1px';
-
+        const canvas = document.createElement("canvas");
+        canvas.setAttribute("width", 64);
+        canvas.setAttribute("height", 64);
         const ctx = canvas.getContext("2d");
         ctx.font = "bold 24px Arial";
         ctx.fillStyle = config.gridColor;
         ctx.textAlign = "center";
-        ctx.textBaseline =  "middle"
+        ctx.textBaseline =  "middle";
 
         for (const point of gridData.points) {
-            ctx.fillText(point.name, 32, 32)
-            if (config.gridColor.toUpperCase() === "#FFFFFF") {
-                ctx.strokeText(point.name, 32, 32)
-            }
-
-            iconsFolder.file(`${point.name}.png`, canvas.toDataURL("image/png").replace(/^data:image\/png;base64,/, ''), { base64: true });
             ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.fillText(point.name, 32, 32);
+            if (config.gridColor.toUpperCase() === "#FFFFFF") {
+                ctx.strokeText(point.name, 32, 32);
+            }
+            iconsFolder.file(`${point.name}.png`, canvas.toDataURL("image/png").split(',')[1], { base64: true });
         }
     }
+
+    // 2. Icônes Importées via KMZ/KML Input
+    if (loadedCadoKmlFeatures && loadedCadoKmlFeatures.length > 0) {
+        const filesFolder = zip.folder("files");
+        
+        if (window.getIconDataGlobal) {
+            for (let i = 0; i < loadedCadoKmlFeatures.length; i++) {
+                const f = loadedCadoKmlFeatures[i];
+                if (f.type === 'Point' && f.style && f.style.iconUrl) {
+                    let imgData = null;
+                    
+                    // Priorité au cache mémoire si présent
+                    if (cadoKmlResources && cadoKmlResources.images && cadoKmlResources.images[f.style.iconUrl]) {
+                        const img = cadoKmlResources.images[f.style.iconUrl];
+                        const c = document.createElement('canvas');
+                        c.width = img.naturalWidth || 32; 
+                        c.height = img.naturalHeight || 32;
+                        c.getContext('2d').drawImage(img, 0, 0);
+                        imgData = c.toDataURL('image/png');
+                    } else {
+                        // Sinon fetch
+                        imgData = await window.getIconDataGlobal(f.style.iconUrl);
+                    }
+
+                    if (imgData) {
+                        filesFolder.file(`imported_icon_${i}.png`, imgData.split(',')[1], {base64: true});
+                    }
+                }
+            }
+        }
+    }
+
     return await zip.generateAsync({ type: "blob", mimeType: mimeType });
 }
 

@@ -21,23 +21,16 @@ function itpLatLonToWorldPixels(lat, lon, zoom) {
     return { x: x * mapSize, y: y * mapSize };
 }
 
-// Fonction utilitaire CADO : Compte le nombre de cases en sautant le 0
 function getCadoCount(start, end) {
     const min = Math.min(start, end);
     const max = Math.max(start, end);
-    // Calcul de distance mathématique en sautant 0
-    // Ex: -1 à 1. Indices: -1, 1. (Pas de 0). Distance = 2.
-    // Ex: 1 à 3. Indices: 1, 2, 3. Distance = 3.
     let count = max - min + 1;
     if (min < 0 && max > 0) {
-        count--; // On retire le 0 qui n'existe pas
+        count--;
     }
     return count;
 }
 
-// Fonction pour obtenir la distance en "unités de cases" entre l'origine (0) et une coordonnée
-// A (1) -> 0. B (2) -> 1.
-// -A (-1) -> -1. -B (-2) -> -2.
 function getCellOffsetFromOrigin(n) {
     if (n > 0) return n - 1;
     return n; 
@@ -68,15 +61,12 @@ async function generateImageToPrint() {
         config.lineWidth = parseInt(document.getElementById('line-thickness').value, 10) || 1;
 
         // 1. ZONE DE TÉLÉCHARGEMENT (LARGE BUFFER)
-        // On calcule une zone GPS très large pour être sûr qu'après rotation et crop, on ait tout.
-        // On ne s'occupe pas ici des marges fines, on prend large (buffer de 5 cases).
         const buffer = 5; 
         const startColNum = letterToNumber(config.startCol);
         const endColNum = letterToNumber(config.endCol);
         
         const bufferedConfig = { 
             ...config, 
-            // On élargit artificiellement les bornes pour le téléchargement
             startCol: numberToLetter(startColNum > 0 ? startColNum - buffer : startColNum - buffer), 
             endCol: numberToLetter(endColNum > 0 ? endColNum + buffer : endColNum + buffer),
             startRow: config.startRow - buffer,
@@ -112,28 +102,24 @@ async function generateImageToPrint() {
         
         const scalePx = config.scale * pixelsPerMeter;
 
-        // --- MARGES STRICTES ---
-        // 0.8 distance côté coordonnées (réduit), 0.3 distance côté vide
         const marginLarge = scalePx * 1;
         const marginSmall = scalePx * 0.3;
 
-        const marginLeft = marginLarge;  // Toujours chiffres à gauche
+        const marginLeft = marginLarge;
         const marginRight = marginSmall;
         let marginTop, marginBottom;
 
         if (config.letteringDirection === 'ascending') {
             marginTop = marginSmall;
-            marginBottom = marginLarge; // Lettres en bas
+            marginBottom = marginLarge;
         } else {
-            marginTop = marginLarge;    // Lettres en haut
+            marginTop = marginLarge;
             marginBottom = marginSmall;
         }
         
-        // Taille exacte de la zone utile (grille)
         const gridWidthPx = colsCount * scalePx;
         const gridHeightPx = rowsCount * scalePx;
         
-        // Taille finale du papier
         const finalWidth = Math.ceil(gridWidthPx + marginLeft + marginRight);
         const finalHeight = Math.ceil(gridHeightPx + marginTop + marginBottom);
         
@@ -146,50 +132,27 @@ async function generateImageToPrint() {
         finalCtx.fillRect(0, 0, finalWidth, finalHeight);
 
         // 5. PLACEMENT DU PIVOT SUR LE PAPIER
-        // Le pivot est le point qui correspond à (refLat, refLon)
         const pivotGeoLat = (config.referencePointChoice === 'center') ? config.latitude : realA1Coords[1];
         const pivotGeoLon = (config.referencePointChoice === 'center') ? config.longitude : realA1Coords[0];
         
         let pivotFinalX, pivotFinalY;
 
         if (config.referencePointChoice === 'center') {
-            // CORRECTION CRUCIALE : Le pivot (la croix) est au centre de la GRILLE, pas de l'image.
             pivotFinalX = marginLeft + (gridWidthPx / 2);
             pivotFinalY = marginTop + (gridHeightPx / 2);
         } else {
-            // Mode Origine (A1)
-            // Calcul du décalage de A1 par rapport au début de la grille
-            // Le début de la grille est à X = marginLeft
-            // Si la grille commence à C (3), A1 est virtuellement 2 cases à gauche.
-            
             const startColOffset = getCellOffsetFromOrigin(startColIdx);
             const startRowOffset = getCellOffsetFromOrigin(startRowIdx);
             
-            // X : A1 est à gauche du début de grille de 'startColOffset' cases
             pivotFinalX = marginLeft - (startColOffset * scalePx);
 
-            // Y : Dépend du sens
             if (config.letteringDirection === 'ascending') {
-                // Ascendant : 0 est en bas. L'image commence à startRow.
-                // Le bas de la grille (visuel) est à Y = finalHeight - marginBottom.
-                // Ce point correspond à la ligne 'startRow'.
-                // A1 (ligne 1/0) est décalé de 'startRowOffset' vers le bas.
-                // En canvas Y augmente vers le bas.
-                // Y_StartGrid = finalHeight - marginBottom
-                // Y_A1 = Y_StartGrid + (startRowOffset * scalePx) ?? Non.
-                // Si StartRow=1 (Offset=0), A1 est sur la ligne de base.
-                // Si StartRow=3 (Offset=2), la ligne de base est la ligne 3. A1 est plus bas.
                 pivotFinalY = (finalHeight - marginBottom) + (startRowOffset * scalePx);
             } else {
-                // Descendant : 0 est en haut.
-                // Le haut de la grille est à Y = marginTop.
-                // Ce point correspond à la ligne 'startRow'.
-                // A1 (ligne 1/0) est décalé vers le haut (Y diminue).
                 pivotFinalY = marginTop - (startRowOffset * scalePx);
             }
         }
         
-        // Coordonnées du pivot sur la carte source
         const worldOriginPx = itpLatLonToWorldPixels(downloadBoundingBox.north, downloadBoundingBox.west, zoomLevel);
         const pivotWorldGlobalPx = itpLatLonToWorldPixels(pivotGeoLat, pivotGeoLon, zoomLevel);
         const pivotOnWorldCanvasX = (pivotWorldGlobalPx.x - worldOriginPx.x) * scaleFactor;
@@ -197,83 +160,94 @@ async function generateImageToPrint() {
 
         // --- PROJECTION CARTE ---
         finalCtx.save();
-        // 1. On place l'origine du contexte au point pivot sur le papier final
         finalCtx.translate(pivotFinalX, pivotFinalY);
-        // 2. On tourne le papier pour aligner le nord de la carte
         finalCtx.rotate(-config.deviation * Math.PI / 180);
-        // 3. On dessine la carte en la décalant pour que son pivot coïncide avec l'origine (0,0)
         finalCtx.drawImage(worldCanvas, -pivotOnWorldCanvasX, -pivotOnWorldCanvasY);
         finalCtx.restore();
+
+        // --- DESSIN DU KML IMPORTÉ ---
+        // On dessine les éléments importés par-dessus la carte
+        // Il faut appliquer la même rotation mathématique
+        if (typeof loadedCadoKmlFeatures !== 'undefined' && loadedCadoKmlFeatures.length > 0) {
+            
+            // Fonction de projection qui convertit Lat/Lon en pixels relatifs au pivot (0,0) avec rotation
+            const localLatLonToPixelsRotated = (lat, lon) => {
+                const dLat = lat - pivotGeoLat;
+                const dLon = lon - pivotGeoLon;
+                
+                // Mètres relatifs au pivot
+                const dY_meters = dLat * 111320;
+                const dX_meters = dLon * 111320 * Math.cos(pivotGeoLat * Math.PI / 180);
+                
+                // Rotation manuelle des coordonnées
+                const angleRad = -config.deviation * Math.PI / 180;
+                const rotX_m = dX_meters * Math.cos(angleRad) - dY_meters * Math.sin(angleRad);
+                const rotY_m = dX_meters * Math.sin(angleRad) + dY_meters * Math.cos(angleRad);
+
+                // Conversion en pixels et ajout du pivot
+                return {
+                    x: pivotFinalX + (rotX_m * pixelsPerMeter),
+                    y: pivotFinalY - (rotY_m * pixelsPerMeter) // Y inversé
+                };
+            };
+
+            const backupRes = window.kmlResources;
+            window.kmlResources = cadoKmlResources;
+            
+            if (typeof drawZoneKmlFeatures === 'function') {
+                drawZoneKmlFeatures(finalCtx, zoomLevel, loadedCadoKmlFeatures, localLatLonToPixelsRotated);
+            }
+            
+            window.kmlResources = backupRes;
+        }
 
         // 6. DESSIN DE LA GRILLE (SUR LE PAPIER DROIT)
         const drawConfig = { ...config, deviation: 0, realDeviation: config.deviation };
         drawConfig.lineWidth = drawConfig.lineWidth * scaleFactor;
 
-        // Fonction de projection "Plate" Locale
-        // Convertit des lat/lon virtuels en pixels canvas relatifs au pivot
+        // Projection "Plate" Locale pour la grille (qui gère sa rotation en interne via calculateAndRotatePoint)
         const localLatLonToPixels = (lat, lon) => {
             const dLat = lat - pivotGeoLat;
             const dLon = lon - pivotGeoLon;
             
-            // Conversion Mètres (approx locale)
             const dY_meters = dLat * 111320;
             const dX_meters = dLon * 111320 * Math.cos(pivotGeoLat * Math.PI / 180);
             
-            // Projection : Y Canvas inversé par rapport à Lat
             return {
                 x: pivotFinalX + (dX_meters * pixelsPerMeter),
                 y: pivotFinalY - (dY_meters * pixelsPerMeter)
             };
         };
 
-        // Calcul du A1 Virtuel Géographique pour le moteur de dessin
-        // Le moteur de dessin recalcule tout à partir de A1. On doit lui donner un A1 
-        // qui fait retomber le dessin exactement sur notre grille pixels.
-        
         let a1GeoForDrawLat, a1GeoForDrawLon;
 
         if (config.referencePointChoice === 'origin') {
             a1GeoForDrawLat = pivotGeoLat;
             a1GeoForDrawLon = pivotGeoLon;
         } else {
-            // Mode Center : Le pivot est le centre géométrique.
-            // On doit calculer où se trouve A1 par rapport à ce centre.
-            
             const mToDegLat = 1 / 111320;
             const mToDegLon = 1 / (111320 * Math.cos(pivotGeoLat * Math.PI / 180));
             
-            // On calcule la distance en mètres entre le centre de la grille et l'origine virtuelle (A1/0,0)
-            
-            // Distance X du Centre par rapport à l'Origine (en mètres) :
-            // StartOffsetMeters + (LargeurGrilleMeters / 2)
             const startColOffset = getCellOffsetFromOrigin(startColIdx);
             const gridWidthM = colsCount * config.scale;
             const centerX_M = (startColOffset * config.scale) + (gridWidthM / 2);
             
-            // A1 est à l'opposé : CentreX - DistanceX
             a1GeoForDrawLon = pivotGeoLon - (centerX_M * mToDegLon);
             
-            // Distance Y
             const startRowOffset = getCellOffsetFromOrigin(startRowIdx);
             const gridHeightM = rowsCount * config.scale;
             const centerY_M = (startRowOffset * config.scale) + (gridHeightM / 2);
 
             if (config.letteringDirection === 'ascending') {
-                // Ascendant : Y monte. Centre est plus haut (Lat+) que A1.
-                // A1 = Center - Distance
                 a1GeoForDrawLat = pivotGeoLat - (centerY_M * mToDegLat);
             } else {
-                // Descendant : Y descend. Centre est plus bas (Lat-) que A1.
-                // A1 = Center + Distance
                 a1GeoForDrawLat = pivotGeoLat + (centerY_M * mToDegLat);
             }
         }
 
         drawCadoElementsOnCanvas(finalCtx, drawConfig, localLatLonToPixels, [a1GeoForDrawLon, a1GeoForDrawLat], addressValue);
         
-        // 7. UPSCALING FINAL (si nécessaire)
-        // Si et seulement si l'image finale est plus petite que 2160px de haut,
-        // on crée un nouveau canvas upscalé à 2160px en préservant le ratio.
+        // 7. UPSCALING FINAL
         const TARGET_EXPORT_HEIGHT = 2160;
         let exportCanvas = finalCanvas;
         if (upscaleEnabled && finalCanvas.height < TARGET_EXPORT_HEIGHT) {
@@ -285,11 +259,8 @@ async function generateImageToPrint() {
             scaledCanvas.height = TARGET_EXPORT_HEIGHT;
             const scaledCtx = scaledCanvas.getContext('2d');
 
-            // Fond blanc homogène
             scaledCtx.fillStyle = 'white';
             scaledCtx.fillRect(0, 0, scaledCanvas.width, scaledCanvas.height);
-
-            // Lissage haute qualité pour l'upscaling global
             scaledCtx.imageSmoothingEnabled = true;
             scaledCtx.imageSmoothingQuality = 'high';
 
@@ -321,7 +292,6 @@ async function generateImageToPrint() {
     }
 }
 
-// ... Les fonctions suivantes restent inchangées mais nécessaires ...
 function getRotatedBoundingBox(config, a1Coords) {
     const [a1Lon, a1Lat] = a1Coords;
     const startColNum = letterToNumber(config.startCol);
@@ -349,7 +319,6 @@ function getA1CornerCoordsForPrint(config) {
         const endColNum = letterToNumber(config.endCol);
         const startRowNum = config.startRow;
         const endRowNum = config.endRow;
-        // Pour le calcul GPS initial, on garde la logique centrée approximative
         const cols = getCadoCount(startColNum, endColNum);
         const rows = getCadoCount(startRowNum, endRowNum);
         const xOffsetMeters = (cols * config.scale) / 2;
@@ -378,29 +347,19 @@ async function createFinalCanvasWithLayers(boundingBox, zoom, mapConfig, onProgr
     const nwPixel = itpLatLonToWorldPixels(boundingBox.north, boundingBox.west, zoom);
     const sePixel = itpLatLonToWorldPixels(boundingBox.south, boundingBox.east, zoom);
     
-    // Dimensions natives (basées sur les tuiles disponibles au zoom max)
     const naturalWidth = Math.abs(sePixel.x - nwPixel.x);
     const naturalHeight = Math.abs(sePixel.y - nwPixel.y);
 
-    // --- LOGIQUE UPSCALING SELON SPÉCIFICATIONS ---
-    // Si la hauteur est < 2160px, on upscale pour atteindre 2160px de hauteur
-    // Le ratio largeur/hauteur est conservé
     const TARGET_HEIGHT = 2160;
     let scaleFactor = 1;
 
     if (upscaleEnabled && naturalHeight < TARGET_HEIGHT) {
-        // Calcul du facteur pour atteindre exactement 2160px de hauteur
         scaleFactor = TARGET_HEIGHT / naturalHeight;
-        
-        // Limitation raisonnable à x16 pour éviter une qualité trop dégradée
         scaleFactor = Math.min(scaleFactor, 16);
     }
-    // Si naturalHeight >= 2160px, scaleFactor reste à 1 (pas d'upscaling)
 
-    // Debug console
     console.log(`[CADO] Native: ${Math.round(naturalWidth)}x${Math.round(naturalHeight)}px | Zoom: ${zoom}`);
-    console.log(`[CADO] Hauteur cible: ${TARGET_HEIGHT}px | Upscale: x${scaleFactor.toFixed(3)}`);
-    console.log(`[CADO] Dimensions finales: ${Math.round(naturalWidth * scaleFactor)}x${Math.round(naturalHeight * scaleFactor)}px`);
+    console.log(`[CADO] Upscale: x${scaleFactor.toFixed(3)}`);
 
     const TILE_SIZE = 256;
     const tempCanvas = document.createElement('canvas');
@@ -413,7 +372,6 @@ async function createFinalCanvasWithLayers(boundingBox, zoom, mapConfig, onProgr
     finalCanvas.height = Math.round(naturalHeight * scaleFactor);
     const ctx = finalCanvas.getContext('2d');
     
-    // Lissage haute qualité obligatoire pour l'upscaling
     ctx.imageSmoothingEnabled = true;
     ctx.imageSmoothingQuality = 'high';
 
@@ -458,12 +416,11 @@ async function createFinalCanvasWithLayers(boundingBox, zoom, mapConfig, onProgr
             if (tileResult.success) {
                 const tileX = (tileResult.x * TILE_SIZE) - nwPixel.x;
                 const tileY = (tileResult.y * TILE_SIZE) - nwPixel.y;
-                tempCtx.drawImage(tileResult.img, Math.round(tileX), Math.round(tileY));
+                tempCtx.drawImage(tileResult.img, Math.round(tileX), Math.round(tileY), TILE_SIZE + 1, TILE_SIZE + 1);
             }
         });
     }
     
-    // Transfert agrandi
     ctx.drawImage(tempCanvas, 0, 0, finalCanvas.width, finalCanvas.height);
     return { finalCanvas, scaleFactor };
 }
