@@ -47,8 +47,8 @@
 <div id="mode-selector" class="flex flex-wrap justify-center items-center gap-2 border border-gray-300 dark:border-gray-600 rounded-lg p-1">
 <button data-mode="cado" class="mode-btn px-3 py-1 rounded text-sm md:text-base transition-colors duration-200 bg-blue-600 text-white">Carroyage rapide</button>
 <button data-mode="zone" class="mode-btn px-3 py-1 rounded text-sm md:text-base transition-colors duration-200 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700">Export de zone</button>
-<button data-mode="import" class="mode-btn px-3 py-1 rounded text-sm md:text-base transition-colors duration-200 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700" script="display:none;">Charger MBTiles</button>
-<button data-mode="creator" class="mode-btn px-3 py-1 rounded text-sm md:text-base transition-colors duration-200 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700" script="display:none;">Créer MBTiles</button>
+<button data-mode="import" class="mode-btn px-3 py-1 rounded text-sm md:text-base transition-colors duration-200 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700" style="display:none;">Charger MBTiles</button>
+<button data-mode="creator" class="mode-btn px-3 py-1 rounded text-sm md:text-base transition-colors duration-200 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700" style="display:none;">Créer MBTiles</button>
 </div>
 </div>
 </header>
@@ -527,93 +527,93 @@
                 </section>
             </div>
             
-<!-- PANEL 5 : CHOIX DES CARROYAGES (Toute largeur) -->
-<div class="card bg-white shadow-md rounded-lg p-4 md:p-6 dark:bg-gray-800 dark:border dark:border-gray-700 mt-6">
-    <section>
-        <h3 class="text-lg font-semibold mb-3 text-content">5. Choix du Carroyage</h3>
-        <div class="space-y-4">
-            <p class="text-sm text-secondary">Sélectionnez le type de grille à appliquer (Choix unique).</p>
-            
-            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <!-- Option AUCUN -->
-                <label class="flex items-start p-3 border rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer transition-colors h-full dark:border-gray-600">
-                    <div class="flex items-center h-5">
-                        <input type="radio" name="zone-grid-choice" value="none" class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 focus:ring-blue-500 dark:bg-gray-600 dark:border-gray-500">
-                    </div>
-                    <div class="ml-3 text-sm">
-                        <span class="font-medium text-gray-900 dark:text-white">Aucun</span>
-                        <p class="text-gray-500 dark:text-gray-400 text-xs mt-1">Image satellite/plan vierge.</p>
-                    </div>
-                </label>
-
-                <!-- Option UTM -->
-                <label class="flex items-start p-3 border rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer transition-colors h-full dark:border-gray-600">
-                    <div class="flex items-center h-5">
-                        <input type="radio" name="zone-grid-choice" value="utm" class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 focus:ring-blue-500 dark:bg-gray-600 dark:border-gray-500">
-                    </div>
-                    <div class="ml-3 text-sm">
-                        <span class="font-medium text-gray-900 dark:text-white">Grille UTM (1km)</span>
-                        <p class="text-gray-500 dark:text-gray-400 text-xs mt-1">Standard international/militaire.</p>
-                    </div>
-                </label>
-
-                <!-- Option CFSI -->
-                <label class="flex items-start p-3 border rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer transition-colors h-full dark:border-gray-600">
-                    <div class="flex items-center h-5">
-                        <input type="radio" name="zone-grid-choice" value="cfsi" class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 focus:ring-blue-500 dark:bg-gray-600 dark:border-gray-500">
-                    </div>
-                    <div class="ml-3 text-sm">
-                        <span class="font-medium text-gray-900 dark:text-white">Carroyage CFSI</span>
-                        <p class="text-gray-500 dark:text-gray-400 text-xs mt-1">Sécurité Civile (DFCI).</p>
-                    </div>
-                </label>
-
-                <!-- Option CADO -->
-                <label class="flex items-start p-3 border rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer transition-colors h-full dark:border-gray-600">
-                    <div class="flex items-center h-5">
-                        <input type="radio" name="zone-grid-choice" value="cado" class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 focus:ring-blue-500 dark:bg-gray-600 dark:border-gray-500" checked>
-                    </div>
-                    <div class="ml-3 text-sm">
-                        <span class="font-medium text-gray-900 dark:text-white">Carroyage CADO</span>
-                        <p class="text-gray-500 dark:text-gray-400 text-xs mt-1">Grille tactique ajustable.</p>
-                    </div>
-                </label>
-            </div>
-
-            <!-- Sous-options CADO (Visibles seulement si CADO coché) -->
-            <!-- Ajout des classes dark pour corriger le style -->
-            <div id="zone-cado-options" class="p-4 bg-blue-50 dark:bg-gray-700 rounded-lg border border-blue-100 dark:border-gray-600 mt-2">
-                <h4 class="text-sm font-bold text-blue-800 dark:text-blue-300 mb-3">Configuration CADO</h4>
-                <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-                    <div class="flex flex-col space-y-1">
-                        <label for="zone-cado-scale" class="text-sm text-content">Échelle (mètres) :</label>
-                        <input type="number" id="zone-cado-scale" class="input-field px-2 py-1 border rounded text-sm bg-white dark:bg-gray-600 dark:border-gray-500 dark:text-white" value="50" min="10">
-                    </div>
-                    <div class="flex flex-col space-y-1">
-                        <label class="text-sm text-content">Orientation Lettres :</label>
-                        <div class="flex gap-2 mt-1">
-                             <label class="inline-flex items-center">
-                                <input type="radio" name="zone-cado-direction" value="ascending" class="custom-radio" checked>
-                                <span class="px-2 py-1 border border-default rounded cursor-pointer text-xs button-outline bg-white dark:bg-gray-600 dark:text-gray-200 dark:border-gray-500">Ascendante (S→N)</span>
+            <!-- PANEL 5 : CHOIX DES CARROYAGES (Toute largeur) -->
+            <div class="card bg-white shadow-md rounded-lg p-4 md:p-6 dark:bg-gray-800 dark:border dark:border-gray-700 mt-6">
+                <section>
+                    <h3 class="text-lg font-semibold mb-3 text-content">5. Choix du Carroyage</h3>
+                    <div class="space-y-4">
+                        <p class="text-sm text-secondary">Sélectionnez le type de grille à appliquer (Choix unique).</p>
+                        
+                        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                            <!-- Option AUCUN -->
+                            <label class="flex items-start p-3 border rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer transition-colors h-full dark:border-gray-600">
+                                <div class="flex items-center h-5">
+                                    <input type="radio" name="zone-grid-choice" value="none" class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 focus:ring-blue-500 dark:bg-gray-600 dark:border-gray-500">
+                                </div>
+                                <div class="ml-3 text-sm">
+                                    <span class="font-medium text-gray-900 dark:text-white">Aucun</span>
+                                    <p class="text-gray-500 dark:text-gray-400 text-xs mt-1">Image satellite/plan vierge.</p>
+                                </div>
                             </label>
-                             <label class="inline-flex items-center">
-                                <input type="radio" name="zone-cado-direction" value="descending" class="custom-radio">
-                                <span class="px-2 py-1 border border-default rounded cursor-pointer text-xs button-outline bg-white dark:bg-gray-600 dark:text-gray-200 dark:border-gray-500">Descendante (N→S)</span>
+
+                            <!-- Option UTM -->
+                            <label class="flex items-start p-3 border rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer transition-colors h-full dark:border-gray-600">
+                                <div class="flex items-center h-5">
+                                    <input type="radio" name="zone-grid-choice" value="utm" class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 focus:ring-blue-500 dark:bg-gray-600 dark:border-gray-500">
+                                </div>
+                                <div class="ml-3 text-sm">
+                                    <span class="font-medium text-gray-900 dark:text-white">Grille UTM (1km)</span>
+                                    <p class="text-gray-500 dark:text-gray-400 text-xs mt-1">Standard international/militaire.</p>
+                                </div>
+                            </label>
+
+                            <!-- Option CFSI -->
+                            <label class="flex items-start p-3 border rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer transition-colors h-full dark:border-gray-600">
+                                <div class="flex items-center h-5">
+                                    <input type="radio" name="zone-grid-choice" value="cfsi" class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 focus:ring-blue-500 dark:bg-gray-600 dark:border-gray-500">
+                                </div>
+                                <div class="ml-3 text-sm">
+                                    <span class="font-medium text-gray-900 dark:text-white">Carroyage CFSI</span>
+                                    <p class="text-gray-500 dark:text-gray-400 text-xs mt-1">Sécurité Civile (DFCI).</p>
+                                </div>
+                            </label>
+
+                            <!-- Option CADO -->
+                            <label class="flex items-start p-3 border rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer transition-colors h-full dark:border-gray-600">
+                                <div class="flex items-center h-5">
+                                    <input type="radio" name="zone-grid-choice" value="cado" class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 focus:ring-blue-500 dark:bg-gray-600 dark:border-gray-500" checked>
+                                </div>
+                                <div class="ml-3 text-sm">
+                                    <span class="font-medium text-gray-900 dark:text-white">Carroyage CADO</span>
+                                    <p class="text-gray-500 dark:text-gray-400 text-xs mt-1">Grille tactique ajustable.</p>
+                                </div>
                             </label>
                         </div>
+
+                        <!-- Sous-options CADO (Visibles seulement si CADO coché) -->
+                        <!-- Ajout des classes dark pour corriger le style -->
+                        <div id="zone-cado-options" class="p-4 bg-blue-50 dark:bg-gray-700 rounded-lg border border-blue-100 dark:border-gray-600 mt-2">
+                            <h4 class="text-sm font-bold text-blue-800 dark:text-blue-300 mb-3">Configuration CADO</h4>
+                            <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                                <div class="flex flex-col space-y-1">
+                                    <label for="zone-cado-scale" class="text-sm text-content">Échelle (mètres) :</label>
+                                    <input type="number" id="zone-cado-scale" class="input-field px-2 py-1 border rounded text-sm bg-white dark:bg-gray-600 dark:border-gray-500 dark:text-white" value="50" min="10">
+                                </div>
+                                <div class="flex flex-col space-y-1">
+                                    <label class="text-sm text-content">Orientation Lettres :</label>
+                                    <div class="flex gap-2 mt-1">
+                                        <label class="inline-flex items-center">
+                                            <input type="radio" name="zone-cado-direction" value="ascending" class="custom-radio" checked>
+                                            <span class="px-2 py-1 border border-default rounded cursor-pointer text-xs button-outline bg-white dark:bg-gray-600 dark:text-gray-200 dark:border-gray-500">Ascendante (S→N)</span>
+                                        </label>
+                                        <label class="inline-flex items-center">
+                                            <input type="radio" name="zone-cado-direction" value="descending" class="custom-radio">
+                                            <span class="px-2 py-1 border border-default rounded cursor-pointer text-xs button-outline bg-white dark:bg-gray-600 dark:text-gray-200 dark:border-gray-500">Descendante (N→S)</span>
+                                        </label>
+                                    </div>
+                                </div>
+                                <div class="flex flex-col space-y-1 justify-center">
+                                    <label class="inline-flex items-center cursor-pointer">
+                                        <input type="checkbox" id="zone-cado-swap-axes" class="sr-only peer">
+                                        <div class="relative w-9 h-5 bg-gray-300 rounded-full peer dark:bg-gray-600 peer-checked:bg-blue-600 peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all"></div>
+                                        <span class="ms-3 text-sm text-content">Inverser axes (V/H)</span>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
                     </div>
-                    <div class="flex flex-col space-y-1 justify-center">
-                        <label class="inline-flex items-center cursor-pointer">
-                            <input type="checkbox" id="zone-cado-swap-axes" class="sr-only peer">
-                            <div class="relative w-9 h-5 bg-gray-300 rounded-full peer dark:bg-gray-600 peer-checked:bg-blue-600 peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all"></div>
-                            <span class="ms-3 text-sm text-content">Inverser axes (V/H)</span>
-                        </label>
-                    </div>
-                </div>
+                </section>
             </div>
-        </div>
-    </section>
-</div>
             
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
                 
