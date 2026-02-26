@@ -31,6 +31,7 @@
 <script src="carroyageCado.js" defer></script>
 <script src="imagetoprint.js" defer></script>
 <script src="zoneDownloader.js" defer></script>
+<script src="carroyageToMbtiles.js" defer></script>
 <script src="mbtilesCreator.js" defer></script>
 <script src="mbtilesMode.js" defer></script>
 <script src="carroyageCFSI.js" defer></script>
@@ -564,7 +565,7 @@
                                 </div>
                                 <div class="ml-3 text-sm">
                                     <span class="font-medium text-gray-900 dark:text-white">Carroyage CFSI</span>
-                                    <p class="text-gray-500 dark:text-gray-400 text-xs mt-1">Sécurité Civile (DFCI).</p>
+                                    <p class="text-gray-500 dark:text-gray-400 text-xs mt-1">Forces de l'ordre.</p>
                                 </div>
                             </label>
 
@@ -659,13 +660,13 @@
                             <div class="flex flex-wrap gap-2 justify-center">
                                 <label class="inline-flex items-center"><input type="radio" name="zone-file-format" value="KMZ" class="custom-radio" checked><span class="px-3 py-1 border border-default rounded cursor-pointer text-sm button-outline w-24 text-center">KMZ</span></label>
                                 <label class="inline-flex items-center"><input type="radio" name="zone-file-format" value="KML" class="custom-radio"><span class="px-3 py-1 border border-default rounded cursor-pointer text-sm button-outline w-24 text-center">KML</span></label>
-                                <label class="inline-flex items-center"><input type="radio" name="zone-file-format" value="GeoJSON" class="custom-radio"><span class="px-3 py-1 border border-default rounded cursor-pointer text-sm button-outline w-24 text-center">GeoJSON</span></label>
+                                <label class="inline-flex items-center"><input type="radio" name="zone-file-format" value="MBTILES" class="custom-radio"><span class="px-3 py-1 border border-default rounded cursor-pointer text-sm button-outline w-32 text-center bg-green-100 dark:bg-green-900 border-green-400">DJI (MBTILES)</span></label>
                                 <label class="inline-flex items-center"><input type="radio" name="zone-file-format" value="GPX" class="custom-radio"><span class="px-3 py-1 border border-default rounded cursor-pointer text-sm button-outline w-24 text-center">GPX</span></label>
                             </div>
                         </div>
 
                         <div class="text-xs text-secondary text-center italic">
-                            Génère un fichier contenant toutes les grilles cochées dans le panel 5 ainsi que les points d'intérêt.
+                            <strong>Note :</strong> L'export DJI crée un fichier <code>.mbtiles</code> transparent contenant uniquement les grilles et tracés (sans fond de carte), à placer dans le dossier de la télécommande.
                         </div>
                     </div>
 
