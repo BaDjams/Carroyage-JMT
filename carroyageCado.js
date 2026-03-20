@@ -44,10 +44,6 @@ function updateAllFromDecimal(lat, lon) {
     }
     const utm = WGS84_to_UTM.fromLatLon(lat, lon);
     document.getElementById('utm-coords').value = `${utm.zoneNumber} ${utm.zoneLetter} ${utm.easting.toFixed(0)} ${utm.northing.toFixed(0)}`;
-    
-    if (typeof CFSI_UTILS !== 'undefined') {
-        // Optionnel : Mise à jour affichage CFSI si un champ existe
-    }
 }
 
 function convertFromDM() {
@@ -213,11 +209,10 @@ async function handleCadoKmzFile(event) {
         const placemarksData = parseKmlPlacemarksFromDoc(kmlDoc, sharedStyles);
 
         if (zip && typeof loadKmlIcons === 'function') {
-            // Astuce : on utilise une variable temporaire pour utiliser loadKmlIcons qui cible window.kmlResources
             const backupRes = window.kmlResources;
             window.kmlResources = cadoKmlResources; 
             await loadKmlIcons(placemarksData, zip);
-            window.kmlResources = backupRes; // Restauration
+            window.kmlResources = backupRes; 
         }
 
         loadedCadoKmlFeatures = placemarksData;
@@ -290,6 +285,10 @@ function updateDynamicGridName() {
     }
 }
 
+// =========================================================================
+// FONCTION GENERATE GRID (MODE 1 - AVEC SUPPORT MBTILES ET CSV)
+// =========================================================================
+
 async function generateGrid() {
     const loadingIndicator = document.getElementById("loading-indicator");
     const loadingMessage = document.getElementById("loading-message");
@@ -318,34 +317,83 @@ async function generateGrid() {
         const fileFormat = config.outputFormat;
         let fileBlob, fileName, mimeType;
 
-        switch (fileFormat) {
-            case "KML":
-            case "KMZ":
-                const kmlContent = generateKML(config, gridData);
-                if (fileFormat === "KMZ") {
-                    mimeType = "application/vnd.google-earth.kmz";
-                    fileBlob = await generateKMZ(config, gridData, kmlContent, mimeType);
-                    fileName = `${config.gridName}.kmz`;
-                } else {
-                    mimeType = "application/vnd.google-earth.kml+xml";
-                    fileBlob = new Blob([kmlContent], { type: mimeType });
-                    fileName = `${config.gridName}.kml`;
-                }
-                break;
-            case "GeoJSON":
-                mimeType = "application/geo+json";
-                fileBlob = new Blob([generateGeoJSON(config, gridData)], { type: mimeType });
-                fileName = `${config.gridName}.geojson`;
-                break;
-            case "GPX":
-                mimeType = "application/gpx+xml";
-                fileBlob = new Blob([generateGPX(config, gridData)], { type: mimeType });
-                fileName = `${config.gridName}.gpx`;
-                break;
-            default:
-                throw new Error("Format de sortie non supporté.");
+        // --- SUPPORT NOUVEAUX FORMATS ---
+        
+        if (fileFormat === "MBTILES") {
+            // 1. Calcul de la Bounding Box de la grille pour l'export
+            let minLat = 90, maxLat = -90, minLon = 180, maxLon = -180;
+            const allPoints = [...gridData.horizontalLines.flatMap(l=>l.points), ...gridData.verticalLines.flatMap(l=>l.points)];
+            
+            allPoints.forEach(p => {
+                if(p[1] < minLat) minLat = p[1];
+                if(p[1] > maxLat) maxLat = p[1];
+                if(p[0] < minLon) minLon = p[0];
+                if(p[0] > maxLon) maxLon = p[0];
+            });
+
+            // Marge de sécurité pour ne pas couper les labels sur les bords
+            const bufferLat = 0.002; 
+            const bufferLon = 0.003;
+            const bbox = { north: maxLat + bufferLat, south: minLat - bufferLat, east: maxLon + bufferLon, west: minLon - bufferLon };
+            
+            // Calcul du zoom optimal (approx)
+            // Pour du CADO 20m/50m, un zoom 17 est un bon compromis taille/détail
+            const baseZoom = 17;
+
+            // Appel au générateur MBTiles (avec données manuelles pour CADO)
+            if (typeof generateMbtilesProcess === 'function') {
+                const manualCadoData = { config: config, gridData: gridData };
+                // Pas d'UTM ni CFSI en Mode 1
+                fileBlob = await generateMbtilesProcess(config.gridName, false, false, true, bbox, baseZoom, window.userPOIs, manualCadoData);
+                fileName = `${config.gridName}.mbtiles`;
+            } else {
+                throw new Error("Module MBTiles manquant (carroyageToMbtiles.js).");
+            }
         }
-        downloadFile(fileBlob, fileName);
+        else if (fileFormat === "CSV") {
+             if (typeof generateGridCSV === 'function') {
+                 const manualCadoData = { config: config, gridData: gridData };
+                 // Appel de la fonction du fichier carroyageToCSV.js (avec données manuelles)
+                 await generateGridCSV(config.gridName, false, false, true, window.userPOIs, manualCadoData);
+                 loadingIndicator.classList.add("hidden");
+                 return; // Le fichier est téléchargé dans generateGridCSV
+             } else {
+                 throw new Error("Module CSV manquant (carroyageToCSV.js).");
+             }
+        }
+        else {
+            // --- FORMATS CLASSIQUES (KML, KMZ, GPX, GeoJSON) ---
+            switch (fileFormat) {
+                case "KML":
+                case "KMZ":
+                    const kmlContent = generateKML(config, gridData);
+                    if (fileFormat === "KMZ") {
+                        mimeType = "application/vnd.google-earth.kmz";
+                        fileBlob = await generateKMZ(config, gridData, kmlContent, mimeType);
+                        fileName = `${config.gridName}.kmz`;
+                    } else {
+                        mimeType = "application/vnd.google-earth.kml+xml";
+                        fileBlob = new Blob([kmlContent], { type: mimeType });
+                        fileName = `${config.gridName}.kml`;
+                    }
+                    break;
+                case "GeoJSON":
+                    mimeType = "application/geo+json";
+                    fileBlob = new Blob([generateGeoJSON(config, gridData)], { type: mimeType });
+                    fileName = `${config.gridName}.geojson`;
+                    break;
+                case "GPX":
+                    mimeType = "application/gpx+xml";
+                    fileBlob = new Blob([generateGPX(config, gridData)], { type: mimeType });
+                    fileName = `${config.gridName}.gpx`;
+                    break;
+                default:
+                    throw new Error("Format de sortie non supporté.");
+            }
+        }
+
+        if(fileBlob) downloadFile(fileBlob, fileName);
+
     } catch (error) {
         console.error("Error generating CADO grid:", error);
         showError(error.message);

@@ -529,6 +529,6 @@ function setupCreatorAddressSearch() {
         }, 300);
     });
     document.addEventListener('click', e => {
-        if(!input.contains(e.target)) list.classList.add('hidden');
+        if(!input.contains(e.target) && !list.contains(e.target)) list.classList.add('hidden');
     });
 }

@@ -32,6 +32,7 @@
 <script src="imagetoprint.js" defer></script>
 <script src="zoneDownloader.js" defer></script>
 <script src="carroyageToMbtiles.js" defer></script>
+<script src="carroyageToCSV.js" defer></script>
 <script src="mbtilesCreator.js" defer></script>
 <script src="mbtilesMode.js" defer></script>
 <script src="carroyageCFSI.js" defer></script>
@@ -361,6 +362,8 @@
                                     <label class="inline-flex items-center"><input type="radio" name="file-format" value="KML" class="custom-radio"><span class="px-3 py-1 border border-default rounded cursor-pointer text-sm button-outline w-24 text-center">KML</span></label>
                                     <label class="inline-flex items-center"><input type="radio" name="file-format" value="KMZ" class="custom-radio" checked><span class="px-3 py-1 border border-default rounded cursor-pointer text-sm button-outline w-24 text-center">KMZ</span></label>
                                     <label class="inline-flex items-center"><input type="radio" name="file-format" value="GeoJSON" class="custom-radio"><span class="px-3 py-1 border border-default rounded cursor-pointer text-sm button-outline w-24 text-center">GeoJSON</span></label>
+                                    <label class="inline-flex items-center"><input type="radio" name="file-format" value="MBTILES" class="custom-radio"><span class="px-3 py-1 border border-default rounded cursor-pointer text-sm button-outline w-32 text-center bg-green-100 dark:bg-green-900 border-green-400">DJI (Overlay)</span></label>
+                                    <label class="inline-flex items-center"><input type="radio" name="file-format" value="CSV" class="custom-radio"><span class="px-3 py-1 border border-default rounded cursor-pointer text-sm button-outline w-24 text-center">CSV</span></label>
                                     <label class="inline-flex items-center"><input type="radio" name="file-format" value="GPX" class="custom-radio"><span class="px-3 py-1 border border-default rounded cursor-pointer text-sm button-outline w-24 text-center">GPX</span></label>
                                 </div>
                             </div>
@@ -662,6 +665,7 @@
                                 <label class="inline-flex items-center"><input type="radio" name="zone-file-format" value="KML" class="custom-radio"><span class="px-3 py-1 border border-default rounded cursor-pointer text-sm button-outline w-24 text-center">KML</span></label>
                                 <label class="inline-flex items-center"><input type="radio" name="zone-file-format" value="MBTILES" class="custom-radio"><span class="px-3 py-1 border border-default rounded cursor-pointer text-sm button-outline w-32 text-center bg-green-100 dark:bg-green-900 border-green-400">DJI (MBTILES)</span></label>
                                 <label class="inline-flex items-center"><input type="radio" name="zone-file-format" value="GPX" class="custom-radio"><span class="px-3 py-1 border border-default rounded cursor-pointer text-sm button-outline w-24 text-center">GPX</span></label>
+                                <label class="inline-flex items-center"><input type="radio" name="zone-file-format" value="CSV" class="custom-radio"><span class="px-3 py-1 border border-default rounded cursor-pointer text-sm button-outline w-24 text-center">CSV</span></label>
                             </div>
                         </div>
 
@@ -1279,11 +1283,6 @@
             }
         }
 
-        function setupZoneAddressSearch() {
-            // Déjà géré dans zoneDownloader.js normalement, mais on garde la compatibilité
-            // si besoin. La fonction dans zoneDownloader.js est plus complète.
-        }
-
         function handleCadoMapClick(e) {
             const lat = e.latlng.lat.toFixed(6);
             const lon = e.latlng.lng.toFixed(6);
@@ -1347,7 +1346,7 @@
         }
         
         document.addEventListener('click', (e) => {
-            if (suggestionsList && !document.querySelector('.address-search-container').contains(e.target)) {
+            if (suggestionsList && !searchInput.contains(e.target) && !suggestionsList.contains(e.target)) {
                 suggestionsList.classList.add('hidden');
             }
         });
