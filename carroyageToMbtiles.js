@@ -2,8 +2,9 @@
 
 /**
  * Orchestrateur principal pour la génération de MBTiles (Overlay DJI)
+ * Accepte optionalCadoData { config, gridData } pour le Mode 1.
  */
-async function generateMbtilesProcess(filename, useUtm, useCfsi, useCado, bbox, baseZoom, userPOIs) {
+async function generateMbtilesProcess(filename, useUtm, useCfsi, useCado, bbox, baseZoom, userPOIs, optionalCadoData = null) {
     if (typeof window.initSqlJs !== 'function') throw new Error("SQL.js non chargé.");
 
     // 1. Initialisation DB
@@ -14,35 +15,51 @@ async function generateMbtilesProcess(filename, useUtm, useCfsi, useCado, bbox, 
     db.run("CREATE TABLE tiles (zoom_level integer, tile_column integer, tile_row integer, tile_data blob);");
     db.run("CREATE UNIQUE INDEX tile_index on tiles (zoom_level, tile_column, tile_row);");
 
-    // Métadonnées DJI/Standard
+    // Métadonnées
     db.run("INSERT INTO metadata VALUES (?, ?)", ["name", filename]);
     db.run("INSERT INTO metadata VALUES (?, ?)", ["format", "png"]);
     db.run("INSERT INTO metadata VALUES (?, ?)", ["type", "overlay"]);
     db.run("INSERT INTO metadata VALUES (?, ?)", ["version", "1.2"]);
     db.run("INSERT INTO metadata VALUES (?, ?)", ["bounds", `${bbox.west},${bbox.south},${bbox.east},${bbox.north}`]);
+    db.run("INSERT INTO metadata VALUES (?, ?)", ["minzoom", String(minZ)]);
+    db.run("INSERT INTO metadata VALUES (?, ?)", ["maxzoom", String(maxZ)]);
+    db.run("INSERT INTO metadata VALUES (?, ?)", ["scheme", "tms"]);
 
-    // 2. Configuration de la plage de zoom
-    // On génère le zoom demandé + 2 niveaux de sur-zoom pour la netteté en vol
+    // 2. Configuration Zoom
+    // On génère le zoom de base + 2 niveaux de sur-zoom pour la netteté en vol
     const minZ = baseZoom;
     const maxZ = Math.min(baseZoom + 2, 19); 
-    const maxCanvasSize = 8192; 
+    const maxCanvasSize = 8192; // Limite de sécurité navigateur
 
     // Configuration CADO
     let cadoConfig = null;
     let cadoGridData = null;
-    if (useCado && typeof getZoneCadoConfigAndBounds === 'function') {
-        const cadoRes = getZoneCadoConfigAndBounds();
-        cadoConfig = cadoRes.config;
-        cadoConfig.lineWidth = 2;
-        cadoConfig.gridColor = document.getElementById('utm-grid-color') ? document.getElementById('utm-grid-color').value : "#FF0000";
-        
-        if(typeof calculateGridData === 'function') {
-            cadoGridData = calculateGridData(cadoConfig);
-            cadoConfig.a1Coords = [cadoRes.a1CornerLon, cadoRes.a1CornerLat];
+
+    if (useCado) {
+        // Priorité aux données passées en argument (Mode 1)
+        if (optionalCadoData && optionalCadoData.config && optionalCadoData.gridData) {
+            cadoConfig = optionalCadoData.config;
+            cadoGridData = optionalCadoData.gridData;
+        } 
+        // Sinon Fallback sur l'interface (Mode 2)
+        else if (typeof getZoneCadoConfigAndBounds === 'function') {
+            try {
+                const cadoRes = getZoneCadoConfigAndBounds();
+                cadoConfig = cadoRes.config;
+                
+                // Style forcé Digital
+                cadoConfig.lineWidth = 2;
+                cadoConfig.gridColor = document.getElementById('utm-grid-color') ? document.getElementById('utm-grid-color').value : "#FF0000";
+                
+                if(typeof calculateGridData === 'function') {
+                    cadoGridData = calculateGridData(cadoConfig);
+                    cadoConfig.a1Coords = [cadoRes.a1CornerLon, cadoRes.a1CornerLat];
+                }
+            } catch(e) { console.warn("MBTiles: CADO config not found from UI", e); }
         }
     }
 
-    // 3. Boucle de génération
+    // 3. Boucle de génération sur les niveaux de zoom
     for (let z = minZ; z <= maxZ; z++) {
         await processZoomLevel(db, z, bbox, useUtm, useCfsi, cadoConfig, cadoGridData, userPOIs, maxCanvasSize);
     }
@@ -81,7 +98,8 @@ async function processZoomLevel(db, zoom, bbox, useUtm, useCfsi, cadoConfig, cad
         return { x: p.x - nwPx.x, y: p.y - nwPx.y };
     };
 
-    const color = document.getElementById('utm-grid-color') ? document.getElementById('utm-grid-color').value : "#000000";
+    // Récupération couleur globale (défaut noir)
+    const color = (cadoConfig && cadoConfig.gridColor) ? cadoConfig.gridColor : (document.getElementById('utm-grid-color') ? document.getElementById('utm-grid-color').value : "#000000");
     
     // --- DESSIN DES COUCHES ---
     
@@ -90,7 +108,7 @@ async function processZoomLevel(db, zoom, bbox, useUtm, useCfsi, cadoConfig, cad
         drawDigitalUtm(ctx, bbox, project, color);
     }
 
-    // 2. CFSI (Style Image Strict)
+    // 2. CFSI
     if (useCfsi) {
         drawDigitalCfsiStrict(ctx, bbox, project, color, zoom);
     }
@@ -100,12 +118,12 @@ async function processZoomLevel(db, zoom, bbox, useUtm, useCfsi, cadoConfig, cad
         drawDigitalCado(ctx, cadoConfig, cadoGridData, project);
     }
 
-    // 4. KML Imports
+    // 4. KML Imports (Traces et Zones)
     if (typeof loadedZoneKmlFeatures !== 'undefined' && loadedZoneKmlFeatures.length > 0) {
         drawDigitalKml(ctx, loadedZoneKmlFeatures, project);
     }
 
-    // 5. POIs
+    // 5. POIs (Utilisateurs ou KML)
     if (userPOIs && userPOIs.length > 0) {
         await drawDigitalPois(ctx, userPOIs, project);
     }
@@ -114,6 +132,9 @@ async function processZoomLevel(db, zoom, bbox, useUtm, useCfsi, cadoConfig, cad
     await sliceAndStore(db, canvas, zoom, nwPx, sePx);
 }
 
+/**
+ * Découpe le canvas géant en tuiles 256x256 et les stocke
+ */
 async function sliceAndStore(db, sourceCanvas, zoom, globalNwPx, globalSePx) {
     const TILE_SIZE = 256;
     const tMinX = Math.floor(globalNwPx.x / TILE_SIZE);
@@ -124,7 +145,7 @@ async function sliceAndStore(db, sourceCanvas, zoom, globalNwPx, globalSePx) {
     const tileCan = document.createElement('canvas');
     tileCan.width = TILE_SIZE; tileCan.height = TILE_SIZE;
     
-    // CORRECTION ICI : Ajout de willReadFrequently pour optimiser getImageData
+    // Optimisation : willReadFrequently pour accélérer getImageData
     const tCtx = tileCan.getContext('2d', { willReadFrequently: true });
 
     for (let tx = tMinX; tx <= tMaxX; tx++) {
@@ -145,14 +166,14 @@ async function sliceAndStore(db, sourceCanvas, zoom, globalNwPx, globalSePx) {
                 const blob = await new Promise(r => tileCan.toBlob(r, 'image/png'));
                 const buf = await blob.arrayBuffer();
                 const u8 = new Uint8Array(buf);
-                const tmsY = (1 << zoom) - 1 - ty; // Conversion XYZ -> TMS
+                const tmsY = (1 << zoom) - 1 - ty;
                 db.run("INSERT INTO tiles VALUES (?, ?, ?, ?)", [zoom, tx, tmsY, u8]);
             }
         }
     }
 }
 
-// --- MOTEURS DE DESSIN "NO HALO / IMAGE STYLE" ---
+// --- MOTEURS DE DESSIN "DIGITAL" (SANS HALO, NET) ---
 
 function drawSimpleText(ctx, text, x, y, color, size, align="center") {
     ctx.fillStyle = color;
@@ -163,6 +184,8 @@ function drawSimpleText(ctx, text, x, y, color, size, align="center") {
 }
 
 function drawDigitalUtm(ctx, bbox, project, color) {
+    if (typeof WGS84_to_UTM === 'undefined') return;
+
     const startZone = WGS84_to_UTM.fromLatLon(bbox.north, bbox.west).zoneNumber;
     const endZone = WGS84_to_UTM.fromLatLon(bbox.south, bbox.east).zoneNumber;
     
@@ -204,7 +227,7 @@ function drawDigitalUtm(ctx, bbox, project, color) {
                 ctx.save();
                 ctx.translate(mx, my);
                 ctx.rotate(angle);
-                // Sans halo, direct
+                // Texte simple, couleur de la grille
                 drawSimpleText(ctx, line.name, 0, -5, color, fontSize);
                 ctx.restore();
             }
@@ -231,6 +254,7 @@ function drawDigitalCfsiStrict(ctx, bbox, project, color, zoom) {
     const pRef1 = project(bbox.north, bbox.west);
     const pRef2 = project(bbox.north, bbox.west + 0.0013); // approx 100m longitude
     const pixelPer100m = Math.abs(pRef2.x - pRef1.x);
+    // On affiche les 100m si la case fait plus de 50px
     const show100mLabels = pixelPer100m > 50;
 
     // 1. DESSIN DES LIGNES
@@ -277,8 +301,11 @@ function drawDigitalCfsiStrict(ctx, bbox, project, color, zoom) {
                 const pix = project(geo.lat, geo.lon);
 
                 if (isCenter2k) {
+                    // Label 2km : Gros
+                    // Nom complet
                     drawSimpleText(ctx, comps.full2k + " " + comps.c100m, pix.x, pix.y, color, 16);
                 } else if (show100mLabels) {
+                    // Label 100m : Petit
                     drawSimpleText(ctx, comps.c100m, pix.x, pix.y, color, 10);
                 }
             }
@@ -327,6 +354,7 @@ function drawDigitalKml(ctx, features, project) {
         }
         else if(f.type === 'Polygon') {
             ctx.strokeStyle = 'blue'; ctx.lineWidth = 3;
+            // Semi-transparent pour ne pas masquer la carte dessous (Overlay)
             ctx.fillStyle = 'rgba(0,0,255,0.2)';
             ctx.beginPath();
             f.coordinates.forEach((c, i) => {
