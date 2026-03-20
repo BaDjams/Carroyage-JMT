@@ -476,8 +476,8 @@ function getZoneCadoConfigAndBounds() {
         gridColor: document.getElementById('utm-grid-color').value,
         colorName: document.getElementById('utm-grid-color-name').value,
         colorOpacity: (100 - parseInt(document.getElementById('utm-transparency').value)) / 100,
-        gridNameBase: document.getElementById("zone-export-filename").value || "Carroyage CADO",
-        gridName: document.getElementById("zone-export-filename").value || "Carroyage CADO",
+        gridNameBase: document.getElementById("zone-title").value || "Carroyage CADO",
+        gridName: document.getElementById("zone-title").value || "Carroyage CADO", 
         deviation: 0,
         labelSize: 1.2,
         iconSize: 1.0,
@@ -641,7 +641,7 @@ async function generateZonePNG() {
         // FINITIONS (CARTOUCHE)
         if (!useCado) {
             loadingMessage.textContent = "Finalisation de l'image...";
-            const userTitle = document.getElementById("zone-export-filename").value || "Zone";
+            const userTitle = document.getElementById("zone-title").value || "Zone";
             
             if (useUtm) {
                 const cartoucheFontSize = Math.max(10 * scaleFactor, Math.min(48 * scaleFactor, finalCanvas.width * 0.007));
@@ -694,9 +694,16 @@ async function generateZonePNG() {
         if (useUtm) gridTypeStr += "_UTM";
         if (useCfsi) gridTypeStr += "_CFSI";
 
-        let rawTitle = document.getElementById("zone-export-filename").value || "Export";
+        let rawTitle = document.getElementById("zone-title").value || "Export";
         if (!rawTitle.startsWith("Export")) rawTitle = `Export_${rawTitle}`;
-        const fileName = `${rawTitle}_zoom${zoom}_${gridTypeStr}_${dateStr}${fileExtension}`;
+        
+        // Ajout de l'origine A1 si le carroyage CADO est utilisé
+        let originString = "";
+        if (useCado && cadoData) {
+            originString = `_origine=${cadoData.a1CornerLat.toFixed(6)},${cadoData.a1CornerLon.toFixed(6)}`;
+        }
+
+        const fileName = `${rawTitle}_zoom${zoom}_${gridTypeStr}_${dateStr}${originString}${fileExtension}`;
         
         exportCanvas.toBlob((blob) => {
             if (blob) { downloadFile(blob, fileName); } 
@@ -729,7 +736,17 @@ async function handleZoneVectorExport() {
     const useCado = (gridChoice === 'cado');
     
     const format = document.querySelector('input[name="zone-file-format"]:checked').value; 
-    const filenameBase = document.getElementById('zone-export-filename').value || "Export_Zone";
+    const filenameBase = document.getElementById('zone-title').value || "Export_Zone";
+
+    // Ajout de l'origine A1 au nom de base si CADO est sélectionné
+    if (useCado) {
+        try {
+            const cadoData = getZoneCadoConfigAndBounds();
+            filenameBase += `_origine=${cadoData.a1CornerLat.toFixed(6)},${cadoData.a1CornerLon.toFixed(6)}`;
+        } catch(e) {
+            // S'il y a une erreur (zone non définie), on ignore ici, elle sera bloquée plus bas
+        }
+    }
 
     if (!useUtm && !useCfsi && !useCado && userPOIs.length === 0 && format !== 'MBTILES') {
         if (!confirm("Aucune grille sélectionnée. Voulez-vous exporter uniquement les points d'intérêt ?")) {
