@@ -7,7 +7,13 @@
 async function generateMbtilesProcess(filename, useUtm, useCfsi, useCado, bbox, baseZoom, userPOIs, optionalCadoData = null) {
     if (typeof window.initSqlJs !== 'function') throw new Error("SQL.js non chargé.");
 
-    // 1. Initialisation DB
+    // Configuration Zoom
+    // On génère le zoom de base + 2 niveaux de sur-zoom pour la netteté en vol
+    const minZ = baseZoom;
+    const maxZ = Math.min(baseZoom + 2, 19); 
+    const maxCanvasSize = 8192; // Limite de sécurité navigateur
+    
+    // Initialisation DB
     const SQL = await window.initSqlJs({ locateFile: file => file });
     const db = new SQL.Database();
     
@@ -24,12 +30,6 @@ async function generateMbtilesProcess(filename, useUtm, useCfsi, useCado, bbox, 
     db.run("INSERT INTO metadata VALUES (?, ?)", ["minzoom", String(minZ)]);
     db.run("INSERT INTO metadata VALUES (?, ?)", ["maxzoom", String(maxZ)]);
     db.run("INSERT INTO metadata VALUES (?, ?)", ["scheme", "tms"]);
-
-    // 2. Configuration Zoom
-    // On génère le zoom de base + 2 niveaux de sur-zoom pour la netteté en vol
-    const minZ = baseZoom;
-    const maxZ = Math.min(baseZoom + 2, 19); 
-    const maxCanvasSize = 8192; // Limite de sécurité navigateur
 
     // Configuration CADO
     let cadoConfig = null;
