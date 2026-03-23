@@ -259,25 +259,32 @@ class MbtilesJob {
         this.totalTiles = 0;
         this.processedTiles = 0;
         this.db = null;
-        this.queue = [];
         this.isCancelled = false;
-        
-        this.prepareQueue();
+
+        this.totalTiles = this.computeTotalTiles();
         this.createUI();
     }
 
-    prepareQueue() {
+    computeTotalTiles() {
+        let count = 0;
         this.zooms.forEach(z => {
             const range = getTileRange(this.bounds, z);
+            count += (range.xMax - range.xMin + 1) * (Math.max(range.yMin, range.yMax) - Math.min(range.yMin, range.yMax) + 1);
+        });
+        return count;
+    }
+
+    *tileGenerator() {
+        for (const z of this.zooms) {
+            const range = getTileRange(this.bounds, z);
+            const yStart = Math.min(range.yMin, range.yMax);
+            const yEnd = Math.max(range.yMin, range.yMax);
             for (let x = range.xMin; x <= range.xMax; x++) {
-                const yStart = Math.min(range.yMin, range.yMax);
-                const yEnd = Math.max(range.yMin, range.yMax);
                 for (let y = yStart; y <= yEnd; y++) {
-                    this.queue.push({ x, y, z });
+                    yield { x, y, z };
                 }
             }
-        });
-        this.totalTiles = this.queue.length;
+        }
     }
 
     createUI() {
@@ -366,14 +373,16 @@ class MbtilesJob {
         canvas.width = 256; canvas.height = 256;
         const ctx = canvas.getContext('2d');
 
-        while (this.queue.length > 0 && !this.isCancelled) {
-            if (this.status === 'paused') {
-                await new Promise(r => setTimeout(r, 1000));
-                continue;
-            }
+        this.db.run("BEGIN TRANSACTION;");
 
-            const tile = this.queue.shift();
-            
+        for (const tile of this.tileGenerator()) {
+            if (this.isCancelled) break;
+
+            while (this.status === 'paused' && !this.isCancelled) {
+                await new Promise(r => setTimeout(r, 500));
+            }
+            if (this.isCancelled) break;
+
             try {
                 let url = "";
                 const layer = this.layerConfig.layers[0];
@@ -385,7 +394,7 @@ class MbtilesJob {
                 }
 
                 const blob = await this.fetchTileAsBlob(url, canvas, ctx);
-                
+
                 if (blob) {
                     const arrayBuffer = await blob.arrayBuffer();
                     const u8 = new Uint8Array(arrayBuffer);
@@ -400,11 +409,12 @@ class MbtilesJob {
             this.processedTiles++;
             if (this.processedTiles % 5 === 0) {
                 this.updateUI();
-                await new Promise(r => setTimeout(r, 0)); 
+                await new Promise(r => setTimeout(r, 0));
             }
         }
 
         if (!this.isCancelled) {
+            this.db.run("COMMIT;");
             this.finish();
         }
     }
@@ -433,23 +443,25 @@ class MbtilesJob {
         
         try {
             const data = this.db.export();
+            this.db.close();
+            this.db = null;
+
             const blob = new Blob([data], { type: 'application/x-sqlite3' });
-            
             const url = URL.createObjectURL(blob);
-            
+
             const container = document.getElementById(`job-${this.id}`);
             const btnContainer = container.querySelector('.btn-action-container');
             btnContainer.innerHTML = '';
-            
+
             const dlBtn = document.createElement('a');
             dlBtn.href = url;
             dlBtn.download = `${this.filename}.mbtiles`;
             dlBtn.className = "text-green-600 font-bold hover:underline cursor-pointer";
             dlBtn.textContent = "Télécharger";
             btnContainer.appendChild(dlBtn);
-            
-            // Auto download (optionnel)
+
             dlBtn.click();
+            setTimeout(() => URL.revokeObjectURL(url), 5000);
 
         } catch (err) {
             console.error(err);
@@ -460,6 +472,8 @@ class MbtilesJob {
             statusDiv.textContent = "ERREUR MÉMOIRE";
             alert(`Erreur fatale lors de la création du fichier final :\n${err.message}\n\nLa carte est trop volumineuse pour la mémoire du navigateur.`);
         }
+
+        activeJobs = activeJobs.filter(j => j.id !== this.id);
     }
 
     togglePause() {

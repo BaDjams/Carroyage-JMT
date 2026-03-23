@@ -12,6 +12,8 @@ async function generateMbtilesProcess(filename, useUtm, useCfsi, useCado, bbox, 
     const minZ = baseZoom;
     const maxZ = Math.min(baseZoom + 2, 19); 
     const maxCanvasSize = 8192; // Limite de sécurité navigateur
+    const centerLon = (bbox.west + bbox.east) / 2;
+    const centerLat = (bbox.south + bbox.north) / 2;
     
     // Initialisation DB
     const SQL = await window.initSqlJs({ locateFile: file => file });
@@ -30,6 +32,8 @@ async function generateMbtilesProcess(filename, useUtm, useCfsi, useCado, bbox, 
     db.run("INSERT INTO metadata VALUES (?, ?)", ["minzoom", String(minZ)]);
     db.run("INSERT INTO metadata VALUES (?, ?)", ["maxzoom", String(maxZ)]);
     db.run("INSERT INTO metadata VALUES (?, ?)", ["scheme", "tms"]);
+
+    db.run("INSERT INTO metadata VALUES (?, ?)", ["center", `${centerLon},${centerLat},${minZ}`]);
 
     // Configuration CADO
     let cadoConfig = null;
@@ -59,9 +63,22 @@ async function generateMbtilesProcess(filename, useUtm, useCfsi, useCado, bbox, 
         }
     }
 
-    // 3. Boucle de génération sur les niveaux de zoom
+    // 3. Pré-chargement des images POI (une seule fois pour tous les zooms)
+    const poiImgCache = {};
+    if (userPOIs && userPOIs.length > 0) {
+        const uniqueUrls = [...new Set(userPOIs.map(p => p.url))];
+        await Promise.all(uniqueUrls.map(url => new Promise(resolve => {
+            const img = new Image();
+            img.crossOrigin = "Anonymous";
+            img.onload = () => { poiImgCache[url] = img; resolve(); };
+            img.onerror = () => { poiImgCache[url] = null; resolve(); };
+            img.src = url;
+        })));
+    }
+
+    // 4. Boucle de génération sur les niveaux de zoom
     for (let z = minZ; z <= maxZ; z++) {
-        await processZoomLevel(db, z, bbox, useUtm, useCfsi, cadoConfig, cadoGridData, userPOIs, maxCanvasSize);
+        await processZoomLevel(db, z, bbox, useUtm, useCfsi, cadoConfig, cadoGridData, userPOIs, maxCanvasSize, poiImgCache);
     }
 
     // 4. Export
@@ -72,7 +89,7 @@ async function generateMbtilesProcess(filename, useUtm, useCfsi, useCado, bbox, 
 /**
  * Traite un niveau de zoom : Dessin Vectoriel -> Rasterisation -> Tuilage
  */
-async function processZoomLevel(db, zoom, bbox, useUtm, useCfsi, cadoConfig, cadoGridData, userPOIs, maxLimit) {
+async function processZoomLevel(db, zoom, bbox, useUtm, useCfsi, cadoConfig, cadoGridData, userPOIs, maxLimit, poiImgCache = {}) {
     const nwPx = mbtLatLonToPx(bbox.north, bbox.west, zoom);
     const sePx = mbtLatLonToPx(bbox.south, bbox.east, zoom);
     
@@ -125,7 +142,7 @@ async function processZoomLevel(db, zoom, bbox, useUtm, useCfsi, cadoConfig, cad
 
     // 5. POIs (Utilisateurs ou KML)
     if (userPOIs && userPOIs.length > 0) {
-        await drawDigitalPois(ctx, userPOIs, project);
+        drawDigitalPois(ctx, userPOIs, project, poiImgCache);
     }
 
     // --- DECOUPAGE ---
@@ -148,6 +165,7 @@ async function sliceAndStore(db, sourceCanvas, zoom, globalNwPx, globalSePx) {
     // Optimisation : willReadFrequently pour accélérer getImageData
     const tCtx = tileCan.getContext('2d', { willReadFrequently: true });
 
+    db.run("BEGIN TRANSACTION;");
     for (let tx = tMinX; tx <= tMaxX; tx++) {
         for (let ty = tMinY; ty <= tMaxY; ty++) {
             const srcX = (tx * TILE_SIZE) - globalNwPx.x;
@@ -156,11 +174,8 @@ async function sliceAndStore(db, sourceCanvas, zoom, globalNwPx, globalSePx) {
             tCtx.clearRect(0, 0, TILE_SIZE, TILE_SIZE);
             tCtx.drawImage(sourceCanvas, srcX, srcY, TILE_SIZE, TILE_SIZE, 0, 0, TILE_SIZE, TILE_SIZE);
 
-            const pData = tCtx.getImageData(0,0,TILE_SIZE,TILE_SIZE).data;
-            let hasContent = false;
-            for(let i=3; i<pData.length; i+=4) {
-                if(pData[i] > 0) { hasContent = true; break; }
-            }
+            const pixels = new Uint32Array(tCtx.getImageData(0, 0, TILE_SIZE, TILE_SIZE).data.buffer);
+            const hasContent = pixels.some(p => p !== 0);
 
             if (hasContent) {
                 const blob = await new Promise(r => tileCan.toBlob(r, 'image/png'));
@@ -171,6 +186,7 @@ async function sliceAndStore(db, sourceCanvas, zoom, globalNwPx, globalSePx) {
             }
         }
     }
+    db.run("COMMIT;");
 }
 
 // --- MOTEURS DE DESSIN "DIGITAL" (SANS HALO, NET) ---
@@ -367,22 +383,7 @@ function drawDigitalKml(ctx, features, project) {
     });
 }
 
-async function drawDigitalPois(ctx, pois, project) {
-    const uniqueUrls = [...new Set(pois.map(p => p.url))];
-    const imgCache = {};
-    
-    const loadImg = (url) => new Promise(resolve => {
-        const i = new Image();
-        i.crossOrigin = "Anonymous";
-        i.onload = () => resolve(i);
-        i.onerror = () => resolve(null);
-        i.src = url;
-    });
-
-    await Promise.all(uniqueUrls.map(async u => {
-        imgCache[u] = await loadImg(u);
-    }));
-
+function drawDigitalPois(ctx, pois, project, imgCache = {}) {
     pois.forEach(p => {
         const pix = project(p.lat, p.lon);
         const img = imgCache[p.url];
