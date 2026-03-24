@@ -26,12 +26,12 @@ async function generateMbtilesProcess(filename, useUtm, useCfsi, useCado, bbox, 
     // Métadonnées
     db.run("INSERT INTO metadata VALUES (?, ?)", ["name", filename]);
     db.run("INSERT INTO metadata VALUES (?, ?)", ["format", "png"]);
-    db.run("INSERT INTO metadata VALUES (?, ?)", ["type", "overlay"]);
-    db.run("INSERT INTO metadata VALUES (?, ?)", ["version", "1.2"]);
+    db.run("INSERT INTO metadata VALUES (?, ?)", ["type", "baselayer"]); /* DJI ne semble pas accepter le type Overlay*/
+    db.run("INSERT INTO metadata VALUES (?, ?)", ["version", "1.0"]);/*passage à 1.0 au lieu de 1.2 pour baselayer*/
     db.run("INSERT INTO metadata VALUES (?, ?)", ["bounds", `${bbox.west},${bbox.south},${bbox.east},${bbox.north}`]);
     db.run("INSERT INTO metadata VALUES (?, ?)", ["minzoom", String(minZ)]);
     db.run("INSERT INTO metadata VALUES (?, ?)", ["maxzoom", String(maxZ)]);
-    db.run("INSERT INTO metadata VALUES (?, ?)", ["scheme", "tms"]);
+    //db.run("INSERT INTO metadata VALUES (?, ?)", ["scheme", "tms"]); désactivé car DJI n'accepte pas le Overlay
 
     db.run("INSERT INTO metadata VALUES (?, ?)", ["center", `${centerLon},${centerLat},${minZ}`]);
 
