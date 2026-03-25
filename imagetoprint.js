@@ -101,9 +101,15 @@ async function generateImageToPrint() {
         const [refLat, refLon] = coordsStr.split(',').map(c => parseFloat(c.trim()));
         
         const config = getGridConfiguration(refLat, refLon);
-        const selectedMapId = document.getElementById('map-tile-provider').value;
-        const mapConfig = MAP_LAYERS.find(m => m.id === selectedMapId);
-        if (!mapConfig) throw new Error("Carte non trouvée !");
+        const usingMbtiles = typeof tileSourceIsActive === 'function' && tileSourceIsActive();
+        let mapConfig;
+        if (usingMbtiles) {
+            mapConfig = { layers: [], maxZoom: Math.max(...tileSourceGetZooms()), name: tileSourceGetName() };
+        } else {
+            const selectedMapId = document.getElementById('map-tile-provider').value;
+            mapConfig = MAP_LAYERS.find(m => m.id === selectedMapId);
+            if (!mapConfig) throw new Error("Carte non trouvée !");
+        }
 
         const addressValue = document.getElementById('address-search-input').value.trim();
         config.lineWidth = parseInt(document.getElementById('line-thickness').value, 10) || 1;
@@ -171,15 +177,15 @@ async function generateImageToPrint() {
 
         // 3. TÉLÉCHARGEMENT
         loadingMessage.textContent = `Téléchargement de la zone étendue (0%)...`;
-        const { finalCanvas: worldCanvas, scaleFactor } = await createFinalCanvasWithLayers(downloadBoundingBox, zoomLevel, mapConfig, (progress) => {
-            loadingMessage.textContent = `Téléchargement des tuiles (${progress.toFixed(0)}%)...`;}, 
+        const { finalCanvas: worldCanvas, scaleFactor, actualZoom } = await createFinalCanvasWithLayers(downloadBoundingBox, zoomLevel, mapConfig, (progress) => {
+            loadingMessage.textContent = `Téléchargement des tuiles (${progress.toFixed(0)}%)...`;},
             upscaleEnabled
         );
 
         loadingMessage.textContent = "Assemblage et découpe finale...";
 
         // 4. DIMENSIONS FINALES & MARGES
-        const metersPerPixel = (Math.cos(refLat * Math.PI / 180) * 2 * Math.PI * 6378137) / (256 * Math.pow(2, zoomLevel));
+        const metersPerPixel = (Math.cos(refLat * Math.PI / 180) * 2 * Math.PI * 6378137) / (256 * Math.pow(2, actualZoom));
         const pixelsPerMeter = (1 / metersPerPixel) * scaleFactor;
         
         const scalePx = config.scale * pixelsPerMeter;
@@ -438,8 +444,12 @@ function calculateOptimalZoom(boundingBox, mapConfig) {
 }
 
 async function createFinalCanvasWithLayers(boundingBox, zoom, mapConfig, onProgress, upscaleEnabled = true) {
-    const nwPixel = itpLatLonToWorldPixels(boundingBox.north, boundingBox.west, zoom);
-    const sePixel = itpLatLonToWorldPixels(boundingBox.south, boundingBox.east, zoom);
+    const actualZoom = (typeof tileSourceIsActive === 'function' && tileSourceIsActive())
+        ? tileSourceGetBestZoom(zoom)
+        : zoom;
+
+    const nwPixel = itpLatLonToWorldPixels(boundingBox.north, boundingBox.west, actualZoom);
+    const sePixel = itpLatLonToWorldPixels(boundingBox.south, boundingBox.east, actualZoom);
     
     const naturalWidth = Math.abs(sePixel.x - nwPixel.x);
     const naturalHeight = Math.abs(sePixel.y - nwPixel.y);
@@ -468,52 +478,80 @@ async function createFinalCanvasWithLayers(boundingBox, zoom, mapConfig, onProgr
 
     const nwTile = { x: Math.floor(nwPixel.x / TILE_SIZE), y: Math.floor(nwPixel.y / TILE_SIZE) };
     const seTile = { x: Math.floor(sePixel.x / TILE_SIZE), y: Math.floor(sePixel.y / TILE_SIZE) };
-    const totalTilesToDownload = (seTile.x - nwTile.x + 1) * (seTile.y - nwTile.y + 1) * mapConfig.layers.length;
-    const progressFactor = 100 / totalTilesToDownload;
-    const cacheBust = 't=' + Date.now();
-    let downloadedCount = 0;
+    const tileCountXY = (seTile.x - nwTile.x + 1) * (seTile.y - nwTile.y + 1);
 
-    for (const layer of mapConfig.layers) {
-        const tilePromises = [];
+    if (typeof tileSourceIsActive === 'function' && tileSourceIsActive()) {
+        // --- Mode MBTiles local ---
+        const progressFactor = 100 / tileCountXY;
+        let downloadedCount = 0;
         for (let x = nwTile.x; x <= seTile.x; x++) {
             for (let y = nwTile.y; y <= seTile.y; y++) {
-                let tileUrl;
-                if (layer.type === 'quadkey') {
-                    const q = coordsToQuadKey(x, y, zoom);
-                    const subdomain = (x + y) % 4;
-                    tileUrl = layer.url.replace('{q}', q).replace('{s}', subdomain);
-                } else {
-                    tileUrl = layer.url.replace('{z}', zoom).replace('{x}', x).replace('{y}', y);
+                const blobUrl = tileSourceReadTile(x, y, actualZoom);
+                if (blobUrl) {
+                    await new Promise(resolve => {
+                        const img = new Image();
+                        img.onload = () => {
+                            const tileX = (x * TILE_SIZE) - nwPixel.x;
+                            const tileY = (y * TILE_SIZE) - nwPixel.y;
+                            tempCtx.drawImage(img, Math.round(tileX), Math.round(tileY));
+                            URL.revokeObjectURL(blobUrl);
+                            resolve();
+                        };
+                        img.onerror = () => { URL.revokeObjectURL(blobUrl); resolve(); };
+                        img.src = blobUrl;
+                    });
                 }
-                const safeUrl = tileUrl + (tileUrl.includes('?') ? '&' : '?') + cacheBust;
-                const promise = new Promise((resolve) => {
-                    const img = new Image();
-                    img.crossOrigin = "Anonymous";
-                    img.onload = () => {
-                        downloadedCount++;
-                        if(onProgress) onProgress(downloadedCount * progressFactor);
-                        resolve({ img, x, y, success: true });
-                    };
-                    img.onerror = () => {
-                        downloadedCount++;
-                        if(onProgress) onProgress(downloadedCount * progressFactor);
-                        resolve({ success: false }); 
-                    };
-                    img.src = safeUrl;
-                });
-                tilePromises.push(promise);
+                downloadedCount++;
+                if (onProgress) onProgress(downloadedCount * progressFactor);
             }
         }
-        const resolvedTiles = await Promise.all(tilePromises);
-        resolvedTiles.forEach(tileResult => {
-            if (tileResult.success) {
-                const tileX = (tileResult.x * TILE_SIZE) - nwPixel.x;
-                const tileY = (tileResult.y * TILE_SIZE) - nwPixel.y;
-                tempCtx.drawImage(tileResult.img, Math.round(tileX), Math.round(tileY));
+    } else {
+        // --- Mode en ligne ---
+        const totalTilesToDownload = tileCountXY * mapConfig.layers.length;
+        const progressFactor = 100 / totalTilesToDownload;
+        const cacheBust = 't=' + Date.now();
+        let downloadedCount = 0;
+
+        for (const layer of mapConfig.layers) {
+            const tilePromises = [];
+            for (let x = nwTile.x; x <= seTile.x; x++) {
+                for (let y = nwTile.y; y <= seTile.y; y++) {
+                    let tileUrl;
+                    if (layer.type === 'quadkey') {
+                        const q = coordsToQuadKey(x, y, actualZoom);
+                        const subdomain = (x + y) % 4;
+                        tileUrl = layer.url.replace('{q}', q).replace('{s}', subdomain);
+                    } else {
+                        tileUrl = layer.url.replace('{z}', actualZoom).replace('{x}', x).replace('{y}', y);
+                    }
+                    const safeUrl = tileUrl + (tileUrl.includes('?') ? '&' : '?') + cacheBust;
+                    tilePromises.push(new Promise((resolve) => {
+                        const img = new Image();
+                        img.crossOrigin = "Anonymous";
+                        img.onload = () => {
+                            downloadedCount++;
+                            if (onProgress) onProgress(downloadedCount * progressFactor);
+                            resolve({ img, x, y, success: true });
+                        };
+                        img.onerror = () => {
+                            downloadedCount++;
+                            if (onProgress) onProgress(downloadedCount * progressFactor);
+                            resolve({ success: false });
+                        };
+                        img.src = safeUrl;
+                    }));
+                }
             }
-        });
+            (await Promise.all(tilePromises)).forEach(tileResult => {
+                if (tileResult.success) {
+                    const tileX = (tileResult.x * TILE_SIZE) - nwPixel.x;
+                    const tileY = (tileResult.y * TILE_SIZE) - nwPixel.y;
+                    tempCtx.drawImage(tileResult.img, Math.round(tileX), Math.round(tileY));
+                }
+            });
+        }
     }
-    
+
     ctx.drawImage(tempCanvas, 0, 0, finalCanvas.width, finalCanvas.height);
-    return { finalCanvas, scaleFactor };
+    return { finalCanvas, scaleFactor, actualZoom };
 }

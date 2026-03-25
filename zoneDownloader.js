@@ -563,10 +563,18 @@ async function generateZonePNG() {
             finalBoundingBox = { north, west, south, east };
         }
 
-        const zoom = parseInt(document.getElementById("zone-info-zoom").textContent, 10);
-        const mapLayerName = document.getElementById("zone-info-layer").textContent;
-        const selectedMap = MAP_LAYERS.find(m => m.name === mapLayerName);
-        if (!selectedMap) throw new Error("Impossible de trouver la configuration du fond de carte.");
+        let zoom, mapLayerName, selectedMap;
+        if (typeof tileSourceIsActive === 'function' && tileSourceIsActive()) {
+            const targetZoom = parseInt(document.getElementById("zone-info-zoom").textContent, 10);
+            zoom = tileSourceGetBestZoom(isNaN(targetZoom) ? 15 : targetZoom);
+            mapLayerName = tileSourceGetName();
+            selectedMap = { layers: [], maxZoom: zoom, name: mapLayerName };
+        } else {
+            zoom = parseInt(document.getElementById("zone-info-zoom").textContent, 10);
+            mapLayerName = document.getElementById("zone-info-layer").textContent;
+            selectedMap = MAP_LAYERS.find(m => m.name === mapLayerName);
+            if (!selectedMap) throw new Error("Impossible de trouver la configuration du fond de carte.");
+        }
         
         const format = document.querySelector('input[name="image-format-zone"]:checked').value;
         const quality = parseInt(document.getElementById('zone-jpeg-quality').value) / 100;
@@ -579,13 +587,13 @@ async function generateZonePNG() {
         const needsExternalMargin = useUtm;
         
         // 1. Fond de Carte (Tuiles) - Z-INDEX 1
-        const { finalCanvas, dynamicMargin, scaleFactor } = await zdCreateFinalCanvas(finalBoundingBox, zoom, selectedMap, needsExternalMargin, upscaleEnabled);
+        const { finalCanvas, dynamicMargin, scaleFactor, actualZoom } = await zdCreateFinalCanvas(finalBoundingBox, zoom, selectedMap, needsExternalMargin, upscaleEnabled);
         const ctx = finalCanvas.getContext('2d');
-        
-        const nwPixel = zdLatLonToWorldPixels(finalBoundingBox.north, finalBoundingBox.west, zoom);
-        
+
+        const nwPixel = zdLatLonToWorldPixels(finalBoundingBox.north, finalBoundingBox.west, actualZoom);
+
         const latLonToCanvasPixels = (lat, lon) => {
-            const worldPixels = zdLatLonToWorldPixels(lat, lon, zoom);
+            const worldPixels = zdLatLonToWorldPixels(lat, lon, actualZoom);
             return {
                 x: (worldPixels.x - nwPixel.x) * scaleFactor + dynamicMargin,
                 y: (worldPixels.y - nwPixel.y) * scaleFactor + dynamicMargin
@@ -1137,8 +1145,12 @@ async function generatePoiKmlFolder(pois, imagesToZip, isKmz) {
 // =============================================================================
 
 async function zdCreateFinalCanvas(boundingBox, zoom, mapConfig, externalMargin, upscaleEnabled = true) {
-    const nwPx = zdLatLonToWorldPixels(boundingBox.north, boundingBox.west, zoom);
-    const sePx = zdLatLonToWorldPixels(boundingBox.south, boundingBox.east, zoom);
+    const actualZoom = (typeof tileSourceIsActive === 'function' && tileSourceIsActive())
+        ? tileSourceGetBestZoom(zoom)
+        : zoom;
+
+    const nwPx = zdLatLonToWorldPixels(boundingBox.north, boundingBox.west, actualZoom);
+    const sePx = zdLatLonToWorldPixels(boundingBox.south, boundingBox.east, actualZoom);
     
     const natW = Math.abs(sePx.x - nwPx.x);
     const natH = Math.abs(sePx.y - nwPx.y);
@@ -1181,38 +1193,62 @@ async function zdCreateFinalCanvas(boundingBox, zoom, mapConfig, externalMargin,
     const nwTile = { x: Math.floor(nwPx.x / ZD_TILE_SIZE), y: Math.floor(nwPx.y / ZD_TILE_SIZE) };
     const seTile = { x: Math.floor(sePx.x / ZD_TILE_SIZE), y: Math.floor(sePx.y / ZD_TILE_SIZE) };
     
-    for (const layer of mapConfig.layers) {
-        const promises = [];
+    if (typeof tileSourceIsActive === 'function' && tileSourceIsActive()) {
+        // --- Mode MBTiles local ---
         for (let x = nwTile.x; x <= seTile.x; x++) {
             for (let y = nwTile.y; y <= seTile.y; y++) {
-                let url;
-                if (layer.type === 'quadkey') {
-                    const q = zdCoordsToQuadKey(x,y,zoom);
-                    url = layer.url.replace('{q}', q).replace('{s}', (x+y)%4);
-                } else {
-                    url = layer.url.replace('{z}', zoom).replace('{x}', x).replace('{y}', y);
+                const blobUrl = tileSourceReadTile(x, y, actualZoom);
+                if (blobUrl) {
+                    await new Promise(resolve => {
+                        const img = new Image();
+                        img.onload = () => {
+                            const destX = Math.floor((x * ZD_TILE_SIZE) - nwPx.x);
+                            const destY = Math.floor((y * ZD_TILE_SIZE) - nwPx.y);
+                            tempCtx.drawImage(img, destX, destY, ZD_TILE_SIZE + 1, ZD_TILE_SIZE + 1);
+                            URL.revokeObjectURL(blobUrl);
+                            resolve();
+                        };
+                        img.onerror = () => { URL.revokeObjectURL(blobUrl); resolve(); };
+                        img.src = blobUrl;
+                    });
                 }
-                const safeUrl = url + (url.includes('?') ? '&' : '?') + 't=' + Date.now();
-                promises.push(new Promise(r => {
-                    const i = new Image(); i.crossOrigin = "Anonymous";
-                    i.onload = () => r({i, x, y, ok:true});
-                    i.onerror = () => r({ok:false});
-                    i.src = safeUrl;
-                }));
             }
         }
-        
-        (await Promise.all(promises)).forEach(res => {
-            if (res.ok) {
-                const destX = Math.floor((res.x * ZD_TILE_SIZE) - nwPx.x);
-                const destY = Math.floor((res.y * ZD_TILE_SIZE) - nwPx.y);
-                tempCtx.drawImage(res.i, destX, destY, ZD_TILE_SIZE + 1, ZD_TILE_SIZE + 1);
+    } else {
+        // --- Mode en ligne ---
+        const cacheBust = 't=' + Date.now();
+        for (const layer of mapConfig.layers) {
+            const promises = [];
+            for (let x = nwTile.x; x <= seTile.x; x++) {
+                for (let y = nwTile.y; y <= seTile.y; y++) {
+                    let url;
+                    if (layer.type === 'quadkey') {
+                        const q = zdCoordsToQuadKey(x, y, actualZoom);
+                        url = layer.url.replace('{q}', q).replace('{s}', (x + y) % 4);
+                    } else {
+                        url = layer.url.replace('{z}', actualZoom).replace('{x}', x).replace('{y}', y);
+                    }
+                    const safeUrl = url + (url.includes('?') ? '&' : '?') + cacheBust;
+                    promises.push(new Promise(r => {
+                        const i = new Image(); i.crossOrigin = "Anonymous";
+                        i.onload = () => r({ i, x, y, ok: true });
+                        i.onerror = () => r({ ok: false });
+                        i.src = safeUrl;
+                    }));
+                }
             }
-        });
+            (await Promise.all(promises)).forEach(res => {
+                if (res.ok) {
+                    const destX = Math.floor((res.x * ZD_TILE_SIZE) - nwPx.x);
+                    const destY = Math.floor((res.y * ZD_TILE_SIZE) - nwPx.y);
+                    tempCtx.drawImage(res.i, destX, destY, ZD_TILE_SIZE + 1, ZD_TILE_SIZE + 1);
+                }
+            });
+        }
     }
-    
+
     ctx.drawImage(tempC, margin, margin, finalW, finalH);
-    return { finalCanvas: finalC, dynamicMargin: margin, scaleFactor: scale };
+    return { finalCanvas: finalC, dynamicMargin: margin, scaleFactor: scale, actualZoom };
 }
 
 function drawZoneCartouche(ctx, title, bbox, layerName, zoom, margin, fontSize) {
