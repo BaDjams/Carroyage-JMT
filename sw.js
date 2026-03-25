@@ -1,6 +1,6 @@
 // sw.js - Service Worker PWA
 
-const CACHE_NAME = 'cado-cache-v21';
+const CACHE_NAME = 'cado-cache-v22';
 
 // Liste EXACTE des fichiers à mettre en cache.
 // Si un seul fichier manque, la PWA ne s'installera pas.
@@ -27,8 +27,8 @@ const ASSETS_TO_CACHE = [
   './settingsManager.js',
   './version.js',
   './mbtilesCreator.js',
-  './mbtilesMode.js',
   './seedManager.js',
+  './tileSource.js',
 
   // SQL.js (WASM)
   './sql-wasm.js',

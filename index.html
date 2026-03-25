@@ -36,9 +36,9 @@
 <script src="carroyageToMbtiles.js" defer></script>
 <script src="carroyageToCSV.js" defer></script>
 <script src="mbtilesCreator.js" defer></script>
-<script src="mbtilesMode.js" defer></script>
 <script src="carroyageCFSI.js" defer></script>
 <script src="seedManager.js" defer></script>
+<script src="tileSource.js" defer></script>
 </head>
 <body class="p-4 md:p-6">
 <div class="max-w-5xl mx-auto">
@@ -52,8 +52,7 @@
 <div id="mode-selector" class="flex flex-wrap justify-center items-center gap-2 border border-gray-300 dark:border-gray-600 rounded-lg p-1">
 <button data-mode="cado" class="mode-btn px-3 py-1 rounded text-sm md:text-base transition-colors duration-200 bg-blue-600 text-white">Carroyage rapide</button>
 <button data-mode="zone" class="mode-btn px-3 py-1 rounded text-sm md:text-base transition-colors duration-200 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700">Export de zone</button>
-<button data-mode="import" class="mode-btn px-3 py-1 rounded text-sm md:text-base transition-colors duration-200 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700" style="display:none;">Charger MBTiles</button>
-<button data-mode="creator" class="mode-btn px-3 py-1 rounded text-sm md:text-base transition-colors duration-200 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700" style="display:none;">Créer MBTiles</button>
+<button data-mode="creator" class="mode-btn px-3 py-1 rounded text-sm md:text-base transition-colors duration-200 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700">Créer MBTiles</button>
 </div>
 </div>
 </header>
@@ -133,9 +132,21 @@
                             <div id="rotation-guide" class="absolute top-1/2 left-0 w-full h-0.5 bg-red-500 opacity-0 transition-opacity duration-200 pointer-events-none z-[2000] shadow-[0_0_4px_rgba(255,255,255,1)]"></div>
                         </div>
 
-                        <!-- TOGGLE ROTATION -->
-                        <div class="flex justify-end mt-2">
-                            <button id="toggle-rotation-btn" type="button" class="text-sm text-blue-600 hover:underline dark:text-blue-400 font-medium flex items-center gap-1">
+                        <!-- BARRE SOUS LA CARTE : MBTiles (gauche) + Rotation (droite) -->
+                        <div class="flex justify-between items-start mt-2 gap-2">
+                            <div class="flex flex-col gap-1">
+                                <div class="flex items-center gap-2 flex-wrap">
+                                    <span class="text-xs text-secondary font-medium">📦 MBTiles :</span>
+                                    <label class="text-xs text-blue-600 cursor-pointer hover:underline">
+                                        <input type="file" id="cado-mbtiles-input" accept=".mbtiles" class="mbtiles-file-input hidden">
+                                        <span>Charger</span>
+                                    </label>
+                                    <span class="mbtiles-status-badge text-xs font-bold text-gray-400">Aucun</span>
+                                    <button type="button" class="mbtiles-clear-btn hidden text-xs text-red-500 hover:underline">✕</button>
+                                </div>
+                                <div class="mbtiles-info-bar text-xs text-gray-400 hidden bg-gray-50 dark:bg-gray-700 rounded px-2 py-1 max-w-xs"></div>
+                            </div>
+                            <button id="toggle-rotation-btn" type="button" class="text-sm text-blue-600 hover:underline dark:text-blue-400 font-medium flex items-center gap-1 whitespace-nowrap">
                                 <span>🔄 Configurer la rotation</span> <span>▼</span>
                             </button>
                         </div>
@@ -347,8 +358,8 @@
                         <h3 class="text-lg font-semibold mb-3 text-content text-center">4. Générer l'image</h3>
                         <div class="flex flex-col items-center justify-center gap-4 mt-4">
                             <div class="w-full flex flex-col items-center gap-4">
-                                <div class="flex items-center gap-2 w-full sm:w-auto">
-                                   <label for="map-tile-provider" class="text-sm text-content">Fond de carte :</label>
+                                <div id="cado-map-provider-wrapper" class="flex items-center gap-2 w-full sm:w-auto">
+                                    <label for="map-tile-provider" class="text-sm text-content">Fond de carte :</label>
                                     <select id="map-tile-provider" class="input-field flex-grow px-2 py-1 border rounded shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white text-sm"></select>
                                 </div>
                                 <div class="flex items-center gap-4">
@@ -414,6 +425,19 @@
                     </div>
                     <p class="text-sm text-secondary mb-2">Utilisez les outils sur la gauche de la carte pour dessiner votre zone rectangulaire, puis zoomez au niveau désiré.</p>
                     <div id="zone-interactive-map"></div>
+                    <!-- MBTiles sous la carte zone -->
+                    <div class="flex flex-col gap-1 mt-2">
+                        <div class="flex items-center gap-2 flex-wrap">
+                            <span class="text-xs text-secondary font-medium">📦 MBTiles :</span>
+                            <label class="text-xs text-blue-600 cursor-pointer hover:underline">
+                                <input type="file" id="zone-mbtiles-input" accept=".mbtiles" class="mbtiles-file-input hidden">
+                                <span>Charger</span>
+                            </label>
+                            <span class="mbtiles-status-badge text-xs font-bold text-gray-400">Aucun</span>
+                            <button type="button" class="mbtiles-clear-btn hidden text-xs text-red-500 hover:underline">✕</button>
+                        </div>
+                        <div class="mbtiles-info-bar text-xs text-gray-400 hidden bg-gray-50 dark:bg-gray-700 rounded px-2 py-1"></div>
+                    </div>
                 </section>
             </div>
 
@@ -702,211 +726,6 @@
             <input type="hidden" id="zone-title" value="Zone">
         </div>
 
-        <!-- MODE 3 : IMPORT MBTILES (Hors-Ligne) -->
-        <div id="import-mode-container" class="hidden space-y-6">
-
-            <!-- Tuile 1 : Carte & Fichier Source -->
-            <div class="card bg-white shadow-md rounded-lg p-4 md:p-6 dark:bg-gray-800 dark:border dark:border-gray-700">
-                <section>
-                    <h3 class="text-lg font-semibold mb-3 text-content">1. Source et Zone</h3>
-                    
-                    <!-- Zone d'import spécifique -->
-                    <div class="bg-blue-50 dark:bg-gray-700 p-4 rounded-lg mb-4 border border-blue-100 dark:border-gray-600">
-                        <label class="block mb-2 text-sm font-bold text-gray-900 dark:text-white">Fichier carte (.mbtiles) :</label>
-                        <div class="flex items-center gap-4">
-                            <div class="flex-grow">
-                                <input type="file" id="mbtiles-file" accept=".mbtiles" class="block w-full text-sm text-gray-900 border border-gray-300 rounded-lg cursor-pointer bg-white dark:text-gray-400 focus:outline-none dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400">
-                                <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Si vide = Mode Online (Google Hybrid par défaut).</p>
-                            </div>
-                            <div class="flex flex-col justify-center min-w-[100px] text-right">
-                                <span class="text-xs text-gray-500 dark:text-gray-400">Statut DB:</span>
-                                <span id="import-db-status" class="text-sm font-bold text-gray-400">Aucune</span>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Recherche adresse -->
-                    <div class="address-search-container">
-                        <input type="text" id="import-address-search-input" class="address-search-input input-field px-3 py-2 border rounded shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white text-base" placeholder="Rechercher une adresse pour centrer..." autocomplete="off">
-                        <ul id="import-suggestions" class="hidden absolute top-full left-0 right-0 bg-white dark:bg-gray-800 border z-50 max-h-48 overflow-y-auto shadow-lg rounded-b-lg"></ul>
-                    </div>
-                    
-                    <div id="import-interactive-map"></div>
-                    <input type="hidden" id="import-nw-coords">
-                    <input type="hidden" id="import-se-coords">
-                </section>
-            </div>
-
-            <!-- Tuile 2 : Informations & KMZ -->
-            <div class="card bg-white shadow-md rounded-lg p-4 md:p-6 dark:bg-gray-800 dark:border dark:border-gray-700">
-                <section>
-                    <h3 class="text-lg font-semibold mb-3 text-content">2. Informations et Superposition</h3>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div class="flex flex-col space-y-1">
-                            <label for="import-zone-title" class="text-sm md:text-base text-content">Titre du fichier / image :</label>
-                            <input type="text" id="import-zone-title" class="input-field px-3 py-2 border rounded shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white text-base" value="Export Hors Ligne">
-                            
-                            <label for="import-kmz-input" class="text-sm md:text-base text-content mt-3">Importer un KML/KMZ (Calque) :</label>
-                            <input type="file" id="import-kmz-input" accept=".kml,.kmz" class="block w-full text-sm text-gray-900 border border-gray-300 rounded-lg cursor-pointer bg-gray-50 dark:text-gray-400 focus:outline-none dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400">
-                        </div>
-                        <div class="flex flex-col space-y-1 bg-gray-100 dark:bg-gray-700 p-3 rounded-lg">
-                            <h4 class="text-sm font-semibold text-content">Détails techniques :</h4>
-                            <p class="text-sm text-secondary">Zoom Carte Actuel : <span id="import-info-current-zoom" class="font-medium text-content">N/A</span></p>
-                            <p class="text-sm text-secondary">Zooms MBTiles dispo : <span id="import-info-zooms" class="font-medium text-content">-</span></p>
-                            <p class="text-sm text-secondary">Tuiles estimées : <span id="import-info-tiles" class="font-medium text-content">0</span></p>
-                        </div>
-                    </div>
-                </section>
-            </div>
-
-            <!-- Tuile 3 : Points d'intérêt (VISUEL & FONCTIONS IDENTIQUES) -->
-            <div class="card bg-white shadow-md rounded-lg p-4 md:p-6 dark:bg-gray-800 dark:border dark:border-gray-700">
-                <section>
-                    <h3 class="text-lg font-semibold mb-3 text-content">3. Points d'intérêt (Optionnel)</h3>
-                    
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                        <div class="flex flex-col space-y-3">
-                            <div class="flex flex-col space-y-1">
-                                <label for="import-poi-category-filter" class="text-sm text-content">Filtrer par catégorie :</label>
-                                <select id="import-poi-category-filter" class="input-field px-2 py-1 border rounded shadow-sm text-sm text-gray-900 dark:bg-gray-600 dark:border-gray-500 dark:text-white">
-                                    <option value="all">Toutes</option>
-                                </select>
-                            </div>
-                            <div class="flex flex-col space-y-1">
-                                <label class="text-sm text-content">Choisir une icône :</label>
-                                <div id="import-poi-visual-selector" class="icon-grid-container custom-scrollbar"></div>
-                                <input type="hidden" id="import-poi-type-selector" value="target">
-                            </div>
-                        </div>
-
-                        <div class="flex flex-col space-y-1 mb-2">
-                            <div class="flex justify-between items-center gap-3">
-                                <label for="import-poi-icon-scale" class="text-sm text-content whitespace-nowrap">Taille des icônes :</label>
-                                <input type="range" id="import-poi-icon-scale" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer dark:bg-gray-700" min="0.5" max="3.0" step="0.1" value="1.0">
-                                <span id="import-poi-icon-scale-label" class="text-xs font-bold text-blue-600 dark:text-blue-400">1.0x</span>
-                            </div>
-                            
-                            <div class="flex flex-col space-y-3 justify-end mt-auto">
-                                <div class="flex flex-col space-y-1 mt-4">
-                                    <label for="import-poi-name" class="text-sm text-content">Nom du point :</label>
-                                    <input type="text" id="import-poi-name" class="input-field px-2 py-1 border rounded shadow-sm text-sm text-gray-900 dark:bg-gray-600 dark:border-gray-500 dark:text-white" placeholder="Nom (facultatif)">
-                                </div>
-                                <button id="import-add-poi-btn" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded shadow transition-colors w-full">
-                                    + Activer l'ajout sur la carte
-                                </button>
-                                <button id="import-clear-poi-btn" class="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-800 text-xs rounded shadow transition-colors w-full">
-                                    Effacer les points
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </section>
-            </div>
-
-            <!-- Tuile 4 : Style & Export (OPTIONS AJOUTÉES) -->
-            <div class="card bg-white shadow-md rounded-lg p-4 md:p-6 dark:bg-gray-800 dark:border dark:border-gray-700">
-                <section>
-                    <h3 class="text-lg font-semibold mb-3 text-content">4. Style et Export</h3>
-                    
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-                        <!-- Couleur -->
-                        <div class="flex flex-col space-y-1">
-                            <label class="text-sm md:text-base text-content">Couleur globale :</label>
-                            <div class="flex flex-wrap gap-2" id="import-color-options">
-                                <div class="color-option selected" data-color="#FFFFFF" data-name="white" style="background-color: #FFFFFF; border: 1px solid #ccc;"></div>
-                                <div class="color-option" data-color="#000000" data-name="black" style="background-color: #000000;"></div>
-                                <div class="color-option" data-color="#FF0000" data-name="red" style="background-color: #FF0000;"></div>
-                                <div class="color-option" data-color="#FFA500" data-name="orange" style="background-color: #FFA500;"></div>
-                                <div class="color-option" data-color="#FFFF00" data-name="yellow" style="background-color: #FFFF00;"></div>
-                                <div class="color-option" data-color="#008000" data-name="green" style="background-color: #008000;"></div>
-                                <div class="color-option" data-color="#0000FF" data-name="blue" style="background-color: #0000FF;"></div>
-                            </div>
-                            <input type="hidden" id="import-grid-color" value="#FFFFFF">
-                            <input type="hidden" id="import-grid-color-name" value="white">
-                        </div>
-
-                        <!-- Transparence -->
-                        <div class="flex flex-col space-y-1">
-                            <label class="text-sm md:text-base text-content">Transparence :</label>
-                            <div class="flex space-x-2 items-center">
-                                <input type="range" id="import-transparency" class="w-full" min="0" max="100" value="30">
-                                <span id="import-transparency-value" class="text-sm text-content">30%</span>
-                            </div>
-                        </div>
-
-                        <!-- Épaisseur -->
-                        <div class="flex flex-col space-y-1">
-                            <label class="text-sm md:text-base text-content">Épaisseur du trait :</label>
-                            <select id="import-grid-thickness" class="input-field px-2 py-1 border rounded shadow-sm text-sm text-gray-900 dark:bg-gray-600 dark:border-gray-500 dark:text-white">
-                                <option value="1" selected>Fine (1px)</option>
-                                <option value="2">Moyenne (2px)</option>
-                                <option value="3">Épaisse (3px)</option>
-                            </select>
-                        </div>
-                    </div>
-
-                    <hr class="border-gray-200 dark:border-gray-600 mb-6">
-
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <!-- Choix Grilles -->
-                        <div class="space-y-4">
-                            <label class="inline-flex items-center cursor-pointer w-full">
-                                <input type="checkbox" id="import-overlay-utm" class="sr-only peer">
-                                <div class="relative w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-gray-700 peer-checked:bg-blue-600 peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all"></div>
-                                <span class="ms-3 text-sm font-medium text-gray-900 dark:text-gray-300">Apposer grille UTM</span>
-                            </label>
-                            <label class="inline-flex items-center cursor-pointer w-full mt-2">
-                                <input type="checkbox" id="overlay-cfsi-grid-checkbox" class="sr-only peer">
-                                <div class="relative w-11 h-6 bg-gray-200 rounded-full peer dark:bg-gray-700 peer-checked:bg-blue-600 peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all"></div>
-                                <span class="ms-3 text-sm font-medium text-gray-900 dark:text-gray-300">Apposer le carroyage CFSI (Sécurité Civile)</span>
-                            </label>
-                            <label class="inline-flex items-center cursor-pointer w-full">
-                                <input type="checkbox" id="import-overlay-cado" class="sr-only peer">
-                                <div class="relative w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-gray-700 peer-checked:bg-blue-600 peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all"></div>
-                                <span class="ms-3 text-sm font-medium text-gray-900 dark:text-gray-300">Apposer carroyage CADO</span>
-                            </label>
-
-                            <div id="import-cado-options" class="hidden pl-8 space-y-3">
-                                <div class="flex flex-col space-y-1">
-                                    <label class="text-sm text-content">Échelle (m) :</label>
-                                    <input type="number" id="import-cado-scale" class="input-field px-2 py-1 border rounded shadow-sm text-sm dark:bg-gray-600 dark:text-white" value="50">
-                                </div>
-                                <div class="flex flex-col space-y-1">
-                                    <label class="text-sm text-content">Orientation :</label>
-                                    <div class="flex gap-2">
-                                         <label class="inline-flex items-center"><input type="radio" name="import-cado-direction" value="ascending" class="custom-radio" checked><span class="px-2 py-1 border border-default rounded cursor-pointer text-xs">Ascendante</span></label>
-                                         <label class="inline-flex items-center"><input type="radio" name="import-cado-direction" value="descending" class="custom-radio"><span class="px-2 py-1 border border-default rounded cursor-pointer text-xs">Descendante</span></label>
-                                    </div>
-                                    <label class="inline-flex items-center cursor-pointer w-full mt-2">
-                                        <input type="checkbox" id="import-swap-axes" class="sr-only peer">
-                                        <div class="relative w-9 h-5 bg-gray-200 rounded-full peer dark:bg-gray-700 peer-checked:bg-blue-600 peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all"></div>
-                                        <span class="ms-3 text-xs font-medium text-gray-900 dark:text-gray-300">Inverser axes (Lettres V)</span>
-                                    </label>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Boutons Export -->
-                        <div class="flex flex-col justify-center gap-4">
-                            <div class="flex items-center gap-4 justify-center">
-                                <label class="inline-flex items-center"><input type="radio" name="image-format-import" value="png" class="custom-radio"><span class="ml-2 text-content">PNG</span></label>
-                                <label class="inline-flex items-center"><input type="radio" name="image-format-import" value="jpeg" class="custom-radio" checked><span class="ml-2 text-content">JPEG</span></label>
-                            </div>
-                            <div class="flex justify-center">
-                                <label class="inline-flex items-center cursor-pointer">
-                                    <input type="checkbox" id="import-enable-upscale" class="sr-only peer" checked>
-                                    <div class="relative w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
-                                    <span class="ms-3 text-sm font-medium text-gray-900 dark:text-gray-300">Upscaling HD (4K)</span>
-                                </label>
-                            </div>
-                            <button id="import-btn-png" class="btn-main btn-image w-full">
-                                Télécharger l'image
-                            </button>
-                        </div>
-                    </div>
-                </section>
-            </div>
-        </div> <!-- Fin Import Container -->
 <!-- MODE 4 : CRÉATEUR MBTILES -->
         <div id="creator-mode-container" class="hidden space-y-6">
             
@@ -1020,10 +839,14 @@
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         let cadoMap = null;
-        let zoneMap = null; // Variable globale pour la carte de zone
+        let zoneMap = null;
         let clickMarker = null;
         let debounceTimeout = null;
         let drawnItems = null;
+        let cadoBaseMaps = {};
+        let zoneBaseMaps = {};
+        let cadoMbtilesLayer = null;
+        let zoneMbtilesLayer = null;
         const TILE_LIMIT = 2000;
 
         // Fonction utilitaire pour la rotation
@@ -1055,9 +878,6 @@
                 initializeCadoMap();
                 initializeZoneMap();
                 
-                if (typeof initMbtilesMode === 'function') {
-                    initMbtilesMode();
-                }
 
                 populateMapSelectorForPNG();
                 initUI();
@@ -1123,11 +943,11 @@
 
         function initializeCadoMap() {
             cadoMap = L.map('cado-interactive-map', { attributionControl: false }).setView([46.2276, 2.2137], 5);
-            const baseMaps = createBaseLayers();
-            const defaultLayer = baseMaps["Ortho IGN + Routes Google"] || baseMaps["Google Hybrid"] || (Object.keys(baseMaps).length > 0 ? baseMaps[Object.keys(baseMaps)[0]] : null);
-            
+            cadoBaseMaps = createBaseLayers();
+            const defaultLayer = cadoBaseMaps["Ortho IGN + Routes Google"] || cadoBaseMaps["Google Hybrid"] || (Object.keys(cadoBaseMaps).length > 0 ? cadoBaseMaps[Object.keys(cadoBaseMaps)[0]] : null);
+
             if(defaultLayer) defaultLayer.addTo(cadoMap);
-            if(Object.keys(baseMaps).length > 0) L.control.layers(baseMaps).addTo(cadoMap);
+            if(Object.keys(cadoBaseMaps).length > 0) L.control.layers(cadoBaseMaps).addTo(cadoMap);
             
             cadoMap.on('click', handleCadoMapClick);
             
@@ -1151,10 +971,10 @@
 
         function initializeZoneMap() {
             zoneMap = L.map('zone-interactive-map', { attributionControl: false }).setView([46.2276, 2.2137], 5);
-            const baseMaps = createBaseLayers();
-            const defaultLayer = baseMaps["Ortho IGN + Routes Google"] || baseMaps["Google Hybrid"];
+            zoneBaseMaps = createBaseLayers();
+            const defaultLayer = zoneBaseMaps["Ortho IGN + Routes Google"] || zoneBaseMaps["Google Hybrid"];
             if(defaultLayer) defaultLayer.addTo(zoneMap);
-            if(Object.keys(baseMaps).length > 0) L.control.layers(baseMaps).addTo(zoneMap);
+            if(Object.keys(zoneBaseMaps).length > 0) L.control.layers(zoneBaseMaps).addTo(zoneMap);
             
             drawnItems = new L.FeatureGroup();
             zoneMap.addLayer(drawnItems);
@@ -1190,7 +1010,69 @@
             setTimeout(() => { updateZoneInfo({name: "Ortho IGN + Routes Google"})}, 500);
             setupZoneAddressSearch();
         }
-        
+
+        // Calque Leaflet lisant les tuiles depuis le MBTiles actif (tileSource.js)
+        const MbtilesLeafletLayer = L.TileLayer.extend({
+            createTile: function(coords, done) {
+                const tile = document.createElement('img');
+                const blobUrl = (typeof tileSourceReadTile === 'function')
+                    ? tileSourceReadTile(coords.x, coords.y, coords.z)
+                    : null;
+                if (blobUrl) {
+                    tile.src = blobUrl;
+                    tile.onload  = () => { URL.revokeObjectURL(blobUrl); done(null, tile); };
+                    tile.onerror = () => { URL.revokeObjectURL(blobUrl); done(null, tile); };
+                } else {
+                    done(null, tile);
+                }
+                return tile;
+            }
+        });
+
+        // Appelé par tileSource.js après chaque chargement ou retrait de MBTiles
+        window.tileSourceOnChange = function(info) {
+            const entries = [
+                { map: cadoMap, baseMaps: cadoBaseMaps, getLayer: () => cadoMbtilesLayer, setLayer: l => { cadoMbtilesLayer = l; } },
+                { map: zoneMap, baseMaps: zoneBaseMaps, getLayer: () => zoneMbtilesLayer, setLayer: l => { zoneMbtilesLayer = l; } }
+            ];
+
+            entries.forEach(({ map, baseMaps, getLayer, setLayer }) => {
+                if (!map) return;
+
+                // Retirer l'ancien calque MBTiles si présent
+                const existing = getLayer();
+                if (existing && map.hasLayer(existing)) map.removeLayer(existing);
+                setLayer(null);
+
+                if (info) {
+                    // Masquer les calques en ligne
+                    Object.values(baseMaps).forEach(l => { if (map.hasLayer(l)) map.removeLayer(l); });
+
+                    // Ajouter le calque MBTiles
+                    const zooms = tileSourceGetZooms();
+                    const layer = new MbtilesLeafletLayer('', {
+                        minZoom: zooms[0],
+                        maxZoom: zooms[zooms.length - 1],
+                        tms: false
+                    });
+                    layer.addTo(map);
+                    setLayer(layer);
+
+                    // Centrer la vue sur les bounds du fichier
+                    if (info.bounds) {
+                        const [west, south, east, north] = info.bounds;
+                        map.fitBounds([[south, west], [north, east]]);
+                    }
+                } else {
+                    // Rétablir le calque en ligne par défaut
+                    const defaultLayer = baseMaps["Ortho IGN + Routes Google"]
+                        || baseMaps["Google Hybrid"]
+                        || Object.values(baseMaps)[0];
+                    if (defaultLayer && !map.hasLayer(defaultLayer)) defaultLayer.addTo(map);
+                }
+            });
+        };
+
         function updateCadoOverlayDefaults() {
             const nwCoordsStr = document.getElementById("zone-nw-coords").value;
             const seCoordsStr = document.getElementById("zone-se-coords").value;
@@ -1461,10 +1343,9 @@
         // --- GESTION DU TOGGLE MODE ---
         function toggleMode(targetMode) {
             const containers = { 
-                cado: document.getElementById('cado-mode-container'), 
+                cado: document.getElementById('cado-mode-container'),
                 zone: document.getElementById('zone-downloader-mode-container'),
-                import: document.getElementById('import-mode-container'),
-                creator: document.getElementById('creator-mode-container') 
+                creator: document.getElementById('creator-mode-container')
             };
             
             const buttons = document.querySelectorAll('.mode-btn');
@@ -1487,8 +1368,7 @@
             let mapToResize = null;
             switch (targetMode) {
                 case 'zone': mapToResize = zoneMap; break;
-                case 'import': mapToResize = window.importMap; break; 
-                case 'creator': 
+                case 'creator':
                     if (typeof initCreatorMode === 'function') initCreatorMode();
                     mapToResize = window.creatorMap; 
                     break;
