@@ -486,6 +486,7 @@ function getZoneCadoConfigAndBounds() {
         startCol: 'A', endCol: numberToLetter(numCols),
         includeGrid: true, includePoints: true,
         swapAxes: swapAxes,
+        doubleEntry: document.getElementById('zone-cado-double-entry')?.checked || false,
         outputFormat: 'KMZ'
     };
 
@@ -545,11 +546,18 @@ async function generateZonePNG() {
             const metersToLat = (meters) => meters / 111320;
             const metersToLon = (meters, lat) => meters / (111320 * Math.cos(toRadians(lat)));
 
+            // Marges : grande (1.0) du côté où les labels apparaissent, petite (0.5) sinon.
+            // Ascending : labels colonnes au sud, labels lignes à l'ouest.
+            // Descending : labels colonnes au nord, labels lignes à l'ouest.
+            // Double entrée : labels également au nord/est (ascending) ou sud/est (descending).
+            const lm = 1.0, sm = 0.5;
+            const asc = config.letteringDirection === 'ascending';
+            const de  = config.doubleEntry;
             finalBoundingBox = {
-                north: gridBounds.maxLat + metersToLat(0.5 * config.scale),
-                south: gridBounds.minLat - metersToLat(1.0 * config.scale),
-                west: gridBounds.minLon - metersToLon(1.0 * config.scale, avgLat),
-                east: gridBounds.maxLon + metersToLon(0.5 * config.scale, avgLat)
+                north: gridBounds.maxLat + metersToLat((!asc || de ? lm : sm) * config.scale),
+                south: gridBounds.minLat - metersToLat(( asc || de ? lm : sm) * config.scale),
+                west:  gridBounds.minLon - metersToLon(lm * config.scale, avgLat),
+                east:  gridBounds.maxLon + metersToLon((de ? lm : sm) * config.scale, avgLat)
             };
         } else {
             finalBoundingBox = { north, west, south, east };

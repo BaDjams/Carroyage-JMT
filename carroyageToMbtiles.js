@@ -101,7 +101,8 @@ async function processZoomLevel(db, zoom, bbox, useUtm, useCfsi, cadoConfig, cad
     };
 
     // Récupération couleur globale (défaut noir)
-    const color = (cadoConfig && cadoConfig.gridColor) ? cadoConfig.gridColor : (document.getElementById('utm-grid-color') ? document.getElementById('utm-grid-color').value : "#000000");
+    const _colorEl = document.getElementById('utm-grid-color');
+    const color = (cadoConfig && cadoConfig.gridColor) ? cadoConfig.gridColor : (_colorEl ? _colorEl.value : "#000000");
     
     // --- DESSIN DES COUCHES ---
     

@@ -142,10 +142,14 @@ const CFSI_UTILS = (function() {
 })();
 
 async function drawCfsiGridOnCanvas(ctx, bbox, latLonToPixels, margin, fontSize, lineWidth) {
-    const color = document.getElementById('utm-grid-color') ? document.getElementById('utm-grid-color').value : '#000000';
+    const colorEl = document.getElementById('utm-grid-color');
+    const color = colorEl ? colorEl.value : '#000000';
     const trEl = document.getElementById('utm-transparency');
     const transparency = trEl ? (100 - parseInt(trEl.value)) / 100 : 0.5;
     const r = parseInt(color.slice(1, 3), 16), g = parseInt(color.slice(3, 5), 16), b = parseInt(color.slice(5, 7), 16);
+    // Pré-calcul des deux styles de couleur pour éviter la reconstruction de chaîne à chaque itération
+    const strokeStyle2k    = `rgba(${r}, ${g}, ${b}, ${transparency})`;
+    const strokeStyleSmall = `rgba(${r}, ${g}, ${b}, ${transparency / 2.5})`;
 
     const nw = CFSI_UTILS.wgs84ToL2E(bbox.north, bbox.west);
     const se = CFSI_UTILS.wgs84ToL2E(bbox.south, bbox.east);
@@ -174,11 +178,13 @@ async function drawCfsiGridOnCanvas(ctx, bbox, latLonToPixels, margin, fontSize,
         const is2k = (Math.abs(x % 2000) < 1);
         if (!is2k && !isSmallArea) continue;
         
-        ctx.strokeStyle = `rgba(${r}, ${g}, ${b}, ${is2k ? transparency : transparency / 2.5})`;
+        ctx.strokeStyle = is2k ? strokeStyle2k : strokeStyleSmall;
         ctx.lineWidth = is2k ? lineWidth * 2 : lineWidth * 1.0;
-        
-        const p1 = latLonToPixels(CFSI_UTILS.l2EToWgs84(x, lMinY).lat, CFSI_UTILS.l2EToWgs84(x, lMinY).lon);
-        const p2 = latLonToPixels(CFSI_UTILS.l2EToWgs84(x, lMaxY).lat, CFSI_UTILS.l2EToWgs84(x, lMaxY).lon);
+
+        const ll1x = CFSI_UTILS.l2EToWgs84(x, lMinY);
+        const ll2x = CFSI_UTILS.l2EToWgs84(x, lMaxY);
+        const p1 = latLonToPixels(ll1x.lat, ll1x.lon);
+        const p2 = latLonToPixels(ll2x.lat, ll2x.lon);
         
         if (p1 && p2) {
              ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); ctx.stroke(); ctx.beginPath();
@@ -188,11 +194,13 @@ async function drawCfsiGridOnCanvas(ctx, bbox, latLonToPixels, margin, fontSize,
         const is2k = (Math.abs(y % 2000) < 1);
         if (!is2k && !isSmallArea) continue;
 
-        ctx.strokeStyle = `rgba(${r}, ${g}, ${b}, ${is2k ? transparency : transparency / 2.5})`;
+        ctx.strokeStyle = is2k ? strokeStyle2k : strokeStyleSmall;
         ctx.lineWidth = is2k ? lineWidth * 2 : lineWidth * 1.0;
-        
-        const p1 = latLonToPixels(CFSI_UTILS.l2EToWgs84(lMinX, y).lat, CFSI_UTILS.l2EToWgs84(lMinX, y).lon);
-        const p2 = latLonToPixels(CFSI_UTILS.l2EToWgs84(lMaxX, y).lat, CFSI_UTILS.l2EToWgs84(lMaxX, y).lon);
+
+        const ll1y = CFSI_UTILS.l2EToWgs84(lMinX, y);
+        const ll2y = CFSI_UTILS.l2EToWgs84(lMaxX, y);
+        const p1 = latLonToPixels(ll1y.lat, ll1y.lon);
+        const p2 = latLonToPixels(ll2y.lat, ll2y.lon);
 
         if (p1 && p2) {
             ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); ctx.stroke(); ctx.beginPath();
@@ -244,13 +252,8 @@ async function drawCfsiGridOnCanvas(ctx, bbox, latLonToPixels, margin, fontSize,
                 // MODIFICATION ICI : Choix du texte à afficher
                 // Si c'est une ancre OU si on est très proche -> Nom complet
                 let textToDraw = "";
-                if (isAncre || isVeryClose) {
-                    ctx.font = `bold ${safeFontSize * 0.6}px Arial`;
-                    textToDraw = `${comps.full2k} ${comps.c100m}`;
-                } else {
-                    ctx.font = `bold ${safeFontSize * 0.6}px Arial`;
-                    textToDraw = comps.c100m;
-                }
+                ctx.font = `bold ${safeFontSize * 0.6}px Arial`;
+                textToDraw = (isAncre || isVeryClose) ? `${comps.full2k} ${comps.c100m}` : comps.c100m;
 
                 drawTextWithOutline(ctx, textToDraw, p.x, p.y, safeFontSize * 0.05);
             }
@@ -278,7 +281,8 @@ async function drawCfsiGridOnCanvas(ctx, bbox, latLonToPixels, margin, fontSize,
     }
     ctx.restore();
     
-    const userTitle = document.getElementById("zone-title") ? document.getElementById("zone-title").value : "Zone CFSI";
+    const zoneTitleEl = document.getElementById("zone-title");
+    const userTitle = zoneTitleEl ? zoneTitleEl.value : "Zone CFSI";
     const centerLat = (bbox.north + bbox.south) / 2;
     const centerLon = (bbox.west + bbox.east) / 2;
     

@@ -145,10 +145,10 @@ async function generateUTMGrid() {
         };
 
         const zip = new JSZip();
-        let poiKml = "";
         const userPOIs = window.getUserPOIs ? window.getUserPOIs() : [];
         const allIcons = window.getIconLibrary ? window.getIconLibrary() : [];
         const imagesToZip = new Map();
+        const poiParts = [];
 
         if (userPOIs.length > 0) {
             for (const [index, poi] of userPOIs.entries()) {
@@ -164,21 +164,17 @@ async function generateUTMGrid() {
                     if (base64Data) {
                         const cleanBase64 = base64Data.split(',')[1];
                         imagesToZip.set(zipPath, cleanBase64);
-                        iconUrl = zipPath; 
+                        iconUrl = zipPath;
                     }
                 }
 
-                poiKml += `
-                <Placemark>
-                    <name>${poi.name || poi.type}</name>
-                    <Style><IconStyle><scale>1.2</scale><Icon><href>${iconUrl}</href></Icon></IconStyle></Style>
-                    <Point><coordinates>${poi.lon},${poi.lat},0</coordinates></Point>
-                </Placemark>`;
+                poiParts.push(`<Placemark><name>${poi.name || poi.type}</name><Style><IconStyle><scale>1.2</scale><Icon><href>${iconUrl}</href></Icon></IconStyle></Style><Point><coordinates>${poi.lon},${poi.lat},0</coordinates></Point></Placemark>`);
             }
             for (const [path, data] of imagesToZip) {
                 zip.file(path, data, {base64: true});
             }
         }
+        const poiKml = poiParts.join('');
 
         const kmlContent = createUTM_KML(
             allEastingLines, allNorthingLines, allBoundaryLines, 
@@ -336,17 +332,11 @@ function createUTM_KML(eastingLines, northingLines, boundaryLines, config, poiKm
     }
 
     const linesByZone = {};
-    [...eastingLines, ...northingLines].forEach(line => {
+    eastingLines.concat(northingLines).forEach(line => {
         const zoneKey = line.zone;
-        if (!linesByZone[zoneKey]) {
-            linesByZone[zoneKey] = { eastings: [], northings: [] };
-        }
-        // CORRECTION ICI : Utilisation de la propriété 'type' au lieu de startsWith('E')
-        if (line.type === 'easting') {
-            linesByZone[zoneKey].eastings.push(line);
-        } else {
-            linesByZone[zoneKey].northings.push(line);
-        }
+        if (!linesByZone[zoneKey]) linesByZone[zoneKey] = { eastings: [], northings: [] };
+        if (line.type === 'easting') linesByZone[zoneKey].eastings.push(line);
+        else linesByZone[zoneKey].northings.push(line);
     });
 
     const sortedZoneKeys = Object.keys(linesByZone).sort().reverse();
@@ -359,18 +349,10 @@ function createUTM_KML(eastingLines, northingLines, boundaryLines, config, poiKm
     }
 
     if (boundaryLines.length > 0) {
-        kml += `<Folder><name>Frontières de Zone</name>`;
-        boundaryLines.forEach(line => {
-            kml += `<Placemark>
-                <name>${line.name}</name>
-                <styleUrl>#boundaryLineStyle</styleUrl>
-                <LineString>
-                    <tessellate>1</tessellate>
-                    <coordinates>${line.coordinates.map(c => c.join(',')).join(' ')}</coordinates>
-                </LineString>
-            </Placemark>`;
-        });
-        kml += `</Folder>`;
+        const bParts = boundaryLines.map(line =>
+            `<Placemark><name>${line.name}</name><styleUrl>#boundaryLineStyle</styleUrl><LineString><tessellate>1</tessellate><coordinates>${line.coordinates.map(c => c.join(',')).join(' ')}</coordinates></LineString></Placemark>`
+        );
+        kml += `<Folder><name>Frontières de Zone</name>${bParts.join('')}</Folder>`;
     }
 
     if (poiKml) {

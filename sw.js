@@ -1,6 +1,6 @@
 // sw.js - Service Worker PWA
 
-const CACHE_NAME = 'cado-cache-v20'; // Incrémentez ce numéro à chaque grosse mise à jour
+const CACHE_NAME = 'cado-cache-v21';
 
 // Liste EXACTE des fichiers à mettre en cache.
 // Si un seul fichier manque, la PWA ne s'installera pas.
@@ -9,23 +9,32 @@ const ASSETS_TO_CACHE = [
   './index.html',
   './help.html',
   './style.css',
-  './tailwind.min.css',     // Vérifiez que ce fichier existe bien en local
-  './flowbite.min.css',     // Vérifiez que ce fichier existe bien en local
-  
+  './tailwind.min.css',
+  './flowbite.min.css',
+
   // Scripts principaux
   './utilities.js',
   './carroyageUTM.js',
   './carroyageCado.js',
+  './carroyageCFSI.js',
+  './carroyageToCSV.js',
+  './carroyageToMbtiles.js',
   './imagetoprint.js',
   './zoneDownloader.js',
   './map-layers.js',
-  './wms-layers.js',
   './icons.js',
-  './icons-catalog.js',     // Le nouveau fichier généré par Python
+  './icons-catalog.js',
   './settingsManager.js',
   './version.js',
+  './mbtilesCreator.js',
+  './mbtilesMode.js',
+  './seedManager.js',
 
-  // Librairies tierces (Si elles sont en local)
+  // SQL.js (WASM)
+  './sql-wasm.js',
+  './sql-wasm.wasm',
+
+  // Librairies tierces
   './jszip.min.js',
   './FileSaver.min.js',
   './openlocationcode.min.js',
@@ -33,8 +42,8 @@ const ASSETS_TO_CACHE = [
 
   // Manifeste
   './manifest.json',
-  
-  // Icônes de l'interface (Vérifiez les chemins)
+
+  // Icônes
   './icons/icon-192x192.png',
   './icons/icon-512x512.png'
 ];

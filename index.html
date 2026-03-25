@@ -4,6 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Générateur de carroyage CADO</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#3b82f6">
 <link href="tailwind.min.css" rel="stylesheet">
 <link href="flowbite.min.css" rel="stylesheet">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" defer/>
@@ -36,6 +38,7 @@
 <script src="mbtilesCreator.js" defer></script>
 <script src="mbtilesMode.js" defer></script>
 <script src="carroyageCFSI.js" defer></script>
+<script src="seedManager.js" defer></script>
 </head>
 <body class="p-4 md:p-6">
 <div class="max-w-5xl mx-auto">
@@ -106,6 +109,12 @@
     </div>
 
     <main class="space-y-6">
+        <!-- SEED GLOBAL (masqué temporairement) -->
+        <div id="seed-global-bar" style="display:none;">
+            <input type="text" id="seed-input">
+            <button id="seed-copy-btn"></button>
+            <button id="seed-restore-btn"></button>
+        </div>
         <!-- MODE 1 : CARROYAGE CADO -->
         <div id="cado-mode-container">
             <div class="space-y-6">
@@ -301,6 +310,14 @@
                                         <input type="checkbox" id="swap-axes" class="sr-only peer grid-parameter">
                                         <div class="relative w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
                                         <span class="ms-3 text-sm font-medium text-gray-900 dark:text-gray-300">Inverser Lettres/Chiffres (Lettres en Vertical)</span>
+                                    </label>
+                                </div>
+                                <div class="flex flex-col space-y-1">
+                                    <label class="text-sm md:text-base text-content">Double entrée :</label>
+                                    <label class="inline-flex items-center cursor-pointer">
+                                        <input type="checkbox" id="double-entry" class="sr-only peer grid-parameter">
+                                        <div class="relative w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
+                                        <span class="ms-3 text-sm font-medium text-gray-900 dark:text-gray-300">Labels des 2 côtés (haut/bas &amp; gauche/droite)</span>
                                     </label>
                                 </div>
                                 <div class="md:col-span-2 flex flex-col space-y-1">
@@ -606,11 +623,16 @@
                                         </label>
                                     </div>
                                 </div>
-                                <div class="flex flex-col space-y-1 justify-center">
+                                <div class="flex flex-col space-y-2 justify-center">
                                     <label class="inline-flex items-center cursor-pointer">
                                         <input type="checkbox" id="zone-cado-swap-axes" class="sr-only peer">
                                         <div class="relative w-9 h-5 bg-gray-300 rounded-full peer dark:bg-gray-600 peer-checked:bg-blue-600 peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all"></div>
-                                        <span class="ms-3 text-sm text-content">Inverser axes (V/H)</span>
+                                        <span class="ms-3 text-sm text-content">Inverser axes (Lettres/Chiffres)</span>
+                                    </label>
+                                    <label class="inline-flex items-center cursor-pointer">
+                                        <input type="checkbox" id="zone-cado-double-entry" class="sr-only peer">
+                                        <div class="relative w-9 h-5 bg-gray-300 rounded-full peer dark:bg-gray-600 peer-checked:bg-blue-600 peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all"></div>
+                                        <span class="ms-3 text-sm text-content">Double entrée (labels 2 côtés)</span>
                                     </label>
                                 </div>
                             </div>
@@ -1635,7 +1657,7 @@
 
         function registerAndHandleUpdates() {
             if ('serviceWorker' in navigator) {
-                navigator.serviceWorker.register('/sw.js').catch(error => console.error('Échec SW:', error));
+                navigator.serviceWorker.register('./sw.js').catch(error => console.error('Échec SW:', error));
                 navigator.serviceWorker.addEventListener('message', event => {
                     if (event.data && event.data.type === 'VERSION_UPDATE') {
                         showUpdateNotification(event.data.version);

@@ -56,7 +56,11 @@ function calculateAndRotatePoint(colNumber, rowNumber, config, a1Lat, a1Lon) {
 
     const finalYOffset = config.letteringDirection === 'ascending' ? yOffsetMeters : -yOffsetMeters;
 
-    const unrotatedLon = a1Lon + metersToLonDegrees(xOffsetMeters, a1Lat);
+    // Utiliser config.latitude (centre de la grille) comme référence de correction cosinus.
+    // a1Lat varie selon le sens (sud en ascendant, nord en descendant), ce qui provoquerait
+    // un écart de largeur entre les deux modes si on l'utilisait comme référence.
+    const cosRefLat = (config && config.latitude != null) ? config.latitude : a1Lat;
+    const unrotatedLon = a1Lon + metersToLonDegrees(xOffsetMeters, cosRefLat);
     const unrotatedLat = a1Lat + metersToLatDegrees(finalYOffset);
 
     if (config.deviation === 0 || !config.deviation) {
@@ -126,31 +130,51 @@ function drawLabelWithOutline(ctx, text, x, y, config) {
 function drawSubdivisionKey(ctx, latLonToPixels, config, a1CornerCoords) {
     const [a1Lon, a1Lat] = a1CornerCoords;
     const startColNum = letterToNumber(config.startCol);
-    const bottomRowNum = (config.letteringDirection === 'ascending') 
-        ? Math.min(config.startRow, config.endRow) 
+
+    // Ligne la plus au sud (visuellement en bas) :
+    //   ascendant  → numéro le plus petit (ex : 1)
+    //   descendant → numéro le plus grand (ex : 12), car A1 est au nord
+    const southRowNum = (config.letteringDirection === 'ascending')
+        ? Math.min(config.startRow, config.endRow)
         : Math.max(config.startRow, config.endRow);
-    const geo_bl = calculateAndRotatePoint(startColNum, bottomRowNum, config, a1Lat, a1Lon);
-    const geo_br = calculateAndRotatePoint(startColNum + 1, bottomRowNum, config, a1Lat, a1Lon);
-    const geo_tl = calculateAndRotatePoint(startColNum, bottomRowNum + 1, config, a1Lat, a1Lon);
-    const geo_tr = calculateAndRotatePoint(startColNum + 1, bottomRowNum + 1, config, a1Lat, a1Lon);
-    const geo_center = calculateAndRotatePoint(startColNum + 0.5, bottomRowNum + 0.5, config, a1Lat, a1Lon);
-    const px_tl = latLonToPixels(geo_tl[1], geo_tl[0]);
-    const px_tr = latLonToPixels(geo_tr[1], geo_tr[0]);
-    const px_bl = latLonToPixels(geo_bl[1], geo_bl[0]);
-    const px_br = latLonToPixels(geo_br[1], geo_br[0]);
-    const px_center = latLonToPixels(geo_center[1], geo_center[0]);
+
+    // Bord NORD de la cellule (rowN) et bord SUD (rowS) en termes de numéro de ligne.
+    // En ascendant : +1 va vers le nord.
+    // En descendant : +1 va vers le sud, donc le bord nord = southRowNum, le bord sud = southRowNum+1.
+    const rowN = (config.letteringDirection === 'ascending') ? southRowNum + 1 : southRowNum;
+    const rowS = (config.letteringDirection === 'ascending') ? southRowNum     : southRowNum + 1;
+
+    const geo_nw = calculateAndRotatePoint(startColNum,       rowN, config, a1Lat, a1Lon);
+    const geo_ne = calculateAndRotatePoint(startColNum + 1,   rowN, config, a1Lat, a1Lon);
+    const geo_sw = calculateAndRotatePoint(startColNum,       rowS, config, a1Lat, a1Lon);
+    const geo_se = calculateAndRotatePoint(startColNum + 1,   rowS, config, a1Lat, a1Lon);
+    const geo_c  = calculateAndRotatePoint(startColNum + 0.5, southRowNum + 0.5, config, a1Lat, a1Lon);
+
+    const px_nw = latLonToPixels(geo_nw[1], geo_nw[0]);
+    const px_ne = latLonToPixels(geo_ne[1], geo_ne[0]);
+    const px_sw = latLonToPixels(geo_sw[1], geo_sw[0]);
+    const px_se = latLonToPixels(geo_se[1], geo_se[0]);
+    const px_c  = latLonToPixels(geo_c[1],  geo_c[0]);
+
     const opacity = '0.7';
-    const drawSubdivision = (color, p1, p2, p3, p4) => {
+    const drawSub = (color, p1, p2, p3, p4) => {
         ctx.fillStyle = color;
-        ctx.beginPath(); ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); ctx.lineTo(p3.x, p3.y); ctx.lineTo(p4.x, p4.y); ctx.closePath(); ctx.fill();
+        ctx.beginPath(); ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y);
+        ctx.lineTo(p3.x, p3.y); ctx.lineTo(p4.x, p4.y); ctx.closePath(); ctx.fill();
     };
-    drawSubdivision(`rgba(255, 255, 0, ${opacity})`, px_tl, {x: (px_tl.x + px_tr.x)/2, y: (px_tl.y + px_tr.y)/2}, px_center, {x: (px_tl.x + px_bl.x)/2, y: (px_tl.y + px_bl.y)/2});
-    drawSubdivision(`rgba(0, 0, 255, ${opacity})`, {x: (px_tl.x + px_tr.x)/2, y: (px_tl.y + px_tr.y)/2}, px_tr, {x: (px_tr.x + px_br.x)/2, y: (px_tr.y + px_br.y)/2}, px_center);
-    drawSubdivision(`rgba(0, 128, 0, ${opacity})`, {x: (px_tl.x + px_bl.x)/2, y: (px_tl.y + px_bl.y)/2}, px_center, {x: (px_bl.x + px_br.x)/2, y: (px_bl.y + px_br.y)/2}, px_bl);
-    drawSubdivision(`rgba(255, 0, 0, ${opacity})`, px_center, {x: (px_tr.x + px_br.x)/2, y: (px_tr.y + px_br.y)/2}, px_br, {x: (px_bl.x + px_br.x)/2, y: (px_bl.y + px_br.y)/2});
+    const mid = (a, b) => ({ x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 });
+
+    // Convention OTAN / Marine française : Jaune = NW, Bleu = NE, Vert = SW, Rouge = SE
+    drawSub(`rgba(255,255,0,${opacity})`, px_nw, mid(px_nw,px_ne), px_c, mid(px_nw,px_sw)); // Jaune  NW
+    drawSub(`rgba(0,0,255,${opacity})`,   mid(px_nw,px_ne), px_ne, mid(px_ne,px_se), px_c); // Bleu   NE
+    drawSub(`rgba(0,128,0,${opacity})`,   mid(px_nw,px_sw), px_c, mid(px_sw,px_se), px_sw); // Vert   SW
+    drawSub(`rgba(255,0,0,${opacity})`,   px_c, mid(px_ne,px_se), px_se, mid(px_sw,px_se)); // Rouge  SE
+
     ctx.strokeStyle = 'black'; ctx.lineWidth = 1;
-    ctx.beginPath(); ctx.moveTo(px_tl.x, px_tl.y); ctx.lineTo(px_tr.x, px_tr.y); ctx.lineTo(px_br.x, px_br.y); ctx.lineTo(px_bl.x, px_bl.y); ctx.closePath();
-    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(px_nw.x, px_nw.y); ctx.lineTo(px_ne.x, px_ne.y);
+    ctx.lineTo(px_se.x, px_se.y); ctx.lineTo(px_sw.x, px_sw.y);
+    ctx.closePath(); ctx.stroke();
 }
 
 function drawReferenceCross(ctx, latLonToPixels, config, cellWidthInPixels) {
@@ -194,9 +218,6 @@ function drawCartouche(ctx, latLonToPixels, config, a1CornerCoords, cellWidthInP
     
     ctx.font = `${FONT_SIZE_PX}px Arial`;
     
-    const originText = (config.referencePointChoice === 'origin') 
-        ? `Origine A1: ${a1Lat.toFixed(5)}, ${a1Lon.toFixed(5)}` 
-        : '';
     const refText = (config.referencePointChoice === 'center') 
         ? `Pt. Réf: ${config.latitude.toFixed(5)}, ${config.longitude.toFixed(5)}` 
         : '';
@@ -212,10 +233,6 @@ function drawCartouche(ctx, latLonToPixels, config, a1CornerCoords, cellWidthInP
     textsToDraw.push(config.gridNameBase);
     
     if (refText) textsToDraw.push(refText);
-    
-    // MODIFICATION : On ne pousse plus originText
-    // textsToDraw.push(originText); 
-    
     textsToDraw.push(scaleText);
     
     const maxTextWidth = Math.max(...textsToDraw.map(text => ctx.measureText(text).width));
@@ -435,6 +452,24 @@ function drawCadoElementsOnCanvas(ctx, config, latLonToPixels, a1CornerCoords, a
             // Si swapAxes est vrai, on dessine des lettres en vertical
             const text = config.swapAxes ? numberToLetter(i) : i.toString();
             drawLabelWithOutline(ctx, text, labelPixels.x, labelPixels.y, config);
+        }
+
+        // Double entrée : labels sur les côtés opposés (haut + droite)
+        if (config.doubleEntry) {
+            const lastRow = rowsForLines[rowsForLines.length - 1];
+            const lastCol = colsForLines[colsForLines.length - 1];
+            for (const i of colsToDraw) {
+                const labelPoint = calculateAndRotatePoint(i + 0.5, lastRow + 0.5, config, a1Lat, a1Lon);
+                const labelPixels = latLonToPixels(labelPoint[1], labelPoint[0]);
+                const text = config.swapAxes ? i.toString() : numberToLetter(i);
+                drawLabelWithOutline(ctx, text, labelPixels.x, labelPixels.y, config);
+            }
+            for (const i of rowsToDraw) {
+                const labelPoint = calculateAndRotatePoint(lastCol + 0.5, i + 0.5, config, a1Lat, a1Lon);
+                const labelPixels = latLonToPixels(labelPoint[1], labelPoint[0]);
+                const text = config.swapAxes ? numberToLetter(i) : i.toString();
+                drawLabelWithOutline(ctx, text, labelPixels.x, labelPixels.y, config);
+            }
         }
     }
         

@@ -5,6 +5,92 @@ let loadedCadoKmlFeatures = [];
 let cadoKmlResources = { images: {} };
 let cadoKmlLayerGroup = null;
 
+// --- PREVIEW LEAFLET ---
+let cadoGridPreviewLayer = null;
+let _previewTimer = null;
+
+function schedulePreviewUpdate() {
+    clearTimeout(_previewTimer);
+    _previewTimer = setTimeout(() => {
+        updateCadoGridPreview();
+        if (typeof updateSeedInput === 'function') updateSeedInput();
+    }, 400);
+}
+
+function updateCadoGridPreview() {
+    if (!window.cadoMap) return;
+    if (cadoGridPreviewLayer) { window.cadoMap.removeLayer(cadoGridPreviewLayer); cadoGridPreviewLayer = null; }
+
+    const decStr = document.getElementById('decimal-coords')?.value.trim();
+    if (!decStr) return;
+    const parts = decStr.split(',').map(s => parseFloat(s.trim()));
+    if (parts.length < 2 || isNaN(parts[0]) || isNaN(parts[1])) return;
+
+    try {
+        const config = getGridConfiguration(parts[0], parts[1]);
+        const gridData = calculateGridData(config);
+        const layers = [];
+        const color = config.gridColor;
+        const weight = parseInt(document.getElementById('line-thickness')?.value || '1');
+        const opacity = config.colorOpacity;
+
+        // Lignes de grille (contour sombre + couleur pour la visibilité)
+        [...gridData.horizontalLines, ...gridData.verticalLines].forEach(line => {
+            if (!line.points || line.points.length < 2) return;
+            const pts = line.points.map(p => [p[1], p[0]]);
+            layers.push(L.polyline(pts, { color: '#000000', weight: weight + 2, opacity: opacity * 0.6 }));
+            layers.push(L.polyline(pts, { color, weight, opacity }));
+        });
+
+        // Labels de bordure
+        const [a1Lon, a1Lat] = gridData.a1Corner;
+        const startColNum  = letterToNumber(config.startCol);
+        const colsToDraw   = generateIndices(startColNum, letterToNumber(config.endCol));
+        const rowsToDraw   = generateIndices(config.startRow, config.endRow);
+        const rowsForLines = [...rowsToDraw, getNextIndex(rowsToDraw[rowsToDraw.length - 1])];
+        const colsForLines = [...colsToDraw, getNextIndex(colsToDraw[colsToDraw.length - 1])];
+
+        const makeLabel = (text, lat, lon) => {
+            const icon = L.divIcon({
+                className: '',
+                html: `<div style="color:${color};font-weight:bold;font-size:11px;white-space:nowrap;text-shadow:0 0 3px #fff,0 0 3px #fff,0 0 2px #000;">${text}</div>`,
+                iconAnchor: [8, 6]
+            });
+            return L.marker([lat, lon], { icon, interactive: false });
+        };
+
+        // Bas (colonnes) et gauche (lignes)
+        for (const i of colsToDraw) {
+            const pt = calculateAndRotatePoint(i + 0.5, config.startRow - 0.5, config, a1Lat, a1Lon);
+            layers.push(makeLabel(config.swapAxes ? i.toString() : numberToLetter(i), pt[1], pt[0]));
+        }
+        for (const i of rowsToDraw) {
+            const pt = calculateAndRotatePoint(startColNum - 0.5, i + 0.5, config, a1Lat, a1Lon);
+            layers.push(makeLabel(config.swapAxes ? numberToLetter(i) : i.toString(), pt[1], pt[0]));
+        }
+
+        // Double entrée : haut + droite
+        if (config.doubleEntry) {
+            const lastRow = rowsForLines[rowsForLines.length - 1];
+            const lastCol = colsForLines[colsForLines.length - 1];
+            for (const i of colsToDraw) {
+                const pt = calculateAndRotatePoint(i + 0.5, lastRow + 0.5, config, a1Lat, a1Lon);
+                layers.push(makeLabel(config.swapAxes ? i.toString() : numberToLetter(i), pt[1], pt[0]));
+            }
+            for (const i of rowsToDraw) {
+                const pt = calculateAndRotatePoint(lastCol + 0.5, i + 0.5, config, a1Lat, a1Lon);
+                layers.push(makeLabel(config.swapAxes ? numberToLetter(i) : i.toString(), pt[1], pt[0]));
+            }
+        }
+
+        if (layers.length > 0) {
+            cadoGridPreviewLayer = L.featureGroup(layers).addTo(window.cadoMap);
+        }
+    } catch(e) {
+        console.warn('Preview CADO error:', e);
+    }
+}
+
 // --- CONVERSIONS DE COORDONNÉES SPÉCIFIQUES ---
 function mercatorXToLng(x) { return toDeg(x / R); }
 function mercatorYToLat(y) { return toDeg(2 * Math.atan(Math.exp(y / R)) - Math.PI / 2); }
@@ -33,10 +119,10 @@ function decimalToDM(decimal, type) {
 
 function updateAllFromDecimal(lat, lon) {
     document.getElementById('dms-coords').value = `${decimalToDMS(lat, 'lat')} ${decimalToDMS(lon, 'lng')}`;
-    
+
     const dmField = document.getElementById('dm-coords');
     if (dmField) dmField.value = `${decimalToDM(lat, 'lat')} ${decimalToDM(lon, 'lng')}`;
-    
+
     document.getElementById('mercator-coords').value = `${lngToMercatorX(lon).toFixed(2)}, ${latToMercatorY(lat).toFixed(2)}`;
     if (isPlusCodeLibraryAvailable()) {
         const pcEl = document.getElementById('plus-code');
@@ -44,6 +130,7 @@ function updateAllFromDecimal(lat, lon) {
     }
     const utm = WGS84_to_UTM.fromLatLon(lat, lon);
     document.getElementById('utm-coords').value = `${utm.zoneNumber} ${utm.zoneLetter} ${utm.easting.toFixed(0)} ${utm.northing.toFixed(0)}`;
+    schedulePreviewUpdate();
 }
 
 function convertFromDM() {
@@ -422,6 +509,7 @@ function getGridConfiguration(lat, lon) {
             startRow = 1; endRow = 12; startCol = 'A'; endCol = 'Q';
     }
 
+    const contentType = document.querySelector('input[name="content-type"]:checked').value;
     return {
         latitude: lat,
         longitude: lon,
@@ -429,6 +517,7 @@ function getGridConfiguration(lat, lon) {
         gridColor: document.getElementById('grid-color').value,
         colorName: document.getElementById('grid-color-name').value,
         colorOpacity: (100 - parseInt(document.getElementById('transparency').value)) / 100,
+        gridNameBase: document.getElementById('grid-name-base').value || 'CADO Grid',
         gridName: document.getElementById('grid-name').value || "CADO Grid",
         deviation: parseInt(document.getElementById('deviation').value),
         labelSize: parseFloat(document.getElementById('label-size').value),
@@ -436,10 +525,11 @@ function getGridConfiguration(lat, lon) {
         referencePointChoice: document.querySelector('input[name="reference-point"]:checked').value,
         letteringDirection: document.querySelector('input[name="lettering-direction"]:checked').value,
         startRow, endRow, startCol, endCol,
-        includeGrid: ['grid-only', 'grid-points'].includes(document.querySelector('input[name="content-type"]:checked').value),
-        includePoints: ['points-only', 'grid-points'].includes(document.querySelector('input[name="content-type"]:checked').value),
+        includeGrid: ['grid-only', 'grid-points'].includes(contentType),
+        includePoints: ['points-only', 'grid-points'].includes(contentType),
         outputFormat: document.querySelector('input[name="file-format"]:checked').value,
-        swapAxes: document.getElementById('swap-axes').checked
+        swapAxes: document.getElementById('swap-axes').checked,
+        doubleEntry: document.getElementById('double-entry')?.checked ?? false
     };
 }
 
@@ -499,20 +589,24 @@ function calculateGridData(config) {
     const rowsForLines = [...rowsToDraw, getNextIndex(rowsToDraw[rowsToDraw.length - 1])];
     const colsForLines = [...colsToDraw, getNextIndex(colsToDraw[colsToDraw.length - 1])];
 
+    // Cache des intersections : chaque point de grille est calculé une seule fois
+    // puis réutilisé à la fois par les lignes horizontales ET verticales.
+    const ptCache = new Map();
+    const getIntersection = (col, row) => {
+        const key = `${col},${row}`;
+        let p = ptCache.get(key);
+        if (!p) { p = calculateAndRotatePoint(col, row, config, a1CornerLat, a1CornerLon); ptCache.set(key, p); }
+        return p;
+    };
+
     rowsForLines.forEach((rowNum, index) => {
         const isLastRow = index === rowsForLines.length - 1;
-        const linePoints = colsForLines.map(colNum => 
-            calculateAndRotatePoint(colNum, rowNum, config, a1CornerLat, a1CornerLon)
-        );
-        horizontalLines.push({ name: isLastRow ? "" : rowNum, points: linePoints });
+        horizontalLines.push({ name: isLastRow ? "" : rowNum, points: colsForLines.map(c => getIntersection(c, rowNum)) });
     });
-    
+
     colsForLines.forEach((colNum, index) => {
         const isLastCol = index === colsForLines.length - 1;
-        const linePoints = rowsForLines.map(rowNum => 
-            calculateAndRotatePoint(colNum, rowNum, config, a1CornerLat, a1CornerLon)
-        );
-        verticalLines.push({ name: isLastCol ? "" : numberToLetter(colNum), points: linePoints });
+        verticalLines.push({ name: isLastCol ? "" : numberToLetter(colNum), points: rowsForLines.map(r => getIntersection(colNum, r)) });
     });
 
     for (const row of rowsToDraw) {
@@ -536,7 +630,8 @@ function calculateGridData(config) {
     return {
         horizontalLines, verticalLines, points,
         originPointPlacemark: { name: originPlacemarkName, coordinates: originPointCoords },
-        referencePointCircle: generateCirclePoints(config.longitude, config.latitude, config.scale / 4, 36)
+        referencePointCircle: generateCirclePoints(config.longitude, config.latitude, config.scale / 4, 36),
+        a1Corner: [a1CornerLon, a1CornerLat]
     };
 }
 
@@ -569,95 +664,102 @@ function generateKML(config, gridData) {
     const labelScale = isKmz ? 0 : config.labelSize;
     const labelColor = rgbToKmlColor(config.gridColor, 1);
     const lineColor = rgbToKmlColor(config.gridColor, config.colorOpacity);
-    const yellowLineColor = 'a000ffff';
 
-    let kml = '<?xml version="1.0" encoding="UTF-8"?><kml xmlns="http://www.opengis.net/kml/2.2"><Document><name>' + config.gridName + '</name>';
-    
-    // Styles de base
-    kml += '<Style id="gridLineStyle"><LineStyle><color>' + lineColor + '</color><width>2</width></LineStyle></Style>';
-    kml += '<Style id="referenceCircleStyle"><LineStyle><color>' + yellowLineColor + '</color><width>3</width></LineStyle><PolyStyle><fill>0</fill></PolyStyle></Style>';
-    kml += '<Style id="originPointStyle"><IconStyle><Icon><href>http://maps.google.com/mapfiles/kml/pushpin/ylw-pushpin.png</href></Icon><scale>1.1</scale></IconStyle></Style>';
-    
-    // Style générique pour imports
-    kml += '<Style id="importedLineStyle"><LineStyle><color>ff0000ff</color><width>2</width></LineStyle></Style>';
-    kml += '<Style id="importedPolyStyle"><LineStyle><color>ff0000ff</color><width>2</width></LineStyle><PolyStyle><color>7f0000ff</color></PolyStyle></Style>';
+    // Utilisation d'un tableau de parties pour éviter les concaténations répétées
+    const p = [];
 
+    p.push(`<?xml version="1.0" encoding="UTF-8"?><kml xmlns="http://www.opengis.net/kml/2.2"><Document><name>${config.gridName}</name>`);
+
+    // Styles partagés
+    p.push(`<Style id="gridLineStyle"><LineStyle><color>${lineColor}</color><width>2</width></LineStyle></Style>`);
+    p.push(`<Style id="referenceCircleStyle"><LineStyle><color>a000ffff</color><width>3</width></LineStyle><PolyStyle><fill>0</fill></PolyStyle></Style>`);
+    p.push(`<Style id="originPointStyle"><IconStyle><Icon><href>http://maps.google.com/mapfiles/kml/pushpin/ylw-pushpin.png</href></Icon><scale>1.1</scale></IconStyle></Style>`);
+    p.push(`<Style id="importedLineStyle"><LineStyle><color>ff0000ff</color><width>2</width></LineStyle></Style>`);
+    p.push(`<Style id="importedPolyStyle"><LineStyle><color>ff0000ff</color><width>2</width></LineStyle><PolyStyle><color>7f0000ff</color></PolyStyle></Style>`);
+
+    // Style unique pour les points de grille (au lieu d'un style par case)
+    // Pour KMZ : l'icône est surchargée en inline dans chaque Placemark.
     if (config.includePoints) {
-        gridData.points.forEach(point => {
-            kml += '<Style id="point_' + point.name + '_style"><IconStyle>';
-            if (isKmz) {
-                kml += '<scale>' + iconScale + '</scale><Icon><href>icons/' + point.name + '.png</href></Icon>';
-            } else {
-                kml += '<scale>0</scale>';
-            }
-            kml += '</IconStyle><LabelStyle><color>' + labelColor + '</color><scale>' + labelScale + '</scale></LabelStyle></Style>';
-        });
+        p.push(`<Style id="gridPointStyle"><IconStyle><scale>0</scale></IconStyle><LabelStyle><color>${labelColor}</color><scale>${labelScale}</scale></LabelStyle></Style>`);
     }
 
-    // --- INTEGRATION DU KML IMPORTÉ ---
+    // --- CALQUE IMPORTÉ ---
     if (loadedCadoKmlFeatures && loadedCadoKmlFeatures.length > 0) {
-        kml += '<Folder><name>Calque Importé</name>';
-        
+        p.push('<Folder><name>Calque Importé</name>');
         loadedCadoKmlFeatures.forEach((f, idx) => {
-            let styleUrl = "#importedLineStyle";
-            let coordsStr = "";
-            let geomTag = "";
-
+            let geomTag = '';
+            let styleBlock = '';
             if (f.type === 'Point') {
-                styleUrl = "#originPointStyle"; 
-                coordsStr = `${f.coordinates[0]},${f.coordinates[1]},0`;
-                geomTag = `<Point><coordinates>${coordsStr}</coordinates></Point>`;
-            } 
-            else if (f.type === 'LineString') {
-                coordsStr = f.coordinates.map(c => `${c[0]},${c[1]},0`).join(' ');
-                geomTag = `<LineString><coordinates>${coordsStr}</coordinates></LineString>`;
-            } 
-            else if (f.type === 'Polygon') {
-                styleUrl = "#importedPolyStyle";
-                coordsStr = f.coordinates.map(c => `${c[0]},${c[1]},0`).join(' ');
-                geomTag = `<Polygon><outerBoundaryIs><LinearRing><coordinates>${coordsStr}</coordinates></LinearRing></outerBoundaryIs></Polygon>`;
+                const c = `${f.coordinates[0]},${f.coordinates[1]},0`;
+                geomTag = `<Point><coordinates>${c}</coordinates></Point>`;
+                if (isKmz && f.style && f.style.iconUrl) {
+                    styleBlock = `<Style><IconStyle><Icon><href>files/imported_icon_${idx}.png</href></Icon></IconStyle></Style>`;
+                } else {
+                    styleBlock = `<styleUrl>#originPointStyle</styleUrl>`;
+                }
+            } else if (f.type === 'LineString') {
+                geomTag = `<LineString><coordinates>${f.coordinates.map(c => `${c[0]},${c[1]},0`).join(' ')}</coordinates></LineString>`;
+                styleBlock = `<styleUrl>#importedLineStyle</styleUrl>`;
+            } else if (f.type === 'Polygon') {
+                geomTag = `<Polygon><outerBoundaryIs><LinearRing><coordinates>${f.coordinates.map(c => `${c[0]},${c[1]},0`).join(' ')}</coordinates></LinearRing></outerBoundaryIs></Polygon>`;
+                styleBlock = `<styleUrl>#importedPolyStyle</styleUrl>`;
             }
-
-            let inlineStyle = "";
-            if (isKmz && f.type === 'Point' && f.style && f.style.iconUrl) {
-                const iconFilename = `imported_icon_${idx}.png`;
-                inlineStyle = `<Style><IconStyle><Icon><href>files/${iconFilename}</href></Icon></IconStyle></Style>`;
-                styleUrl = ""; 
-            }
-
-            kml += `<Placemark>
-                <name>${f.name || 'Element'}</name>
-                ${styleUrl ? `<styleUrl>${styleUrl}</styleUrl>` : inlineStyle}
-                ${geomTag}
-            </Placemark>`;
+            if (geomTag) p.push(`<Placemark><name>${f.name || 'Element'}</name>${styleBlock}${geomTag}</Placemark>`);
         });
-        kml += '</Folder>';
+        p.push('</Folder>');
     }
 
     // --- CARROYAGE ---
-    kml += '<Folder><name>Carroyage CADO</name>';
-    kml += '<Placemark><name>Point de Référence</name><styleUrl>#referenceCircleStyle</styleUrl><Polygon><outerBoundaryIs><LinearRing><coordinates>' + gridData.referencePointCircle.map(p => p.join(",") + ",0").join(" ") + '</coordinates></LinearRing></outerBoundaryIs></Polygon></Placemark>';
-    kml += '<Placemark><name>' + gridData.originPointPlacemark.name + '</name><styleUrl>#originPointStyle</styleUrl><Point><coordinates>' + gridData.originPointPlacemark.coordinates.join(",") + ',0</coordinates></Point></Placemark>';
-    
+    p.push('<Folder><name>Carroyage CADO</name>');
+    p.push(`<Placemark><name>Point de Référence</name><styleUrl>#referenceCircleStyle</styleUrl><Polygon><outerBoundaryIs><LinearRing><coordinates>${gridData.referencePointCircle.map(pt => pt.join(',') + ',0').join(' ')}</coordinates></LinearRing></outerBoundaryIs></Polygon></Placemark>`);
+    p.push(`<Placemark><name>${gridData.originPointPlacemark.name}</name><styleUrl>#originPointStyle</styleUrl><Point><coordinates>${gridData.originPointPlacemark.coordinates.join(',')},0</coordinates></Point></Placemark>`);
+
     if (config.includeGrid) {
-        kml += '<Folder><name>Lignes</name>';
+        p.push('<Folder><name>Lignes</name>');
         gridData.horizontalLines.concat(gridData.verticalLines).forEach(line => {
-            kml += '<Placemark><name>' + line.name + '</name><styleUrl>#gridLineStyle</styleUrl><LineString><tessellate>1</tessellate><coordinates>' + line.points.map(p => p.join(",") + ",0").join(" ") + '</coordinates></LineString></Placemark>';
+            p.push(`<Placemark><name>${line.name}</name><styleUrl>#gridLineStyle</styleUrl><LineString><tessellate>1</tessellate><coordinates>${line.points.map(pt => pt.join(',') + ',0').join(' ')}</coordinates></LineString></Placemark>`);
         });
-        kml += '</Folder>';
+        p.push('</Folder>');
     }
-    
+
     if (config.includePoints) {
-        kml += '<Folder><name>Points</name>';
+        p.push('<Folder><name>Points</name>');
         gridData.points.forEach(point => {
-            kml += '<Placemark><name>' + point.name + '</name><styleUrl>#point_' + point.name + '_style</styleUrl><Point><coordinates>' + point.coordinates.join(",") + ',0</coordinates></Point></Placemark>';
+            // Pour KMZ : inline de l'icône spécifique au point ; pour KML : style partagé suffit.
+            const styleBlock = isKmz
+                ? `<Style><IconStyle><scale>${iconScale}</scale><Icon><href>icons/${point.name}.png</href></Icon></IconStyle><LabelStyle><color>${labelColor}</color><scale>${labelScale}</scale></LabelStyle></Style>`
+                : `<styleUrl>#gridPointStyle</styleUrl>`;
+            p.push(`<Placemark><name>${point.name}</name>${styleBlock}<Point><coordinates>${point.coordinates.join(',')},0</coordinates></Point></Placemark>`);
         });
-        kml += '</Folder>';
+        p.push('</Folder>');
     }
-    
-    kml += '</Folder>';
-    kml += '</Document></kml>';
-    return kml;
+
+    // Double entrée
+    if (config.doubleEntry && config.includeGrid) {
+        const [a1Lon, a1Lat] = gridData.a1Corner;
+        const colsToDraw   = generateIndices(letterToNumber(config.startCol), letterToNumber(config.endCol));
+        const rowsToDraw   = generateIndices(config.startRow, config.endRow);
+        const rowsForLines = [...rowsToDraw, getNextIndex(rowsToDraw[rowsToDraw.length - 1])];
+        const colsForLines = [...colsToDraw, getNextIndex(colsToDraw[colsToDraw.length - 1])];
+        const lastRow = rowsForLines[rowsForLines.length - 1];
+        const lastCol = colsForLines[colsForLines.length - 1];
+        p.push(`<Style id="borderLabelStyle"><IconStyle><scale>0</scale></IconStyle><LabelStyle><color>${labelColor}</color><scale>${config.labelSize || 1}</scale></LabelStyle></Style>`);
+        p.push('<Folder><name>Labels Double Entrée</name>');
+        colsToDraw.forEach(i => {
+            const coords = calculateAndRotatePoint(i + 0.5, lastRow + 0.5, config, a1Lat, a1Lon);
+            const text = config.swapAxes ? i.toString() : numberToLetter(i);
+            p.push(`<Placemark><name>${text}</name><styleUrl>#borderLabelStyle</styleUrl><Point><coordinates>${coords[0]},${coords[1]},0</coordinates></Point></Placemark>`);
+        });
+        rowsToDraw.forEach(i => {
+            const coords = calculateAndRotatePoint(lastCol + 0.5, i + 0.5, config, a1Lat, a1Lon);
+            const text = config.swapAxes ? numberToLetter(i) : i.toString();
+            p.push(`<Placemark><name>${text}</name><styleUrl>#borderLabelStyle</styleUrl><Point><coordinates>${coords[0]},${coords[1]},0</coordinates></Point></Placemark>`);
+        });
+        p.push('</Folder>');
+    }
+
+    p.push('</Folder></Document></kml>');
+    return p.join('');
 }
 
 // --- GENERATION KMZ AVEC ASSETS IMPORTÉS ---
@@ -742,25 +844,54 @@ function generateGeoJSON(config, gridData) {
 }
 
 function generateGPX(config, gridData) {
-    let gpx = '<?xml version="1.0" encoding="UTF-8"?><gpx version="1.1" creator="CADO"><metadata><name>' + config.gridName + '</name></metadata>';
-    gpx += '<wpt lat="' + gridData.originPointPlacemark.coordinates[1] + '" lon="' + gridData.originPointPlacemark.coordinates[0] + '"><name>' + gridData.originPointPlacemark.name + '</name></wpt>';
+    const p = [];
+    p.push(`<?xml version="1.0" encoding="UTF-8"?><gpx version="1.1" creator="CADO"><metadata><name>${config.gridName}</name></metadata>`);
+    const orig = gridData.originPointPlacemark;
+    p.push(`<wpt lat="${orig.coordinates[1]}" lon="${orig.coordinates[0]}"><name>${orig.name}</name></wpt>`);
     if (config.includePoints) {
-        gridData.points.forEach(point => {
-            gpx += '<wpt lat="' + point.coordinates[1] + '" lon="' + point.coordinates[0] + '"><name>' + point.name + '</name></wpt>';
+        gridData.points.forEach(pt => {
+            p.push(`<wpt lat="${pt.coordinates[1]}" lon="${pt.coordinates[0]}"><name>${pt.name}</name></wpt>`);
         });
     }
-    gpx += '<trk><name>Point de Référence (cercle)</name><trkseg>';
-    gridData.referencePointCircle.forEach(p => { gpx += '<trkpt lat="' + p[1] + '" lon="' + p[0] + '"></trkpt>'; });
-    gpx += '</trkseg></trk>';
+    p.push(`<trk><name>Point de Référence (cercle)</name><trkseg>`);
+    p.push(gridData.referencePointCircle.map(c => `<trkpt lat="${c[1]}" lon="${c[0]}"></trkpt>`).join(''));
+    p.push('</trkseg></trk>');
     if (config.includeGrid) {
         gridData.horizontalLines.concat(gridData.verticalLines).forEach(line => {
             if (line.points.length > 1) {
-                gpx += '<trk><name>' + line.name + '</name><trkseg>';
-                line.points.forEach(p => { gpx += '<trkpt lat="' + p[1] + '" lon="' + p[0] + '"></trkpt>'; });
-                gpx += '</trkseg></trk>';
+                p.push(`<trk><name>${line.name}</name><trkseg>`);
+                p.push(line.points.map(c => `<trkpt lat="${c[1]}" lon="${c[0]}"></trkpt>`).join(''));
+                p.push('</trkseg></trk>');
             }
         });
     }
-    gpx += '</gpx>';
-    return gpx;
+    p.push('</gpx>');
+    return p.join('');
 }
+
+// --- INITIALISATION LISTENERS PREVIEW + SEED ---
+document.addEventListener('DOMContentLoaded', () => {
+    // Listeners sur tous les paramètres de grille
+    document.querySelectorAll('.grid-parameter').forEach(el => {
+        el.addEventListener('change', schedulePreviewUpdate);
+        el.addEventListener('input', schedulePreviewUpdate);
+    });
+    // Sélecteurs de couleur
+    document.querySelectorAll('#color-options .color-option').forEach(el => {
+        el.addEventListener('click', schedulePreviewUpdate);
+    });
+    // Double-entry checkbox (cas où non-couvert par .grid-parameter)
+    document.getElementById('double-entry')?.addEventListener('change', schedulePreviewUpdate);
+    // Deviation slider
+    document.getElementById('deviation')?.addEventListener('input', schedulePreviewUpdate);
+
+    // Attache le clic carte après init de la map (légère attente)
+    setTimeout(() => {
+        if (window.cadoMap) window.cadoMap.on('click', schedulePreviewUpdate);
+    }, 400);
+
+    // Init du SEED manager
+    setTimeout(() => {
+        if (typeof initSeedManager === 'function') initSeedManager();
+    }, 300);
+});
