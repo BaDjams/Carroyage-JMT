@@ -83,10 +83,12 @@ async function generateGridCSV(filename, useUtm, useCfsi, useCado, userPOIs, opt
             const nwL2 = CFSI_UTILS.wgs84ToL2E(north, west);
             const seL2 = CFSI_UTILS.wgs84ToL2E(south, east);
 
-            const lMinX = Math.floor(Math.min(nwL2.x, seL2.x) / 2000) * 2000;
-            const lMaxX = Math.ceil(Math.max(nwL2.x, seL2.x) / 2000) * 2000;
-            const lMinY = Math.floor(Math.min(nwL2.y, seL2.y) / 2000) * 2000;
-            const lMaxY = Math.ceil(Math.max(nwL2.y, seL2.y) / 2000) * 2000;
+            const rawMinX = Math.min(nwL2.x, seL2.x), rawMaxX = Math.max(nwL2.x, seL2.x);
+            const rawMinY = Math.min(nwL2.y, seL2.y), rawMaxY = Math.max(nwL2.y, seL2.y);
+            const lMinX = Math.floor(rawMinX / 2000) * 2000;
+            const lMaxX = Math.ceil(rawMaxX  / 2000) * 2000;
+            const lMinY = Math.floor(rawMinY / 2000) * 2000;
+            const lMaxY = Math.ceil(rawMaxY  / 2000) * 2000;
 
             for (let x = lMinX; x <= lMaxX; x += 2000) {
                 const pStart = CFSI_UTILS.l2EToWgs84(x, lMinY);
@@ -103,8 +105,7 @@ async function generateGridCSV(filename, useUtm, useCfsi, useCado, userPOIs, opt
                 for (let y = lMinY; y < lMaxY; y += 2000) {
                     const centerX = x + 1000;
                     const centerY = y + 1000;
-                    if (centerX < Math.min(nwL2.x, seL2.x) || centerX > Math.max(nwL2.x, seL2.x) ||
-                        centerY < Math.min(nwL2.y, seL2.y) || centerY > Math.max(nwL2.y, seL2.y)) { continue; }
+                    if (centerX < rawMinX || centerX > rawMaxX || centerY < rawMinY || centerY > rawMaxY) { continue; }
 
                     const comps = CFSI_UTILS.getComponentsFromLambert(centerX, centerY);
                     if (comps) {

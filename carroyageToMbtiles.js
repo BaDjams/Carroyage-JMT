@@ -7,15 +7,15 @@
 async function generateMbtilesProcess(filename, useUtm, useCfsi, useCado, bbox, baseZoom, userPOIs, optionalCadoData = null) {
     if (typeof window.initSqlJs !== 'function') throw new Error("SQL.js non chargé.");
 
+   
+
     // Configuration Zoom
     // On génère le zoom de base + 2 niveaux de sur-zoom pour la netteté en vol
     const minZ = baseZoom;
     const maxZ = Math.min(baseZoom + 2, 19); 
     const maxCanvasSize = 8192; // Limite de sécurité navigateur
-    const centerLon = (bbox.west + bbox.east) / 2;
-    const centerLat = (bbox.south + bbox.north) / 2;
-    
-    // Initialisation DB
+
+ // Initialisation DB
     const SQL = await window.initSqlJs({ locateFile: file => file });
     const db = new SQL.Database();
     
@@ -31,9 +31,7 @@ async function generateMbtilesProcess(filename, useUtm, useCfsi, useCado, bbox, 
     db.run("INSERT INTO metadata VALUES (?, ?)", ["bounds", `${bbox.west},${bbox.south},${bbox.east},${bbox.north}`]);
     db.run("INSERT INTO metadata VALUES (?, ?)", ["minzoom", String(minZ)]);
     db.run("INSERT INTO metadata VALUES (?, ?)", ["maxzoom", String(maxZ)]);
-    //db.run("INSERT INTO metadata VALUES (?, ?)", ["scheme", "tms"]); désactivé car DJI n'accepte pas le Overlay
-
-    db.run("INSERT INTO metadata VALUES (?, ?)", ["center", `${centerLon},${centerLat},${minZ}`]);
+    db.run("INSERT INTO metadata VALUES (?, ?)", ["scheme", "tms"]);
 
     // Configuration CADO
     let cadoConfig = null;
@@ -116,7 +114,8 @@ async function processZoomLevel(db, zoom, bbox, useUtm, useCfsi, cadoConfig, cad
     };
 
     // Récupération couleur globale (défaut noir)
-    const color = (cadoConfig && cadoConfig.gridColor) ? cadoConfig.gridColor : (document.getElementById('utm-grid-color') ? document.getElementById('utm-grid-color').value : "#000000");
+    const _colorEl = document.getElementById('utm-grid-color');
+    const color = (cadoConfig && cadoConfig.gridColor) ? cadoConfig.gridColor : (_colorEl ? _colorEl.value : "#000000");
     
     // --- DESSIN DES COUCHES ---
     

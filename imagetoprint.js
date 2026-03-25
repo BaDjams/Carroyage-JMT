@@ -1,15 +1,15 @@
 // imagetoprint.js
 
 function coordsToQuadKey(x, y, zoom) {
-    let quadKey = '';
+    const digits = [];
     for (let i = zoom; i > 0; i--) {
         let digit = 0;
         const mask = 1 << (i - 1);
         if ((y & mask) !== 0) { digit += 2; }
         if ((x & mask) !== 0) { digit += 1; }
-        quadKey += digit.toString();
+        digits.push(digit);
     }
-    return quadKey;
+    return digits.join('');
 }
 
 function itpLatLonToWorldPixels(lat, lon, zoom) {
@@ -39,12 +39,14 @@ function getCellOffsetFromOrigin(n) {
     return n; 
 }
 
+// Shared unit-conversion helpers (module-level, not re-created on each call)
+const metersToLatDegrees = (meters) => meters / 111320;
+const metersToLonDegrees = (meters, lat) => meters / (111320 * Math.cos(lat * Math.PI / 180));
+
 // --- GEOMETRIC CALCULATION ---
 // Calculates a geo point based on cell offsets relative to A1
 // colOffset: number of cells right (+)/left (-) of A1
 function calculateLocalGeoPoint(colOffset, rowOffset, config, a1Lat, a1Lon) {
-    const metersToLatDegrees = (meters) => meters / 111320;
-    const metersToLonDegrees = (meters, lat) => meters / (111320 * Math.cos(lat * Math.PI / 180));
 
     const xOffsetMeters = colOffset * config.scale;
     const yOffsetMeters = rowOffset * config.scale;
@@ -99,13 +101,11 @@ async function generateImageToPrint() {
         const [refLat, refLon] = coordsStr.split(',').map(c => parseFloat(c.trim()));
         
         const config = getGridConfiguration(refLat, refLon);
-        const gridNameBase = document.getElementById('grid-name-base').value || 'CADO Grid';
         const selectedMapId = document.getElementById('map-tile-provider').value;
         const mapConfig = MAP_LAYERS.find(m => m.id === selectedMapId);
         if (!mapConfig) throw new Error("Carte non trouvée !");
-        
+
         const addressValue = document.getElementById('address-search-input').value.trim();
-        config.gridNameBase = gridNameBase;
         config.lineWidth = parseInt(document.getElementById('line-thickness').value, 10) || 1;
 
         // --- 1. CALCUL CORRECT DE LA ZONE DE TÉLÉCHARGEMENT ---
@@ -123,29 +123,47 @@ async function generateImageToPrint() {
 
         const realA1Coords = getA1CornerCoordsForPrint(config);
 
-        // Buffer de sécurité en nombre de cases
-        const bufferCells = 2; 
+        // Nombre de cases de la grille (nécessaire pour le calcul de la BBox en mode centre)
+        const colsCount = getCadoCount(startColNum, endColNum);
+        const rowsCount = getCadoCount(startRowNum, endRowNum);
 
-        // On détermine les extrêmes min/max des offsets (peu importe le sens)
+        // Buffer de sécurité en nombre de cases
+        const bufferCells = 2;
+
         const minColOff = Math.min(colOffsetStart, colOffsetEnd);
         const maxColOff = Math.max(colOffsetStart, colOffsetEnd);
         const minRowOff = Math.min(rowOffsetStart, rowOffsetEnd);
         const maxRowOff = Math.max(rowOffsetStart, rowOffsetEnd);
-        
-        // Calcul des 4 coins de la BBox de téléchargement
-        // On applique les offsets relatifs à A1 (qui est notre 0,0 local pour calculateLocalGeoPoint)
-        const p1 = calculateLocalGeoPoint(minColOff - bufferCells, minRowOff - bufferCells, config, realA1Coords[1], realA1Coords[0]);
-        const p2 = calculateLocalGeoPoint(maxColOff + bufferCells, minRowOff - bufferCells, config, realA1Coords[1], realA1Coords[0]);
-        const p3 = calculateLocalGeoPoint(maxColOff + bufferCells, maxRowOff + bufferCells, config, realA1Coords[1], realA1Coords[0]);
-        const p4 = calculateLocalGeoPoint(minColOff - bufferCells, maxRowOff + bufferCells, config, realA1Coords[1], realA1Coords[0]);
 
-        const lats = [p1[1], p2[1], p3[1], p4[1]];
-        const lons = [p1[0], p2[0], p3[0], p4[0]];
-        const downloadBoundingBox = { 
-            north: Math.max(...lats), 
-            south: Math.min(...lats), 
-            east: Math.max(...lons), 
-            west: Math.min(...lons) 
+        // BBox de téléchargement.
+        // En mode "centre", on calcule la BBox symétriquement autour du pivot géographique (centre de la
+        // grille) et non autour de A1. Sans cette correction, pour une grille avec des colonnes négatives
+        // (ex : -F à G), A1 n'est pas au centre géographique et la carte téléchargée ne couvre pas la
+        // partie positive de la grille (le fond de carte s'arrête à la moitié droite).
+        let bboxP1, bboxP2, bboxP3, bboxP4;
+        if (config.referencePointChoice === 'center') {
+            const halfCols = colsCount / 2 + bufferCells;
+            const halfRows = rowsCount / 2 + bufferCells;
+            const cLat = config.latitude;
+            const cLon = config.longitude;
+            bboxP1 = calculateLocalGeoPoint(-halfCols, -halfRows, config, cLat, cLon);
+            bboxP2 = calculateLocalGeoPoint( halfCols, -halfRows, config, cLat, cLon);
+            bboxP3 = calculateLocalGeoPoint( halfCols,  halfRows, config, cLat, cLon);
+            bboxP4 = calculateLocalGeoPoint(-halfCols,  halfRows, config, cLat, cLon);
+        } else {
+            bboxP1 = calculateLocalGeoPoint(minColOff - bufferCells, minRowOff - bufferCells, config, realA1Coords[1], realA1Coords[0]);
+            bboxP2 = calculateLocalGeoPoint(maxColOff + bufferCells, minRowOff - bufferCells, config, realA1Coords[1], realA1Coords[0]);
+            bboxP3 = calculateLocalGeoPoint(maxColOff + bufferCells, maxRowOff + bufferCells, config, realA1Coords[1], realA1Coords[0]);
+            bboxP4 = calculateLocalGeoPoint(minColOff - bufferCells, maxRowOff + bufferCells, config, realA1Coords[1], realA1Coords[0]);
+        }
+
+        const lats = [bboxP1[1], bboxP2[1], bboxP3[1], bboxP4[1]];
+        const lons = [bboxP1[0], bboxP2[0], bboxP3[0], bboxP4[0]];
+        const downloadBoundingBox = {
+            north: Math.max(...lats),
+            south: Math.min(...lats),
+            east: Math.max(...lons),
+            west: Math.min(...lons)
         };
         
         // 2. ZOOM
@@ -179,11 +197,15 @@ async function generateImageToPrint() {
             marginTop = marginLarge;
             marginBottom = marginSmall;
         }
+
+        // Double entrée : labels des deux côtés → agrandir aussi marginRight et le côté opposé
+        if (config.doubleEntry) {
+            marginRight = marginLarge;
+            if (config.letteringDirection === 'ascending') marginTop = marginLarge;
+            else marginBottom = marginLarge;
+        }
         
         // Calcul dimensions grille en pixels
-        const colsCount = getCadoCount(startColNum, endColNum);
-        const rowsCount = getCadoCount(startRowNum, endRowNum);
-        
         const gridWidthPx = colsCount * scalePx;
         const gridHeightPx = rowsCount * scalePx;
         
@@ -199,12 +221,14 @@ async function generateImageToPrint() {
         finalCtx.fillRect(0, 0, finalWidth, finalHeight);
 
         // 5. PLACEMENT DU PIVOT
-        const pivotGeoLat = (config.referencePointChoice === 'center') ? config.latitude : realA1Coords[1];
-        const pivotGeoLon = (config.referencePointChoice === 'center') ? config.longitude : realA1Coords[0];
-        
+        const isCenterMode = config.referencePointChoice === 'center';
+        const pivotGeoLat = isCenterMode ? config.latitude : realA1Coords[1];
+        const pivotGeoLon = isCenterMode ? config.longitude : realA1Coords[0];
+        const cosPivotLat = Math.cos(pivotGeoLat * Math.PI / 180);
+
         let pivotFinalX, pivotFinalY;
 
-        if (config.referencePointChoice === 'center') {
+        if (isCenterMode) {
             pivotFinalX = marginLeft + (gridWidthPx / 2);
             pivotFinalY = marginTop + (gridHeightPx / 2);
         } else {
@@ -258,7 +282,7 @@ async function generateImageToPrint() {
                 const dLat = lat - pivotGeoLat;
                 const dLon = lon - pivotGeoLon;
                 const dY_meters = dLat * 111320;
-                const dX_meters = dLon * 111320 * Math.cos(pivotGeoLat * Math.PI / 180);
+                const dX_meters = dLon * 111320 * cosPivotLat;
                 const angleRad = -config.deviation * Math.PI / 180;
                 const rotX_m = dX_meters * Math.cos(angleRad) - dY_meters * Math.sin(angleRad);
                 const rotY_m = dX_meters * Math.sin(angleRad) + dY_meters * Math.cos(angleRad);
@@ -280,7 +304,7 @@ async function generateImageToPrint() {
             const dLat = lat - pivotGeoLat;
             const dLon = lon - pivotGeoLon;
             const dY_meters = dLat * 111320;
-            const dX_meters = dLon * 111320 * Math.cos(pivotGeoLat * Math.PI / 180);
+            const dX_meters = dLon * 111320 * cosPivotLat;
             return {
                 x: pivotFinalX + (dX_meters * pixelsPerMeter),
                 y: pivotFinalY - (dY_meters * pixelsPerMeter)
@@ -294,7 +318,7 @@ async function generateImageToPrint() {
             a1GeoForDrawLon = pivotGeoLon;
         } else {
             const mToDegLat = 1 / 111320;
-            const mToDegLon = 1 / (111320 * Math.cos(pivotGeoLat * Math.PI / 180));
+            const mToDegLon = 1 / (111320 * cosPivotLat);
             
             // Pour le dessin des labels, on doit recalculer le A1 virtuel si on est en mode "Center"
             // La logique est : A1 = Centre - (Distance Centre-A1)
@@ -377,8 +401,6 @@ function getRotatedBoundingBox(config, a1Coords) {
 function getA1CornerCoordsForPrint(config) {
     const refLat = config.latitude;
     const refLon = config.longitude;
-    const metersToLatDegrees = (meters) => meters / 111320;
-    const metersToLonDegrees = (meters, lat) => meters / (111320 * Math.cos(lat * Math.PI / 180));
     
     if (config.referencePointChoice === 'origin') {
         return [refLon, refLat];
@@ -447,8 +469,10 @@ async function createFinalCanvasWithLayers(boundingBox, zoom, mapConfig, onProgr
     const nwTile = { x: Math.floor(nwPixel.x / TILE_SIZE), y: Math.floor(nwPixel.y / TILE_SIZE) };
     const seTile = { x: Math.floor(sePixel.x / TILE_SIZE), y: Math.floor(sePixel.y / TILE_SIZE) };
     const totalTilesToDownload = (seTile.x - nwTile.x + 1) * (seTile.y - nwTile.y + 1) * mapConfig.layers.length;
+    const progressFactor = 100 / totalTilesToDownload;
+    const cacheBust = 't=' + Date.now();
     let downloadedCount = 0;
-    
+
     for (const layer of mapConfig.layers) {
         const tilePromises = [];
         for (let x = nwTile.x; x <= seTile.x; x++) {
@@ -461,18 +485,18 @@ async function createFinalCanvasWithLayers(boundingBox, zoom, mapConfig, onProgr
                 } else {
                     tileUrl = layer.url.replace('{z}', zoom).replace('{x}', x).replace('{y}', y);
                 }
-                const safeUrl = tileUrl + (tileUrl.includes('?') ? '&' : '?') + 't=' + Date.now();
+                const safeUrl = tileUrl + (tileUrl.includes('?') ? '&' : '?') + cacheBust;
                 const promise = new Promise((resolve) => {
                     const img = new Image();
                     img.crossOrigin = "Anonymous";
                     img.onload = () => {
                         downloadedCount++;
-                        if(onProgress) onProgress((downloadedCount / totalTilesToDownload) * 100);
+                        if(onProgress) onProgress(downloadedCount * progressFactor);
                         resolve({ img, x, y, success: true });
                     };
                     img.onerror = () => {
                         downloadedCount++;
-                        if(onProgress) onProgress((downloadedCount / totalTilesToDownload) * 100);
+                        if(onProgress) onProgress(downloadedCount * progressFactor);
                         resolve({ success: false }); 
                     };
                     img.src = safeUrl;

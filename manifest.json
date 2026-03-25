@@ -2,6 +2,7 @@
   "name": "Générateur CADO",
   "short_name": "CADO",
   "start_url": "./index.html",
+  "scope": "./",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#3b82f6",
