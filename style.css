@@ -37,8 +37,9 @@ body {
 }
 
 /* Styles des cartes Leaflet - RESPONSIVE ADAPTATIF */
-#zone-interactive-map, 
-#cado-interactive-map { 
+#zone-interactive-map,
+#cado-interactive-map,
+#creator-interactive-map {
     width: 100%;
     aspect-ratio: 1 / 1; /* Par défaut carré sur petit écran */
     margin-bottom: 1em;
