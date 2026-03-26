@@ -1,0 +1,648 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CADO Desktop</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#1a1a2e">
+
+<!-- Leaflet -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
+
+<!-- Crisis Mapper styles -->
+<link rel="stylesheet" href="crisis-mapper/styles-original.css">
+<link rel="stylesheet" href="crisis-mapper/vector-toolbar/vector-toolbar.css">
+<link rel="stylesheet" href="crisis-mapper/vector-toolbar/vector-toolbox.css">
+
+<!-- SQL.js (pour MBTiles) -->
+<script src="sql-wasm.js"></script>
+
+<!-- Leaflet -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+
+<style>
+/* ================================================================
+   DESKTOP.HTML — Styles propres + résolution des conflits CSS
+   ================================================================ */
+
+/* === Bouton retour mode mobile === */
+#desktop-back-btn {
+    position: fixed;
+    bottom: 10px;
+    right: 10px;
+    z-index: 2000;
+    background: rgba(30,30,50,0.85);
+    color: #fff;
+    border: 1px solid #555;
+    border-radius: 6px;
+    padding: 6px 12px;
+    font-size: 13px;
+    cursor: pointer;
+    backdrop-filter: blur(4px);
+    text-decoration: none;
+}
+#desktop-back-btn:hover { background: rgba(60,60,90,0.95); }
+
+/* === Panneau MBTiles (compact, coin bas-gauche sous la sidebar) === */
+#mbtiles-panel {
+    position: fixed;
+    bottom: 50px;
+    left: calc(3.5vw + 12px); /* juste à droite de la sidebar repliée */
+    z-index: 1500;
+    background: rgba(255,255,255,0.9);
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    padding: 5px 10px;
+    font-size: 12px;
+    backdrop-filter: blur(4px);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+}
+#mbtiles-panel label {
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin: 0;
+}
+#mbtiles-panel .mbtiles-status-badge { font-weight: bold; }
+#mbtiles-panel .mbtiles-info-bar { color: #666; font-size: 11px; }
+#mbtiles-panel .mbtiles-clear-btn {
+    cursor: pointer;
+    color: #c00;
+    font-weight: bold;
+    padding: 0 4px;
+    line-height: 1;
+}
+#mbtiles-panel .mbtiles-clear-btn.hidden,
+#mbtiles-panel .mbtiles-info-bar.hidden { display: none; }
+
+/* ================================================================
+   RÉSOLUTION DES CONFLITS DE POSITIONNEMENT (colonne droite)
+   La barre d'outils vectorielle occupe right:0.5% → right:~90px.
+   Tous les contrôles droits sont décalés à right:110px ou plus.
+   ================================================================ */
+
+/* 1. Indicateur de zoom — dégagé du toolbar vectoriel */
+.zoom-indicator {
+    right: 110px !important;
+    top: 10px !important;
+}
+
+/* 2. Bouton basemap — sous l'indicateur de zoom */
+.map-topright {
+    right: 110px !important;
+    top: 50px !important;
+}
+
+/* 3. Sélecteur basemap — sous le bouton basemap */
+.basemap-selector {
+    right: 110px !important;
+    top: 100px !important;
+    /* Ouvre vers le bas au lieu de la droite */
+}
+
+/* 4. Bouton d'ouverture du toolbar vectoriel (auto-généré par JS) —
+      placé sous le sélecteur basemap pour éviter le chevauchement */
+.vector-toolbar-btn {
+    top: 165px !important;
+    right: 110px !important;
+    padding: 8px 12px !important;   /* plus compact que l'original */
+    font-size: 13px !important;
+}
+
+/* ================================================================
+   RÉSOLUTION DU CONFLIT SIDEBAR / TOOLBOX VECTORIELLE
+   Les deux sont à left:0.5% — la toolbox est décalée à droite
+   de la sidebar repliée (3.5vw + gap).
+   ================================================================ */
+
+/* 5. Vector toolbox — décalée pour ne pas masquer la sidebar */
+.vector-toolbox {
+    left: calc(3.5vw + 12px) !important;
+    top: 8% !important;
+}
+
+/* ================================================================
+   CONFLIT .section-title
+   vector-toolbox.css (chargé en dernier) overrides styles-original.css
+   pour le sidebar. On restore le style original dans la sidebar.
+   ================================================================ */
+
+/* 6. Section-title dans la sidebar flottante */
+.floating-sidebar .section-title {
+    font-size: 0.8em !important;
+    font-weight: normal !important;
+    color: inherit !important;
+    text-align: left !important;
+    border-bottom: none !important;
+}
+
+/* ================================================================
+   DIVERS
+   ================================================================ */
+
+/* 7. .hidden défini avec !important dans styles-original.css — OK
+      mais s'assurer qu'il ne masque pas le panneau MBTiles */
+#mbtiles-panel .hidden { display: none !important; }
+
+/* 8. Éviter que le titre Crisis Mapper soit trop intrusif */
+.crisis-mapper-title {
+    font-size: 1vw !important;
+    opacity: 0.7;
+    top: 0.2% !important;
+    left: 50% !important;
+    transform: translateX(-50%) !important;
+}
+
+/* ================================================================
+   PANNEAU DE GESTION DES COUCHES (desktop-layers.js)
+   ================================================================ */
+
+.cado-layer-panel {
+    position: fixed;
+    bottom: 100px;
+    left: calc(3.5vw + 12px);
+    z-index: 1600;
+    width: 220px;
+    background: rgba(20, 20, 40, 0.92);
+    border: 1px solid rgba(255,255,255,0.18);
+    border-radius: 8px;
+    color: #e0e0e0;
+    font-size: 12px;
+    backdrop-filter: blur(6px);
+    box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+    user-select: none;
+}
+
+.clp-header {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 6px 8px;
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+    cursor: grab;
+    background: rgba(255,255,255,0.05);
+    border-radius: 8px 8px 0 0;
+}
+.clp-header:active { cursor: grabbing; }
+
+.clp-title {
+    flex: 1;
+    font-weight: bold;
+    font-size: 12px;
+    letter-spacing: 0.04em;
+}
+
+.clp-icon-btn {
+    background: none;
+    border: none;
+    color: #bbb;
+    cursor: pointer;
+    padding: 2px 5px;
+    border-radius: 4px;
+    font-size: 13px;
+    line-height: 1;
+    transition: background 0.15s, color 0.15s;
+}
+.clp-icon-btn:hover:not(:disabled) {
+    background: rgba(255,255,255,0.12);
+    color: #fff;
+}
+.clp-icon-btn:disabled { opacity: 0.3; cursor: default; }
+
+.clp-body { padding: 4px 0 6px; }
+
+.clp-list { max-height: 200px; overflow-y: auto; padding: 0 4px; }
+.clp-list::-webkit-scrollbar { width: 4px; }
+.clp-list::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 2px; }
+
+.clp-row {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    padding: 3px 4px;
+    border-radius: 4px;
+    transition: background 0.1s;
+}
+.clp-row:hover { background: rgba(255,255,255,0.06); }
+.clp-row-active { background: rgba(100,160,255,0.15); }
+
+.clp-vis-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 13px;
+    padding: 0 2px;
+    line-height: 1;
+    flex-shrink: 0;
+}
+
+.clp-layer-name {
+    flex: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    cursor: pointer;
+    font-size: 11px;
+    padding: 0 2px;
+}
+.clp-layer-active-text { color: #7ab8ff; font-weight: bold; }
+
+.clp-row-actions {
+    display: flex;
+    align-items: center;
+    gap: 1px;
+    flex-shrink: 0;
+}
+
+.clp-del-placeholder { display: inline-block; width: 24px; }
+
+.clp-footer {
+    padding: 6px 8px 2px;
+    border-top: 1px solid rgba(255,255,255,0.08);
+    margin-top: 4px;
+}
+
+.clp-export-btn {
+    width: 100%;
+    background: rgba(80,140,220,0.25);
+    border: 1px solid rgba(80,140,220,0.4);
+    color: #a0cfff;
+    cursor: pointer;
+    padding: 5px 8px;
+    border-radius: 5px;
+    font-size: 12px;
+    font-weight: bold;
+    transition: background 0.2s;
+}
+.clp-export-btn:hover:not(:disabled) {
+    background: rgba(80,140,220,0.45);
+    color: #fff;
+}
+.clp-export-btn:disabled { opacity: 0.5; cursor: default; }
+</style>
+</head>
+<body>
+
+<!-- Carte plein écran -->
+<div id="map"></div>
+
+<!-- Panneau MBTiles hors-ligne -->
+<div id="mbtiles-panel">
+    <label for="desktop-mbtiles-input">
+        🗺️ MBTiles :
+        <span class="mbtiles-status-badge text-xs font-bold text-gray-400">Aucun</span>
+        <input type="file" id="desktop-mbtiles-input" class="mbtiles-file-input" accept=".mbtiles" style="display:none">
+    </label>
+    <span class="mbtiles-info-bar hidden"></span>
+    <span class="mbtiles-clear-btn hidden" title="Effacer MBTiles">✕</span>
+</div>
+
+<!-- Sidebar flottante Crisis Mapper -->
+<div class="floating-sidebar collapsed" id="sidebar">
+  <div class="sidebar-content">
+    <!-- générée dynamiquement par updateSidebarSections() -->
+  </div>
+</div>
+
+<!-- Bouton fond de carte -->
+<div class="map-topright" id="toggleBasemap" aria-label="Changer le fond de carte" title="Changer le fond de carte" role="button" tabindex="0">🗺️</div>
+
+<!-- Menu déroulant des fonds de carte -->
+<div class="basemap-selector" id="basemapSelector">
+  <div class="basemap-option active" data-basemap="google" role="button" tabindex="0"><span>Google Hybride</span></div>
+  <div class="basemap-option" data-basemap="googlemaps" role="button" tabindex="0"><span>Google Maps</span></div>
+  <div class="basemap-option" data-basemap="osm" role="button" tabindex="0"><span>OpenStreetMap</span></div>
+  <div class="basemap-option" data-basemap="satellite" role="button" tabindex="0"><span>ESRI</span></div>
+</div>
+
+<!-- Boutons de contrôle en haut -->
+<div class="top-controls">
+  <div class="manage-markers-btn" id="manageMarkersBtn" aria-label="Gérer les marqueurs" title="Gérer les marqueurs" role="button" tabindex="0">📁</div>
+  <div class="manage-projects-btn" id="manageProjectsBtn" aria-label="Gérer les projets" title="Gérer les projets" role="button" tabindex="0">💾</div>
+  <div class="bulk-buttons-wrapper">
+    <div class="bulk-stuck-btn" id="bulkStuckBtn" title="Épingler tous les marqueurs" role="button" tabindex="0">📌</div>
+    <div class="bulk-unstuck-btn" id="bulkUnstuckBtn" title="Détacher tous les marqueurs" role="button" tabindex="0">
+      <span style="position:relative;display:inline-block;">
+        📌
+        <span style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);color:black;font-size:1.5em;font-weight:normal;line-height:2.5;">✕</span>
+      </span>
+    </div>
+    <div class="bulk-delete-btn" id="bulkDeleteBtn" title="Supprimer tous les marqueurs" role="button" tabindex="0">🗑️</div>
+  </div>
+</div>
+
+<!-- Barre de recherche d'adresse -->
+<div class="search-bar" id="searchBar">
+  <input type="text" id="addressInput" placeholder="Rechercher une adresse..." aria-label="Rechercher une adresse">
+  <div class="suggestions" id="suggestions" role="listbox"></div>
+</div>
+
+<!-- Titre -->
+<div class="crisis-mapper-title">CADO DESKTOP - 2025</div>
+
+<!-- Boîte à outils marqueurs -->
+<div id="markerToolbox">
+  <div class="tool-icon" data-action="delete" title="Supprimer le marqueur" role="button" tabindex="0">🗑️</div>
+  <div class="tool-icon" data-action="zoom-in" title="Agrandir le marqueur" role="button" tabindex="0">➕</div>
+  <div class="tool-icon" data-action="zoom-out" title="Réduire le marqueur" role="button" tabindex="0">➖</div>
+  <div class="tool-icon" data-action="rotate-cw" title="Tourner horaire" role="button" tabindex="0">↻</div>
+  <div class="tool-icon" data-action="rotate-ccw" title="Tourner anti-horaire" role="button" tabindex="0">↺</div>
+  <div class="tool-icon" data-action="stuck" title="Épingler/Détacher" role="button" tabindex="0">📌</div>
+  <div class="tool-icon" data-action="copy" title="Copier" role="button" tabindex="0">📋</div>
+  <div class="tool-icon" data-action="paste" title="Coller" role="button" tabindex="0">📄</div>
+</div>
+
+<!-- Indicateur de zoom -->
+<div class="zoom-indicator" id="zoomIndicator">Zoom : 13</div>
+
+<!-- Modal gestion des marqueurs -->
+<div id="manageMarkersModal" class="modal" style="display:none;">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h3>Gestion des marqueurs</h3>
+      <span class="close" id="closeMarkersModal" title="Fermer" role="button" tabindex="0">&times;</span>
+    </div>
+    <div class="modal-body">
+      <div class="unified-management">
+        <div class="tree-management">
+          <h4>Gestion des sections et marqueurs</h4>
+          <div class="tree-container">
+            <div class="tree-actions">
+              <button id="addSectionBtn" class="btn btn-primary">+ Section</button>
+              <button id="addMarkerBtn" class="btn btn-secondary">+ Marqueur</button>
+            </div>
+            <div class="tree-list" id="treeList"></div>
+          </div>
+        </div>
+        <div class="import-export-section">
+          <h4>Charger/Sauvegarder des marqueurs</h4>
+          <div class="import-export-buttons">
+            <button id="exportMarkersBtn" class="btn btn-primary">Sauvegarder les marqueurs</button>
+            <button id="importMarkersBtn" class="btn btn-secondary">Charger les marqueurs</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button id="closeMarkersBtn" class="btn btn-secondary">Fermer</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal gestion des projets -->
+<div id="manageProjectsModal" class="modal" style="display:none;">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h3>Gestion des projets</h3>
+      <span class="close" id="closeProjectsModal" title="Fermer" role="button" tabindex="0">&times;</span>
+    </div>
+    <div class="modal-body">
+      <div class="project-management">
+        <h4>Charger/Sauvegarder un projet complet</h4>
+        <p>Un projet inclut tous les marqueurs placés sur la carte avec leurs positions exactes.</p>
+        <div class="project-buttons">
+          <button id="exportProjectBtn" class="btn btn-primary">Sauvegarder le projet</button>
+          <button id="importProjectBtn" class="btn btn-secondary">Charger un projet</button>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button id="closeProjectsBtn" class="btn btn-secondary">Fermer</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toolbox vectorielle : contenu généré dynamiquement par vector-toolbar.js -->
+<div id="vectorToolbox" style="display:none;"></div>
+
+<!-- Inputs fichiers cachés -->
+<input type="file" id="importFile" accept=".json" style="display:none;">
+<input type="file" id="importProjectFile" accept=".json" style="display:none;">
+
+<!-- Bouton retour mode mobile -->
+<a id="desktop-back-btn" href="index.html?mode=mobile" title="Revenir à l'interface mobile">📱 Mode mobile</a>
+
+<!-- Scripts Crisis Mapper -->
+<script src="crisis-mapper/script-complete.js"></script>
+<script src="crisis-mapper/vector-toolbar/config.js"></script>
+<script src="crisis-mapper/vector-toolbar/vector-toolbar.js"></script>
+<script src="crisis-mapper/vector-toolbar/vector-toolbox.js"></script>
+
+<!-- Moteur carroyage précis (partagé avec l'app mobile) -->
+<script src="utilities.js"></script>
+<script src="carroyageCado.js"></script>
+
+<!-- tileSource.js (MBTiles partagé) -->
+<script src="tileSource.js"></script>
+
+<!-- Pont grille précise : remplace createGrid() de VectorToolbar par le moteur CADO -->
+<script>
+(function () {
+    // La classe VectorToolbar est définie mais l'instance n'est pas encore créée
+    // (elle se crée dans DOMContentLoaded). On patche le prototype maintenant.
+    if (typeof VectorToolbar === 'undefined') {
+        console.warn('[CADO] VectorToolbar non trouvé – moteur précis non activé');
+        return;
+    }
+
+    VectorToolbar.prototype.createGrid = function (clickedLatLng, scale, width, height, color, opacity, showCoordinates, gridInfo) {
+
+        if (typeof calculateGridData !== 'function' || typeof calculateAndRotatePoint !== 'function') {
+            console.error('[CADO] Fonctions CADO manquantes');
+            return null;
+        }
+
+        // Construire la config pour le moteur CADO
+        // origin = clic utilisateur = coin SW de la grille (cellule A1)
+        var config = {
+            latitude:             clickedLatLng.lat,
+            longitude:            clickedLatLng.lng,
+            scale:                scale,
+            gridColor:            color || '#FFFFFF',
+            colorName:            '',
+            colorOpacity:         (typeof opacity === 'number') ? opacity : 1,
+            gridNameBase:         (gridInfo && gridInfo.name) || 'CADO Grid',
+            gridName:             (gridInfo && gridInfo.name) || 'CADO Grid',
+            deviation:            0,
+            labelSize:            12,
+            iconSize:             2,
+            referencePointChoice: 'origin',
+            letteringDirection:   'ascending',
+            startRow:  1,
+            endRow:    height,
+            startCol:  'A',
+            endCol:    numberToLetter(width),
+            includeGrid:   true,
+            includePoints: false,
+            outputFormat:  'kml',
+            swapAxes:     false,
+            doubleEntry:  false
+        };
+
+        var gridData = calculateGridData(config);
+        var hLines   = gridData.horizontalLines;
+        var vLines   = gridData.verticalLines;
+        var a1Lon    = gridData.a1Corner[0];
+        var a1Lat    = gridData.a1Corner[1];
+
+        // Dériver les vecteurs unitaires (lat/lng par case) depuis les intersections exactes
+        var latOffset = (hLines.length >= 2)
+            ? hLines[1].points[0][1] - hLines[0].points[0][1]
+            : scale / 111320;
+        var lngOffset = (hLines[0].points.length >= 2)
+            ? hLines[0].points[1][0] - hLines[0].points[0][0]
+            : scale / (111320 * Math.cos(clickedLatLng.lat * Math.PI / 180));
+
+        // Coin SW de la grille étendue (1 case de bordure en dehors de la grille réelle)
+        var startLat = a1Lat - latOffset;
+        var startLng = a1Lon - lngOffset;
+
+        var lineOpts = { color: color || '#FFFFFF', weight: 1, opacity: config.colorOpacity };
+        var gridGroup = L.layerGroup();
+
+        // === Lignes précises (moteur CADO) ===
+        hLines.concat(vLines).forEach(function (line) {
+            if (!line.points || line.points.length < 2) return;
+            var pts = line.points.map(function (p) { return [p[1], p[0]]; }); // [lon,lat]→[lat,lng]
+            gridGroup.addLayer(L.polyline(pts, lineOpts));
+        });
+
+        // === 4 lignes de bordure étendue (cosmétique, approximation acceptable) ===
+        var extW = width + 2, extH = height + 2;
+        var bOpts = lineOpts;
+        // bords bas et haut
+        gridGroup.addLayer(L.polyline([[startLat, startLng], [startLat, startLng + extW * lngOffset]], bOpts));
+        gridGroup.addLayer(L.polyline([[startLat + extH * latOffset, startLng], [startLat + extH * latOffset, startLng + extW * lngOffset]], bOpts));
+        // bords gauche et droite
+        gridGroup.addLayer(L.polyline([[startLat, startLng], [startLat + extH * latOffset, startLng]], bOpts));
+        gridGroup.addLayer(L.polyline([[startLat, startLng + extW * lngOffset], [startLat + extH * latOffset, startLng + extW * lngOffset]], bOpts));
+
+        // === Labels de cases (style CADO : lettre+chiffre) ===
+        if (showCoordinates) {
+            generateIndices(1, width).forEach(function (col) {
+                generateIndices(1, height).forEach(function (row) {
+                    var label = numberToLetter(col) + row;
+                    var pt = calculateAndRotatePoint(col + 0.5, row + 0.5, config, a1Lat, a1Lon);
+                    gridGroup.addLayer(L.marker([pt[1], pt[0]], {
+                        icon: L.divIcon({
+                            className: '',
+                            html: '<div style="color:' + color + ';font-weight:bold;font-size:11px;opacity:0.7;white-space:nowrap;text-shadow:0 0 2px #fff,0 0 2px #000;">' + label + '</div>',
+                            iconAnchor: [0, 0]
+                        }),
+                        interactive: false
+                    }));
+                });
+            });
+        }
+
+        // === Décorations (boussole, échelle, coins colorés, coord externes, encart info) ===
+        this.addColorSquares(gridGroup, startLat, startLng, latOffset, lngOffset, width, height, config.colorOpacity);
+        this.addCompassToGrid(gridGroup, startLat, startLng, latOffset, lngOffset, width, height, color, config.colorOpacity);
+        this.addScaleToGrid(gridGroup, startLat, startLng, latOffset, lngOffset, width, height, color, config.colorOpacity, scale);
+        this.addExternalCoordinates(gridGroup, startLat, startLng, latOffset, lngOffset, width, height, color);
+        this.addInfoPanel(gridGroup, startLat, startLng, latOffset, lngOffset, width, height, gridInfo || {});
+
+        // === Ajout à la carte et enregistrement ===
+        if (window.layerManager) {
+            window.layerManager.addToActiveLayer(gridGroup, 'carroyage');
+        } else {
+            gridGroup.addTo(window.map);
+        }
+        this.vectorElements.push(gridGroup);
+        gridGroup._gridParams = {
+            centerLatLng: clickedLatLng, scale: scale,
+            width: width, height: height,
+            color: color, opacity: opacity,
+            showCoordinates: showCoordinates, gridInfo: gridInfo
+        };
+        this.storeOriginalLineStyles(gridGroup);
+        this.makeGridSelectable(gridGroup);
+        this.addElementToToolbox(gridGroup, 'grid', 'Grille ' + width + '\xD7' + height + ' (' + scale + 'm/case)');
+        this.showMessage('Grille CADO pr\xE9cise ' + width + '\xD7' + height + ' \u2013 ' + scale + '\u202Fm/case', 'success');
+        this.deactivateTool();
+        return gridGroup;
+    };
+
+    console.log('[CADO] Moteur de carroyage pr\xE9cis inject\xE9 dans VectorToolbar');
+})();
+</script>
+
+<!-- Pont MBTiles → couche Leaflet -->
+<script>
+(function () {
+    // Couche Leaflet custom lisant les tuiles depuis tileSourceReadTile()
+    var MbtilesTileLayer = L.TileLayer.extend({
+        createTile: function (coords, done) {
+            var el = document.createElement('img');
+            el.setAttribute('role', 'presentation');
+            var url = tileSourceReadTile(coords.x, coords.y, coords.z);
+            if (url) {
+                el.onload  = function () { done(null, el); };
+                el.onerror = function () { done(null, el); };
+                el.src = url;
+            } else {
+                setTimeout(function () { done(null, el); }, 0);
+            }
+            return el;
+        }
+    });
+
+    var _mbtilesLayer = null;
+    var _previousLayer = null;
+
+    // Appelé par tileSource.js à chaque chargement/effacement
+    window.tileSourceOnChange = function (info) {
+        if (!window.map) return;
+
+        if (info) {
+            // Mémoriser la couche de fond active puis la masquer
+            if (!_mbtilesLayer) {
+                map.eachLayer(function (l) {
+                    if (l instanceof L.TileLayer && !(l instanceof MbtilesTileLayer)) {
+                        _previousLayer = l;
+                        map.removeLayer(l);
+                    }
+                });
+                _mbtilesLayer = new MbtilesTileLayer('', {
+                    maxZoom: Math.max.apply(null, tileSourceGetZooms()),
+                    attribution: info.name + ' (MBTiles)'
+                });
+                _mbtilesLayer.addTo(map);
+            }
+        } else {
+            // Effacer la couche MBTiles et restaurer le fond précédent
+            if (_mbtilesLayer) {
+                map.removeLayer(_mbtilesLayer);
+                _mbtilesLayer = null;
+            }
+            if (_previousLayer) {
+                _previousLayer.addTo(map);
+                _previousLayer = null;
+            }
+        }
+    };
+})();
+</script>
+
+<!-- imagetoprint.js : itpLatLonToWorldPixels, coordsToQuadKey (utilisés par desktop-layers.js) -->
+<script src="imagetoprint.js"></script>
+
+<!-- Gestionnaire de couches desktop -->
+<script src="desktop-layers.js"></script>
+
+<!-- Service Worker (même PWA que l'app mobile) -->
+<script>
+if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('./sw.js').catch(function (e) {
+        console.warn('SW non enregistré :', e);
+    });
+}
+</script>
+
+</body>
+</html>

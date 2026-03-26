@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Toolbox Vectorielle - Crisis Mapper</title>
+    <link rel="stylesheet" href="vector-toolbox.css">
+    <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@300;400;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <!-- Toolbox Vectorielle -->
+    <div id="vectorToolbox" class="vector-toolbox" style="display: none;">
+        <!-- En-tête de la toolbox -->
+        <div class="toolbox-header">
+            <div class="toolbox-title">
+                <span class="toolbox-icon">🔧</span>
+                <span class="toolbox-text">Outils Vectoriels</span>
+            </div>
+            <div class="toolbox-controls">
+                <button class="control-btn" id="minimizeToolbox" title="Réduire">
+                    <span>−</span>
+                </button>
+                <button class="control-btn" id="closeToolbox" title="Fermer">
+                    <span>×</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Contenu de la toolbox -->
+        <div class="toolbox-content" id="toolboxContent">
+            <!-- Section des éléments vectoriels -->
+            <div class="toolbox-section collapsed">
+                <div class="section-header">
+                    <span class="section-icon">📐</span>
+                    <span class="section-title">Éléments Vectoriels</span>
+                    <span class="element-count" id="elementCount">0</span>
+                </div>
+                <div class="section-content">
+                    <div class="element-list" id="elementList">
+                        <!-- Les éléments vectoriels seront ajoutés ici dynamiquement -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Section des actions -->
+            <div class="toolbox-section collapsed">
+                <div class="section-header">
+                    <span class="section-icon">⚙️</span>
+                    <span class="section-title">Actions</span>
+                </div>
+                <div class="section-content">
+                    <button class="action-btn" id="saveAllVectors" title="Sauvegarder tous les éléments">
+                        <span class="btn-icon">💾</span>
+                        <span class="btn-text">Sauvegarder</span>
+                    </button>
+                    <button class="action-btn" id="clearAllVectors" title="Supprimer tous les éléments">
+                        <span class="btn-icon">🗑️</span>
+                        <span class="btn-text">Vider</span>
+                    </button>
+                    <button class="action-btn" id="exportVectors" title="Exporter les éléments">
+                        <span class="btn-icon">📤</span>
+                        <span class="btn-text">Exporter</span>
+                    </button>
+                    <button class="action-btn" id="importVectors" title="Importer des éléments">
+                        <span class="btn-icon">📥</span>
+                        <span class="btn-text">Importer</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Section des paramètres dynamiques -->
+            <div class="toolbox-section" id="toolParametersSection">
+                <div class="section-header">
+                    <span class="section-icon">🎨</span>
+                    <span class="section-title">Paramètres</span>
+                    <span class="toggle-icon">▼</span>
+                </div>
+                <div class="section-content" id="toolParametersContent" style="display: block;">
+                    <!-- Le contenu sera généré dynamiquement selon l'outil sélectionné -->
+                    <div class="no-tool-selected">
+                        <p>Sélectionnez un outil pour voir ses paramètres</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modales pour les actions -->
+    <div id="vectorModals"></div>
+
+    <!-- Scripts -->
+    <script src="config.js"></script>
+    <script src="vector-toolbox.js"></script>
+</body>
+</html>

@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>CRISIS MAPPER</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
+<link rel="stylesheet" href="styles-original.css"/>
+<link rel="stylesheet" href="vector-toolbar/vector-toolbar.css"/>
+<link rel="stylesheet" href="vector-toolbar/vector-toolbox.css"/>
+</head>
+<body>
+<div id="map"></div>
+
+<div class="floating-sidebar collapsed" id="sidebar">
+  <div class="sidebar-content">
+    <!-- La sidebar sera générée dynamiquement par updateSidebarSections() -->
+  </div>
+</div>
+
+<div class="map-topright" id="toggleBasemap" aria-label="Changer le fond de carte" title="Changer le fond de carte" role="button" tabindex="0">🗺️</div>
+
+<!-- Menu déroulant des fonds de carte -->
+<div class="basemap-selector" id="basemapSelector">
+  <div class="basemap-option active" data-basemap="google" aria-label="Utiliser Google Hybride comme fond de carte" role="button" tabindex="0">
+    <span>Google Hybride</span>
+  </div>
+  <div class="basemap-option" data-basemap="googlemaps" aria-label="Utiliser Google Maps comme fond de carte" role="button" tabindex="0">
+    <span>Google Maps</span>
+  </div>
+  <div class="basemap-option" data-basemap="osm" aria-label="Utiliser OpenStreetMap comme fond de carte" role="button" tabindex="0">
+    <span>OpenStreetMap</span>
+  </div>
+  <div class="basemap-option" data-basemap="satellite" aria-label="Utiliser ESRI Satellite comme fond de carte" role="button" tabindex="0">
+    <span>ESRI</span>
+  </div>
+</div>
+
+<!-- Container pour tous les boutons du haut -->
+<div class="top-controls">
+  <!-- Bouton de gestion des marqueurs -->
+  <div class="manage-markers-btn" id="manageMarkersBtn" aria-label="Gérer les marqueurs" title="Gérer les marqueurs" role="button" tabindex="0">📁</div>
+
+  <!-- Bouton de gestion des projets -->
+  <div class="manage-projects-btn" id="manageProjectsBtn" aria-label="Gérer les projets" title="Gérer les projets" role="button" tabindex="0">💾</div>
+  
+  <!-- Bouton de la barre d'outils vectorielle -->
+  
+  <!-- Container pour les nouveaux boutons de gestion des marqueurs -->
+  <div class="bulk-buttons-wrapper">
+    <div class="bulk-stuck-btn" id="bulkStuckBtn" aria-label="Épingler tous les marqueurs" title="Épingler tous les marqueurs" role="button" tabindex="0">📌</div>
+    <div class="bulk-unstuck-btn" id="bulkUnstuckBtn" aria-label="Détacher tous les marqueurs" title="Détacher tous les marqueurs" role="button" tabindex="0">
+      <span style="position: relative; display: inline-block;">
+        📌
+        <span style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: black; font-size: 1.5em; font-weight: normal; line-height: 2.5;">✕</span>
+      </span>
+    </div>
+    <div class="bulk-delete-btn" id="bulkDeleteBtn" aria-label="Supprimer tous les marqueurs" title="Supprimer tous les marqueurs" role="button" tabindex="0">🗑️</div>
+  </div>
+</div>
+
+<div class="search-bar" id="searchBar">
+  <input type="text" id="addressInput" placeholder="Rechercher une adresse..." aria-label="Rechercher une adresse" aria-describedby="suggestions">
+  <div class="suggestions" id="suggestions" role="listbox" aria-label="Suggestions d'adresses"></div>
+</div>
+
+<!-- Titre CRISIS MAPPER -->
+<div class="crisis-mapper-title">CRISIS MAPPER - 2025</div>
+
+<div id="markerToolbox">
+  <div class="tool-icon" data-action="delete" aria-label="Supprimer le marqueur" title="Supprimer le marqueur" role="button" tabindex="0">🗑️</div>
+  <div class="tool-icon" data-action="zoom-in" aria-label="Agrandir le marqueur" title="Agrandir le marqueur" role="button" tabindex="0">➕</div>
+  <div class="tool-icon" data-action="zoom-out" aria-label="Réduire le marqueur" title="Réduire le marqueur" role="button" tabindex="0">➖</div>
+  <div class="tool-icon" data-action="rotate-cw" aria-label="Tourner dans le sens horaire" title="Tourner dans le sens horaire" role="button" tabindex="0">↻</div> <!-- rotation horaire -->
+  <div class="tool-icon" data-action="rotate-ccw" aria-label="Tourner dans le sens anti-horaire" title="Tourner dans le sens anti-horaire" role="button" tabindex="0">↺</div> <!-- rotation anti-horaire -->
+  <div class="tool-icon" data-action="stuck" aria-label="Épingler/Détacher le marqueur" title="Épingler/Détacher le marqueur" role="button" tabindex="0">📌</div>
+  <div class="tool-icon" data-action="copy" aria-label="Copier le marqueur" title="Copier le marqueur" role="button" tabindex="0">📋</div>
+  <div class="tool-icon" data-action="paste" aria-label="Coller le marqueur" title="Coller le marqueur" role="button" tabindex="0">📄</div>
+</div>
+
+<!-- Indicateur de zoom -->
+<div class="zoom-indicator" id="zoomIndicator">Zoom : 13</div>
+
+<!-- Modal de gestion des marqueurs -->
+<div id="manageMarkersModal" class="modal" style="display: none;">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h3>Gestion des marqueurs</h3>
+      <span class="close" id="closeMarkersModal" aria-label="Fermer la fenêtre de gestion des marqueurs" title="Fermer" role="button" tabindex="0">&times;</span>
+    </div>
+    <div class="modal-body">
+      <!-- Interface unifiée -->
+      <div class="unified-management">
+        <div class="tree-management">
+          <h4>Gestion des sections et marqueurs</h4>
+          <div class="tree-container">
+            <div class="tree-actions">
+              <button id="addSectionBtn" class="btn btn-primary">+ Section</button>
+              <button id="addMarkerBtn" class="btn btn-secondary">+ Marqueur</button>
+      </div>
+            <div class="tree-list" id="treeList">
+              <!-- L'arborescence sera générée dynamiquement ici -->
+      </div>
+          </div>
+        </div>
+        
+        <div class="import-export-section">
+          <h4>Charger/Sauvegarder des marqueurs</h4>
+          <div class="import-export-buttons">
+            <button id="exportMarkersBtn" class="btn btn-primary">Sauvegarder les marqueurs</button>
+            <button id="importMarkersBtn" class="btn btn-secondary">Charger les marqueurs</button>
+          </div>
+        </div>
+        
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button id="closeMarkersBtn" class="btn btn-secondary">Fermer</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal de gestion des projets -->
+<div id="manageProjectsModal" class="modal" style="display: none;">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h3>Gestion des projets</h3>
+      <span class="close" id="closeProjectsModal" aria-label="Fermer la fenêtre de gestion des projets" title="Fermer" role="button" tabindex="0">&times;</span>
+    </div>
+    <div class="modal-body">
+      <div class="project-management">
+        <h4>Charger/Sauvegarder un projet complet</h4>
+        <p>Un projet inclut tous les marqueurs placés sur la carte avec leurs positions exactes.</p>
+        <div class="project-buttons">
+          <button id="exportProjectBtn" class="btn btn-primary">Sauvegarder le projet</button>
+          <button id="importProjectBtn" class="btn btn-secondary">Charger un projet</button>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button id="closeProjectsBtn" class="btn btn-secondary">Fermer</button>
+    </div>
+  </div>
+</div>
+
+<!-- Input caché pour le chargement -->
+<input type="file" id="importFile" accept=".json" style="display: none;">
+<input type="file" id="importProjectFile" accept=".json" style="display: none;">
+
+
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <script src="script-complete.js"></script>
+    <script src="vector-toolbar/config.js"></script>
+    <script src="vector-toolbar/vector-toolbar.js"></script>
+    <script src="vector-toolbar/vector-toolbox.js"></script>
+
+</body>
+</html>
