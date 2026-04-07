@@ -515,7 +515,8 @@ async function generateZonePNG() {
     const loadingIndicator = document.getElementById("loading-indicator");
     const loadingMessage = document.getElementById("loading-message");
     const upscaleEnabled = document.getElementById('zone-enable-upscale').checked;
-    
+    const zoneDeviationDeg = parseFloat(document.getElementById('zone-deviation')?.value || 0);
+
     // LECTURE DU PANEL 5
     const gridChoiceEl = document.querySelector('input[name="zone-grid-choice"]:checked');
     const gridChoice = gridChoiceEl ? gridChoiceEl.value : 'none';
@@ -587,7 +588,7 @@ async function generateZonePNG() {
         const needsExternalMargin = useUtm;
         
         // 1. Fond de Carte (Tuiles) - Z-INDEX 1
-        const { finalCanvas, dynamicMargin, scaleFactor, actualZoom } = await zdCreateFinalCanvas(finalBoundingBox, zoom, selectedMap, needsExternalMargin, upscaleEnabled);
+        const { finalCanvas, dynamicMargin, scaleFactor, actualZoom } = await zdCreateFinalCanvas(finalBoundingBox, zoom, selectedMap, needsExternalMargin, upscaleEnabled, zoneDeviationDeg);
         const ctx = finalCanvas.getContext('2d');
 
         const nwPixel = zdLatLonToWorldPixels(finalBoundingBox.north, finalBoundingBox.west, actualZoom);
@@ -611,10 +612,10 @@ async function generateZonePNG() {
             const cartoucheFontSize = Math.max(10 * scaleFactor, Math.min(48 * scaleFactor, finalCanvas.width * 0.007));
             await drawUtmGridOnCanvas(ctx, finalBoundingBox, latLonToCanvasPixels, dynamicMargin, cartoucheFontSize, baseThickness * scaleFactor);
         }
-        
+
         if (useCfsi) {
             loadingMessage.textContent = "Dessin du carroyage CFSI...";
-            const cfsiFontSize = Math.max(10 * scaleFactor, finalCanvas.width * 0.006); 
+            const cfsiFontSize = Math.max(10 * scaleFactor, finalCanvas.width * 0.006);
             // Note : dynamicMargin sera à 0 ici, ce qui est correct pour CFSI (pas de marge externe)
             await drawCfsiGridOnCanvas(ctx, finalBoundingBox, latLonToCanvasPixels, dynamicMargin, cfsiFontSize, baseThickness * scaleFactor);
         }
@@ -622,6 +623,7 @@ async function generateZonePNG() {
         if (useCado && cadoData) {
             loadingMessage.textContent = "Dessin du carroyage CADO...";
             const { config, a1CornerLat, a1CornerLon } = cadoData;
+            config.realDeviation = zoneDeviationDeg;
             drawCadoElementsOnCanvas(ctx, config, latLonToCanvasPixels, [a1CornerLon, a1CornerLat]);
             config.lineWidth = config.lineWidth / scaleFactor;
         }
@@ -663,15 +665,15 @@ async function generateZonePNG() {
                 const cartoucheFontSize = Math.max(10 * scaleFactor, Math.min(48 * scaleFactor, finalCanvas.width * 0.007));
                 const cartoucheTitle = `Export de ${userTitle}_zoom ${zoom}`;
                 const cartoucheMetrics = drawZoneCartouche(ctx, cartoucheTitle, finalBoundingBox, mapLayerName, zoom, dynamicMargin, cartoucheFontSize);
-                drawZoneCompass(ctx, finalCanvas.width, finalCanvas.height, dynamicMargin, cartoucheMetrics);
+                drawZoneCompass(ctx, finalCanvas.width, finalCanvas.height, dynamicMargin, cartoucheMetrics, zoneDeviationDeg);
             } else {
                 // Pour CFSI ou Aucun
-                const compassRadius = Math.max(10 * scaleFactor, finalCanvas.width * 0.012); 
-                const padding = compassRadius * 0.8; 
+                const compassRadius = Math.max(10 * scaleFactor, finalCanvas.width * 0.012);
+                const padding = compassRadius * 0.8;
                 const compassCenterX = finalCanvas.width - dynamicMargin - padding - compassRadius;
                 const compassCenterY = dynamicMargin + padding + compassRadius;
-                const compassFontSize = compassRadius * 0.9; 
-                drawSimpleCompass(ctx, compassCenterX, compassCenterY, compassRadius, compassFontSize);
+                const compassFontSize = compassRadius * 0.9;
+                drawSimpleCompass(ctx, compassCenterX, compassCenterY, compassRadius, compassFontSize, zoneDeviationDeg);
 
                 const avgLat = (north + south) / 2;
                 const realWidthMeters = haversineDistance({lat: avgLat, lon: west}, {lat: avgLat, lon: east});
@@ -719,7 +721,8 @@ async function generateZonePNG() {
             originString = `_origine=${cadoData.a1CornerLat.toFixed(6)},${cadoData.a1CornerLon.toFixed(6)}`;
         }
 
-        const fileName = `${rawTitle}_zoom${zoom}_${gridTypeStr}_${dateStr}${originString}${fileExtension}`;
+        const deviationStr = zoneDeviationDeg !== 0 ? `_dev${Math.round(zoneDeviationDeg)}deg` : '';
+        const fileName = `${rawTitle}_zoom${zoom}_${gridTypeStr}${deviationStr}_${dateStr}${originString}${fileExtension}`;
         
         exportCanvas.toBlob((blob) => {
             if (blob) { downloadFile(blob, fileName); } 
@@ -1144,55 +1147,73 @@ async function generatePoiKmlFolder(pois, imagesToZip, isKmz) {
 // FONCTIONS CANEVAS / HELPERS
 // =============================================================================
 
-async function zdCreateFinalCanvas(boundingBox, zoom, mapConfig, externalMargin, upscaleEnabled = true) {
+async function zdCreateFinalCanvas(boundingBox, zoom, mapConfig, externalMargin, upscaleEnabled = true, rotationAngleDeg = 0) {
     const actualZoom = (typeof tileSourceIsActive === 'function' && tileSourceIsActive())
         ? tileSourceGetBestZoom(zoom)
         : zoom;
 
     const nwPx = zdLatLonToWorldPixels(boundingBox.north, boundingBox.west, actualZoom);
     const sePx = zdLatLonToWorldPixels(boundingBox.south, boundingBox.east, actualZoom);
-    
+
     const natW = Math.abs(sePx.x - nwPx.x);
     const natH = Math.abs(sePx.y - nwPx.y);
-    
+
     const TARGET = 3840; // 4K
     let scale = 1;
     if (upscaleEnabled) {
         const maxDim = Math.max(natW, natH);
         if (maxDim < TARGET) {
             scale = TARGET / maxDim;
-            scale = Math.min(scale, 16); 
+            scale = Math.min(scale, 16);
         }
     }
-    
-    console.log(`[ZONE] Native: ${Math.round(natW)}x${Math.round(natH)} | Zoom: ${zoom} | Scale: ${scale}`);
+
+    console.log(`[ZONE] Native: ${Math.round(natW)}x${Math.round(natH)} | Zoom: ${zoom} | Scale: ${scale} | Rotation: ${rotationAngleDeg}°`);
+
+    // Si déviation, on calcule une bbox élargie pour que la zone originale
+    // soit entièrement couverte après rotation du fond de carte
+    let dlNwPx = nwPx;
+    let dlSePx = sePx;
+    let dlNatW = natW;
+    let dlNatH = natH;
+
+    if (rotationAngleDeg !== 0) {
+        const rad = Math.abs(rotationAngleDeg * Math.PI / 180);
+        const cos = Math.cos(rad), sin = Math.sin(rad);
+        dlNatW = natW * cos + natH * sin;
+        dlNatH = natW * sin + natH * cos;
+        const cx = (nwPx.x + sePx.x) / 2;
+        const cy = (nwPx.y + sePx.y) / 2;
+        dlNwPx = { x: cx - dlNatW / 2, y: cy - dlNatH / 2 };
+        dlSePx = { x: cx + dlNatW / 2, y: cy + dlNatH / 2 };
+    }
 
     const finalW = Math.round(natW * scale);
     const finalH = Math.round(natH * scale);
-    
+
     let margin = 0;
     if (externalMargin) {
         margin = Math.ceil(Math.max(10 * scale, Math.min(48 * scale, finalW * 0.007)) * 4);
     }
 
-    const tempC = document.createElement('canvas'); 
-    tempC.width = natW; 
-    tempC.height = natH;
+    const tempC = document.createElement('canvas');
+    tempC.width = Math.round(dlNatW);
+    tempC.height = Math.round(dlNatH);
     const tempCtx = tempC.getContext('2d');
-    
-    const finalC = document.createElement('canvas'); 
-    finalC.width = finalW + margin * 2; 
+
+    const finalC = document.createElement('canvas');
+    finalC.width = finalW + margin * 2;
     finalC.height = finalH + margin * 2;
     const ctx = finalC.getContext('2d');
-    
-    ctx.fillStyle = 'white'; 
-    ctx.fillRect(0,0,finalC.width, finalC.height);
-    ctx.imageSmoothingEnabled = true; 
+
+    ctx.fillStyle = 'white';
+    ctx.fillRect(0, 0, finalC.width, finalC.height);
+    ctx.imageSmoothingEnabled = true;
     ctx.imageSmoothingQuality = 'high';
 
-    const nwTile = { x: Math.floor(nwPx.x / ZD_TILE_SIZE), y: Math.floor(nwPx.y / ZD_TILE_SIZE) };
-    const seTile = { x: Math.floor(sePx.x / ZD_TILE_SIZE), y: Math.floor(sePx.y / ZD_TILE_SIZE) };
-    
+    const nwTile = { x: Math.floor(dlNwPx.x / ZD_TILE_SIZE), y: Math.floor(dlNwPx.y / ZD_TILE_SIZE) };
+    const seTile = { x: Math.floor(dlSePx.x / ZD_TILE_SIZE), y: Math.floor(dlSePx.y / ZD_TILE_SIZE) };
+
     if (typeof tileSourceIsActive === 'function' && tileSourceIsActive()) {
         // --- Mode MBTiles local ---
         for (let x = nwTile.x; x <= seTile.x; x++) {
@@ -1202,8 +1223,8 @@ async function zdCreateFinalCanvas(boundingBox, zoom, mapConfig, externalMargin,
                     await new Promise(resolve => {
                         const img = new Image();
                         img.onload = () => {
-                            const destX = Math.floor((x * ZD_TILE_SIZE) - nwPx.x);
-                            const destY = Math.floor((y * ZD_TILE_SIZE) - nwPx.y);
+                            const destX = Math.floor((x * ZD_TILE_SIZE) - dlNwPx.x);
+                            const destY = Math.floor((y * ZD_TILE_SIZE) - dlNwPx.y);
                             tempCtx.drawImage(img, destX, destY, ZD_TILE_SIZE + 1, ZD_TILE_SIZE + 1);
                             URL.revokeObjectURL(blobUrl);
                             resolve();
@@ -1239,15 +1260,26 @@ async function zdCreateFinalCanvas(boundingBox, zoom, mapConfig, externalMargin,
             }
             (await Promise.all(promises)).forEach(res => {
                 if (res.ok) {
-                    const destX = Math.floor((res.x * ZD_TILE_SIZE) - nwPx.x);
-                    const destY = Math.floor((res.y * ZD_TILE_SIZE) - nwPx.y);
+                    const destX = Math.floor((res.x * ZD_TILE_SIZE) - dlNwPx.x);
+                    const destY = Math.floor((res.y * ZD_TILE_SIZE) - dlNwPx.y);
                     tempCtx.drawImage(res.i, destX, destY, ZD_TILE_SIZE + 1, ZD_TILE_SIZE + 1);
                 }
             });
         }
     }
 
-    ctx.drawImage(tempC, margin, margin, finalW, finalH);
+    if (rotationAngleDeg !== 0) {
+        const dlFinalW = Math.round(dlNatW * scale);
+        const dlFinalH = Math.round(dlNatH * scale);
+        ctx.save();
+        ctx.translate(finalC.width / 2, finalC.height / 2);
+        ctx.rotate(-rotationAngleDeg * Math.PI / 180);
+        ctx.drawImage(tempC, -dlFinalW / 2, -dlFinalH / 2, dlFinalW, dlFinalH);
+        ctx.restore();
+    } else {
+        ctx.drawImage(tempC, margin, margin, finalW, finalH);
+    }
+
     return { finalCanvas: finalC, dynamicMargin: margin, scaleFactor: scale, actualZoom };
 }
 
@@ -1280,18 +1312,19 @@ function drawZoneCartouche(ctx, title, bbox, layerName, zoom, margin, fontSize) 
     return { fontSize, cartoucheHeight };
 }
 
-function drawZoneCompass(ctx, canvasWidth, canvasHeight, margin, cartoucheMetrics) {
+function drawZoneCompass(ctx, canvasWidth, canvasHeight, margin, cartoucheMetrics, rotationDeg = 0) {
     const radius = Math.max(20, (cartoucheMetrics.cartoucheHeight * 0.75) / 2);
-    const PADDING = radius * 1.6; 
+    const PADDING = radius * 1.6;
     const centerX = canvasWidth - margin - PADDING;
     const centerY = margin + PADDING;
     const compassFontSize = radius * 0.6;
-    drawSimpleCompass(ctx, centerX, centerY, radius, compassFontSize);
+    drawSimpleCompass(ctx, centerX, centerY, radius, compassFontSize, rotationDeg);
 }
 
-function drawSimpleCompass(ctx, x, y, radius, fontSize) {
+function drawSimpleCompass(ctx, x, y, radius, fontSize, rotationDeg = 0) {
     ctx.save();
     ctx.translate(x, y);
+    if (rotationDeg !== 0) ctx.rotate(-rotationDeg * Math.PI / 180);
     ctx.beginPath();
     ctx.arc(0, 0, radius, 0, 2 * Math.PI, false);
     ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';

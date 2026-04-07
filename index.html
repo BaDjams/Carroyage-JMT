@@ -424,19 +424,47 @@
                         <ul id="zone-suggestions" class="hidden"></ul>
                     </div>
                     <p class="text-sm text-secondary mb-2">Utilisez les outils sur la gauche de la carte pour dessiner votre zone rectangulaire, puis zoomez au niveau désiré.</p>
-                    <div id="zone-interactive-map"></div>
-                    <!-- MBTiles sous la carte zone -->
-                    <div class="flex flex-col gap-1 mt-2">
-                        <div class="flex items-center gap-2 flex-wrap">
-                            <span class="text-xs text-secondary font-medium">📦 MBTiles :</span>
-                            <label class="text-xs text-blue-600 cursor-pointer hover:underline">
-                                <input type="file" id="zone-mbtiles-input" accept=".mbtiles" class="mbtiles-file-input hidden">
-                                <span>Charger</span>
-                            </label>
-                            <span class="mbtiles-status-badge text-xs font-bold text-gray-400">Aucun</span>
-                            <button type="button" class="mbtiles-clear-btn hidden text-xs text-red-500 hover:underline">✕</button>
+                    <div id="zone-map-viewport" class="relative overflow-hidden">
+                        <div id="zone-interactive-map"></div>
+                    </div>
+                    <!-- MBTiles + Rotation sous la carte zone -->
+                    <div class="flex justify-between items-start mt-2 gap-2">
+                        <div class="flex flex-col gap-1">
+                            <div class="flex items-center gap-2 flex-wrap">
+                                <span class="text-xs text-secondary font-medium">📦 MBTiles :</span>
+                                <label class="text-xs text-blue-600 cursor-pointer hover:underline">
+                                    <input type="file" id="zone-mbtiles-input" accept=".mbtiles" class="mbtiles-file-input hidden">
+                                    <span>Charger</span>
+                                </label>
+                                <span class="mbtiles-status-badge text-xs font-bold text-gray-400">Aucun</span>
+                                <button type="button" class="mbtiles-clear-btn hidden text-xs text-red-500 hover:underline">✕</button>
+                            </div>
+                            <div class="mbtiles-info-bar text-xs text-gray-400 hidden bg-gray-50 dark:bg-gray-700 rounded px-2 py-1"></div>
                         </div>
-                        <div class="mbtiles-info-bar text-xs text-gray-400 hidden bg-gray-50 dark:bg-gray-700 rounded px-2 py-1"></div>
+                        <button id="toggle-zone-rotation-btn" type="button" class="text-sm text-blue-600 hover:underline dark:text-blue-400 font-medium flex items-center gap-1 whitespace-nowrap">
+                            <span>🔄 Configurer la rotation</span> <span>▼</span>
+                        </button>
+                    </div>
+
+                    <!-- BLOC CONTENU ROTATION ZONE (Masqué par défaut) -->
+                    <div id="zone-rotation-controls" class="hidden mt-2 p-4 bg-gray-100 rounded-lg border border-gray-300 dark:bg-gray-700 dark:border-gray-600 shadow-inner">
+                        <div class="flex flex-col space-y-3">
+                            <div class="flex items-center justify-between">
+                                <label for="zone-deviation" class="text-sm font-semibold text-content">Rotation du fond de carte :</label>
+                                <div class="flex items-center gap-2 bg-white dark:bg-gray-800 p-1 rounded border border-gray-300 dark:border-gray-500">
+                                    <button type="button" id="zone-rotate-left-btn" class="px-2 py-1 text-gray-600 hover:text-blue-600 hover:bg-gray-100 rounded transition-colors" title="Pivoter à gauche (-1°)">↺</button>
+                                    <span id="zone-deviation-value" class="text-sm font-bold text-blue-600 dark:text-blue-400 min-w-[2.5rem] text-center select-none">0°</span>
+                                    <button type="button" id="zone-rotate-right-btn" class="px-2 py-1 text-gray-600 hover:text-blue-600 hover:bg-gray-100 rounded transition-colors" title="Pivoter à droite (+1°)">↻</button>
+                                    <div class="w-px h-4 bg-gray-300 mx-1"></div>
+                                    <button type="button" id="zone-reset-deviation" class="text-xs font-medium text-red-500 hover:text-red-700 px-1">Reset</button>
+                                </div>
+                            </div>
+                            <div class="relative w-full h-6 flex items-center">
+                                <input type="range" id="zone-deviation" class="w-full h-2 bg-gray-300 rounded-lg appearance-none cursor-pointer dark:bg-gray-600 z-10 relative" min="-180" max="180" value="0">
+                                <div class="absolute left-1/2 top-0 bottom-0 w-0.5 bg-gray-400 h-4 -mt-1 transform -translate-x-1/2 z-0"></div>
+                            </div>
+                            <p class="text-xs text-gray-500 dark:text-gray-400 italic text-center">Le rectangle d'export reste horizontal, le fond de carte pivote.</p>
+                        </div>
                     </div>
                 </section>
             </div>
@@ -1388,6 +1416,7 @@
             setupToggle('toggle-coords-btn', 'advanced-coords', 'Options avancées');
             setupToggle('toggle-grid-config-btn', 'advanced-grid-config', 'Options avancées');
             setupToggle('toggle-rotation-btn', 'rotation-controls', '🔄 Configurer la rotation');
+            setupToggle('toggle-zone-rotation-btn', 'zone-rotation-controls', '🔄 Configurer la rotation');
 
             const rotateLeft = document.getElementById('rotate-left-btn');
             if(rotateLeft) rotateLeft.addEventListener('click', () => updateDeviation(-1));
@@ -1409,6 +1438,117 @@
             
             const utmTransInput = document.getElementById('utm-transparency');
             if(utmTransInput) utmTransInput.addEventListener('input', e => { document.getElementById('utm-transparency-value').textContent = `${e.target.value}%`; });
+
+            // Zone déviation fond de carte
+            const zoneDevInput = document.getElementById('zone-deviation');
+            const zoneDevValueSpan = document.getElementById('zone-deviation-value');
+            const zonePngBtn = document.getElementById('generate-zone-png-button');
+            let zoneGuideTimeout;
+            let zoneTileDeviation = 0;
+            let zoneInjectedGuide = null;
+
+            function getZoneGuide() {
+                if (!zoneInjectedGuide && zoneMap) {
+                    zoneInjectedGuide = document.createElement('div');
+                    Object.assign(zoneInjectedGuide.style, {
+                        position: 'absolute', top: '50%', left: '0',
+                        width: '100%', height: '2px', marginTop: '-1px',
+                        background: 'red', opacity: '0',
+                        transition: 'opacity 0.2s', pointerEvents: 'none',
+                        zIndex: '9999', boxShadow: '0 0 4px rgba(255,255,255,1)'
+                    });
+                    zoneMap.getContainer().appendChild(zoneInjectedGuide);
+                }
+                return zoneInjectedGuide;
+            }
+
+            function applyZoneTileRotation(val) {
+                if (!zoneMap) return;
+                const tilePane = zoneMap.getPanes().tilePane;
+                if (!tilePane) return;
+                if (val === 0) {
+                    tilePane.style.transform = '';
+                    tilePane.style.transformOrigin = '';
+                    return;
+                }
+                const container = zoneMap.getContainer();
+                const mapPanePos = L.DomUtil.getPosition(zoneMap.getPanes().mapPane);
+                const cx = container.clientWidth / 2 - mapPanePos.x;
+                const cy = container.clientHeight / 2 - mapPanePos.y;
+                tilePane.style.transformOrigin = `${cx}px ${cy}px`;
+                tilePane.style.transform = `rotate(${-val}deg)`;
+            }
+
+            if (zoneMap) {
+                zoneMap.on('move zoom', () => applyZoneTileRotation(zoneTileDeviation));
+            }
+
+            const updateZonePngBtnState = () => {
+                if (!zonePngBtn || !zoneDevInput) return;
+                const dev = parseInt(zoneDevInput.value, 10);
+                if (dev !== 0) {
+                    zonePngBtn.textContent = "Télécharger l'image (Rotatée)";
+                    zonePngBtn.classList.add('ring-2', 'ring-yellow-400');
+                } else {
+                    zonePngBtn.textContent = "Télécharger l'image";
+                    zonePngBtn.classList.remove('ring-2', 'ring-yellow-400');
+                }
+                // Désactiver UTM et CFSI si rotation active (incompatibles)
+                const rotationActive = dev !== 0;
+                document.querySelectorAll('input[name="zone-grid-choice"]').forEach(radio => {
+                    if (radio.value === 'utm' || radio.value === 'cfsi') {
+                        radio.disabled = rotationActive;
+                        const label = radio.closest('label');
+                        if (label) {
+                            label.classList.toggle('opacity-40', rotationActive);
+                            label.classList.toggle('cursor-not-allowed', rotationActive);
+                            label.classList.toggle('pointer-events-none', rotationActive);
+                        }
+                        // Si l'un de ces radios était sélectionné, basculer sur CADO
+                        if (rotationActive && radio.checked) {
+                            const cadoRadio = document.querySelector('input[name="zone-grid-choice"][value="cado"]');
+                            if (cadoRadio) {
+                                cadoRadio.checked = true;
+                                cadoRadio.dispatchEvent(new Event('change', { bubbles: true }));
+                            }
+                        }
+                    }
+                });
+            };
+            if (zoneDevInput && zoneDevValueSpan) {
+                zoneDevInput.addEventListener('input', () => {
+                    const val = parseInt(zoneDevInput.value, 10);
+                    zoneTileDeviation = val;
+                    zoneDevValueSpan.textContent = `${val}°`;
+                    updateZonePngBtnState();
+                    applyZoneTileRotation(val);
+                    const guide = getZoneGuide();
+                    if (guide) {
+                        guide.style.opacity = '1';
+                        clearTimeout(zoneGuideTimeout);
+                        zoneGuideTimeout = setTimeout(() => { guide.style.opacity = '0'; }, 1500);
+                    }
+                });
+            }
+            document.getElementById('zone-rotate-left-btn')?.addEventListener('click', () => {
+                if (!zoneDevInput) return;
+                let v = parseInt(zoneDevInput.value, 10) - 1;
+                if (v < -180) v = 179;
+                zoneDevInput.value = v;
+                zoneDevInput.dispatchEvent(new Event('input'));
+            });
+            document.getElementById('zone-rotate-right-btn')?.addEventListener('click', () => {
+                if (!zoneDevInput) return;
+                let v = parseInt(zoneDevInput.value, 10) + 1;
+                if (v > 180) v = -179;
+                zoneDevInput.value = v;
+                zoneDevInput.dispatchEvent(new Event('input'));
+            });
+            document.getElementById('zone-reset-deviation')?.addEventListener('click', () => {
+                if (!zoneDevInput) return;
+                zoneDevInput.value = 0;
+                zoneDevInput.dispatchEvent(new Event('input'));
+            });
 
             // Boutons de conversion
             const addClick = (id, fn) => {
