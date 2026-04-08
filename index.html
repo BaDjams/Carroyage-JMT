@@ -1482,7 +1482,19 @@
             }
 
             if (zoneMap) {
-                zoneMap.on('move zoom', () => applyZoneTileRotation(zoneTileDeviation));
+                let _zoneZooming = false;
+                zoneMap.on('zoomstart', () => {
+                    _zoneZooming = true;
+                    const tp = zoneMap.getPanes().tilePane;
+                    if (tp) { tp.style.transform = ''; tp.style.transformOrigin = ''; }
+                });
+                zoneMap.on('zoomend', () => {
+                    _zoneZooming = false;
+                    applyZoneTileRotation(zoneTileDeviation);
+                });
+                zoneMap.on('move', () => {
+                    if (!_zoneZooming) applyZoneTileRotation(zoneTileDeviation);
+                });
             }
 
             const updateZonePngBtnState = () => {
