@@ -624,6 +624,7 @@ async function generateZonePNG() {
             loadingMessage.textContent = "Dessin du carroyage CADO...";
             const { config, a1CornerLat, a1CornerLon } = cadoData;
             config.realDeviation = zoneDeviationDeg;
+            config.deviation = zoneDeviationDeg;
             drawCadoElementsOnCanvas(ctx, config, latLonToCanvasPixels, [a1CornerLon, a1CornerLat]);
             config.lineWidth = config.lineWidth / scaleFactor;
         }
