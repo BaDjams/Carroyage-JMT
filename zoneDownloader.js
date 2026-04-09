@@ -1073,6 +1073,8 @@ async function generateCfsiKmlFolder() {
 
 async function generateCadoKmlFolder(imagesToZip, isKmz) {
     const { config } = getZoneCadoConfigAndBounds();
+    const zoneDeviationDeg = parseFloat(document.getElementById('zone-deviation')?.value || 0);
+    if (zoneDeviationDeg !== 0) config.deviation = zoneDeviationDeg;
     const gridData = calculateGridData(config); 
     
     let kml = "<Folder><name>Grille CADO</name>";
