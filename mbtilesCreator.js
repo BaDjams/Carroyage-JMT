@@ -38,12 +38,12 @@ function initCreatorMode() {
         MAP_LAYERS.forEach(layerConfig => {
             let leafletLayer;
             if (layerConfig.layers.length > 1) {
-                const groupLayers = layerConfig.layers.map(l => L.tileLayer(l.url, { maxZoom: layerConfig.maxZoom || 20, attribution: layerConfig.name }));
+                const groupLayers = layerConfig.layers.map(l => L.tileLayer(l.url, { maxZoom: layerConfig.maxZoom || 20, attribution: layerConfig.name, keepBuffer: 0, updateWhenZooming: false }));
                 leafletLayer = L.layerGroup(groupLayers);
             } else {
                 const l = layerConfig.layers[0];
                 if (l.type === 'quadkey') leafletLayer = new L_QuadKeyLayer(l.url, { maxZoom: layerConfig.maxZoom || 19, attribution: layerConfig.name });
-                else leafletLayer = L.tileLayer(l.url, { maxZoom: layerConfig.maxZoom || 20, attribution: layerConfig.name });
+                else leafletLayer = L.tileLayer(l.url, { maxZoom: layerConfig.maxZoom || 20, attribution: layerConfig.name, keepBuffer: 0, updateWhenZooming: false });
             }
             if (leafletLayer) creatorBaseMaps[layerConfig.name] = leafletLayer;
         });

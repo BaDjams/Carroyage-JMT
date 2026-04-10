@@ -1,7 +1,29 @@
 // map-layers.js
+// Les clés privées (IGN_PRIVATE_API_KEY, MAPY_API_KEY) sont définies dans config.private.js
+// Ce fichier est dans .gitignore et ne sera jamais publié.
+// Sans lui, les layers privés ne fonctionnent pas mais tous les autres oui.
 const IGN_API_KEY = "ign_scan_ws";
 
 const MAP_LAYERS = [
+    {
+        "id": "ign_ign_hybrid",
+        "name": "Ortho IGN + Routes IGN",
+        "maxZoom": 19,
+        "layers": [
+            {
+                "url": "https://data.geopf.fr/wmts?Layer=ORTHOIMAGERY.ORTHOPHOTOS&Style=normal&TileMatrixSet=PM&SERVICE=WMTS&REQUEST=GetTile&Version=1.0.0&FORMAT=image/jpeg&TileMatrix={z}&TileCol={x}&TileRow={y}",
+                "type": "xyz"
+            },
+            {
+                "url": "https://data.geopf.fr/wmts?Layer=TRANSPORTNETWORKS.ROADS&Style=normal&TileMatrixSet=PM&SERVICE=WMTS&REQUEST=GetTile&Version=1.0.0&FORMAT=image/png&TileMatrix={z}&TileCol={x}&TileRow={y}",
+                "type": "xyz"
+            },
+            {
+                "url": "https://data.geopf.fr/wmts?Layer=GEOGRAPHICALNAMES.NAMES&Style=normal&TileMatrixSet=PM&SERVICE=WMTS&REQUEST=GetTile&Version=1.0.0&FORMAT=image/png&TileMatrix={z}&TileCol={x}&TileRow={y}",
+                "type": "xyz"
+            }
+        ]
+    },
     {
         "id": "ign_google_hybrid",
         "name": "Ortho IGN + Routes Google",
@@ -16,6 +38,23 @@ const MAP_LAYERS = [
             {
                 "url": "https://mt0.google.com/vt/lyrs=h&hl=fr&x={x}&y={y}&z={z}&apistyle=s.t%3a2|s.e%3al|p.v%3aoff",
                 "type": "xyz"
+            }
+        ]
+    },
+    {
+        // Hybride Yandex 100% : sat + routes/labels Yandex en français.
+        // Pas de décalage de projection car les deux couches viennent du même serveur.
+        "id": "yandex_hybrid",
+        "name": "Yandex Hybride (FR)",
+        "maxZoom": 19,
+        "layers": [
+            {
+                "url": "https://core-sat.maps.yandex.net/tiles?l=sat&x={x}&y={y}&z={z}&scale=1&lang=fr_FR",
+                "type": "yandex"
+            },
+            {
+                "url": "https://core-renderer-tiles.maps.yandex.net/tiles?l=skl&x={x}&y={y}&z={z}&scale=1&lang=fr_FR",
+                "type": "yandex"
             }
         ]
     },
@@ -71,6 +110,18 @@ const MAP_LAYERS = [
         ]
     },*/
     {
+        // Pyramide composite IGN privée z6-17, puis Plan IGN public z18-19.
+        "id": "ign_scan_composite",
+        "name": "IGN Cartes (privé - multi-échelles)",
+        "maxZoom": 18,
+        "layers": [
+            {
+                "url": `https://data.geopf.fr/private/wmts?Layer=GEOGRAPHICALGRIDSYSTEMS.MAPS&Style=normal&TileMatrixSet=PM&SERVICE=WMTS&REQUEST=GetTile&Version=1.0.0&FORMAT=image/jpeg&TileMatrix={z}&TileCol={x}&TileRow={y}&apikey=${IGN_PRIVATE_API_KEY}`,
+                "type": "xyz"
+            }
+        ]
+    },
+    {
         "id": "ign_public_hybrid",
         "name": "Plan IGN",
         "maxZoom": 19,
@@ -81,7 +132,18 @@ const MAP_LAYERS = [
             }
         ]
     },
-   {
+    {
+        "id": "mapy_outdoor",
+        "name": "Mapy.CZ Outdoor",
+        "maxZoom": 19,
+        "layers": [
+            {
+                "url": `https://api.mapy.com/v1/maptiles/outdoor/256/{z}/{x}/{y}?apikey=${MAPY_API_KEY}&lang=fr`,
+                "type": "xyz"
+            }
+        ]
+    },
+    {
         "id": "osm_standard",
         "name": "OpenStreetMap",
         "maxZoom": 19,

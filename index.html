@@ -23,6 +23,7 @@
 <script src="https://unpkg.com/leaflet.wms@0.2.0/dist/leaflet.wms.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.js" defer></script>
 <script src="flowbite.min.js" defer></script>
+<script src="config.private.js" defer onerror="console.warn('config.private.js absent : layers privés désactivés.')"></script>
 <script src="map-layers.js" defer></script>
 <script src="wms-layers.js" defer></script>
 <script src="icons.js" defer></script>
@@ -132,7 +133,7 @@
                             <div id="rotation-guide" class="absolute top-1/2 left-0 w-full h-0.5 bg-red-500 opacity-0 transition-opacity duration-200 pointer-events-none z-[2000] shadow-[0_0_4px_rgba(255,255,255,1)]"></div>
                         </div>
 
-                        <!-- BARRE SOUS LA CARTE : MBTiles (gauche) + Rotation (droite) -->
+                        <!-- BARRE SOUS LA CARTE : MBTiles (gauche) + Zoom (centre) + Rotation (droite) -->
                         <div class="flex justify-between items-start mt-2 gap-2">
                             <div class="flex flex-col gap-1">
                                 <div class="flex items-center gap-2 flex-wrap">
@@ -146,6 +147,9 @@
                                 </div>
                                 <div class="mbtiles-info-bar text-xs text-gray-400 hidden bg-gray-50 dark:bg-gray-700 rounded px-2 py-1 max-w-xs"></div>
                             </div>
+                            <span class="font-bold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-gray-700 px-2 py-0.5 rounded border border-blue-100 dark:border-gray-600 text-sm self-center">
+                                Zoom : <span id="cado-current-map-zoom">--</span>
+                            </span>
                             <button id="toggle-rotation-btn" type="button" class="text-sm text-blue-600 hover:underline dark:text-blue-400 font-medium flex items-center gap-1 whitespace-nowrap">
                                 <span>🔄 Configurer la rotation</span> <span>▼</span>
                             </button>
@@ -427,7 +431,7 @@
                     <div id="zone-map-viewport" class="relative overflow-hidden">
                         <div id="zone-interactive-map"></div>
                     </div>
-                    <!-- MBTiles + Rotation sous la carte zone -->
+                    <!-- MBTiles (gauche) + Zoom (centre) + Rotation (droite) sous la carte zone -->
                     <div class="flex justify-between items-start mt-2 gap-2">
                         <div class="flex flex-col gap-1">
                             <div class="flex items-center gap-2 flex-wrap">
@@ -441,6 +445,9 @@
                             </div>
                             <div class="mbtiles-info-bar text-xs text-gray-400 hidden bg-gray-50 dark:bg-gray-700 rounded px-2 py-1"></div>
                         </div>
+                        <span class="font-bold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-gray-700 px-2 py-0.5 rounded border border-blue-100 dark:border-gray-600 text-sm self-center">
+                            Zoom : <span id="zone-current-map-zoom">--</span>
+                        </span>
                         <button id="toggle-zone-rotation-btn" type="button" class="text-sm text-blue-600 hover:underline dark:text-blue-400 font-medium flex items-center gap-1 whitespace-nowrap">
                             <span>🔄 Configurer la rotation</span> <span>▼</span>
                         </button>
@@ -941,6 +948,72 @@
         // Création des couches de base (Base Layers)
         function createBaseLayers() {
             const baseMaps = {};
+            // Correction de projection Yandex : EPSG:3395 (Mercator ellipsoïdal WGS84)
+            // vs EPSG:3857 (Pseudo-Mercator sphérique) utilisé par Leaflet.
+            // Approche en 2 étapes :
+            //   1. getTileUrl  → trouve la tuile EPSG:3395 qui contient le bord nord de la tuile EPSG:3857
+            //   2. createTile  → applique un décalage CSS vertical en pixels pour corriger
+            //                    le sous-alignement résiduel (~pixel-perfect)
+            const e_WGS84 = 0.0818191908426215;
+
+            function yMerc3395(latRad) {
+                const sinLat = Math.sin(latRad);
+                return Math.log(Math.tan(Math.PI / 4 + latRad / 2) *
+                    Math.pow((1 - e_WGS84 * sinLat) / (1 + e_WGS84 * sinLat), e_WGS84 / 2));
+            }
+
+            function lat3857(yTile, n) {
+                return Math.atan(Math.sinh(Math.PI * (1 - 2 * yTile / n)));
+            }
+
+            const L_YandexLayer = L.TileLayer.extend({
+                getTileUrl: function (coords) {
+                    const z = coords.z, x = coords.x;
+                    const n = Math.pow(2, z);
+                    // Bord nord de la tuile EPSG:3857 → tuile EPSG:3395 qui le contient
+                    const latN = lat3857(coords.y, n);
+                    const y3395 = Math.floor(n / 2 * (1 - yMerc3395(latN) / Math.PI));
+                    // Stocker les coords pour createTile
+                    this._lastCoords = { z, x, yReq: coords.y, y3395 };
+                    return L.Util.template(this._url, L.extend({}, this.options, { x, y: y3395, z }));
+                },
+                createTile: function (coords, done) {
+                    const tile = L.TileLayer.prototype.createTile.call(this, coords, done);
+                    const z = coords.z, n = Math.pow(2, z);
+                    const tileSize = this.getTileSize().y; // généralement 256
+
+                    // Bord nord EPSG:3857 de la tuile demandée par Leaflet
+                    const latN_3857 = lat3857(coords.y, n);
+                    // Tuile EPSG:3395 sélectionnée pour ce bord nord
+                    const y3395 = Math.floor(n / 2 * (1 - yMerc3395(latN_3857) / Math.PI));
+                    // Position en pixels du bord nord EPSG:3857 dans la tuile EPSG:3395
+                    const latN_3395 = lat3857(y3395 * 2 / n, n * 2 / n); // bord nord de y3395
+                    // En EPSG:3395, la latitude latN_3857 est à quelle fraction de la tuile y3395 ?
+                    const fracY = (n / 2 * (1 - yMerc3395(latN_3857) / Math.PI)) - y3395;
+                    // Décalage : la tuile doit être décalée vers le haut de fracY * tileSize pixels
+                    const offsetPx = -Math.round(fracY * tileSize);
+                    tile.style.marginTop = offsetPx + 'px';
+                    return tile;
+                }
+            });
+
+            // Layer zoom_switch : un tileLayer ordinaire dont on remplace getTileUrl.
+            // Leaflet ne voit qu'un tileLayer normal — pas de classe custom, pas de initialize.
+            function makeZoomSwitchLayer(sources, options) {
+                const layer = L.tileLayer(sources[0].url, options);
+                layer.getTileUrl = function(coords) {
+                    const src = sources.find(s =>
+                        (s.minZoom === undefined || coords.z >= s.minZoom) &&
+                        (s.maxZoom === undefined || coords.z <= s.maxZoom)
+                    ) || sources[sources.length - 1];
+                    return src.url
+                        .replace('{z}', coords.z)
+                        .replace('{x}', coords.x)
+                        .replace('{y}', coords.y);
+                };
+                return layer;
+            }
+
             const L_QuadKeyLayer = L.TileLayer.extend({
                 getTileUrl: function (coords) {
                     const x = coords.x, y = coords.y, z = coords.z;
@@ -959,20 +1032,20 @@
             if (typeof MAP_LAYERS !== 'undefined') {
                 MAP_LAYERS.forEach(layerConfig => {
                     let leafletLayer;
+                    const tileOpts = { attribution: layerConfig.name, maxZoom: layerConfig.maxZoom || 20, keepBuffer: 0, updateWhenZooming: false };
+                    const makeTileLayer = (layerData) => {
+                        const opts = { ...tileOpts };
+                        if (layerData.minZoom !== undefined) opts.minZoom = layerData.minZoom;
+                        if (layerData.maxZoom !== undefined) opts.maxZoom = layerData.maxZoom;
+                        if (layerData.type === 'quadkey') return new L_QuadKeyLayer(layerData.url, { ...opts, maxZoom: layerConfig.maxZoom || 19 });
+                        if (layerData.type === 'yandex')  return new L_YandexLayer(layerData.url, opts);
+
+                        return L.tileLayer(layerData.url, opts);
+                    };
                     if (layerConfig.layers.length > 1) {
-                        const layerGroupLayers = [];
-                        layerConfig.layers.forEach(layerData => {
-                            const tileLayer = L.tileLayer(layerData.url, { attribution: layerConfig.name, maxZoom: layerConfig.maxZoom || 20 });
-                            layerGroupLayers.push(tileLayer);
-                        });
-                        leafletLayer = L.layerGroup(layerGroupLayers);
+                        leafletLayer = L.layerGroup(layerConfig.layers.map(makeTileLayer));
                     } else {
-                        const singleLayerConfig = layerConfig.layers[0];
-                        if (singleLayerConfig.type === 'quadkey') {
-                            leafletLayer = new L_QuadKeyLayer(singleLayerConfig.url, { attribution: layerConfig.name, maxZoom: layerConfig.maxZoom || 19 });
-                        } else {
-                            leafletLayer = L.tileLayer(singleLayerConfig.url, { attribution: layerConfig.name, maxZoom: layerConfig.maxZoom || 20 });
-                        }
+                        leafletLayer = makeTileLayer(layerConfig.layers[0]);
                     }
                     if (leafletLayer) baseMaps[layerConfig.name] = leafletLayer;
                 });
@@ -989,6 +1062,10 @@
             if(defaultLayer) defaultLayer.addTo(cadoMap);
             if(Object.keys(cadoBaseMaps).length > 0) L.control.layers(cadoBaseMaps).addTo(cadoMap);
             
+            const updateCadoZoom = () => { const el = document.getElementById('cado-current-map-zoom'); if (el) el.textContent = cadoMap.getZoom(); };
+            cadoMap.on('zoomend', updateCadoZoom);
+            updateCadoZoom();
+
             cadoMap.on('click', handleCadoMapClick);
             
             cadoMap.on('baselayerchange', function(e) {
@@ -1016,6 +1093,10 @@
             if(defaultLayer) defaultLayer.addTo(zoneMap);
             if(Object.keys(zoneBaseMaps).length > 0) L.control.layers(zoneBaseMaps).addTo(zoneMap);
             
+            const updateZoneZoom = () => { const el = document.getElementById('zone-current-map-zoom'); if (el) el.textContent = zoneMap.getZoom(); };
+            zoneMap.on('zoomend', updateZoneZoom);
+            updateZoneZoom();
+
             drawnItems = new L.FeatureGroup();
             zoneMap.addLayer(drawnItems);
             

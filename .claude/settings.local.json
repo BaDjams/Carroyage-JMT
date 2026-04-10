@@ -1,7 +1,12 @@
 {
   "permissions": {
     "allow": [
-      "Bash(python -m http.server 8000 --bind 127.0.0.1)"
+      "Bash(python -m http.server 8000 --bind 127.0.0.1)",
+      "WebFetch(domain:api.mapy.com)",
+      "WebSearch",
+      "WebFetch(domain:gist.github.com)",
+      "WebFetch(domain:core-sat.maps.yandex.net)",
+      "WebFetch(domain:core-renderer-tiles.maps.yandex.net)"
     ]
   }
 }
