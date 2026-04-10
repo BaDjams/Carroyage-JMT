@@ -1,4 +1,4 @@
 // version.js
 
 // Source unique de vérité pour la version de l'application.
-const APP_VERSION = '22.10';
+const APP_VERSION = '22.11';

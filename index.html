@@ -464,6 +464,16 @@
                                 <div class="absolute left-1/2 top-0 bottom-0 w-0.5 bg-gray-400 h-4 -mt-1 transform -translate-x-1/2 z-0"></div>
                             </div>
                             <p class="text-xs text-gray-500 dark:text-gray-400 italic text-center">Le rectangle d'export reste horizontal, le fond de carte pivote.</p>
+                            <!-- Contrôles navigation carte (actifs uniquement en mode rotation) -->
+                            <div id="zone-map-nav" class="hidden mt-1">
+                                <p class="text-xs text-amber-600 dark:text-amber-400 font-semibold text-center mb-1">⚠ Mode rotation actif — déplacement de la carte désactivé.</p>
+                                <p class="text-xs text-gray-500 dark:text-gray-400 italic text-center mb-2">Pour changer de zone : cliquez sur <strong>Reset</strong> ci-dessus, positionnez la carte, puis re-appliquez la rotation.</p>
+                                <div class="flex items-center justify-center gap-2">
+                                    <span class="text-xs text-gray-600 dark:text-gray-300">Zoom :</span>
+                                    <button type="button" id="zone-zoom-in" class="flex items-center justify-center h-8 w-8 rounded bg-white dark:bg-gray-600 border border-gray-300 dark:border-gray-500 text-gray-700 dark:text-gray-200 hover:bg-blue-50 dark:hover:bg-blue-900 active:bg-blue-100 shadow-sm text-lg font-bold" title="Zoom avant">+</button>
+                                    <button type="button" id="zone-zoom-out" class="flex items-center justify-center h-8 w-8 rounded bg-white dark:bg-gray-600 border border-gray-300 dark:border-gray-500 text-gray-700 dark:text-gray-200 hover:bg-blue-50 dark:hover:bg-blue-900 active:bg-blue-100 shadow-sm text-lg font-bold" title="Zoom arrière">−</button>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </section>
@@ -1495,6 +1505,21 @@
                 zoneMap.on('move', () => {
                     if (!_zoneZooming) applyZoneTileRotation(zoneTileDeviation);
                 });
+
+                // En mode rotation, le drag et le zoom molette sont désactivés.
+                // La navigation se fait via les boutons du pad directionnel et les boutons zoom.
+                function applyZoneMapInteraction(deviation) {
+                    const navPanel = document.getElementById('zone-map-nav');
+                    if (deviation !== 0) {
+                        zoneMap.dragging.disable();
+                        zoneMap.scrollWheelZoom.disable();
+                        if (navPanel) navPanel.classList.remove('hidden');
+                    } else {
+                        zoneMap.dragging.enable();
+                        zoneMap.scrollWheelZoom.enable();
+                        if (navPanel) navPanel.classList.add('hidden');
+                    }
+                }
             }
 
             const updateZonePngBtnState = () => {
@@ -1536,6 +1561,7 @@
                     zoneDevValueSpan.textContent = `${val}°`;
                     updateZonePngBtnState();
                     applyZoneTileRotation(val);
+                    applyZoneMapInteraction(val);
                     const guide = getZoneGuide();
                     if (guide) {
                         guide.style.opacity = '1';
@@ -1563,6 +1589,17 @@
                 zoneDevInput.value = 0;
                 zoneDevInput.dispatchEvent(new Event('input'));
             });
+
+            // En mode rotation, le déplacement de la carte est désactivé (la rotation CSS du
+            // tilePane et la rotation des coordonnées Leaflet sont incompatibles : tuiles et
+            // rectangle de sélection ne peuvent pas bouger dans le même sens visuel avec un
+            // simple panBy). Seul le zoom reste disponible.
+            // Marche à suivre pour changer de zone en mode rotation :
+            //   1. Cliquer sur "Reset" pour remettre la déviation à 0° (déplacement réactivé).
+            //   2. Naviguer sur la carte et re-sélectionner la zone souhaitée.
+            //   3. Re-appliquer la rotation.
+            document.getElementById('zone-zoom-in')?.addEventListener('click',  () => { if (zoneMap) zoneMap.zoomIn(); });
+            document.getElementById('zone-zoom-out')?.addEventListener('click', () => { if (zoneMap) zoneMap.zoomOut(); });
 
             // Boutons de conversion
             const addClick = (id, fn) => {
