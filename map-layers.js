@@ -1,8 +1,10 @@
 // map-layers.js
-// Les clés privées (IGN_PRIVATE_API_KEY, MAPY_API_KEY) sont définies dans config.private.js
-// Ce fichier est dans .gitignore et ne sera jamais publié.
-// Sans lui, les layers privés ne fonctionnent pas mais tous les autres oui.
+// Les clés privées sont définies dans config.private.js (chargé avant ce fichier).
+// Si config.private.js est absent ou vide, les variables sont vides ici par défaut
+// et les layers privés sont simplement masqués (voir createBaseLayers dans index.html).
 const IGN_API_KEY = "ign_scan_ws";
+if (typeof IGN_PRIVATE_API_KEY === 'undefined') var IGN_PRIVATE_API_KEY = '';
+if (typeof MAPY_API_KEY === 'undefined') var MAPY_API_KEY = '';
 
 const MAP_LAYERS = [
     {
@@ -113,6 +115,7 @@ const MAP_LAYERS = [
         // Pyramide composite IGN privée z6-17, puis Plan IGN public z18-19.
         "id": "ign_scan_composite",
         "name": "IGN Cartes (privé - multi-échelles)",
+        "requiresKey": "IGN_PRIVATE_API_KEY",
         "maxZoom": 18,
         "layers": [
             {
@@ -135,6 +138,7 @@ const MAP_LAYERS = [
     {
         "id": "mapy_outdoor",
         "name": "Mapy.CZ Outdoor",
+        "requiresKey": "MAPY_API_KEY",
         "maxZoom": 19,
         "layers": [
             {

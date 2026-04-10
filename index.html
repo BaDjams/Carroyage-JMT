@@ -1030,6 +1030,11 @@
 
             if (typeof MAP_LAYERS !== 'undefined') {
                 MAP_LAYERS.forEach(layerConfig => {
+                    // Ignorer les layers dont la clé API requise est vide ou absente
+                    if (layerConfig.requiresKey) {
+                        const keyVal = (typeof window[layerConfig.requiresKey] !== 'undefined') ? window[layerConfig.requiresKey] : '';
+                        if (!keyVal) return;
+                    }
                     let leafletLayer;
                     const tileOpts = { attribution: layerConfig.name, maxZoom: layerConfig.maxZoom || 20, keepBuffer: 0, updateWhenZooming: false };
                     const makeTileLayer = (layerData) => {
