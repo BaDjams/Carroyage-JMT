@@ -110,7 +110,7 @@
     <main class="space-y-6">
         <!-- SEED GLOBAL (masqué temporairement) -->
         <div id="seed-global-bar" style="display:none;">
-            <input type="text" id="seed-input">
+            <input type="text" id="seed-input" aria-label="Identifiant de session">
             <button id="seed-copy-btn"></button>
             <button id="seed-restore-btn"></button>
         </div>
@@ -121,7 +121,7 @@
                     <section>
                         <h3 class="text-lg font-semibold mb-3 text-content">1. Sélectionner un point de référence sur la carte</h3>
                         <div class="address-search-container">
-                            <input type="text" id="address-search-input" class="address-search-input input-field px-3 py-2 border rounded shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white text-base" placeholder="Rechercher une adresse..." autocomplete="off">
+                            <input type="text" id="address-search-input" aria-label="Rechercher une adresse" class="address-search-input input-field px-3 py-2 border rounded shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white text-base" placeholder="Rechercher une adresse..." autocomplete="off">
                             <ul id="suggestions" class="hidden"></ul>
                         </div>
                         <p class="text-sm text-secondary mb-2">Ou cliquez directement sur la carte pour choisir un point.</p>
@@ -226,7 +226,7 @@
                                 </div>
                             </div>
                             <div class="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
-                                <label class="block text-sm font-medium text-content mb-2">Importer un calque (KML/KMZ) :</label>
+                                <label for="cado-kmz-input" class="block text-sm font-medium text-content mb-2">Importer un calque (KML/KMZ) :</label>
                                 <div class="flex items-center gap-2">
                                     <input type="file" id="cado-kmz-input" accept=".kml,.kmz" class="block w-full text-sm text-gray-900 border border-gray-300 rounded-lg cursor-pointer bg-gray-50 dark:text-gray-400 focus:outline-none dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400">
                                     <button id="cado-clear-kmz-btn" class="hidden px-3 py-2 bg-red-100 text-red-600 rounded hover:bg-red-200 text-xs font-bold" title="Supprimer le calque">X</button>
@@ -243,7 +243,7 @@
                                  <input type="number" id="scale" class="input-field px-3 py-2 border rounded shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white text-base grid-parameter" value="10">
                              </div>
                              <div class="flex flex-col space-y-3">
-                                 <label class="text-sm md:text-base text-content">Choisir une couleur :</label>
+                                 <span class="text-sm md:text-base text-content">Choisir une couleur :</span>
                                  <div class="flex flex-wrap gap-2" id="color-options">
                                      <div class="color-option selected" data-color="#FFFFFF" data-name="white" style="background-color: #FFFFFF; border: 1px solid #ccc;"></div>
                                      <div class="color-option" data-color="#000000" data-name="black" style="background-color: #000000;"></div>
@@ -266,7 +266,7 @@
                                <div id="full-grid-name" class="text-sm text-secondary mt-1 overflow-auto max-h-20 border-l-2 border-blue-500 pl-2 italic">CADO Grid_20m_center_Q12_white</div>
                            </div>
                            <div class="flex flex-col space-y-3 md:col-span-2">
-                               <label class="text-sm md:text-base text-content">Type de grille :</label>
+                               <span class="text-sm md:text-base text-content">Type de grille :</span>
                                <div class="flex flex-wrap items-center gap-2">
                                    <label class="inline-flex items-center"><input type="radio" name="grid-type" value="Q12" class="custom-radio grid-parameter" checked><span class="px-3 py-1 border border-default rounded cursor-pointer text-sm button-outline">Q12 (Format A4)</span></label>
                                    <label class="inline-flex items-center"><input type="radio" name="grid-type" value="Z18" class="custom-radio grid-parameter"><span class="px-3 py-1 border border-default rounded cursor-pointer text-sm button-outline">Z18 (Format A3)</span></label>
@@ -302,21 +302,21 @@
                                     </div>
                                 </div>
                                 <div class="flex flex-col space-y-1">
-                                    <label class="text-sm md:text-base text-content">Point de référence :</label>
+                                    <span class="text-sm md:text-base text-content">Point de référence :</span>
                                     <div class="flex flex-wrap gap-2">
                                         <label class="inline-flex items-center"><input type="radio" name="reference-point" value="center" class="custom-radio grid-parameter" checked><span class="px-3 py-1 border border-default rounded cursor-pointer text-sm button-outline">Milieu du carroyage</span></label>
                                         <label class="inline-flex items-center"><input type="radio" name="reference-point" value="origin" class="custom-radio grid-parameter"><span class="px-3 py-1 border border-default rounded cursor-pointer text-sm button-outline">Origine (A1)</span></label>
                                     </div>
                                 </div>
                                 <div class="flex flex-col space-y-1">
-                                    <label class="text-sm md:text-base text-content">Orientation des lettres :</label>
+                                    <span class="text-sm md:text-base text-content">Orientation des lettres :</span>
                                     <div class="flex gap-2">
                                         <label class="inline-flex items-center"><input type="radio" name="lettering-direction" value="ascending" class="custom-radio grid-parameter" checked><span class="px-3 py-1 border border-default rounded cursor-pointer text-sm button-outline">Ascendante (Sud→Nord)</span></label>
                                         <label class="inline-flex items-center"><input type="radio" name="lettering-direction" value="descending" class="custom-radio grid-parameter"><span class="px-3 py-1 border border-default rounded cursor-pointer text-sm button-outline">Descendante (Nord→Sud)</span></label>
                                     </div>
                                 </div>
                                 <div class="flex flex-col space-y-1">
-                                    <label class="text-sm md:text-base text-content">Axes :</label>
+                                    <span class="text-sm md:text-base text-content">Axes :</span>
                                     <label class="inline-flex items-center cursor-pointer">
                                         <input type="checkbox" id="swap-axes" class="sr-only peer grid-parameter">
                                         <div class="relative w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
@@ -324,7 +324,7 @@
                                     </label>
                                 </div>
                                 <div class="flex flex-col space-y-1">
-                                    <label class="text-sm md:text-base text-content">Double entrée :</label>
+                                    <span class="text-sm md:text-base text-content">Double entrée :</span>
                                     <label class="inline-flex items-center cursor-pointer">
                                         <input type="checkbox" id="double-entry" class="sr-only peer grid-parameter">
                                         <div class="relative w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
@@ -332,7 +332,7 @@
                                     </label>
                                 </div>
                                 <div class="md:col-span-2 flex flex-col space-y-1">
-                                    <label class="text-sm md:text-base text-content">Autres types de grille :</label>
+                                    <span class="text-sm md:text-base text-content">Autres types de grille :</span>
                                     <div class="flex flex-wrap items-center gap-2">
                                         <label class="inline-flex items-center"><input type="radio" name="grid-type" value="Q9" class="custom-radio grid-parameter"><span class="px-3 py-1 border border-default rounded cursor-pointer text-sm button-outline">Q9 (17x9)</span></label>
                                         <label class="inline-flex items-center"><input type="radio" name="grid-type" value="Z14" class="custom-radio grid-parameter"><span class="px-3 py-1 border border-default rounded cursor-pointer text-sm button-outline">Z14 (26x14)</span></label>
@@ -420,7 +420,7 @@
                 <section>
                     <h3 class="text-lg font-semibold mb-3 text-content">1. Définir une zone à exporter</h3>
                     <div class="address-search-container">
-                        <input type="text" id="zone-address-search-input" class="address-search-input input-field px-3 py-2 border rounded shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white text-base" placeholder="Rechercher une adresse pour centrer la carte..." autocomplete="off">
+                        <input type="text" id="zone-address-search-input" aria-label="Rechercher une adresse pour centrer la carte" class="address-search-input input-field px-3 py-2 border rounded shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white text-base" placeholder="Rechercher une adresse pour centrer la carte..." autocomplete="off">
                         <ul id="zone-suggestions" class="hidden"></ul>
                     </div>
                     <p class="text-sm text-secondary mb-2">Utilisez les outils sur la gauche de la carte pour dessiner votre zone rectangulaire, puis zoomez au niveau désiré.</p>
@@ -518,7 +518,7 @@
                                 </select>
                             </div>
                             <div class="flex flex-col space-y-1">
-                                <label class="text-sm text-content">Choisir une icône :</label>
+                                <span class="text-sm text-content">Choisir une icône :</span>
                                 <div id="poi-visual-selector" class="icon-grid-container custom-scrollbar"></div>
                                 <input type="hidden" id="poi-type-selector" value="target">
                             </div>
@@ -532,7 +532,7 @@
                             </div>
                             <br/>
                             <div class="flex items-center gap-2">
-                                <label for="poi-icon-scale" class="text-sm text-content">Icônes personnalisées : </label>
+                                <span class="text-sm text-content">Icônes personnalisées : </span>
                                 <button id="settingsBtn" class="text-xl px-2 py-1 rounded-full button-outline bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-white transition-colors" title="Icônes personnalisées">Gestion&nbsp;⚙️</button>
                             </div>
                             <br/>
@@ -572,7 +572,7 @@
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-6"> 
                         
                         <div class="flex flex-col space-y-1">
-                            <label class="text-sm md:text-base text-content">Couleur globale :</label>
+                            <span class="text-sm md:text-base text-content">Couleur globale :</span>
                             <div class="flex flex-wrap gap-2" id="utm-color-options">
                                 <div class="color-option selected" data-color="#FFFFFF" data-name="white" style="background-color: #FFFFFF; border: 1px solid #ccc;"></div>
                                 <div class="color-option" data-color="#000000" data-name="black" style="background-color: #000000;"></div>
@@ -673,7 +673,7 @@
                                     <input type="number" id="zone-cado-scale" class="input-field px-2 py-1 border rounded text-sm bg-white dark:bg-gray-600 dark:border-gray-500 dark:text-white" value="50" min="10">
                                 </div>
                                 <div class="flex flex-col space-y-1">
-                                    <label class="text-sm text-content">Orientation Lettres :</label>
+                                    <span class="text-sm text-content">Orientation Lettres :</span>
                                     <div class="flex gap-2 mt-1">
                                         <label class="inline-flex items-center">
                                             <input type="radio" name="zone-cado-direction" value="ascending" class="custom-radio" checked>
@@ -762,7 +762,6 @@
             
             <!-- ÉLÉMENTS CACHÉS POUR COMPATIBILITÉ (S'ils sont appelés par d'autres scripts) -->
             <input type="hidden" id="utm-grid-name" value="Grille_UTM">
-            <input type="hidden" id="zone-title" value="Zone">
         </div>
 
 <!-- MODE 4 : CRÉATEUR MBTILES -->
@@ -776,7 +775,7 @@
                     <div class="card bg-white shadow-md rounded-lg p-4 md:p-6 dark:bg-gray-800 dark:border dark:border-gray-700">
                         <h3 class="text-lg font-semibold mb-3 text-content">1. Définir la zone</h3>
                         <div class="address-search-container">
-                            <input type="text" id="creator-address-search" class="address-search-input input-field px-3 py-2 border rounded shadow-sm w-full dark:bg-gray-700 dark:text-white" placeholder="Rechercher une ville..." autocomplete="off">
+                            <input type="text" id="creator-address-search" aria-label="Rechercher une ville" class="address-search-input input-field px-3 py-2 border rounded shadow-sm w-full dark:bg-gray-700 dark:text-white" placeholder="Rechercher une ville..." autocomplete="off">
                             <ul id="creator-suggestions" class="hidden absolute top-full z-50 bg-white dark:bg-gray-800 border w-full max-h-48 overflow-y-auto"></ul>
                         </div>
                         <div id="creator-interactive-map"></div> <!-- CSS géré par style.css -->
@@ -798,21 +797,21 @@
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <!-- Source -->
                             <div>
-                                <label class="block mb-2 text-sm font-bold text-gray-900 dark:text-white">Source du fond de carte :</label>
+                                <label for="creator-layer-select" class="block mb-2 text-sm font-bold text-gray-900 dark:text-white">Source du fond de carte :</label>
                                 <select id="creator-layer-select" class="input-field w-full px-3 py-2 border rounded dark:bg-gray-700 dark:text-white"></select>
                                 <p class="text-xs text-gray-500 mt-1">Note : Certains serveurs peuvent bloquer le téléchargement massif.</p>
                             </div>
 
                             <!-- Nom -->
                             <div>
-                                <label class="block mb-2 text-sm font-bold text-gray-900 dark:text-white">Nom du fichier :</label>
+                                <label for="creator-filename" class="block mb-2 text-sm font-bold text-gray-900 dark:text-white">Nom du fichier :</label>
                                 <input type="text" id="creator-filename" class="input-field w-full px-3 py-2 border rounded dark:bg-gray-700 dark:text-white" placeholder="Mon_Export_Offline">
                             </div>
                         </div>
 
                         <!-- Sélecteur de Zooms -->
                         <div class="mt-4">
-                            <label class="block mb-2 text-sm font-bold text-gray-900 dark:text-white">Niveaux de zoom à télécharger :</label>
+                            <span class="block mb-2 text-sm font-bold text-gray-900 dark:text-white">Niveaux de zoom à télécharger :</span>
                             <div class="grid grid-cols-6 sm:grid-cols-9 gap-2" id="creator-zoom-grid">
                                 <!-- Généré par JS : Checkboxes 0 à 18 -->
                             </div>
