@@ -1,6 +1,6 @@
 // sw.js - Service Worker PWA
 
-const CACHE_NAME = 'cado-cache-v30';
+const CACHE_NAME = 'cado-cache-v33';
 
 // Liste EXACTE des fichiers à mettre en cache.
 // Si un seul fichier manque, la PWA ne s'installera pas.
