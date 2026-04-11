@@ -1,6 +1,45 @@
 // zoneDownloader.js
 
 const ZD_TILE_SIZE = 256;
+
+// Helpers EPSG:3395 (Mercator ellipsoïdal WGS84) pour les tuiles Yandex
+const _e_WGS84 = 0.0818191908426215;
+function _yMerc3395(latRad) {
+    const s = Math.sin(latRad);
+    return Math.log(Math.tan(Math.PI / 4 + latRad / 2) *
+        Math.pow((1 - _e_WGS84 * s) / (1 + _e_WGS84 * s), _e_WGS84 / 2));
+}
+// Inverse Mercator ellipsoïdal : de la valeur m (rad) vers la latitude (rad), itératif
+function _inverseMerc3395(m) {
+    let lat = 2 * Math.atan(Math.exp(m)) - Math.PI / 2;
+    for (let i = 0; i < 10; i++) {
+        const s = _e_WGS84 * Math.sin(lat);
+        lat = 2 * Math.atan(Math.exp(m) * Math.pow((1 + s) / (1 - s), _e_WGS84 / 2)) - Math.PI / 2;
+    }
+    return lat;
+}
+// Convertit lat/lon (degrés) en indices de tuile Yandex (EPSG:3395)
+function _latLonToTile3395(latDeg, lonDeg, z) {
+    const n = Math.pow(2, z);
+    const latRad = latDeg * Math.PI / 180;
+    const x = Math.floor((lonDeg + 180) / 360 * n);
+    const y = Math.floor(n / 2 * (1 - _yMerc3395(latRad) / Math.PI));
+    return { x, y };
+}
+// Latitude (degrés) du bord NORD d'une tuile Yandex 3395
+function _tile3395NorthLatDeg(tileY, z) {
+    const n = Math.pow(2, z);
+    const m = Math.PI * (1 - 2 * tileY / n);
+    return _inverseMerc3395(m) * 180 / Math.PI;
+}
+// Convertit des pixels monde EPSG:3857 en lat/lon (degrés) - inverse de zdLatLonToWorldPixels
+function _worldPixels3857ToLatLon(px, zoom) {
+    const mapSize = ZD_TILE_SIZE * Math.pow(2, zoom);
+    const lon = px.x / mapSize * 360 - 180;
+    const M = (0.5 - px.y / mapSize) * 4 * Math.PI;
+    const lat = Math.asin(Math.tanh(M / 2)) * 180 / Math.PI;
+    return { lat, lon };
+}
 let loadedZoneKmlFeatures = [];
 let kmlResources = { images: {} };
 
@@ -1242,31 +1281,75 @@ async function zdCreateFinalCanvas(boundingBox, zoom, mapConfig, externalMargin,
         const cacheBust = 't=' + Date.now();
         for (const layer of mapConfig.layers) {
             const promises = [];
-            for (let x = nwTile.x; x <= seTile.x; x++) {
-                for (let y = nwTile.y; y <= seTile.y; y++) {
-                    let url;
-                    if (layer.type === 'quadkey') {
-                        const q = zdCoordsToQuadKey(x, y, actualZoom);
-                        url = layer.url.replace('{q}', q).replace('{s}', (x + y) % 4);
-                    } else {
-                        url = layer.url.replace('{z}', actualZoom).replace('{x}', x).replace('{y}', y);
+            if (layer.type === 'yandex') {
+                console.error('[YANDEX-v26] NEW CODE RUNNING - 3395 iterate approach');
+                // Tuiles Yandex (EPSG:3395) : on itère sur les tuiles 3395 qui couvrent la zone,
+                // puis on place chaque tuile à la position exacte de ses bords nord/sud en 3857.
+                // La hauteur de dessin est ajustée pour compenser la différence d'échelle entre les deux projections.
+                const dlNwLL = _worldPixels3857ToLatLon(dlNwPx, actualZoom);
+                const dlSeLL = _worldPixels3857ToLatLon(dlSePx, actualZoom);
+                const nwTile3395 = _latLonToTile3395(dlNwLL.lat, dlNwLL.lon, actualZoom);
+                const seTile3395 = _latLonToTile3395(dlSeLL.lat, dlSeLL.lon, actualZoom);
+                const n3395 = Math.pow(2, actualZoom);
+                console.error(`[YANDEX-v26] bbox: ${dlNwLL.lat.toFixed(4)}N ${dlNwLL.lon.toFixed(4)}E → ${dlSeLL.lat.toFixed(4)}N ${dlSeLL.lon.toFixed(4)}E | 3395 tiles y: ${nwTile3395.y}→${seTile3395.y} zoom:${actualZoom}`);
+                for (let tx = nwTile3395.x; tx <= seTile3395.x; tx++) {
+                    for (let ty = nwTile3395.y; ty <= seTile3395.y; ty++) {
+                        const url = layer.url.replace('{z}', actualZoom).replace('{x}', tx).replace('{y}', ty);
+                        const safeUrl = url + (url.includes('?') ? '&' : '?') + cacheBust;
+                        promises.push(new Promise(r => {
+                            const i = new Image(); i.crossOrigin = "Anonymous";
+                            i.onload = () => r({ i, tx, ty, ok: true });
+                            i.onerror = () => r({ ok: false });
+                            i.src = safeUrl;
+                        }));
                     }
-                    const safeUrl = url + (url.includes('?') ? '&' : '?') + cacheBust;
-                    promises.push(new Promise(r => {
-                        const i = new Image(); i.crossOrigin = "Anonymous";
-                        i.onload = () => r({ i, x, y, ok: true });
-                        i.onerror = () => r({ ok: false });
-                        i.src = safeUrl;
-                    }));
                 }
+                let _dbg = true;
+                (await Promise.all(promises)).forEach(res => {
+                    if (res.ok) {
+                        // Bords nord et sud de la tuile 3395 → latitude géographique
+                        const northLat = _tile3395NorthLatDeg(res.ty, actualZoom);
+                        const southLat = _tile3395NorthLatDeg(res.ty + 1, actualZoom);
+                        const westLon  = res.tx / n3395 * 360 - 180;
+                        // Position dans le canvas 3857 : on convertit les latitudes réelles en pixels 3857
+                        const northPx  = zdLatLonToWorldPixels(northLat, westLon, actualZoom);
+                        const southPx  = zdLatLonToWorldPixels(southLat, westLon, actualZoom);
+                        const destX = Math.floor(northPx.x - dlNwPx.x);
+                        const destY = Math.floor(northPx.y - dlNwPx.y);
+                        // Hauteur en pixels 3857 que couvre réellement cette tuile 3395
+                        const destH = Math.ceil(southPx.y - northPx.y) + 1;
+                        if (_dbg) { console.error(`[YANDEX-v26] tile ty=${res.ty} northLat=${northLat.toFixed(4)} destY=${destY} destH=${destH}`); _dbg = false; }
+                        // On étire légèrement la tuile verticalement pour combler la différence de projection
+                        tempCtx.drawImage(res.i, destX, destY, ZD_TILE_SIZE + 1, destH);
+                    }
+                });
+            } else {
+                for (let x = nwTile.x; x <= seTile.x; x++) {
+                    for (let y = nwTile.y; y <= seTile.y; y++) {
+                        let url;
+                        if (layer.type === 'quadkey') {
+                            const q = zdCoordsToQuadKey(x, y, actualZoom);
+                            url = layer.url.replace('{q}', q).replace('{s}', (x + y) % 4);
+                        } else {
+                            url = layer.url.replace('{z}', actualZoom).replace('{x}', x).replace('{y}', y);
+                        }
+                        const safeUrl = url + (url.includes('?') ? '&' : '?') + cacheBust;
+                        promises.push(new Promise(r => {
+                            const i = new Image(); i.crossOrigin = "Anonymous";
+                            i.onload = () => r({ i, x, y, ok: true });
+                            i.onerror = () => r({ ok: false });
+                            i.src = safeUrl;
+                        }));
+                    }
+                }
+                (await Promise.all(promises)).forEach(res => {
+                    if (res.ok) {
+                        const destX = Math.floor((res.x * ZD_TILE_SIZE) - dlNwPx.x);
+                        const destY = Math.floor((res.y * ZD_TILE_SIZE) - dlNwPx.y);
+                        tempCtx.drawImage(res.i, destX, destY, ZD_TILE_SIZE + 1, ZD_TILE_SIZE + 1);
+                    }
+                });
             }
-            (await Promise.all(promises)).forEach(res => {
-                if (res.ok) {
-                    const destX = Math.floor((res.x * ZD_TILE_SIZE) - dlNwPx.x);
-                    const destY = Math.floor((res.y * ZD_TILE_SIZE) - dlNwPx.y);
-                    tempCtx.drawImage(res.i, destX, destY, ZD_TILE_SIZE + 1, ZD_TILE_SIZE + 1);
-                }
-            });
         }
     }
 

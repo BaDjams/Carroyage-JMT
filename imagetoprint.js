@@ -514,41 +514,68 @@ async function createFinalCanvasWithLayers(boundingBox, zoom, mapConfig, onProgr
 
         for (const layer of mapConfig.layers) {
             const tilePromises = [];
-            for (let x = nwTile.x; x <= seTile.x; x++) {
-                for (let y = nwTile.y; y <= seTile.y; y++) {
-                    let tileUrl;
-                    if (layer.type === 'quadkey') {
-                        const q = coordsToQuadKey(x, y, actualZoom);
-                        const subdomain = (x + y) % 4;
-                        tileUrl = layer.url.replace('{q}', q).replace('{s}', subdomain);
-                    } else {
-                        tileUrl = layer.url.replace('{z}', actualZoom).replace('{x}', x).replace('{y}', y);
+            if (layer.type === 'yandex') {
+                // Tuiles Yandex (EPSG:3395) : même algo que zoneDownloader
+                const nwLL = _worldPixels3857ToLatLon(nwPixel, actualZoom);
+                const seLL = _worldPixels3857ToLatLon(sePixel, actualZoom);
+                const nwT3395 = _latLonToTile3395(nwLL.lat, nwLL.lon, actualZoom);
+                const seT3395 = _latLonToTile3395(seLL.lat, seLL.lon, actualZoom);
+                const n3395 = Math.pow(2, actualZoom);
+                for (let tx = nwT3395.x; tx <= seT3395.x; tx++) {
+                    for (let ty = nwT3395.y; ty <= seT3395.y; ty++) {
+                        const tileUrl = layer.url.replace('{z}', actualZoom).replace('{x}', tx).replace('{y}', ty);
+                        const safeUrl = tileUrl + (tileUrl.includes('?') ? '&' : '?') + cacheBust;
+                        tilePromises.push(new Promise((resolve) => {
+                            const img = new Image();
+                            img.crossOrigin = "Anonymous";
+                            img.onload = () => { downloadedCount++; if (onProgress) onProgress(downloadedCount * progressFactor); resolve({ img, tx, ty, success: true }); };
+                            img.onerror = () => { downloadedCount++; if (onProgress) onProgress(downloadedCount * progressFactor); resolve({ success: false }); };
+                            img.src = safeUrl;
+                        }));
                     }
-                    const safeUrl = tileUrl + (tileUrl.includes('?') ? '&' : '?') + cacheBust;
-                    tilePromises.push(new Promise((resolve) => {
-                        const img = new Image();
-                        img.crossOrigin = "Anonymous";
-                        img.onload = () => {
-                            downloadedCount++;
-                            if (onProgress) onProgress(downloadedCount * progressFactor);
-                            resolve({ img, x, y, success: true });
-                        };
-                        img.onerror = () => {
-                            downloadedCount++;
-                            if (onProgress) onProgress(downloadedCount * progressFactor);
-                            resolve({ success: false });
-                        };
-                        img.src = safeUrl;
-                    }));
                 }
+                (await Promise.all(tilePromises)).forEach(tileResult => {
+                    if (tileResult.success) {
+                        const northLat = _tile3395NorthLatDeg(tileResult.ty, actualZoom);
+                        const southLat = _tile3395NorthLatDeg(tileResult.ty + 1, actualZoom);
+                        const westLon  = tileResult.tx / n3395 * 360 - 180;
+                        const northPx  = itpLatLonToWorldPixels(northLat, westLon, actualZoom);
+                        const southPx  = itpLatLonToWorldPixels(southLat, westLon, actualZoom);
+                        const destX = Math.floor(northPx.x - nwPixel.x);
+                        const destY = Math.floor(northPx.y - nwPixel.y);
+                        const destH = Math.ceil(southPx.y - northPx.y) + 1;
+                        tempCtx.drawImage(tileResult.img, destX, destY, TILE_SIZE + 1, destH);
+                    }
+                });
+            } else {
+                for (let x = nwTile.x; x <= seTile.x; x++) {
+                    for (let y = nwTile.y; y <= seTile.y; y++) {
+                        let tileUrl;
+                        if (layer.type === 'quadkey') {
+                            const q = coordsToQuadKey(x, y, actualZoom);
+                            const subdomain = (x + y) % 4;
+                            tileUrl = layer.url.replace('{q}', q).replace('{s}', subdomain);
+                        } else {
+                            tileUrl = layer.url.replace('{z}', actualZoom).replace('{x}', x).replace('{y}', y);
+                        }
+                        const safeUrl = tileUrl + (tileUrl.includes('?') ? '&' : '?') + cacheBust;
+                        tilePromises.push(new Promise((resolve) => {
+                            const img = new Image();
+                            img.crossOrigin = "Anonymous";
+                            img.onload = () => { downloadedCount++; if (onProgress) onProgress(downloadedCount * progressFactor); resolve({ img, x, y, success: true }); };
+                            img.onerror = () => { downloadedCount++; if (onProgress) onProgress(downloadedCount * progressFactor); resolve({ success: false }); };
+                            img.src = safeUrl;
+                        }));
+                    }
+                }
+                (await Promise.all(tilePromises)).forEach(tileResult => {
+                    if (tileResult.success) {
+                        const tileX = (tileResult.x * TILE_SIZE) - nwPixel.x;
+                        const tileY = (tileResult.y * TILE_SIZE) - nwPixel.y;
+                        tempCtx.drawImage(tileResult.img, Math.round(tileX), Math.round(tileY));
+                    }
+                });
             }
-            (await Promise.all(tilePromises)).forEach(tileResult => {
-                if (tileResult.success) {
-                    const tileX = (tileResult.x * TILE_SIZE) - nwPixel.x;
-                    const tileY = (tileResult.y * TILE_SIZE) - nwPixel.y;
-                    tempCtx.drawImage(tileResult.img, Math.round(tileX), Math.round(tileY));
-                }
-            });
         }
     }
 

@@ -1,5 +1,8 @@
 // mbtilesCreator.js
 
+// Les helpers EPSG:3395 (Yandex) sont définis dans zoneDownloader.js (chargé avant ce fichier) :
+// _yMerc3395(latRad) → valeur Mercator ellipsoïdale
+
 let creatorMap = null;
 let creatorDrawnItems = null;
 let currentCreatorBounds = null;
@@ -17,7 +20,7 @@ function initCreatorMode() {
     // 1. Initialisation Carte
     creatorMap = L.map('creator-interactive-map').setView([46.2276, 2.2137], 5);
     
-    // Definition locale QuadKey pour Creator (Au cas où)
+    // Definition locale QuadKey pour Creator
     const L_QuadKeyLayer = L.TileLayer.extend({
         getTileUrl: function (coords) {
             const x = coords.x, y = coords.y, z = coords.z;
@@ -33,16 +36,47 @@ function initCreatorMode() {
         }
     });
 
+    // Correction projection Yandex EPSG:3395 (même logique que dans index.html)
+    const L_YandexLayerCreator = L.TileLayer.extend({
+        getTileUrl: function (coords) {
+            const z = coords.z, x = coords.x;
+            const n = Math.pow(2, z);
+            const latN = Math.atan(Math.sinh(Math.PI * (1 - 2 * coords.y / n)));
+            const y3395 = Math.floor(n / 2 * (1 - _yMerc3395(latN) / Math.PI));
+            return L.Util.template(this._url, L.extend({}, this.options, { x, y: y3395, z }));
+        },
+        createTile: function (coords, done) {
+            const tile = L.TileLayer.prototype.createTile.call(this, coords, done);
+            const z = coords.z, n = Math.pow(2, z);
+            const tileSize = this.getTileSize().y;
+            const latN_3857 = Math.atan(Math.sinh(Math.PI * (1 - 2 * coords.y / n)));
+            const y3395 = Math.floor(n / 2 * (1 - _yMerc3395(latN_3857) / Math.PI));
+            const fracY = (n / 2 * (1 - _yMerc3395(latN_3857) / Math.PI)) - y3395;
+            const offsetPx = -(fracY * tileSize);
+            tile.style.marginTop = offsetPx + 'px';
+            tile.style.height = (tileSize + Math.ceil(-offsetPx) + 1) + 'px';
+            return tile;
+        }
+    });
+
     creatorBaseMaps = {};
     if (typeof MAP_LAYERS !== 'undefined') {
         MAP_LAYERS.forEach(layerConfig => {
+            if (layerConfig.requiresKey) {
+                const keyVal = (typeof window[layerConfig.requiresKey] !== 'undefined') ? window[layerConfig.requiresKey] : '';
+                if (!keyVal) return;
+            }
             let leafletLayer;
             if (layerConfig.layers.length > 1) {
-                const groupLayers = layerConfig.layers.map(l => L.tileLayer(l.url, { maxZoom: layerConfig.maxZoom || 20, attribution: layerConfig.name, keepBuffer: 0, updateWhenZooming: false }));
+                const groupLayers = layerConfig.layers.map(l => {
+                    if (l.type === 'yandex') return new L_YandexLayerCreator(l.url, { maxZoom: layerConfig.maxZoom || 18, attribution: layerConfig.name, keepBuffer: 0, updateWhenZooming: false });
+                    return L.tileLayer(l.url, { maxZoom: layerConfig.maxZoom || 20, attribution: layerConfig.name, keepBuffer: 0, updateWhenZooming: false });
+                });
                 leafletLayer = L.layerGroup(groupLayers);
             } else {
                 const l = layerConfig.layers[0];
                 if (l.type === 'quadkey') leafletLayer = new L_QuadKeyLayer(l.url, { maxZoom: layerConfig.maxZoom || 19, attribution: layerConfig.name });
+                else if (l.type === 'yandex') leafletLayer = new L_YandexLayerCreator(l.url, { maxZoom: layerConfig.maxZoom || 18, attribution: layerConfig.name, keepBuffer: 0, updateWhenZooming: false });
                 else leafletLayer = L.tileLayer(l.url, { maxZoom: layerConfig.maxZoom || 20, attribution: layerConfig.name, keepBuffer: 0, updateWhenZooming: false });
             }
             if (leafletLayer) creatorBaseMaps[layerConfig.name] = leafletLayer;
@@ -384,18 +418,28 @@ class MbtilesJob {
             if (this.isCancelled) break;
 
             try {
-                let url = "";
-                const layer = this.layerConfig.layers[0];
-                if (layer.type === 'quadkey') {
-                    const quadKey = coordsToQuadKey(tile.x, tile.y, tile.z);
-                    url = layer.url.replace('{q}', quadKey).replace('{s}', (tile.x+tile.y)%4);
-                } else {
-                    url = layer.url.replace('{z}', tile.z).replace('{x}', tile.x).replace('{y}', tile.y);
+                ctx.clearRect(0, 0, 256, 256);
+                let hasContent = false;
+
+                for (const layer of this.layerConfig.layers) {
+                    let url = "";
+                    if (layer.type === 'quadkey') {
+                        const quadKey = coordsToQuadKey(tile.x, tile.y, tile.z);
+                        url = layer.url.replace('{q}', quadKey).replace('{s}', (tile.x+tile.y)%4);
+                    } else if (layer.type === 'yandex') {
+                        const n = Math.pow(2, tile.z);
+                        const latN = Math.atan(Math.sinh(Math.PI * (1 - 2 * tile.y / n)));
+                        const y3395 = Math.floor(n / 2 * (1 - _yMerc3395(latN) / Math.PI));
+                        url = layer.url.replace('{z}', tile.z).replace('{x}', tile.x).replace('{y}', y3395);
+                    } else {
+                        url = layer.url.replace('{z}', tile.z).replace('{x}', tile.x).replace('{y}', tile.y);
+                    }
+                    const ok = await this.fetchAndDrawLayer(url, canvas, ctx);
+                    if (ok) hasContent = true;
                 }
 
-                const blob = await this.fetchTileAsBlob(url, canvas, ctx);
-
-                if (blob) {
+                if (hasContent) {
+                    const blob = await new Promise(r => canvas.toBlob(r, 'image/png'));
                     const arrayBuffer = await blob.arrayBuffer();
                     const u8 = new Uint8Array(arrayBuffer);
                     const tmsY = (1 << tile.z) - 1 - tile.y;
@@ -419,21 +463,13 @@ class MbtilesJob {
         }
     }
 
-    fetchTileAsBlob(url, canvas, ctx) {
-        return new Promise((resolve, reject) => {
+    fetchAndDrawLayer(url, canvas, ctx) {
+        return new Promise((resolve) => {
             const img = new Image();
-            img.crossOrigin = "Anonymous"; 
-            img.onload = () => {
-                ctx.clearRect(0, 0, 256, 256);
-                ctx.drawImage(img, 0, 0, 256, 256);
-                canvas.toBlob((blob) => {
-                    resolve(blob);
-                }, 'image/png');
-            };
-            img.onerror = () => {
-                resolve(null);
-            };
-            img.src = url; 
+            img.crossOrigin = "Anonymous";
+            img.onload = () => { ctx.drawImage(img, 0, 0, 256, 256); resolve(true); };
+            img.onerror = () => resolve(false);
+            img.src = url;
         });
     }
 

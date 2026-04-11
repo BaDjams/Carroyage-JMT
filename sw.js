@@ -1,6 +1,6 @@
 // sw.js - Service Worker PWA
 
-const CACHE_NAME = 'cado-cache-v22';
+const CACHE_NAME = 'cado-cache-v30';
 
 // Liste EXACTE des fichiers à mettre en cache.
 // Si un seul fichier manque, la PWA ne s'installera pas.
@@ -81,12 +81,34 @@ self.addEventListener('activate', (event) => {
 
 // Interception des requêtes (Stratégie: Cache falling back to Network)
 self.addEventListener('fetch', (event) => {
+  const url = event.request.url;
+
+  // Proxy CORS pour les tuiles Yandex : le SW fetch sans restriction CORS
+  // et renvoie la réponse avec Access-Control-Allow-Origin pour débloquer canvas.drawImage()
+  if (url.includes('maps.yandex.net')) {
+    event.respondWith(
+      (async () => {
+          try {
+            let res;
+            try { res = await fetch(url, { mode: 'cors', credentials: 'omit' }); }
+            catch (_) { res = await fetch(url, { mode: 'no-cors', credentials: 'omit' }); }
+            const buf = await res.arrayBuffer();
+            const headers = new Headers(res.headers);
+            headers.set('Access-Control-Allow-Origin', '*');
+            return new Response(buf, { status: res.status, statusText: res.statusText, headers });
+          } catch (_) {
+            return new Response('', { status: 503 });
+          }
+        })()
+    );
+    return;
+  }
+
   // On ignore les requêtes vers les tuiles de cartes (Google/IGN/Bing) pour ne pas saturer le cache
   // et on ignore les requêtes data: et blob:
-  const url = event.request.url;
-  if (url.includes('google.com') || 
-      url.includes('geopf.fr') || 
-      url.includes('openstreetmap') || 
+  if (url.includes('google.com') ||
+      url.includes('geopf.fr') ||
+      url.includes('openstreetmap') ||
       url.includes('virtualearth') ||
       url.startsWith('data:') ||
       url.startsWith('blob:')) {

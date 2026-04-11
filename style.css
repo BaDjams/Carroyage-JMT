@@ -512,18 +512,10 @@ input[type="radio"].custom-radio:checked + span {
     transform-origin: center center;
     transition: transform 0.1s linear;
 }
-/* Correction des lignes blanches entre les tuiles (Tile Gap Fix) */
-.leaflet-tile-container img {
-    /* Technique 1 : Mélange de pixels */
-    mix-blend-mode: normal; 
-    /* Technique 2 : Très léger agrandissement pour chevauchement */
-    transform: scale(1.005); 
-}
-
-/* Pour Safari/Chrome si le scale ne suffit pas */
+/* Recouvrement d'1px pour combler les gaps sub-pixel entre tuiles */
 .leaflet-tile {
-    image-rendering: -webkit-optimize-contrast; /* Webkit */
-    image-rendering: crisp-edges;
+    margin-right: -1px;
+    margin-bottom: -1px;
 }
 
 /* Masquage complet de l'attribution Leaflet pour neutralité administrative */

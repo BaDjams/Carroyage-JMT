@@ -48,7 +48,7 @@ const MAP_LAYERS = [
         // Pas de décalage de projection car les deux couches viennent du même serveur.
         "id": "yandex_hybrid",
         "name": "Yandex Hybride (FR)",
-        "maxZoom": 19,
+        "maxZoom": 18,
         "layers": [
             {
                 "url": "https://core-sat.maps.yandex.net/tiles?l=sat&x={x}&y={y}&z={z}&scale=1&lang=fr_FR",

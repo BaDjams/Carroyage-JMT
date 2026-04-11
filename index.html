@@ -32,8 +32,8 @@
 <script src="utilities.js"></script>
 <script src="carroyageUTM.js" defer></script>
 <script src="carroyageCado.js" defer></script>
-<script src="imagetoprint.js" defer></script>
 <script src="zoneDownloader.js" defer></script>
+<script src="imagetoprint.js" defer></script>
 <script src="carroyageToMbtiles.js" defer></script>
 <script src="carroyageToCSV.js" defer></script>
 <script src="mbtilesCreator.js" defer></script>
@@ -990,8 +990,12 @@
                     // En EPSG:3395, la latitude latN_3857 est à quelle fraction de la tuile y3395 ?
                     const fracY = (n / 2 * (1 - yMerc3395(latN_3857) / Math.PI)) - y3395;
                     // Décalage : la tuile doit être décalée vers le haut de fracY * tileSize pixels
-                    const offsetPx = -Math.round(fracY * tileSize);
+                    // marginTop sub-pixel : décalage précis pour l'alignement projection
+                    const offsetPx = -(fracY * tileSize);
                     tile.style.marginTop = offsetPx + 'px';
+                    // Extension de hauteur pour combler le gap sous la tuile décalée.
+                    // Les pixels étirés en bas sont toujours couverts par la tuile suivante.
+                    tile.style.height = (tileSize + Math.ceil(-offsetPx) + 1) + 'px';
                     return tile;
                 }
             });
