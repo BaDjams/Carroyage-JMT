@@ -104,24 +104,23 @@ function initCreatorMode() {
         });
     }
 
-    // Layer défaut
-    const defaultKey = Object.keys(creatorBaseMaps)[0];
-    if(creatorBaseMaps[defaultKey]) creatorBaseMaps[defaultKey].addTo(creatorMap);
+    // Layer défaut : Ortho IGN + Routes Google
+    const defaultCreatorLayer = creatorBaseMaps["Ortho IGN + Routes Google"] || creatorBaseMaps[Object.keys(creatorBaseMaps)[0]];
+    if (defaultCreatorLayer) defaultCreatorLayer.addTo(creatorMap);
 
     L.control.layers(creatorBaseMaps).addTo(creatorMap);
 
-    // Sync Dropdown -> Map
+    // Synchro bidirectionnelle select ↔ map (mbtiles creator)
     const select = document.getElementById('creator-layer-select');
-    select.addEventListener('change', () => {
-        const layerId = select.value;
-        const layerConfig = MAP_LAYERS.find(l => l.id === layerId);
-        if(layerConfig && creatorBaseMaps[layerConfig.name]) {
+
+    select?.addEventListener('change', function() {
+        const ml = MAP_LAYERS.find(l => l.id === this.value);
+        if (ml && creatorBaseMaps[ml.name]) {
             Object.values(creatorBaseMaps).forEach(l => creatorMap.removeLayer(l));
-            creatorBaseMaps[layerConfig.name].addTo(creatorMap);
+            creatorBaseMaps[ml.name].addTo(creatorMap);
         }
     });
 
-    // Sync Map -> Dropdown
     creatorMap.on('baselayerchange', function(e) {
         const correspondingMapLayer = MAP_LAYERS.find(layer => layer.name === e.name);
         if (correspondingMapLayer) {
@@ -197,12 +196,18 @@ function populateCreatorLayers() {
     select.innerHTML = '';
     if (typeof MAP_LAYERS !== 'undefined') {
         MAP_LAYERS.forEach(layer => {
+            if (layer.requiresKey) {
+                const keyVal = (typeof window[layer.requiresKey] !== 'undefined') ? window[layer.requiresKey] : '';
+                if (!keyVal) return;
+            }
             const opt = document.createElement('option');
             opt.value = layer.id;
-            opt.textContent = `${layer.name} (Max Z${layer.maxZoom || 19})`; 
+            opt.textContent = `${layer.name} (Max Z${layer.maxZoom || 19})`;
             select.appendChild(opt);
         });
     }
+    const def = MAP_LAYERS?.find(m => m.name === "Ortho IGN + Routes Google");
+    if (def && select.querySelector(`option[value="${def.id}"]`)) select.value = def.id;
 }
 
 function generateZoomCheckboxes(maxZoom) {

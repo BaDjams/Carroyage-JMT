@@ -732,6 +732,10 @@
                             </label>
                         </div>
                         <p class="text-xs text-secondary italic text-center">L'image inclura les grilles sélectionnées dans le Panel 5.</p>
+                        <div class="flex items-center gap-2 w-full">
+                            <label for="zone-layer-select" class="text-sm text-content whitespace-nowrap">Fond de carte :</label>
+                            <select id="zone-layer-select" class="input-field flex-grow px-2 py-1 border rounded shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white text-sm"></select>
+                        </div>
                     </div>
                     <div class="flex justify-center mt-6">
                         <button id="generate-zone-png-button" class="btn-main btn-image w-full sm:w-auto">Télécharger l'image</button>
@@ -1076,11 +1080,19 @@
 
             cadoMap.on('click', handleCadoMapClick);
             
+            // Synchro bidirectionnelle select ↔ map (mode rapide)
             cadoMap.on('baselayerchange', function(e) {
                 const selector = document.getElementById('map-tile-provider');
                 if (typeof MAP_LAYERS !== 'undefined') {
-                    const correspondingMapLayer = MAP_LAYERS.find(layer => layer.name === e.name);
-                    if (correspondingMapLayer && selector) selector.value = correspondingMapLayer.id;
+                    const ml = MAP_LAYERS.find(l => l.name === e.name);
+                    if (ml && selector) selector.value = ml.id;
+                }
+            });
+            document.getElementById('map-tile-provider')?.addEventListener('change', function() {
+                const ml = MAP_LAYERS.find(l => l.id === this.value);
+                if (ml && cadoBaseMaps[ml.name]) {
+                    Object.values(cadoBaseMaps).forEach(l => cadoMap.removeLayer(l));
+                    cadoBaseMaps[ml.name].addTo(cadoMap);
                 }
             });
 
@@ -1128,7 +1140,22 @@
                 updateZoneTileCount();
             });
             zoneMap.on('zoomend', updateZoneInfo);
-            zoneMap.on('baselayerchange', updateZoneInfo);
+            zoneMap.on('baselayerchange', function(e) {
+                const selector = document.getElementById('zone-layer-select');
+                if (typeof MAP_LAYERS !== 'undefined') {
+                    const ml = MAP_LAYERS.find(l => l.name === e.name);
+                    if (ml && selector) selector.value = ml.id;
+                }
+                updateZoneInfo(e);
+            });
+            // Synchro select → map (mode zone)
+            document.getElementById('zone-layer-select')?.addEventListener('change', function() {
+                const ml = MAP_LAYERS.find(l => l.id === this.value);
+                if (ml && zoneBaseMaps[ml.name]) {
+                    Object.values(zoneBaseMaps).forEach(l => zoneMap.removeLayer(l));
+                    zoneBaseMaps[ml.name].addTo(zoneMap);
+                }
+            });
             
             zoneMap.on('click', (e) => {
                 if (typeof handleMapClickForPOI === 'function') {
@@ -1398,19 +1425,28 @@
             } catch (err) { showError("Impossible de pointer sur la carte: " + err.message); }
         }
 
+        // Remplit un <select> avec les layers autorisés (filtre clés API vides)
+        function populateLayerSelect(selectorId, defaultName) {
+            const selector = document.getElementById(selectorId);
+            if (!selector || typeof MAP_LAYERS === 'undefined') return;
+            selector.innerHTML = '';
+            MAP_LAYERS.forEach(map => {
+                if (map.requiresKey) {
+                    const keyVal = (typeof window[map.requiresKey] !== 'undefined') ? window[map.requiresKey] : '';
+                    if (!keyVal) return;
+                }
+                const option = document.createElement('option');
+                option.value = map.id;
+                option.textContent = map.name;
+                selector.appendChild(option);
+            });
+            const def = MAP_LAYERS.find(m => m.name === (defaultName || "Ortho IGN + Routes Google"));
+            selector.value = (def && selector.querySelector(`option[value="${def.id}"]`)) ? def.id : selector.options[0]?.value;
+        }
+
         function populateMapSelectorForPNG() {
-            const selector = document.getElementById('map-tile-provider');
-            if (selector && typeof MAP_LAYERS !== 'undefined') {
-                selector.innerHTML = '';
-                MAP_LAYERS.forEach(map => {
-                    const option = document.createElement('option');
-                    option.value = map.id;
-                    option.textContent = map.name;
-                    selector.appendChild(option);
-                });
-                const defaultLayerConfig = MAP_LAYERS.find(m => m.name === "Ortho IGN + Routes Google");
-                selector.value = defaultLayerConfig ? defaultLayerConfig.id : "osm_standard";
-            }
+            populateLayerSelect('map-tile-provider');
+            populateLayerSelect('zone-layer-select');
         }
         
         function setDefaultGridName() {
