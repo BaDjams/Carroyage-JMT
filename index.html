@@ -885,6 +885,44 @@
     </button>
 </div>
 
+<!-- ===== STREET VIEW : context menu ===== -->
+<div id="sv-context-menu" class="hidden fixed bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg shadow-xl py-1 min-w-[220px]" style="z-index:10002">
+    <button id="sv-context-btn" class="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2">
+        <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+        Voir le Street View ici
+    </button>
+</div>
+
+<!-- ===== STREET VIEW : modal ===== -->
+<div id="sv-modal" class="hidden fixed inset-0 flex flex-col" style="z-index:10001;background:rgba(0,0,0,0.92)">
+    <!-- Barre supérieure -->
+    <div class="flex items-center justify-between px-4 py-2 gap-3 flex-shrink-0" style="background:#1f2937">
+        <div class="flex gap-2">
+            <button id="sv-tab-google" class="px-3 py-1 rounded text-sm font-medium bg-blue-600 text-white">Google Street View</button>
+            <button id="sv-tab-mapillary" class="px-3 py-1 rounded text-sm font-medium bg-gray-700 text-gray-300 hover:bg-gray-600 flex items-center gap-1">
+                Mapillary
+                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
+            </button>
+        </div>
+        <span id="sv-coords-display" class="text-xs text-gray-400 font-mono hidden sm:block"></span>
+        <button id="sv-close-btn" class="text-gray-400 hover:text-white text-3xl leading-none ml-auto">&times;</button>
+    </div>
+    <!-- Zone principale -->
+    <div class="relative flex-1 min-h-0">
+        <iframe id="sv-iframe" src="" class="w-full h-full border-0" allowfullscreen referrerpolicy="no-referrer"></iframe>
+        <!-- Minimap -->
+        <div id="sv-minimap-container" class="absolute bottom-4 left-4 w-44 h-44 rounded-xl border-2 border-white shadow-2xl overflow-hidden z-10" style="pointer-events:none">
+            <div id="sv-minimap" class="w-full h-full"></div>
+        </div>
+        <!-- Message couverture indisponible -->
+        <div id="sv-no-coverage" class="hidden absolute inset-0 flex flex-col items-center justify-center text-white">
+            <svg class="w-16 h-16 mb-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+            <p class="text-lg font-semibold text-gray-300">Pas de couverture Street View ici</p>
+            <p class="text-sm text-gray-500 mt-1">Essayez Mapillary pour une vue alternative.</p>
+        </div>
+    </div>
+</div>
+
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         let cadoMap = null;
@@ -1079,6 +1117,7 @@
             updateCadoZoom();
 
             cadoMap.on('click', handleCadoMapClick);
+            initSVContextMenu(cadoMap);
             
             // Synchro bidirectionnelle select ↔ map (mode rapide)
             cadoMap.on('baselayerchange', function(e) {
@@ -1162,6 +1201,7 @@
                     handleMapClickForPOI(e);
                 }
             });
+            initSVContextMenu(zoneMap);
             window.zoneMap = zoneMap;
             setTimeout(() => { updateZoneInfo({name: "Ortho IGN + Routes Google"})}, 500);
             setupZoneAddressSearch();
@@ -1842,6 +1882,97 @@
             if(zoneJpegSlider) zoneJpegSlider.addEventListener('input', (e) => { document.getElementById('zone-jpeg-quality-value').textContent = `${e.target.value}%`; });
         }
         
+        // ===== STREET VIEW =====
+        let svContextLatLng = null;
+        let svMinimapInstance = null;
+        let svMinimapMarker = null;
+
+        function initSVContextMenu(map) {
+            map.on('contextmenu', function(e) {
+                svContextLatLng = e.latlng;
+                const menu = document.getElementById('sv-context-menu');
+                const vw = window.innerWidth, vh = window.innerHeight;
+                let x = e.originalEvent.clientX, y = e.originalEvent.clientY;
+                menu.classList.remove('hidden');
+                if (x + 230 > vw) x = vw - 235;
+                if (y + 60 > vh) y = vh - 65;
+                menu.style.left = x + 'px';
+                menu.style.top  = y + 'px';
+            });
+        }
+
+        function openStreetView(lat, lng) {
+            document.getElementById('sv-context-menu').classList.add('hidden');
+            document.getElementById('sv-coords-display').textContent = `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+            document.getElementById('sv-no-coverage').classList.add('hidden');
+
+            const googleUrl = `https://maps.google.com/maps?q=&layer=c&cbll=${lat},${lng}&cbp=12,0,0,0,0&output=embed`;
+            document.getElementById('sv-iframe').src = googleUrl;
+            document.getElementById('sv-modal').classList.remove('hidden');
+
+            setTimeout(() => initOrUpdateSVMinimap(lat, lng), 150);
+        }
+
+        function initOrUpdateSVMinimap(lat, lng) {
+            if (!svMinimapInstance) {
+                svMinimapInstance = L.map('sv-minimap', {
+                    attributionControl: false, zoomControl: false,
+                    dragging: false, scrollWheelZoom: false,
+                    doubleClickZoom: false, boxZoom: false, keyboard: false
+                }).setView([lat, lng], 16);
+                L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(svMinimapInstance);
+                // Marqueur : cercle bleu + cône de direction
+                const svIcon = L.divIcon({
+                    className: '',
+                    html: `<div style="width:20px;height:20px;background:#3b82f6;border:3px solid white;border-radius:50%;box-shadow:0 2px 6px rgba(0,0,0,0.5);position:relative">
+                               <div style="position:absolute;top:-10px;left:50%;transform:translateX(-50%);width:0;height:0;border-left:6px solid transparent;border-right:6px solid transparent;border-bottom:10px solid #3b82f6;opacity:0.85"></div>
+                           </div>`,
+                    iconSize: [20, 20], iconAnchor: [10, 10]
+                });
+                svMinimapMarker = L.marker([lat, lng], { icon: svIcon, interactive: false }).addTo(svMinimapInstance);
+            } else {
+                svMinimapInstance.setView([lat, lng], 16);
+                svMinimapMarker.setLatLng([lat, lng]);
+                svMinimapInstance.invalidateSize();
+            }
+        }
+
+        document.getElementById('sv-context-btn').addEventListener('click', () => {
+            if (svContextLatLng) openStreetView(svContextLatLng.lat, svContextLatLng.lng);
+        });
+
+        document.getElementById('sv-close-btn').addEventListener('click', () => {
+            document.getElementById('sv-modal').classList.add('hidden');
+            document.getElementById('sv-iframe').src = '';
+        });
+
+        document.getElementById('sv-tab-google').addEventListener('click', () => {
+            if (svContextLatLng) {
+                const url = `https://maps.google.com/maps?q=&layer=c&cbll=${svContextLatLng.lat},${svContextLatLng.lng}&cbp=12,0,0,0,0&output=embed`;
+                document.getElementById('sv-iframe').src = url;
+            }
+        });
+
+        document.getElementById('sv-tab-mapillary').addEventListener('click', () => {
+            if (svContextLatLng)
+                window.open(`https://www.mapillary.com/app/?lat=${svContextLatLng.lat}&lng=${svContextLatLng.lng}&z=17`, '_blank');
+        });
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                document.getElementById('sv-modal').classList.add('hidden');
+                document.getElementById('sv-iframe').src = '';
+                document.getElementById('sv-context-menu').classList.add('hidden');
+            }
+        });
+
+        document.addEventListener('click', (e) => {
+            const menu = document.getElementById('sv-context-menu');
+            if (!menu.classList.contains('hidden') && !menu.contains(e.target))
+                menu.classList.add('hidden');
+        });
+        // ===== FIN STREET VIEW =====
+
         function displayAppVersion() {
             if (typeof APP_VERSION !== 'undefined') {
                 const displayVersion = `v${APP_VERSION}`;
