@@ -7,7 +7,13 @@
       "WebFetch(domain:gist.github.com)",
       "WebFetch(domain:core-sat.maps.yandex.net)",
       "WebFetch(domain:core-renderer-tiles.maps.yandex.net)",
-      "WebFetch(domain:maps.hereapi.com)"
+      "WebFetch(domain:maps.hereapi.com)",
+      "Bash(git ls-tree *)",
+      "Bash(git rm *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git push *)",
+      "WebFetch(domain:www.mapchannels.com)",
+      "WebFetch(domain:data.mashedworld.com)"
     ]
   }
 }

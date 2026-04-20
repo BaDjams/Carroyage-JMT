@@ -886,39 +886,42 @@
 </div>
 
 <!-- ===== STREET VIEW : context menu ===== -->
-<div id="sv-context-menu" class="hidden fixed bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg shadow-xl py-1 min-w-[220px]" style="z-index:10002">
+<div id="sv-context-menu" class="hidden fixed bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg shadow-xl py-1" style="z-index:10003;min-width:220px">
     <button id="sv-context-btn" class="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2">
-        <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+        <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z"/></svg>
         Voir le Street View ici
+    </button>
+    <div class="border-t border-gray-100 dark:border-gray-700 my-1"></div>
+    <button id="sv-dualmaps-btn" class="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2">
+        <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6-3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"/></svg>
+        Voir sur DualMaps
     </button>
 </div>
 
+<!-- ===== STREET VIEW : backdrop ===== -->
+<div id="sv-backdrop" class="hidden fixed inset-0" style="z-index:10001;background:rgba(0,0,0,0.65)"></div>
+
 <!-- ===== STREET VIEW : modal ===== -->
-<div id="sv-modal" class="hidden fixed inset-0 flex flex-col" style="z-index:10001;background:rgba(0,0,0,0.92)">
-    <!-- Barre supérieure -->
-    <div class="flex items-center justify-between px-4 py-2 gap-3 flex-shrink-0" style="background:#1f2937">
-        <div class="flex gap-2">
-            <button id="sv-tab-google" class="px-3 py-1 rounded text-sm font-medium bg-blue-600 text-white">Google Street View</button>
-            <button id="sv-tab-mapillary" class="px-3 py-1 rounded text-sm font-medium bg-gray-700 text-gray-300 hover:bg-gray-600 flex items-center gap-1">
-                Mapillary
-                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
-            </button>
+<div id="sv-modal" class="hidden fixed" style="z-index:10002;top:3vh;left:3vw;width:94vw;height:94vh;border-radius:12px;overflow:hidden;background:#111;box-shadow:0 20px 60px rgba(0,0,0,0.8)">
+    <div id="sv-content-area" style="position:relative;width:100%;height:100%">
+        <div id="sv-pano" style="width:100%;height:100%;display:none"></div>
+        <iframe id="sv-iframe" src="" style="width:100%;height:100%;border:none;display:none;position:absolute;top:0;left:0;color-scheme:light;background:white" allowfullscreen></iframe>
+        <!-- Boutons flottants centrés (Street View uniquement) -->
+        <div id="sv-overlay-buttons" style="position:absolute;top:12px;left:50%;transform:translateX(-50%);z-index:50;display:none;gap:8px">
+            <button id="sv-close-overlay"
+                style="opacity:0.2;transition:opacity 0.2s;background:rgba(0,0,0,0.55);color:white;border:none;border-radius:8px;padding:4px 12px;cursor:pointer;font-size:20px;line-height:1.2;backdrop-filter:blur(4px)"
+                onmouseenter="this.style.opacity='1'"
+                onmouseleave="this.style.opacity='0.2'"
+                title="Fermer">&times;</button>
+            <button id="sv-capture-overlay"
+                style="opacity:0.2;transition:opacity 0.2s;background:rgba(0,0,0,0.55);color:white;border:none;border-radius:8px;padding:4px 12px;cursor:pointer;font-size:18px;line-height:1.2;backdrop-filter:blur(4px)"
+                onmouseenter="this.style.opacity='1'"
+                onmouseleave="this.style.opacity='0.2'"
+                title="Capturer l'écran">📷</button>
         </div>
-        <span id="sv-coords-display" class="text-xs text-gray-400 font-mono hidden sm:block"></span>
-        <button id="sv-close-btn" class="text-gray-400 hover:text-white text-3xl leading-none ml-auto">&times;</button>
-    </div>
-    <!-- Zone principale -->
-    <div class="relative flex-1 min-h-0">
-        <iframe id="sv-iframe" src="" class="w-full h-full border-0" allowfullscreen referrerpolicy="no-referrer"></iframe>
-        <!-- Minimap -->
-        <div id="sv-minimap-container" class="absolute bottom-4 left-4 w-44 h-44 rounded-xl border-2 border-white shadow-2xl overflow-hidden z-10" style="pointer-events:none">
-            <div id="sv-minimap" class="w-full h-full"></div>
-        </div>
-        <!-- Message couverture indisponible -->
-        <div id="sv-no-coverage" class="hidden absolute inset-0 flex flex-col items-center justify-center text-white">
-            <svg class="w-16 h-16 mb-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
-            <p class="text-lg font-semibold text-gray-300">Pas de couverture Street View ici</p>
-            <p class="text-sm text-gray-500 mt-1">Essayez Mapillary pour une vue alternative.</p>
+        <!-- Minimap Google native -->
+        <div id="sv-minimap-wrap" style="position:absolute;bottom:16px;left:16px;width:180px;height:180px;border-radius:10px;border:2px solid rgba(255,255,255,0.85);overflow:hidden;z-index:20;box-shadow:0 4px 20px rgba(0,0,0,0.7);pointer-events:none">
+            <div id="sv-minimap" style="width:100%;height:100%"></div>
         </div>
     </div>
 </div>
@@ -1884,8 +1887,10 @@
         
         // ===== STREET VIEW =====
         let svContextLatLng = null;
-        let svMinimapInstance = null;
-        let svMinimapMarker = null;
+        let svPanorama    = null;
+        let svGoogleMini  = null;  // google.maps.Map minimap native
+        let svRefGMarker  = null;  // pastille rouge = point cliqué
+        let gmapsLoading  = null;
 
         function initSVContextMenu(map) {
             map.on('contextmenu', function(e) {
@@ -1893,79 +1898,223 @@
                 const menu = document.getElementById('sv-context-menu');
                 const vw = window.innerWidth, vh = window.innerHeight;
                 let x = e.originalEvent.clientX, y = e.originalEvent.clientY;
-                menu.classList.remove('hidden');
                 if (x + 230 > vw) x = vw - 235;
-                if (y + 60 > vh) y = vh - 65;
+                if (y + 60  > vh) y = vh  - 65;
                 menu.style.left = x + 'px';
                 menu.style.top  = y + 'px';
+                menu.classList.remove('hidden');
             });
         }
 
-        function openStreetView(lat, lng) {
-            document.getElementById('sv-context-menu').classList.add('hidden');
-            document.getElementById('sv-coords-display').textContent = `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
-            document.getElementById('sv-no-coverage').classList.add('hidden');
-
-            const googleUrl = `https://maps.google.com/maps?q=&layer=c&cbll=${lat},${lng}&cbp=12,0,0,0,0&output=embed`;
-            document.getElementById('sv-iframe').src = googleUrl;
-            document.getElementById('sv-modal').classList.remove('hidden');
-
-            setTimeout(() => initOrUpdateSVMinimap(lat, lng), 150);
+        function loadGoogleMapsAPI(key) {
+            if (window.google?.maps?.StreetViewPanorama) return Promise.resolve();
+            if (gmapsLoading) return gmapsLoading;
+            gmapsLoading = new Promise((resolve, reject) => {
+                const s = document.createElement('script');
+                s.src = `https://maps.googleapis.com/maps/api/js?key=${key}&v=weekly&callback=_gmapsReady`;
+                window._gmapsReady = () => { resolve(); delete window._gmapsReady; };
+                s.onerror = () => { gmapsLoading = null; reject(new Error('gmaps load failed')); };
+                document.head.appendChild(s);
+            });
+            return gmapsLoading;
         }
 
-        function initOrUpdateSVMinimap(lat, lng) {
-            if (!svMinimapInstance) {
-                svMinimapInstance = L.map('sv-minimap', {
-                    attributionControl: false, zoomControl: false,
-                    dragging: false, scrollWheelZoom: false,
-                    doubleClickZoom: false, boxZoom: false, keyboard: false
-                }).setView([lat, lng], 16);
-                L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(svMinimapInstance);
-                // Marqueur : cercle bleu + cône de direction
-                const svIcon = L.divIcon({
-                    className: '',
-                    html: `<div style="width:20px;height:20px;background:#3b82f6;border:3px solid white;border-radius:50%;box-shadow:0 2px 6px rgba(0,0,0,0.5);position:relative">
-                               <div style="position:absolute;top:-10px;left:50%;transform:translateX(-50%);width:0;height:0;border-left:6px solid transparent;border-right:6px solid transparent;border-bottom:10px solid #3b82f6;opacity:0.85"></div>
-                           </div>`,
-                    iconSize: [20, 20], iconAnchor: [10, 10]
-                });
-                svMinimapMarker = L.marker([lat, lng], { icon: svIcon, interactive: false }).addTo(svMinimapInstance);
-            } else {
-                svMinimapInstance.setView([lat, lng], 16);
-                svMinimapMarker.setLatLng([lat, lng]);
-                svMinimapInstance.invalidateSize();
+        async function openStreetView(lat, lng) {
+            document.getElementById('sv-context-menu').classList.add('hidden');
+            document.getElementById('sv-backdrop').classList.remove('hidden');
+            document.getElementById('sv-modal').classList.remove('hidden');
+
+            const svApiKey = (typeof GOOGLE_MAPS_API_KEY !== 'undefined') ? GOOGLE_MAPS_API_KEY : '';
+
+            if (svApiKey) {
+                try {
+                    await loadGoogleMapsAPI(svApiKey);
+                    document.getElementById('sv-iframe').style.display = 'none';
+                    document.getElementById('sv-minimap-wrap').style.display = 'block';
+                    document.getElementById('sv-overlay-buttons').style.display = 'flex';
+                    const panoDiv = document.getElementById('sv-pano');
+                    panoDiv.style.display = 'block';
+
+                    const svc = new google.maps.StreetViewService();
+                    const result = await svc.getPanorama({
+                        location: { lat, lng }, radius: 100,
+                        source: google.maps.StreetViewSource.OUTDOOR,
+                        preference: google.maps.StreetViewPreference.NEAREST
+                    });
+                    const svLat = result.data.location.latLng.lat();
+                    const svLng = result.data.location.latLng.lng();
+
+                    if (svPanorama) {
+                        svPanorama.setPosition({ lat: svLat, lng: svLng });
+                        svPanorama.setPov({ heading: 0, pitch: 0 });
+                        google.maps.event.trigger(svPanorama, 'resize');
+                        if (svRefGMarker) svRefGMarker.setPosition({ lat, lng });
+                        if (svGoogleMini)  svGoogleMini.setCenter({ lat: svLat, lng: svLng });
+                    } else {
+                        svPanorama = new google.maps.StreetViewPanorama(panoDiv, {
+                            position: { lat: svLat, lng: svLng },
+                            pov: { heading: 0, pitch: 0 }, zoom: 1,
+                            addressControl: false, linksControl: true,
+                            panControl: true, enableCloseButton: false
+                        });
+                        // Minimap Google native liée au panorama
+                        svGoogleMini = new google.maps.Map(document.getElementById('sv-minimap'), {
+                            center: { lat: svLat, lng: svLng }, zoom: 17,
+                            mapTypeId: 'hybrid', disableDefaultUI: true,
+                            gestureHandling: 'none', clickableIcons: false
+                        });
+                        svGoogleMini.setStreetView(svPanorama); // lien bidirectionnel
+                        // Pastille rouge = point de référence cliqué
+                        svRefGMarker = new google.maps.Marker({
+                            position: { lat, lng }, map: svGoogleMini,
+                            icon: {
+                                path: google.maps.SymbolPath.CIRCLE,
+                                scale: 6, fillColor: '#ef4444', fillOpacity: 1,
+                                strokeColor: 'white', strokeWeight: 2
+                            }
+                        });
+                    }
+                    return;
+                } catch (e) {
+                    console.warn('Street View JS API:', e);
+                    document.getElementById('sv-pano').style.display = 'none';
+                    document.getElementById('sv-minimap-wrap').style.display = 'none';
+                }
             }
+
+            // Fallback iframe sans clé : minimap désactivée
+            document.getElementById('sv-minimap-wrap').style.display = 'none';
+            document.getElementById('sv-overlay-buttons').style.display = 'flex';
+            const iframe = document.getElementById('sv-iframe');
+            iframe.style.display = 'block';
+            iframe.src = `https://maps.google.com/maps?q=&layer=c&cbll=${lat},${lng}&cbp=12,0,0,0,0&output=svembed`;
+        }
+
+        function closeSVModal() {
+            document.getElementById('sv-modal').classList.add('hidden');
+            document.getElementById('sv-backdrop').classList.add('hidden');
+            document.getElementById('sv-iframe').src = '';
+            if (document.fullscreenElement) document.exitFullscreen();
+        }
+
+        async function captureSVScreen() {
+            const overlayBtns = document.getElementById('sv-overlay-buttons');
+            const minimap     = document.getElementById('sv-minimap-wrap');
+            const content     = document.getElementById(svPanorama ? 'sv-pano' : 'sv-iframe');
+            try {
+                const stream = await navigator.mediaDevices.getDisplayMedia({
+                    video: true, preferCurrentTab: true
+                });
+                const video = document.createElement('video');
+                video.srcObject = stream;
+                await new Promise(r => { video.onloadedmetadata = r; });
+                await video.play();
+
+                overlayBtns.style.visibility = 'hidden';
+                minimap.style.visibility     = 'hidden';
+                await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+
+                const rect = content.getBoundingClientRect();
+                const sx = video.videoWidth  / window.innerWidth;
+                const sy = video.videoHeight / window.innerHeight;
+
+                const full = document.createElement('canvas');
+                full.width = video.videoWidth; full.height = video.videoHeight;
+                full.getContext('2d').drawImage(video, 0, 0);
+                stream.getTracks().forEach(t => t.stop());
+
+                const crop = document.createElement('canvas');
+                crop.width  = Math.round(rect.width  * sx);
+                crop.height = Math.round(rect.height * sy);
+                crop.getContext('2d').drawImage(
+                    full,
+                    Math.round(rect.left * sx), Math.round(rect.top * sy),
+                    crop.width, crop.height, 0, 0, crop.width, crop.height
+                );
+
+                const link = document.createElement('a');
+                link.download = `streetview_${new Date().toISOString().slice(0,19).replace(/[T:]/g,'-')}.png`;
+                link.href = crop.toDataURL('image/png');
+                link.click();
+            } catch (e) {
+                if (e.name !== 'NotAllowedError') console.warn('Capture:', e);
+            } finally {
+                overlayBtns.style.visibility = '';
+                minimap.style.visibility     = '';
+            }
+        }
+
+        function openDualMaps(lat, lng) {
+            document.getElementById('sv-context-menu').classList.add('hidden');
+            document.getElementById('sv-pano').style.display = 'none';
+            document.getElementById('sv-minimap-wrap').style.display = 'none';
+            document.getElementById('sv-overlay-buttons').style.display = 'none';
+
+            const iframe = document.getElementById('sv-iframe');
+            iframe.style.display = 'block';
+            // sa=1 : tente l'auto-démarrage ; ss=1 : ouvre directement en Street View
+            iframe.src = `https://data.mapchannels.com/dualmaps8/map.htm?lat=${lat}&lng=${lng}&z=18&sa=1&ss=1&panel=mbsi&gm=0&bm=2&mw=1&mv=1&md=0&mi=2&as=0&pv=0&pc=1&fs=0&lang=fr`;
+
+            document.getElementById('sv-backdrop').classList.remove('hidden');
+            document.getElementById('sv-modal').classList.remove('hidden');
+
+            // Écran de chargement blanc : masque la page de lancement noire de DualMaps
+            const existingCard = document.getElementById('sv-dm-loader');
+            if (existingCard) existingCard.remove();
+            const loader = document.createElement('div');
+            loader.id = 'sv-dm-loader';
+            loader.style.cssText = 'position:absolute;inset:0;z-index:15;background:#f9fafb;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;pointer-events:none;transition:opacity 0.5s';
+            loader.innerHTML = `
+                <svg style="width:48px;height:48px;color:#9ca3af;animation:spin 1.2s linear infinite" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 2C6.477 2 2 6.477 2 12s4.477 10 10 10 10-4.477 10-10"/>
+                </svg>
+                <p style="color:#374151;font-size:15px;font-weight:600;margin:0">Chargement DualMaps…</p>
+                <p style="color:#9ca3af;font-size:12px;margin:0">Carte satellite + Street View synchronisée</p>`;
+            document.getElementById('sv-content-area').appendChild(loader);
+
+            // Disparaît à la fin du chargement de l'iframe, ou après 6s max
+            const removeLoader = () => {
+                const el = document.getElementById('sv-dm-loader');
+                if (!el) return;
+                el.style.opacity = '0';
+                setTimeout(() => el.remove(), 500);
+            };
+            iframe.addEventListener('load', removeLoader, { once: true });
+            setTimeout(removeLoader, 6000);
         }
 
         document.getElementById('sv-context-btn').addEventListener('click', () => {
             if (svContextLatLng) openStreetView(svContextLatLng.lat, svContextLatLng.lng);
         });
-
-        document.getElementById('sv-close-btn').addEventListener('click', () => {
-            document.getElementById('sv-modal').classList.add('hidden');
-            document.getElementById('sv-iframe').src = '';
+        document.getElementById('sv-dualmaps-btn').addEventListener('click', () => {
+            if (svContextLatLng) openDualMaps(svContextLatLng.lat, svContextLatLng.lng);
         });
+        document.getElementById('sv-close-overlay').addEventListener('click', closeSVModal);
+        document.getElementById('sv-capture-overlay').addEventListener('click', captureSVScreen);
+        document.getElementById('sv-backdrop').addEventListener('click', closeSVModal);
 
-        document.getElementById('sv-tab-google').addEventListener('click', () => {
-            if (svContextLatLng) {
-                const url = `https://maps.google.com/maps?q=&layer=c&cbll=${svContextLatLng.lat},${svContextLatLng.lng}&cbp=12,0,0,0,0&output=embed`;
-                document.getElementById('sv-iframe').src = url;
+        document.addEventListener('fullscreenchange', () => {
+            const fsEl        = document.fullscreenElement;
+            const overlayBtns = document.getElementById('sv-overlay-buttons');
+            const contentArea = document.getElementById('sv-content-area');
+            if (!fsEl) {
+                if (overlayBtns && overlayBtns.parentElement !== contentArea)
+                    contentArea.appendChild(overlayBtns);
+                if (overlayBtns) overlayBtns.style.position = 'absolute';
+            } else if (fsEl !== document.getElementById('sv-modal')) {
+                if (overlayBtns) {
+                    fsEl.appendChild(overlayBtns);
+                    overlayBtns.style.position = 'fixed';
+                }
             }
-        });
-
-        document.getElementById('sv-tab-mapillary').addEventListener('click', () => {
-            if (svContextLatLng)
-                window.open(`https://www.mapillary.com/app/?lat=${svContextLatLng.lat}&lng=${svContextLatLng.lng}&z=17`, '_blank');
         });
 
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape') {
-                document.getElementById('sv-modal').classList.add('hidden');
-                document.getElementById('sv-iframe').src = '';
+                closeSVModal();
                 document.getElementById('sv-context-menu').classList.add('hidden');
             }
         });
-
         document.addEventListener('click', (e) => {
             const menu = document.getElementById('sv-context-menu');
             if (!menu.classList.contains('hidden') && !menu.contains(e.target))
