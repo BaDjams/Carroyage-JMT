@@ -1,0 +1,1247 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>Carroyage-JMT — Documentation technique</title>
+<style>
+@page { size: A4; margin: 18mm 16mm 20mm 16mm; }
+@page :first { margin: 0; }
+
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  font-size: 10.5pt;
+  line-height: 1.5;
+  color: #1a202c;
+}
+
+/* COVER */
+.cover {
+  page-break-after: always;
+  height: 297mm;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 50%, #3b82f6 100%);
+  color: white;
+  padding: 0 30mm;
+}
+.cover h1 {
+  font-size: 42pt;
+  margin: 0 0 8mm 0;
+  font-weight: 700;
+  letter-spacing: -0.5pt;
+}
+.cover .subtitle {
+  font-size: 18pt;
+  font-weight: 300;
+  margin-bottom: 30mm;
+  opacity: 0.95;
+}
+.cover .meta {
+  font-size: 11pt;
+  opacity: 0.85;
+  line-height: 1.8;
+}
+.cover .meta strong { font-weight: 600; }
+
+/* CONTENT */
+.content { padding: 0 4mm; }
+
+h1 {
+  font-size: 22pt;
+  color: #1e3a8a;
+  border-bottom: 3px solid #2563eb;
+  padding-bottom: 4mm;
+  margin-top: 12mm;
+  margin-bottom: 6mm;
+  page-break-before: always;
+  page-break-after: avoid;
+}
+h1:first-of-type { page-break-before: auto; }
+
+h2 {
+  font-size: 16pt;
+  color: #1e40af;
+  margin-top: 8mm;
+  margin-bottom: 3mm;
+  page-break-after: avoid;
+  border-left: 4px solid #3b82f6;
+  padding-left: 4mm;
+}
+
+h3 {
+  font-size: 13pt;
+  color: #2563eb;
+  margin-top: 6mm;
+  margin-bottom: 2mm;
+  page-break-after: avoid;
+}
+
+h4 {
+  font-size: 11.5pt;
+  color: #1e40af;
+  margin-top: 4mm;
+  margin-bottom: 2mm;
+  page-break-after: avoid;
+}
+
+p { margin: 2mm 0; orphans: 3; widows: 3; }
+
+a { color: #2563eb; text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+/* CODE */
+code {
+  font-family: "Consolas", "Courier New", monospace;
+  background: #f1f5f9;
+  color: #be185d;
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-size: 9.5pt;
+  word-break: break-word;
+}
+pre {
+  background: #1e293b;
+  color: #e2e8f0;
+  padding: 4mm 5mm;
+  border-radius: 4px;
+  overflow-x: auto;
+  font-size: 8.8pt;
+  line-height: 1.45;
+  page-break-inside: avoid;
+  margin: 3mm 0;
+}
+pre code {
+  background: transparent;
+  color: inherit;
+  padding: 0;
+  font-size: inherit;
+  white-space: pre;
+}
+
+/* TABLES */
+table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 3mm 0;
+  font-size: 9.5pt;
+  page-break-inside: avoid;
+}
+th {
+  background: #2563eb;
+  color: white;
+  font-weight: 600;
+  text-align: left;
+  padding: 2mm 3mm;
+  border: 1px solid #1e40af;
+}
+td {
+  padding: 1.5mm 3mm;
+  border: 1px solid #cbd5e1;
+  vertical-align: top;
+}
+tr:nth-child(even) td { background: #f8fafc; }
+
+/* LISTS */
+ul, ol { margin: 2mm 0; padding-left: 7mm; }
+li { margin: 0.5mm 0; }
+li > p { margin: 1mm 0; }
+
+/* BLOCKQUOTE */
+blockquote {
+  border-left: 4px solid #f59e0b;
+  background: #fef3c7;
+  padding: 3mm 5mm;
+  margin: 3mm 0;
+  font-style: italic;
+  color: #78350f;
+  page-break-inside: avoid;
+}
+blockquote p { margin: 1mm 0; }
+
+hr {
+  border: 0;
+  border-top: 1px solid #cbd5e1;
+  margin: 6mm 0;
+}
+
+/* TOC */
+.toc {
+  page-break-after: always;
+  padding: 0 4mm;
+}
+.toc-title {
+  font-size: 22pt;
+  color: #1e3a8a;
+  border-bottom: 3px solid #2563eb;
+  padding-bottom: 4mm;
+  margin-bottom: 6mm;
+}
+.toc ul {
+  list-style: none;
+  padding-left: 0;
+}
+.toc > ul > li { margin: 2mm 0; font-weight: 600; font-size: 11pt; color: #1e3a8a; }
+.toc ul ul { padding-left: 6mm; margin: 1mm 0; }
+.toc ul ul li { font-weight: 400; font-size: 10pt; color: #334155; margin: 0.5mm 0; }
+.toc ul ul ul { padding-left: 5mm; }
+.toc ul ul ul li { font-size: 9.5pt; color: #64748b; }
+.toc a { color: inherit; }
+
+strong { font-weight: 600; color: #1e293b; }
+em { font-style: italic; }
+</style>
+</head>
+<body>
+
+<div class="cover">
+  <h1>Carroyage-JMT</h1>
+  <div class="subtitle">Documentation technique<br>développeurs &amp; maintenance</div>
+  <div class="meta">
+    <div><strong>Version</strong> 22.12</div>
+    <div><strong>Mise à jour</strong> 2026-05-05</div>
+    <div><strong>Dépôt</strong> github.com/BaDjams/Carroyage-JMT</div>
+  </div>
+</div>
+
+
+<div class="toc">
+  <div class="toc-title">Table des matières</div>
+  <div class="toc"><span class="toctitle">Table des matières</span><ul>
+<li><a href="#table-des-matieres">Table des matières</a></li>
+<li><a href="#1-vue-densemble">1. Vue d'ensemble</a></li>
+<li><a href="#2-stack-technique">2. Stack technique</a></li>
+<li><a href="#3-architecture-generale">3. Architecture générale</a><ul>
+<li><a href="#31-structure-spa-monolithique">3.1 Structure SPA monolithique</a></li>
+<li><a href="#32-ordre-de-chargement-des-scripts">3.2 Ordre de chargement des scripts</a></li>
+<li><a href="#33-etat-global-variables-window">3.3 État global (variables window)</a></li>
+<li><a href="#34-contrats-inter-modules-via-le-dom">3.4 Contrats inter-modules via le DOM</a></li>
+</ul>
+</li>
+<li><a href="#4-modes-operationnels">4. Modes opérationnels</a><ul>
+<li><a href="#mode-1-carroyage-rapide-cado">Mode 1 — Carroyage rapide (CADO)</a></li>
+<li><a href="#mode-2-export-de-zone">Mode 2 — Export de zone</a></li>
+<li><a href="#mode-3-creer-mbtiles">Mode 3 — Créer MBTiles</a></li>
+</ul>
+</li>
+<li><a href="#5-reference-des-fichiers">5. Référence des fichiers</a><ul>
+<li><a href="#51-scripts-metier">5.1 Scripts métier</a><ul>
+<li><a href="#indexhtml-150-kb">index.html (~150 KB)</a></li>
+<li><a href="#utilitiesjs">utilities.js</a></li>
+<li><a href="#versionjs">version.js</a></li>
+</ul>
+</li>
+<li><a href="#52-systemes-de-carroyage">5.2 Systèmes de carroyage</a><ul>
+<li><a href="#carroyagecadojs-43-kb">carroyageCado.js (~43 KB)</a></li>
+<li><a href="#carroyagecfsijs-14-kb">carroyageCFSI.js (~14 KB)</a></li>
+<li><a href="#carroyageutmjs-19-kb">carroyageUTM.js (~19 KB)</a></li>
+</ul>
+</li>
+<li><a href="#53-modules-dexport">5.3 Modules d'export</a><ul>
+<li><a href="#carroyagetocsvjs-75-kb">carroyageToCSV.js (~7.5 KB)</a></li>
+<li><a href="#carroyagetombtilesjs-16-kb">carroyageToMbtiles.js (~16 KB)</a></li>
+<li><a href="#imagetoprintjs-28-kb">imagetoprint.js (~28 KB)</a></li>
+</ul>
+</li>
+<li><a href="#54-mode-3-creation-mbtiles">5.4 Mode 3 — création MBTiles</a><ul>
+<li><a href="#mbtilescreatorjs-32-kb">mbtilesCreator.js (~32 KB)</a></li>
+<li><a href="#seedmanagerjs-86-kb">seedManager.js (~8.6 KB)</a></li>
+<li><a href="#tilesourcejs">tileSource.js</a></li>
+</ul>
+</li>
+<li><a href="#55-orchestrateurs-et-helpers">5.5 Orchestrateurs et helpers</a><ul>
+<li><a href="#zonedownloaderjs">zoneDownloader.js</a></li>
+<li><a href="#settingsmanagerjs">settingsManager.js</a></li>
+</ul>
+</li>
+<li><a href="#56-couches-cartographiques">5.6 Couches cartographiques</a><ul>
+<li><a href="#map-layersjs">map-layers.js</a></li>
+</ul>
+</li>
+<li><a href="#57-bibliotheques-dicones">5.7 Bibliothèques d'icônes</a><ul>
+<li><a href="#iconsjs">icons.js</a></li>
+<li><a href="#icons-catalogjs-213-kb-genere">icons-catalog.js (~213 KB, généré)</a></li>
+<li><a href="#build_librarypy">build_library.py</a></li>
+</ul>
+</li>
+<li><a href="#58-pwa">5.8 PWA</a><ul>
+<li><a href="#manifestjson">manifest.json</a></li>
+<li><a href="#swjs-service-worker">sw.js — Service Worker</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><a href="#6-systemes-de-carroyage">6. Systèmes de carroyage</a><ul>
+<li><a href="#61-cado-systeme-maison">6.1 CADO (système maison)</a></li>
+<li><a href="#62-utm">6.2 UTM</a></li>
+<li><a href="#63-cfsi-dfci">6.3 CFSI / DFCI</a></li>
+</ul>
+</li>
+<li><a href="#7-couches-cartographiques-map-layersjs">7. Couches cartographiques (map-layers.js)</a><ul>
+<li><a href="#71-structure">7.1 Structure</a></li>
+<li><a href="#72-couches-disponibles">7.2 Couches disponibles</a></li>
+<li><a href="#73-ajout-dune-couche">7.3 Ajout d'une couche</a></li>
+<li><a href="#74-here-maps-differe">7.4 HERE Maps (différé)</a></li>
+</ul>
+</li>
+<li><a href="#8-pipelines-dexport">8. Pipelines d'export</a><ul>
+<li><a href="#81-kml-kmz">8.1 KML / KMZ</a></li>
+<li><a href="#82-geojson-gpx">8.2 GeoJSON / GPX</a></li>
+<li><a href="#83-csv-wkt">8.3 CSV (WKT)</a></li>
+<li><a href="#84-png-haute-resolution">8.4 PNG haute résolution</a></li>
+<li><a href="#85-mbtiles-drone-dji">8.5 MBTiles (drone DJI)</a></li>
+<li><a href="#86-seeds">8.6 Seeds</a></li>
+</ul>
+</li>
+<li><a href="#9-street-view-dualmaps">9. Street View &amp; DualMaps</a><ul>
+<li><a href="#91-architecture">9.1 Architecture</a></li>
+<li><a href="#92-capture-decran">9.2 Capture d'écran</a></li>
+<li><a href="#93-iframe-dualmaps-en-mode-sombre">9.3 Iframe DualMaps en mode sombre</a></li>
+</ul>
+</li>
+<li><a href="#10-service-worker-pwa">10. Service Worker / PWA</a><ul>
+<li><a href="#101-strategie-de-cache">10.1 Stratégie de cache</a></li>
+<li><a href="#102-exceptions-de-cache">10.2 Exceptions de cache</a></li>
+<li><a href="#103-proxy-cors-yandex">10.3 Proxy CORS Yandex</a></li>
+<li><a href="#104-cycle-de-vie">10.4 Cycle de vie</a></li>
+<li><a href="#105-procedure-de-release">10.5 Procédure de release</a></li>
+</ul>
+</li>
+<li><a href="#11-configuration-secrets">11. Configuration &amp; secrets</a><ul>
+<li><a href="#111-configprivatejs-gitignored">11.1 config.private.js (gitignored)</a></li>
+<li><a href="#112-chargement-gracieux">11.2 Chargement gracieux</a></li>
+<li><a href="#113-important-historique-purge">11.3 Important — historique purgé</a></li>
+</ul>
+</li>
+<li><a href="#12-build-deploiement">12. Build &amp; déploiement</a><ul>
+<li><a href="#121-image-docker">12.1 Image Docker</a></li>
+<li><a href="#122-docker-composeyml">12.2 docker-compose.yml</a></li>
+<li><a href="#123-lancer-en-local-developpement">12.3 Lancer en local (développement)</a></li>
+</ul>
+</li>
+<li><a href="#13-cicd-gitlab">13. CI/CD GitLab</a><ul>
+<li><a href="#131-pipeline-gitlab-ciyml">13.1 Pipeline (.gitlab-ci.yml)</a><ul>
+<li><a href="#stage-build-docker-build">Stage build : docker-build</a></li>
+<li><a href="#stage-deploy-docker-deploy">Stage deploy : docker-deploy</a></li>
+</ul>
+</li>
+<li><a href="#132-consequence-pour-les-developpeurs">13.2 Conséquence pour les développeurs</a></li>
+<li><a href="#133-branches">13.3 Branches</a></li>
+</ul>
+</li>
+<li><a href="#14-conventions-de-code-et-patterns">14. Conventions de code et patterns</a><ul>
+<li><a href="#141-style-js">14.1 Style JS</a></li>
+<li><a href="#142-css">14.2 CSS</a></li>
+<li><a href="#143-patterns-recurrents">14.3 Patterns récurrents</a></li>
+<li><a href="#144-convention-de-commit">14.4 Convention de commit</a></li>
+</ul>
+</li>
+<li><a href="#15-maintenance-evolutions">15. Maintenance &amp; évolutions</a><ul>
+<li><a href="#151-taches-recurrentes">15.1 Tâches récurrentes</a></li>
+<li><a href="#152-pour-ajouter-un-mode">15.2 Pour ajouter un mode</a></li>
+<li><a href="#153-pour-ajouter-un-format-dexport">15.3 Pour ajouter un format d'export</a></li>
+<li><a href="#154-pour-ajouter-un-systeme-de-carroyage">15.4 Pour ajouter un système de carroyage</a></li>
+<li><a href="#155-evolutions-souhaitables">15.5 Évolutions souhaitables</a></li>
+</ul>
+</li>
+<li><a href="#16-troubleshooting">16. Troubleshooting</a><ul>
+<li><a href="#161-le-service-worker-ne-met-pas-a-jour">16.1 Le Service Worker ne met pas à jour</a></li>
+<li><a href="#162-tuiles-yandex-en-noir">16.2 Tuiles Yandex en noir</a></li>
+<li><a href="#163-couche-privee-invisible">16.3 Couche privée invisible</a></li>
+<li><a href="#164-export-mbtiles-tronque-message-canvas-trop-grand">16.4 Export MBTiles tronqué / message "canvas trop grand"</a></li>
+<li><a href="#165-force-push-gitlab-refuse">16.5 Force-push GitLab refusé</a></li>
+<li><a href="#166-conflit-apres-push-ci">16.6 Conflit après push CI</a></li>
+<li><a href="#167-apercu-leaflet-fige">16.7 Aperçu Leaflet figé</a></li>
+<li><a href="#168-kmz-exporte-sans-icones">16.8 KMZ exporté sans icônes</a></li>
+<li><a href="#169-tailwind-z-10002-na-pas-deffet">16.9 Tailwind z-[10002] n'a pas d'effet</a></li>
+</ul>
+</li>
+<li><a href="#annexe-a-glossaire">Annexe A — Glossaire</a></li>
+<li><a href="#annexe-b-liens-utiles">Annexe B — Liens utiles</a></li>
+</ul>
+</div>
+
+</div>
+
+<div class="content">
+<h1 id="carroyage-jmt-documentation-technique">Carroyage-JMT — Documentation technique</h1>
+<p><strong>Version applicative</strong> : 22.12
+<strong>Public visé</strong> : développeurs et mainteneurs du projet
+<strong>Date de mise à jour</strong> : 2026-05-05
+<strong>Dépôt</strong> : https://github.com/BaDjams/Carroyage-JMT — miroir GitLab : https://gitlab.example.com/org/Carroyage-JMT</p>
+<hr />
+<h2 id="table-des-matieres">Table des matières</h2>
+<ol>
+<li><a href="#1-vue-densemble">Vue d'ensemble</a></li>
+<li><a href="#2-stack-technique">Stack technique</a></li>
+<li><a href="#3-architecture-générale">Architecture générale</a></li>
+<li><a href="#4-modes-opérationnels">Modes opérationnels</a></li>
+<li><a href="#5-référence-des-fichiers">Référence des fichiers</a></li>
+<li><a href="#6-systèmes-de-carroyage">Systèmes de carroyage</a></li>
+<li><a href="#7-couches-cartographiques-map-layersjs">Couches cartographiques</a></li>
+<li><a href="#8-pipelines-dexport">Pipelines d'export</a></li>
+<li><a href="#9-street-view--dualmaps">Street View &amp; DualMaps</a></li>
+<li><a href="#10-service-worker--pwa">Service Worker / PWA</a></li>
+<li><a href="#11-configuration--secrets">Configuration &amp; secrets</a></li>
+<li><a href="#12-build--déploiement">Build &amp; déploiement</a></li>
+<li><a href="#13-cicd-gitlab">CI/CD GitLab</a></li>
+<li><a href="#14-conventions-de-code-et-patterns">Conventions de code et patterns</a></li>
+<li><a href="#15-maintenance--évolutions">Maintenance &amp; évolutions</a></li>
+<li><a href="#16-troubleshooting">Troubleshooting</a></li>
+</ol>
+<hr />
+<h2 id="1-vue-densemble">1. Vue d'ensemble</h2>
+<p><strong>Carroyage-JMT</strong> (alias <strong>CADO</strong>) est une application web monopage (PWA) écrite en HTML/CSS/JavaScript pur, sans étape de bundling. Elle permet de générer des carroyages tactiques (grilles de référence) sur fond cartographique selon trois systèmes de coordonnées (CADO, UTM, CFSI/DFCI), de les exporter dans plusieurs formats (KML, KMZ, GeoJSON, GPX, CSV, MBTiles, PNG haute résolution), de prévisualiser en temps réel sur carte Leaflet et de fonctionner hors-ligne grâce à un service worker.</p>
+<p><strong>Domaine d'usage</strong> : opérations de terrain (sécurité civile, gendarmerie, drones DJI, recherches en zones étendues).</p>
+<p><strong>URL de production</strong> : https://app.example.com (déploiement Docker derrière nginx-proxy).</p>
+<hr />
+<h2 id="2-stack-technique">2. Stack technique</h2>
+<table>
+<thead>
+<tr>
+<th>Couche</th>
+<th>Technologie</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Front-end</td>
+<td>HTML5, CSS3, JavaScript ES2017+ vanilla (pas de framework)</td>
+</tr>
+<tr>
+<td>UI</td>
+<td>Tailwind CSS (précompilé) + Flowbite + style.css</td>
+</tr>
+<tr>
+<td>Cartographie</td>
+<td>Leaflet 1.x + Leaflet.draw</td>
+</tr>
+<tr>
+<td>SQLite navigateur</td>
+<td>sql.js (WASM) — <code>sql-wasm.js</code> + <code>sql-wasm.wasm</code></td>
+</tr>
+<tr>
+<td>Compression</td>
+<td>JSZip + FileSaver.js</td>
+</tr>
+<tr>
+<td>Encodage géo</td>
+<td>Open Location Code (Plus Codes)</td>
+</tr>
+<tr>
+<td>PWA</td>
+<td>Service Worker natif + manifest.json</td>
+</tr>
+<tr>
+<td>Stockage local</td>
+<td>localStorage (icônes POI) + OPFS (Origin Private File System) pour gros MBTiles</td>
+</tr>
+<tr>
+<td>Build (icônes)</td>
+<td>Python 3 + Pillow</td>
+</tr>
+<tr>
+<td>Conteneurisation</td>
+<td>nginx:alpine-slim (Docker)</td>
+</tr>
+<tr>
+<td>CI/CD</td>
+<td>GitLab CI (<code>docker:dind</code> + auto-deploy via push de tag)</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Aucun gestionnaire de paquets JS</strong> (pas de <code>package.json</code>). Toutes les libs tierces sont vendorées dans le repo.</p>
+<hr />
+<h2 id="3-architecture-generale">3. Architecture générale</h2>
+<h3 id="31-structure-spa-monolithique">3.1 Structure SPA monolithique</h3>
+<p><code>index.html</code> (~150 KB) contient toute l'UI dans un unique document. Les trois modes opérationnels sont des <code>&lt;div&gt;</code> cachés/affichés via JS :</p>
+<pre class="highlight"><code>#cado-mode-container       → Mode 1 (Carroyage rapide CADO)
+#zone-mode-container       → Mode 2 (Export de zone)
+#creator-mode-container    → Mode 3 (Créer MBTiles)</code></pre>
+<p>Le bouton de bascule porte un attribut <code>data-mode</code> lu par le routeur JS dans <code>index.html</code>.</p>
+<h3 id="32-ordre-de-chargement-des-scripts">3.2 Ordre de chargement des scripts</h3>
+<p>L'ordre dans <code>index.html</code> est important — plusieurs fichiers exposent des variables globales utilisées par les suivants :</p>
+<pre class="highlight"><code>1. version.js          → APP_VERSION
+2. JSZip / FileSaver   → libs tierces
+3. utilities.js        → fonctions partagées (rotation, conversions)
+4. map-layers.js       → MAP_LAYERS, clés API
+5. icons.js / icons-catalog.js → ICON_LIBRARY, ICON_CATALOG
+6. carroyageCado.js    → générateur CADO + init Leaflet mode 1
+7. carroyageCFSI.js    → CFSI_UTILS
+8. carroyageUTM.js     → WGS84_to_UTM
+9. zoneDownloader.js   → orchestrateur mode 2
+10. carroyageToMbtiles.js / carroyageToCSV.js → exports
+11. seedManager.js     → encodage seeds
+12. tileSource.js      → abstraction MBTiles/online
+13. mbtilesCreator.js  → mode 3
+14. settingsManager.js → gestion icônes utilisateur
+15. imagetoprint.js    → export PNG haute résolution</code></pre>
+<h3 id="33-etat-global-variables-window">3.3 État global (variables <code>window</code>)</h3>
+<table>
+<thead>
+<tr>
+<th>Variable</th>
+<th>Rôle</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>window.cadoMap</code>, <code>window.zoneMap</code>, <code>window.creatorMap</code></td>
+<td>instances Leaflet par mode</td>
+</tr>
+<tr>
+<td><code>window.userPOIs</code></td>
+<td>tableau des points d'intérêt utilisateur</td>
+</tr>
+<tr>
+<td><code>loadedCadoKmlFeatures</code>, <code>loadedZoneKmlFeatures</code></td>
+<td>features KML importées</td>
+</tr>
+<tr>
+<td><code>cadoKmlResources</code>, <code>kmlResources</code></td>
+<td>images embarquées dans KMZ importés</td>
+</tr>
+<tr>
+<td><code>currentIconLibrary</code></td>
+<td>bibliothèque d'icônes courante (modifiable)</td>
+</tr>
+<tr>
+<td><code>MAP_LAYERS</code>, <code>ICON_LIBRARY</code>, <code>ICON_CATALOG</code></td>
+<td>catalogues statiques</td>
+</tr>
+<tr>
+<td><code>CFSI_UTILS</code>, <code>WGS84_to_UTM</code></td>
+<td>namespaces de conversion</td>
+</tr>
+</tbody>
+</table>
+<h3 id="34-contrats-inter-modules-via-le-dom">3.4 Contrats inter-modules via le DOM</h3>
+<p>Plutôt que des imports/exports, les modules communiquent via des IDs DOM stables. Modifier ces IDs casse le couplage :</p>
+<table>
+<thead>
+<tr>
+<th>ID / classe</th>
+<th>Lecteur principal</th>
+<th>Écrivain principal</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>#decimal-coords</code>, <code>#dms-coords</code>, <code>#utm-coords</code>, <code>#mercator-coords</code></td>
+<td>carroyageCado.js</td>
+<td>UI utilisateur</td>
+</tr>
+<tr>
+<td><code>#cado-interactive-map</code></td>
+<td>carroyageCado.js (init)</td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>#zone-interactive-map</code></td>
+<td>zoneDownloader.js</td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>#creator-interactive-map</code></td>
+<td>mbtilesCreator.js</td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>.grid-parameter</code> (classe)</td>
+<td>carroyageCado.js (debounce 400ms)</td>
+<td>UI</td>
+</tr>
+<tr>
+<td><code>.color-option[data-color][data-name]</code></td>
+<td>carroyageCado.js, zoneDownloader.js</td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>#settings-modal</code></td>
+<td>settingsManager.js</td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>.mbtiles-status-badge</code>, <code>.mbtiles-info-bar</code></td>
+<td>tileSource.js</td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>#cado-mbtiles-input</code>, <code>#zone-mbtiles-input</code></td>
+<td>tileSource.js</td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="4-modes-operationnels">4. Modes opérationnels</h2>
+<h3 id="mode-1-carroyage-rapide-cado">Mode 1 — Carroyage rapide (CADO)</h3>
+<p>Génère un quadrillage CADO <strong>centré sur un point unique</strong> (lat/lon en décimal, DMS, UTM ou Mercator). Aperçu temps réel sur carte Leaflet, exports KML/KMZ/GeoJSON/GPX/CSV/PNG/MBTiles.</p>
+<p><strong>Fichier pivot</strong> : <code>carroyageCado.js</code> (~43 KB).</p>
+<h3 id="mode-2-export-de-zone">Mode 2 — Export de zone</h3>
+<p>L'utilisateur dessine un rectangle (Leaflet.draw) ou importe un KML/KMZ existant. Génère plusieurs grilles superposées (UTM + CFSI + CADO, au choix) sur la zone, gère les POI utilisateur.</p>
+<p><strong>Fichier pivot</strong> : <code>zoneDownloader.js</code>.</p>
+<h3 id="mode-3-creer-mbtiles">Mode 3 — Créer MBTiles</h3>
+<p>Interface dédiée pour générer une base MBTiles (fond de carte tuilé hors-ligne) sur une zone et plage de zoom choisies. Utilise OPFS pour stocker &gt; 100 000 tuiles sans saturer la RAM.</p>
+<p><strong>Fichier pivot</strong> : <code>mbtilesCreator.js</code> + <code>seedManager.js</code>.</p>
+<hr />
+<h2 id="5-reference-des-fichiers">5. Référence des fichiers</h2>
+<h3 id="51-scripts-metier">5.1 Scripts métier</h3>
+<h4 id="indexhtml-150-kb"><code>index.html</code> (~150 KB)</h4>
+<p>Shell SPA. Contient :
+- la balise <code>&lt;head&gt;</code> avec les imports CSS
+- les trois conteneurs <code>*-mode-container</code> cachés
+- les modales (paramètres, aide, Street View, DualMaps)
+- les boutons de mode et le routeur JS qui bascule l'affichage
+- la logique Street View / DualMaps (clic droit → menu contextuel) — voir §9</p>
+<blockquote>
+<p><strong>Maintenance</strong> : ce fichier est gros et monolithique. Toute modification structurelle nécessite une recherche sur <code>id=</code> ou <code>data-*</code> avant édition pour vérifier le couplage avec les autres scripts.</p>
+</blockquote>
+<h4 id="utilitiesjs"><code>utilities.js</code></h4>
+<p>Fonctions transverses :
+- <strong>Numérotation cellules</strong> : <code>letterToNumber(c)</code>, <code>numberToLetter(n)</code> — supporte indices négatifs (Z, Y, ..., A, B, ..., Y, Z) avec un saut au-dessus de 0
+- <strong>Indices de grille</strong> : <code>generateIndices(start, end)</code> (saute 0), <code>getOffsetInCells(n)</code>, <code>getNextIndex(n)</code>
+- <strong>Géométrie cœur</strong> : <code>calculateAndRotatePoint(colNumber, rowNumber, config, a1Lat, a1Lon)</code> — convertit coords cellule → lat/lon avec correction cosinus de latitude et rotation via matrice autour d'un pivot. La correction utilise <code>config.latitude</code> (centre) et <strong>non</strong> <code>a1Lat</code> pour éviter une asymétrie en bord de zone
+- <strong>Rendu canvas</strong> : <code>drawLabelWithOutline()</code>, <code>drawSubdivisionKey()</code> — étiquettes avec contour et barre d'échelle
+- <strong>UI</strong> : <code>downloadFile()</code>, <code>showError()</code>, <code>hideError()</code></p>
+<blockquote>
+<p>Toutes les rotations passent par cette fonction. Modifier les axes ou la convention demande beaucoup de précautions : les exports KML, l'aperçu Leaflet et le PNG haute résolution doivent rester cohérents.</p>
+</blockquote>
+<h4 id="versionjs"><code>version.js</code></h4>
+<pre class="highlight"><code class="language-js">const APP_VERSION = '22.12';</code></pre>
+<p><strong>Source unique</strong> de la version. Le <code>CACHE_NAME</code> du Service Worker (<code>cado-cache-vXX</code>) est en revanche <strong>manuellement</strong> synchronisé.</p>
+<h3 id="52-systemes-de-carroyage">5.2 Systèmes de carroyage</h3>
+<h4 id="carroyagecadojs-43-kb"><code>carroyageCado.js</code> (~43 KB)</h4>
+<p>Module le plus important. Génère le quadrillage CADO (cellules à origine A1, taille fixe).</p>
+<p><strong>Fonctions principales</strong> :
+- <code>generateGrid()</code> — orchestrateur d'export (lit l'UI, dispatche selon format choisi)
+- <code>getGridConfiguration(lat, lon)</code> — extrait config depuis l'UI
+- <code>calculateGridData(config)</code> — géométrie : lignes, points, rotations, avec <strong>cache</strong> pour éviter les recomputations
+- <code>updateCadoGridPreview()</code> — rendu Leaflet temps réel, <strong>debounce 400 ms</strong> via <code>schedulePreviewUpdate</code>
+- <code>generateKML()</code>, <code>generateKMZ()</code> — exports avec génération inline d'icônes (lettres dessinées sur canvas pour KMZ)
+- <code>generateGeoJSON()</code>, <code>generateGPX()</code>
+- <code>handleCadoKmzFile()</code> — import KML/KMZ via JSZip, extrait images embarquées dans <code>cadoKmlResources.images</code></p>
+<p><strong>Algorithmes notables</strong> :
+- <strong>Lettrage</strong> : supporte sens ascendant/descendant, indices négatifs, double saisie (étiquettes en haut <strong>et</strong> à droite)
+- <strong>Choix de référence</strong> : pivot à l'origine A1 ou au centre — recalcule symétriquement les coins
+- <strong>Rotation</strong> : appliquée comme matrice finale après projection Mercator</p>
+<h4 id="carroyagecfsijs-14-kb"><code>carroyageCFSI.js</code> (~14 KB)</h4>
+<p>Système CFSI/DFCI français (Lambert 93 / NTF, mailles 100 m).</p>
+<p><strong>Exports</strong> :
+- <code>CFSI_UTILS</code> (IIFE) avec : conversions WGS84 ↔ Lambert II-E, parsing de codes
+- <code>drawCfsiGridOnCanvas(ctx, bbox, latLonToPixels, margin, fontSize, lineWidth)</code> — rasterise grille + étiquettes
+- <code>drawCfsiCartouche()</code> — cartouche titre/précision</p>
+<p><strong>Algorithmes</strong> :
+- Helmert WGS84 → NTF : <code>DX=168, DY=60, DZ=-320</code>
+- Lambert II-E : 6 itérations de raffinement de latitude (précision sub-métrique)
+- Décodage : Lambert → carré 100 km (alphabet 13×20) → 20 km → 2 km → 100 m
+- <strong>Rendu adaptatif</strong> selon zoom : pleins codes (&lt; 700 m), 100 m avec coloration (&lt; 3500 m), 2 km au-delà</p>
+<h4 id="carroyageutmjs-19-kb"><code>carroyageUTM.js</code> (~19 KB)</h4>
+<p>Système UTM (Universal Transverse Mercator), mailles 1 km, multi-zones.</p>
+<p><strong>Exports</strong> :
+- <code>WGS84_to_UTM</code> (IIFE) avec <code>fromLatLon(lat, lon, forceZone)</code>, <code>toLatLon(...)</code>, <code>getUTMZoneLetter(lat)</code>
+- <code>generateUTMGrid()</code> — export KMZ avec POI
+- <code>calculateGridForZoneStrip(...)</code> — génère lignes par zone avec clipping
+- <code>createUTM_KML()</code> — organise lignes par zone et type (Easting/Northing)</p>
+<p><strong>Algorithmes</strong> :
+- <strong>Clipping multi-zones</strong> : pour chaque zone dans la plage, lignes tronquées via Cohen-Sutherland (<code>clipLineToRect()</code>, <code>clipAxis()</code>)
+- Limites de zones : tous les 6° de longitude, <strong>avec exceptions Norvège/Svalbard</strong> (zones 31V, 32V, 31X, 33X, 35X, 37X)
+- False easting : 500 000 m ; false northing : 10 000 000 m (hémisphère sud)</p>
+<h3 id="53-modules-dexport">5.3 Modules d'export</h3>
+<h4 id="carroyagetocsvjs-75-kb"><code>carroyageToCSV.js</code> (~7.5 KB)</h4>
+<p>Export WKT (compatible Google Earth Pro, QGIS, ArcGIS).</p>
+<pre class="highlight"><code class="language-js">generateGridCSV(filename, useUtm, useCfsi, useCado, userPOIs, optionalCadoData)</code></pre>
+<ul>
+<li>Mode 1 : reçoit <code>optionalCadoData = {config, gridData}</code> directement</li>
+<li>Mode 2 : lit l'UI via <code>getZoneCadoConfigAndBounds()</code></li>
+<li>Sortie : WKT <code>LINESTRING</code> (lignes) + <code>POINT</code> (étiquettes/POIs)</li>
+</ul>
+<h4 id="carroyagetombtilesjs-16-kb"><code>carroyageToMbtiles.js</code> (~16 KB)</h4>
+<p>Génère MBTiles (SQLite + tuiles PNG) pour drones DJI, zoom 17-19.</p>
+<p><strong>Fonctions clés</strong> :
+- <code>generateMbtilesProcess(filename, useUtm, useCfsi, useCado, bbox, baseZoom, userPOIs, optionalCadoData)</code>
+- <code>processZoomLevel(...)</code> — pour chaque niveau de zoom : trace tout sur canvas global puis découpe
+- <code>sliceAndStore(db, sourceCanvas, zoom, globalNwPx, globalSePx)</code> — découpe canvas en tuiles 256×256, insertion SQL</p>
+<p><strong>Conventions</strong> :
+- TMS : Y inversé (<code>tmsY = (1 &lt;&lt; z) - 1 - y</code>)
+- Limite : <code>maxCanvasSize = 8192 px</code> — alerte au-delà
+- Pré-cache des images POI avant la boucle de zoom
+- Fonctions de rendu <strong>digitales</strong> (sans halo) : <code>drawDigitalUtm()</code>, <code>drawDigitalCfsiStrict()</code>, <code>drawDigitalCado()</code>, <code>drawDigitalKml()</code>, <code>drawDigitalPois()</code></p>
+<h4 id="imagetoprintjs-28-kb"><code>imagetoprint.js</code> (~28 KB)</h4>
+<p>Export PNG haute résolution (impression).</p>
+<ul>
+<li><code>generateImageToPrint()</code> — télécharge tuiles, dessine grille CADO, exporte PNG</li>
+<li>En mode "centre", recalcule un BBox <strong>symétrique</strong> autour du centre de la grille (gère les colonnes négatives correctement)</li>
+<li><code>iterativeFetchTiles()</code> — fetch quadtree depth-first</li>
+<li><code>drawSubdivisionKey()</code> — barre d'échelle, flèche nord, sous-grille tous les 50 px</li>
+<li>Deux chemins de tuiles : MBTiles (<code>tileSourceIsActive()</code>) ou provider en ligne</li>
+</ul>
+<h3 id="54-mode-3-creation-mbtiles">5.4 Mode 3 — création MBTiles</h3>
+<h4 id="mbtilescreatorjs-32-kb"><code>mbtilesCreator.js</code> (~32 KB)</h4>
+<p>Interface Mode 3 (carte Leaflet + contrôles + barre de progression).</p>
+<ul>
+<li><code>initCreatorMode()</code> — initialise la carte avec toutes les couches disponibles</li>
+<li><code>updateCreatorUI()</code> — barre de progression + alertes (seuil <strong>8000 tuiles</strong> RAM, <strong>100 000</strong> avec OPFS)</li>
+<li><code>checkOPFS()</code> — détecte le support du stockage privé navigateur</li>
+<li><code>seedTiles(selectedBbox, selectedZoom)</code> — orchestre via <code>seedManager.js</code></li>
+</ul>
+<p><strong>Spécifique</strong> : gestion projection EPSG:3395 pour Yandex (correction nécessaire), gestion QuadKey pour Bing.</p>
+<h4 id="seedmanagerjs-86-kb"><code>seedManager.js</code> (~8.6 KB)</h4>
+<p>Encodage compact (base64, 11 caractères) d'une configuration de carroyage pour partage par URL.</p>
+<p><strong>Layout 8 octets</strong> :
+| Bits | Champ | Plage |
+|---|---|---|
+| 0–20 | latInt | 21 bits, ~11 m de précision |
+| 21–42 | lonInt | 22 bits |
+| 43–52 | scale/10 | 10 bits, max 10 230 m |
+| 53–55 | type de grille | 3 bits |
+| 56–59 | flags | swap axes, double entrée, sens lettrage, point de réf |</p>
+<h4 id="tilesourcejs"><code>tileSource.js</code></h4>
+<p>Abstraction unifiée pour les tuiles : MBTiles vs en ligne.</p>
+<ul>
+<li><code>tileSourceLoad(file)</code> — parse MBTiles (sql.js), extrait métadonnées + niveaux de zoom</li>
+<li><code>tileSourceReadTile(x, y, z)</code> — query SQL → blob URL</li>
+<li><code>tileSourceIsActive()</code>, <code>tileSourceGetZooms()</code>, <code>tileSourceGetBestZoom(targetZoom)</code></li>
+</ul>
+<p>Cache la base SQLite en variable de module <code>_tsDB</code>. Met à jour <code>.mbtiles-status-badge</code> et masque le sélecteur de provider en ligne quand un MBTiles est actif.</p>
+<h3 id="55-orchestrateurs-et-helpers">5.5 Orchestrateurs et helpers</h3>
+<h4 id="zonedownloaderjs"><code>zoneDownloader.js</code></h4>
+<p>Orchestrateur Mode 2 + utilitaires de tuiles partagés.</p>
+<ul>
+<li><code>handleZoneVectorExport()</code> — lit la zone, dispatche selon checkboxes (UTM/CFSI/CADO/KML/CSV/MBTILES)</li>
+<li><code>generateZonePNG()</code> — rasterisation PNG</li>
+<li>POI : <code>addPointMode()</code>, <code>removePoint()</code>, <code>getUserPOIs()</code></li>
+<li>KML : <code>handleZoneKmlFile()</code>, parsing</li>
+<li>Icônes : <code>getIconsSync()</code>, cache <code>cachedIconLibrary</code></li>
+<li>Projections Yandex : <code>_yMerc3395()</code>, <code>_inverseMerc3395()</code>, <code>_latLonToTile3395()</code></li>
+</ul>
+<h4 id="settingsmanagerjs"><code>settingsManager.js</code></h4>
+<p>Gestion bibliothèque d'icônes utilisateur (modal #settings-modal).</p>
+<ul>
+<li><code>initSettingsManager()</code> — init modal + persistance <code>localStorage['userIcons']</code></li>
+<li><code>renderSettingsTable()</code>, <code>saveSettingsFromTable()</code></li>
+<li>Import/export JSON + drag-drop</li>
+</ul>
+<h3 id="56-couches-cartographiques">5.6 Couches cartographiques</h3>
+<h4 id="map-layersjs"><code>map-layers.js</code></h4>
+<p>Catalogue statique. Voir §7 pour la structure détaillée.</p>
+<p><strong>Pattern de clés privées</strong> :
+1. <code>config.private.js</code> (gitignored) déclare <code>var IGN_PRIVATE_API_KEY</code>, <code>var MAPY_API_KEY</code>, <code>var GOOGLE_MAPS_API_KEY</code>
+2. <code>map-layers.js</code> a des <strong>fallbacks</strong> <code>if (typeof X === 'undefined') var X = '';</code>
+3. Les couches avec <code>"requiresKey": "VAR_NAME"</code> sont <strong>filtrées</strong> dans <code>createBaseLayers()</code> si la variable est vide</p>
+<blockquote>
+<p><strong>Pourquoi <code>var</code> et non <code>const</code></strong> : <code>var</code> autorise la redéclaration entre <code>config.private.js</code> et <code>map-layers.js</code>. Avec <code>const</code>, redéclaration = erreur fatale.</p>
+</blockquote>
+<h3 id="57-bibliotheques-dicones">5.7 Bibliothèques d'icônes</h3>
+<h4 id="iconsjs"><code>icons.js</code></h4>
+<p>Bibliothèque par défaut compacte (<code>ICON_LIBRARY</code> : 7 entrées : start, end, danger, info, camp, camera, star).</p>
+<h4 id="icons-catalogjs-213-kb-genere"><code>icons-catalog.js</code> (~213 KB, généré)</h4>
+<p>Catalogue professionnel (ADVERSAIRE, JUDICIAIRE, etc.) <strong>généré automatiquement</strong> par <code>build_library.py</code>. Ne pas éditer à la main.</p>
+<p>Format :
+<pre class="highlight"><code class="language-js">ICON_CATALOG = [{ id, label, path: [...], category, url, scale, order }, ...]</code></pre></p>
+<h4 id="build_librarypy"><code>build_library.py</code></h4>
+<p>Script Python (Pillow). Workflow :
+1. Parcourt <code>icons/sticker/</code> récursivement
+2. Optimise les PNG → <code>icons/sticks/</code> (64×64, RGBA)
+3. Index chaque icône avec métadonnées
+4. Écrit <code>icons-catalog.js</code></p>
+<p><strong>Exécution</strong> : <code>python build_library.py</code> après ajout/modification d'icônes.</p>
+<h3 id="58-pwa">5.8 PWA</h3>
+<h4 id="manifestjson"><code>manifest.json</code></h4>
+<pre class="highlight"><code class="language-json">{
+  "start_url": "./index.html",
+  "display": "standalone",
+  "theme_color": "#3b82f6",
+  "icons": [192×192, 512×512]
+}</code></pre>
+<h4 id="swjs-service-worker"><code>sw.js</code> — Service Worker</h4>
+<p>Voir §10 pour la stratégie complète.</p>
+<hr />
+<h2 id="6-systemes-de-carroyage">6. Systèmes de carroyage</h2>
+<h3 id="61-cado-systeme-maison">6.1 CADO (système maison)</h3>
+<ul>
+<li><strong>Origine</strong> : cellule A1 placée par l'utilisateur (mode "origine") ou autour d'un point central (mode "centre")</li>
+<li><strong>Taille de maille</strong> : configurable (défaut 10 m)</li>
+<li><strong>Numérotation</strong> : lettres en X (A, B, ..., Z, AA, AB, ...), nombres en Y. Sens et axes interchangeables</li>
+<li><strong>Indices négatifs</strong> : possibles, on saute 0 (..., -B, -A, A, B, ...)</li>
+<li><strong>Rotation</strong> : libre, en degrés</li>
+<li><strong>Sortie</strong> : KML, KMZ, GeoJSON, GPX, CSV, PNG, MBTiles</li>
+</ul>
+<h3 id="62-utm">6.2 UTM</h3>
+<ul>
+<li><strong>Maille fixe</strong> : 1 km</li>
+<li><strong>Zones</strong> : 6° de longitude, gestion multi-zones (clipping aux limites)</li>
+<li><strong>Étiquettes</strong> : easting/northing en kilomètres</li>
+<li><strong>Exceptions</strong> : Norvège (32V), Svalbard (31X, 33X, 35X, 37X)</li>
+</ul>
+<h3 id="63-cfsi-dfci">6.3 CFSI / DFCI</h3>
+<ul>
+<li><strong>Maille</strong> : 100 m, nichée dans des carrés 2 km, 20 km, 100 km</li>
+<li><strong>Projection</strong> : Lambert II étendu (NTF Helmert)</li>
+<li><strong>Code</strong> : ex. <code>KH18A2</code> (carré 100 km + 20 km + 2 km + 100 m)</li>
+<li><strong>Usage typique</strong> : sécurité civile, lutte incendies forêt</li>
+</ul>
+<hr />
+<h2 id="7-couches-cartographiques-map-layersjs">7. Couches cartographiques (<code>map-layers.js</code>)</h2>
+<h3 id="71-structure">7.1 Structure</h3>
+<pre class="highlight"><code class="language-js">{
+  id: "google_hybrid",          // identifiant interne
+  name: "Google Hybrid",        // libellé UI
+  maxZoom: 21,
+  requiresKey: "GOOGLE_MAPS_API_KEY",  // optionnel
+  layers: [                     // empilement de couches
+    { url: "...", type: "xyz" | "quadkey" | "yandex" }
+  ]
+}</code></pre>
+<h3 id="72-couches-disponibles">7.2 Couches disponibles</h3>
+<table>
+<thead>
+<tr>
+<th>ID</th>
+<th>Nom</th>
+<th>Source</th>
+<th>maxZoom</th>
+<th>Clé requise</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ign_ign_hybrid</code></td>
+<td>Ortho IGN + Routes IGN</td>
+<td>data.geopf.fr (public)</td>
+<td>19</td>
+<td>non</td>
+</tr>
+<tr>
+<td><code>ign_google_hybrid</code></td>
+<td>Ortho IGN + Routes Google</td>
+<td>IGN + Google</td>
+<td>19</td>
+<td>non</td>
+</tr>
+<tr>
+<td><code>yandex_hybrid</code></td>
+<td>Yandex Hybride (FR)</td>
+<td>maps.yandex.net</td>
+<td>18</td>
+<td>non</td>
+</tr>
+<tr>
+<td><code>bing_hybrid</code></td>
+<td>Bing Maps Hybride</td>
+<td>virtualearth.net</td>
+<td>19</td>
+<td>non</td>
+</tr>
+<tr>
+<td><code>google_hybrid</code></td>
+<td>Google Hybrid</td>
+<td>mt0.google.com</td>
+<td>21</td>
+<td>non</td>
+</tr>
+<tr>
+<td><code>google_hybrid_NOPOI</code></td>
+<td>Google Hybrid sans POI</td>
+<td>mt0.google.com (apistyle)</td>
+<td>21</td>
+<td>non</td>
+</tr>
+<tr>
+<td><code>ign_scan_composite</code></td>
+<td>IGN Cartes (privé)</td>
+<td>data.geopf.fr/private</td>
+<td>18</td>
+<td><code>IGN_PRIVATE_API_KEY</code></td>
+</tr>
+<tr>
+<td><code>ign_public_hybrid</code></td>
+<td>Plan IGN</td>
+<td>data.geopf.fr</td>
+<td>19</td>
+<td>non</td>
+</tr>
+<tr>
+<td><code>mapy_outdoor</code></td>
+<td>Mapy.CZ Outdoor</td>
+<td>api.mapy.com</td>
+<td>19</td>
+<td><code>MAPY_API_KEY</code></td>
+</tr>
+<tr>
+<td><code>osm_standard</code></td>
+<td>OpenStreetMap</td>
+<td>tile.openstreetmap.org</td>
+<td>19</td>
+<td>non</td>
+</tr>
+</tbody>
+</table>
+<h3 id="73-ajout-dune-couche">7.3 Ajout d'une couche</h3>
+<ol>
+<li>Ajouter une entrée à <code>MAP_LAYERS</code> dans <code>map-layers.js</code></li>
+<li>Si privée : ajouter un fallback <code>if (typeof X === 'undefined') var X = '';</code> en haut du fichier, et <code>requiresKey: "X"</code> dans l'entrée</li>
+<li>Documenter la clé dans <code>config.private.js</code> (template à demander au mainteneur)</li>
+</ol>
+<h3 id="74-here-maps-differe">7.4 HERE Maps (différé)</h3>
+<p>Tâche en attente : ajout des couches HERE Maps dès qu'une clé sera obtenue sur platform.here.com.</p>
+<pre class="highlight"><code class="language-js">// Ajout futur :
+// var HERE_API_KEY = '';
+// Carto : https://maps.hereapi.com/v3/base/mc/{z}/{x}/{y}/png8?style=explore.day&amp;apiKey=${HERE_API_KEY}
+// Hybrid : https://maps.hereapi.com/v3/base/mc/{z}/{x}/{y}/png8?style=explore.satellite.day&amp;apiKey=${HERE_API_KEY}</code></pre>
+<hr />
+<h2 id="8-pipelines-dexport">8. Pipelines d'export</h2>
+<p>Toutes les exports passent par le même <code>gridData</code> (lignes + étiquettes) calculé une seule fois, puis dispatché.</p>
+<h3 id="81-kml-kmz">8.1 KML / KMZ</h3>
+<ul>
+<li>KML : XML simple</li>
+<li>KMZ : zip d'un KML + dossier <code>images/</code> (icônes des étiquettes générées sur canvas, lettres en gros)</li>
+<li>Préserve les sources KML importées (re-embed via JSZip)</li>
+</ul>
+<h3 id="82-geojson-gpx">8.2 GeoJSON / GPX</h3>
+<ul>
+<li>GeoJSON : <code>FeatureCollection</code> de <code>LineString</code> + <code>Point</code></li>
+<li>GPX : <code>&lt;rte&gt;</code> + <code>&lt;wpt&gt;</code> (compatible randonnée, navigateurs GPS)</li>
+</ul>
+<h3 id="83-csv-wkt">8.3 CSV (WKT)</h3>
+<p>Format compatible QGIS/Google Earth Pro : une colonne <code>WKT</code> + colonnes label/type/etc.</p>
+<h3 id="84-png-haute-resolution">8.4 PNG haute résolution</h3>
+<ul>
+<li>Récupère les tuiles dans le BBox cible (online ou MBTiles)</li>
+<li>Trace la grille par-dessus</li>
+<li>Ajoute légende (échelle, nord)</li>
+<li>Adapte la largeur de trait pour upscaling lisible</li>
+</ul>
+<h3 id="85-mbtiles-drone-dji">8.5 MBTiles (drone DJI)</h3>
+<ul>
+<li>SQLite 3 (sql.js) en mémoire</li>
+<li>Tuiles PNG 256×256 transparentes (overlay)</li>
+<li>Convention TMS (Y inversé)</li>
+<li>Plage de zoom typique : 17-19</li>
+<li>Limite canvas : 8192 px (alerte au-delà)</li>
+</ul>
+<h3 id="86-seeds">8.6 Seeds</h3>
+<ul>
+<li>Encodage 8 octets → 11 caractères base64</li>
+<li>Partage par URL : <code>?seed=&lt;11chars&gt;</code></li>
+</ul>
+<hr />
+<h2 id="9-street-view-dualmaps">9. Street View &amp; DualMaps</h2>
+<p>Ajouté récemment dans <code>index.html</code>. Clic droit sur la carte → menu contextuel :
+- <strong>Voir le Street View ici</strong> : modal 360° via Google Maps JS API (si <code>GOOGLE_MAPS_API_KEY</code> présente) ou fallback iframe <code>output=svembed</code>
+- <strong>Voir sur DualMaps</strong> : iframe vers <code>data.mapchannels.com/dualmaps8/</code></p>
+<h3 id="91-architecture">9.1 Architecture</h3>
+<ul>
+<li><strong>Backdrop</strong> + <strong>modal</strong> en z-index 10001/10002 (inline <code>style="z-index:..."</code>, <strong>pas</strong> Tailwind <code>z-[...]</code> qui ne fonctionne pas en précompilé)</li>
+<li><strong>Boutons overlay</strong> (✕ et 📷) : centrés en haut, déplacés dynamiquement dans <code>document.fullscreenElement</code> lors du <code>fullscreenchange</code> natif de Google</li>
+<li><strong>Mode JS API</strong> : <code>StreetViewService.getPanorama()</code> + <code>StreetViewPanorama</code> + minimap Google liée (<code>map.setStreetView(panorama)</code> → flèche bleue tournant en live)</li>
+<li><strong>Mode iframe</strong> : pas de minimap, capture impossible</li>
+</ul>
+<h3 id="92-capture-decran">9.2 Capture d'écran</h3>
+<p><code>getDisplayMedia</code> + crop via <code>getBoundingClientRect()</code> sur canvas. Boutons overlay masqués pendant la capture (2 rAF avant snapshot).</p>
+<h3 id="93-iframe-dualmaps-en-mode-sombre">9.3 Iframe DualMaps en mode sombre</h3>
+<p>Astuce : <code>color-scheme: light; background: white</code> sur l'iframe → force un fond blanc, contourne le rendu noir-sur-noir des liens.</p>
+<hr />
+<h2 id="10-service-worker-pwa">10. Service Worker / PWA</h2>
+<h3 id="101-strategie-de-cache">10.1 Stratégie de cache</h3>
+<p><code>sw.js</code> :
+- <strong>CACHE_NAME</strong> : <code>cado-cache-v36</code> — <strong>à incrémenter manuellement</strong> à chaque release qui change la liste d'assets ou un fichier critique
+- <code>ASSETS_TO_CACHE</code> : liste exhaustive des fichiers à pré-cacher à l'install
+- Stratégie par défaut : <strong>cache-first, falling back to network</strong></p>
+<h3 id="102-exceptions-de-cache">10.2 Exceptions de cache</h3>
+<p>Le SW <strong>ignore</strong> (laisse le réseau gérer) les requêtes vers :
+- <code>google.com</code>, <code>geopf.fr</code>, <code>openstreetmap</code>, <code>virtualearth</code> (tuiles cartographiques — sinon explosion du cache)
+- <code>data:</code>, <code>blob:</code></p>
+<h3 id="103-proxy-cors-yandex">10.3 Proxy CORS Yandex</h3>
+<p>Cas spécial : les tuiles Yandex sont relayées par le SW pour ajouter <code>Access-Control-Allow-Origin: *</code>. Sans ça, <code>canvas.drawImage()</code> les marque comme <strong>tainted</strong> et bloque les exports PNG/MBTiles.</p>
+<pre class="highlight"><code class="language-js">if (url.includes('maps.yandex.net')) {
+  // fetch + ré-emballage avec headers CORS permissifs
+}</code></pre>
+<h3 id="104-cycle-de-vie">10.4 Cycle de vie</h3>
+<ul>
+<li><code>install</code> : <code>skipWaiting()</code> + <code>cache.addAll(ASSETS_TO_CACHE)</code> (n'échoue pas si un fichier non critique manque)</li>
+<li><code>activate</code> : supprime les anciens caches, <code>clients.claim()</code> → contrôle immédiat des onglets ouverts</li>
+</ul>
+<h3 id="105-procedure-de-release">10.5 Procédure de release</h3>
+<p>À chaque release modifiant le code :
+1. Bumper <code>APP_VERSION</code> dans <code>version.js</code>
+2. Bumper <code>CACHE_NAME</code> dans <code>sw.js</code> (<code>cado-cache-vXX</code> → <code>vXX+1</code>)
+3. Ajouter d'éventuels nouveaux fichiers à <code>ASSETS_TO_CACHE</code>
+4. Commit + push → CI déclenche le build Docker</p>
+<blockquote>
+<p><strong>Oublier le bump de cache</strong> = utilisateurs bloqués sur l'ancienne version (PWA installée).</p>
+</blockquote>
+<hr />
+<h2 id="11-configuration-secrets">11. Configuration &amp; secrets</h2>
+<h3 id="111-configprivatejs-gitignored">11.1 <code>config.private.js</code> (gitignored)</h3>
+<p>Fichier <strong>non commité</strong> (cf. <code>.gitignore</code>). Template type :</p>
+<pre class="highlight"><code class="language-js">var IGN_PRIVATE_API_KEY = 'xxx';
+var MAPY_API_KEY = 'xxx';
+var GOOGLE_MAPS_API_KEY = 'xxx';</code></pre>
+<h3 id="112-chargement-gracieux">11.2 Chargement gracieux</h3>
+<pre class="highlight"><code class="language-html">&lt;script src="config.private.js" onerror="console.warn('config.private.js absent')"&gt;&lt;/script&gt;</code></pre>
+<p>Si le fichier est absent (ex: clone fraîche), l'app fonctionne en mode dégradé : les couches privées sont masquées, Street View bascule en iframe.</p>
+<h3 id="113-important-historique-purge">11.3 Important — historique purgé</h3>
+<p>Le fichier <code>config.private.example.js</code> a été <strong>purgé de l'historique git</strong> (filter-branch sur 733 commits, force-push sur GitHub et GitLab) car il contenait des clés réelles à un moment donné. Les clés concernées <strong>ont été ou doivent être régénérées</strong> :
+- IGN privée : <code>SOqNaab...</code>
+- Mapy : <code>68gdLOcv...</code></p>
+<blockquote>
+<p><strong>Ne jamais commiter de clés</strong>, même dans un fichier <code>.example</code>. Utiliser uniquement <code>config.private.js</code> (gitignored) en local.</p>
+</blockquote>
+<hr />
+<h2 id="12-build-deploiement">12. Build &amp; déploiement</h2>
+<h3 id="121-image-docker">12.1 Image Docker</h3>
+<pre class="highlight"><code class="language-dockerfile">FROM nginx:alpine-slim
+COPY . /usr/share/nginx/html</code></pre>
+<p>Image ultra-simple : nginx sert les fichiers statiques tels quels.</p>
+<h3 id="122-docker-composeyml">12.2 docker-compose.yml</h3>
+<pre class="highlight"><code class="language-yaml">services:
+  carroyage:
+    image: registry.example.com/org/carroyage-jmt:&lt;COMMIT_SHA&gt;
+    restart: always
+
+  proxy:
+    image: registry.example.com/infra/nginx-proxy:20260718.3
+    restart: always
+    ports: [443:443]
+    environment:
+      NGINX_SERVER_NAME: app.example.com
+      NGINX_PROXY: http://carroyage:80</code></pre>
+<blockquote>
+<p>Le tag d'image est mis à jour automatiquement par la CI à chaque build sur <code>main</code> (commit <code>[skip ci] Deploy image XXX</code>).</p>
+</blockquote>
+<h3 id="123-lancer-en-local-developpement">12.3 Lancer en local (développement)</h3>
+<p>Pas de build : ouvrir <code>index.html</code> derrière un serveur statique (le Service Worker exige HTTP, pas <code>file://</code>) :</p>
+<pre class="highlight"><code class="language-bash"># Option 1 : Python
+python -m http.server 8080
+
+# Option 2 : npx
+npx serve .
+
+# Option 3 : Docker local
+docker build -t carroyage-local . &amp;&amp; docker run -p 8080:80 carroyage-local</code></pre>
+<p>Puis ouvrir http://localhost:8080.</p>
+<blockquote>
+<p>En dev local, mettre les clés dans <code>config.private.js</code> à la racine (déjà gitignored).</p>
+</blockquote>
+<hr />
+<h2 id="13-cicd-gitlab">13. CI/CD GitLab</h2>
+<h3 id="131-pipeline-gitlab-ciyml">13.1 Pipeline (<code>.gitlab-ci.yml</code>)</h3>
+<p>Deux stages, déclenchés <strong>uniquement sur <code>main</code></strong> :</p>
+<h4 id="stage-build-docker-build">Stage <code>build</code> : <code>docker-build</code></h4>
+<ol>
+<li>Build de l'image avec tag <code>&lt;commit-short-sha&gt;</code></li>
+<li>Push de l'image vers le registry GitLab (<code>registry.gitlab.com/...</code>)</li>
+<li>Push aussi le tag <code>:latest</code></li>
+</ol>
+<h4 id="stage-deploy-docker-deploy">Stage <code>deploy</code> : <code>docker-deploy</code></h4>
+<ol>
+<li>Image alpine, installe <code>git</code></li>
+<li>Checkout du commit, hard-reset</li>
+<li><strong><code>sed</code></strong> : remplace dans <code>docker-compose.yml</code> l'ancien tag d'image par le nouveau <code>${CI_COMMIT_SHORT_SHA}</code></li>
+<li>Commit <code>[skip ci] Deploy image XXX</code> et push sur la branche d'origine</li>
+</ol>
+<h3 id="132-consequence-pour-les-developpeurs">13.2 Conséquence pour les développeurs</h3>
+<p>Chaque push sur <code>main</code> génère <strong>deux commits</strong> dans l'historique GitLab :
+- celui du dev
+- celui de la CI (<code>[skip ci] Deploy image ...</code>)</p>
+<p>Pour aligner GitHub et GitLab après une modif locale :
+1. Push sur GitHub
+2. Pull la branche depuis GitLab pour récupérer le commit <code>[skip ci]</code> de la CI
+3. Re-push sur GitHub si besoin</p>
+<p>Ou plus simple : <strong>commits de dev sur GitHub, déploiement via push miroir sur GitLab</strong>.</p>
+<h3 id="133-branches">13.3 Branches</h3>
+<p>Depuis le nettoyage du 2026-05-05, <strong>seule <code>main</code> existe sur GitLab</strong>. Les anciennes branches obsolètes (<code>dev</code>, <code>test-GPT</code>, <code>merge-github-into-gitlab</code>, <code>CarroyageCADO_PWA</code>, <code>CarroyageCADO_PWA_Dev</code>) ont été supprimées.</p>
+<p><code>main</code> est protégée sur GitLab. Pour un force-push exceptionnel, il faut <strong>déprotéger temporairement</strong> la branche dans Settings → Repository → Protected Branches.</p>
+<hr />
+<h2 id="14-conventions-de-code-et-patterns">14. Conventions de code et patterns</h2>
+<h3 id="141-style-js">14.1 Style JS</h3>
+<ul>
+<li>ES2017+ vanilla, pas de transpilation</li>
+<li>IIFE pour les namespaces (<code>CFSI_UTILS</code>, <code>WGS84_to_UTM</code>)</li>
+<li>Globales <code>window.xxx</code> assumées (pas de modules ES)</li>
+<li>Commentaires en français</li>
+</ul>
+<h3 id="142-css">14.2 CSS</h3>
+<ul>
+<li><strong>Tailwind précompilé</strong> : les valeurs arbitraires <code>z-[10002]</code>, <code>bg-[#abc]</code> <strong>ne fonctionnent pas</strong> car le CSS est généré en build statique. Utiliser <code>style="z-index:10002"</code> inline</li>
+<li><code>style.css</code> pour les overrides custom</li>
+</ul>
+<h3 id="143-patterns-recurrents">14.3 Patterns récurrents</h3>
+<ul>
+<li><strong>Debounce 400 ms</strong> sur les changements de paramètres pour le preview Leaflet</li>
+<li><strong>Cache de calcul</strong> : <code>gridData</code> mémoïsé tant que la config ne change pas</li>
+<li><strong>Canvas full-world</strong> puis crop pour le rendu MBTiles (au lieu de calcul tuile par tuile)</li>
+<li><strong><code>requiresKey</code></strong> : pattern de feature-flag pour les couches privées</li>
+<li><strong>TMS Y inversé</strong> : convention systématique pour MBTiles</li>
+</ul>
+<h3 id="144-convention-de-commit">14.4 Convention de commit</h3>
+<p>Pas de Conventional Commits stricts, mais préfixes courants :
+- <code>[skip ci] Deploy image XXX</code> — automatique CI
+- <code>Update &lt;fichier&gt;</code> — modifs simples
+- Messages descriptifs en français pour les features</p>
+<hr />
+<h2 id="15-maintenance-evolutions">15. Maintenance &amp; évolutions</h2>
+<h3 id="151-taches-recurrentes">15.1 Tâches récurrentes</h3>
+<table>
+<thead>
+<tr>
+<th>Tâche</th>
+<th>Fréquence</th>
+<th>Procédure</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Bump version + cache SW</td>
+<td>À chaque release</td>
+<td>§10.5</td>
+</tr>
+<tr>
+<td>Mise à jour libs tierces</td>
+<td>Trimestriel</td>
+<td>Remplacer les <code>.min.js</code> vendorés et tester</td>
+</tr>
+<tr>
+<td>Régénération <code>icons-catalog.js</code></td>
+<td>Sur ajout d'icônes</td>
+<td><code>python build_library.py</code></td>
+</tr>
+<tr>
+<td>Audit des clés API</td>
+<td>Semestriel</td>
+<td>Vérifier quotas, régénérer si fuite</td>
+</tr>
+</tbody>
+</table>
+<h3 id="152-pour-ajouter-un-mode">15.2 Pour ajouter un mode</h3>
+<ol>
+<li>Créer un conteneur <code>&lt;div id="newmode-mode-container"&gt;</code> caché dans <code>index.html</code></li>
+<li>Ajouter le bouton de mode avec <code>data-mode="newmode"</code></li>
+<li>Créer le module JS dédié (suivre l'archi <code>mbtilesCreator.js</code>)</li>
+<li>Ajouter le script à <code>ASSETS_TO_CACHE</code> dans <code>sw.js</code> + bumper le cache</li>
+</ol>
+<h3 id="153-pour-ajouter-un-format-dexport">15.3 Pour ajouter un format d'export</h3>
+<ol>
+<li>Créer un fichier <code>carroyageToXxx.js</code> exposant <code>generateGridXxx(...)</code></li>
+<li>L'inscrire dans le dispatcher de <code>carroyageCado.js</code> (Mode 1) et/ou <code>zoneDownloader.js</code> (Mode 2)</li>
+<li>Ajouter une option dans les radio buttons de l'UI (<code>zone-file-format</code> ou équivalent)</li>
+<li>Cacher (<code>sw.js</code>) + bumper</li>
+</ol>
+<h3 id="154-pour-ajouter-un-systeme-de-carroyage">15.4 Pour ajouter un système de carroyage</h3>
+<ol>
+<li>Créer <code>carroyageXxx.js</code> exposant les fonctions de calcul + rendu canvas</li>
+<li>Ajouter les options UI (checkbox dans Mode 2)</li>
+<li>Étendre les modules d'export (CSV, MBTiles, KML) pour le supporter</li>
+</ol>
+<h3 id="155-evolutions-souhaitables">15.5 Évolutions souhaitables</h3>
+<ul>
+<li><strong>Découper <code>index.html</code></strong> : actuellement monolithique. Une approche template (HTML imports natifs ou simple concat de fragments) faciliterait la maintenance</li>
+<li><strong>Tests</strong> : aucun test automatisé actuellement. Un harnais Playwright sur les exports core (KML, MBTiles) renforcerait la régression</li>
+<li><strong>Migration Tailwind JIT</strong> : permettrait les classes arbitraires (<code>z-[xxxx]</code>)</li>
+<li><strong>Modules ES natifs</strong> : remplacer les globales <code>window.xxx</code> par <code>import/export</code> quand on quittera la compatibilité totale (PWA installée)</li>
+</ul>
+<hr />
+<h2 id="16-troubleshooting">16. Troubleshooting</h2>
+<h3 id="161-le-service-worker-ne-met-pas-a-jour">16.1 Le Service Worker ne met pas à jour</h3>
+<p><strong>Symptôme</strong> : modifs invisibles après push, même après refresh.
+<strong>Cause</strong> : <code>CACHE_NAME</code> non bumpé.
+<strong>Solution</strong> : incrémenter <code>cado-cache-vXX</code> dans <code>sw.js</code>, redéployer. Côté utilisateur : DevTools → Application → Service Workers → Unregister + hard refresh.</p>
+<h3 id="162-tuiles-yandex-en-noir">16.2 Tuiles Yandex en noir</h3>
+<p><strong>Cause</strong> : SW pas activé (HTTP local sans hot-reload du SW), donc pas de proxy CORS.
+<strong>Solution</strong> : recharger après activation du SW, ou désactiver Yandex en dev local.</p>
+<h3 id="163-couche-privee-invisible">16.3 Couche privée invisible</h3>
+<p><strong>Cause</strong> : <code>config.private.js</code> absent ou clé vide.
+<strong>Solution</strong> : créer le fichier à la racine ou utiliser une autre couche.</p>
+<h3 id="164-export-mbtiles-tronque-message-canvas-trop-grand">16.4 Export MBTiles tronqué / message "canvas trop grand"</h3>
+<p><strong>Cause</strong> : zone × zoom dépasse 8192 px de canvas.
+<strong>Solution</strong> : réduire la zone, baisser le zoom max, ou (à terme) implémenter un rendu par sous-régions.</p>
+<h3 id="165-force-push-gitlab-refuse">16.5 Force-push GitLab refusé</h3>
+<p><strong>Cause</strong> : branche <code>main</code> protégée.
+<strong>Solution</strong> : déprotéger temporairement (Settings → Repository → Protected Branches), force-push, reprotéger.</p>
+<h3 id="166-conflit-apres-push-ci">16.6 Conflit après push CI</h3>
+<p><strong>Cause</strong> : la CI a pushé un <code>[skip ci] Deploy image XXX</code> entre votre dernier pull et votre push.
+<strong>Solution</strong> : <code>git pull --rebase gitlab main</code> avant le push.</p>
+<h3 id="167-apercu-leaflet-fige">16.7 Aperçu Leaflet figé</h3>
+<p><strong>Cause</strong> : exception silencieuse dans <code>calculateGridData()</code> (souvent une rotation extrême ou des coords invalides).
+<strong>Solution</strong> : ouvrir DevTools, regarder la console. La fonction est wrappée mais des erreurs peuvent passer.</p>
+<h3 id="168-kmz-exporte-sans-icones">16.8 KMZ exporté sans icônes</h3>
+<p><strong>Cause</strong> : étiquettes générées en canvas mais ressources non embarquées (<code>cadoKmlResources.images</code> vide).
+<strong>Solution</strong> : vérifier que <code>generateKMZ()</code> appelle bien <code>JSZip.file('images/...')</code> pour chaque étiquette.</p>
+<h3 id="169-tailwind-z-10002-na-pas-deffet">16.9 <code>Tailwind z-[10002]</code> n'a pas d'effet</h3>
+<p><strong>Cause</strong> : Tailwind est précompilé statique, pas JIT.
+<strong>Solution</strong> : utiliser <code>style="z-index:10002"</code> inline.</p>
+<hr />
+<h2 id="annexe-a-glossaire">Annexe A — Glossaire</h2>
+<table>
+<thead>
+<tr>
+<th>Terme</th>
+<th>Définition</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Carroyage</strong></td>
+<td>Quadrillage de référence superposé à une carte</td>
+</tr>
+<tr>
+<td><strong>CADO</strong></td>
+<td>Système de carroyage maison (cellules à origine A1)</td>
+</tr>
+<tr>
+<td><strong>CFSI / DFCI</strong></td>
+<td>Carroyage Français de Sécurité Incendie / Défense de la Forêt Contre l'Incendie</td>
+</tr>
+<tr>
+<td><strong>UTM</strong></td>
+<td>Universal Transverse Mercator (projection cartographique)</td>
+</tr>
+<tr>
+<td><strong>MBTiles</strong></td>
+<td>Format SQLite pour bases de tuiles cartographiques (spec MapBox)</td>
+</tr>
+<tr>
+<td><strong>OPFS</strong></td>
+<td>Origin Private File System (stockage navigateur, hors quota localStorage)</td>
+</tr>
+<tr>
+<td><strong>TMS</strong></td>
+<td>Tile Map Service (convention de tuilage avec Y inversé)</td>
+</tr>
+<tr>
+<td><strong>Plus Code</strong></td>
+<td>Open Location Code, encodage compact de coordonnées</td>
+</tr>
+<tr>
+<td><strong>POI</strong></td>
+<td>Point Of Interest (marqueur utilisateur sur carte)</td>
+</tr>
+<tr>
+<td><strong>PWA</strong></td>
+<td>Progressive Web App</td>
+</tr>
+<tr>
+<td><strong>WKT</strong></td>
+<td>Well-Known Text (format texte de géométries)</td>
+</tr>
+</tbody>
+</table>
+<h2 id="annexe-b-liens-utiles">Annexe B — Liens utiles</h2>
+<ul>
+<li>IGN Géoplateforme : https://geoservices.ign.fr/services-web-experts</li>
+<li>Spec MBTiles : https://github.com/mapbox/mbtiles-spec</li>
+<li>Service Worker MDN : https://developer.mozilla.org/fr/docs/Web/API/Service_Worker_API</li>
+<li>Open Location Code : https://github.com/google/open-location-code</li>
+<li>sql.js : https://github.com/sql-js/sql.js</li>
+<li>Leaflet : https://leafletjs.com/</li>
+</ul>
+<hr />
+<p><em>Documentation générée en collaboration avec Claude (Anthropic). Mise à jour : 2026-05-05.</em></p>
+</div>
+</body>
+</html>
