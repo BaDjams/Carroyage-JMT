@@ -144,8 +144,10 @@ async function generateUTMGrid() {
             ]
         };
 
+        await ensureJSZip();
         const zip = new JSZip();
         const userPOIs = window.getUserPOIs ? window.getUserPOIs() : [];
+        await ensureIconsCatalog();
         const allIcons = window.getIconLibrary ? window.getIconLibrary() : [];
         const imagesToZip = new Map();
         const poiParts = [];

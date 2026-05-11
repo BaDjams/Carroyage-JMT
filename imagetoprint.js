@@ -513,7 +513,7 @@ async function createFinalCanvasWithLayers(boundingBox, zoom, mapConfig, onProgr
         let downloadedCount = 0;
 
         for (const layer of mapConfig.layers) {
-            const tilePromises = [];
+            const tileJobs = [];
             if (layer.type === 'yandex') {
                 // Tuiles Yandex (EPSG:3395) : même algo que zoneDownloader
                 const nwLL = _worldPixels3857ToLatLon(nwPixel, actualZoom);
@@ -525,16 +525,16 @@ async function createFinalCanvasWithLayers(boundingBox, zoom, mapConfig, onProgr
                     for (let ty = nwT3395.y; ty <= seT3395.y; ty++) {
                         const tileUrl = layer.url.replace('{z}', actualZoom).replace('{x}', tx).replace('{y}', ty);
                         const safeUrl = tileUrl + (tileUrl.includes('?') ? '&' : '?') + cacheBust;
-                        tilePromises.push(new Promise((resolve) => {
-                            const img = new Image();
-                            img.crossOrigin = "Anonymous";
-                            img.onload = () => { downloadedCount++; if (onProgress) onProgress(downloadedCount * progressFactor); resolve({ img, tx, ty, success: true }); };
-                            img.onerror = () => { downloadedCount++; if (onProgress) onProgress(downloadedCount * progressFactor); resolve({ success: false }); };
-                            img.src = safeUrl;
-                        }));
+                        tileJobs.push({ safeUrl, tx, ty });
                     }
                 }
-                (await Promise.all(tilePromises)).forEach(tileResult => {
+                (await mapWithConcurrency(tileJobs, 8, job => new Promise((resolve) => {
+                    const img = new Image();
+                    img.crossOrigin = "Anonymous";
+                    img.onload = () => { downloadedCount++; if (onProgress) onProgress(downloadedCount * progressFactor); resolve({ img, tx: job.tx, ty: job.ty, success: true }); };
+                    img.onerror = () => { downloadedCount++; if (onProgress) onProgress(downloadedCount * progressFactor); resolve({ success: false }); };
+                    img.src = job.safeUrl;
+                }))).forEach(tileResult => {
                     if (tileResult.success) {
                         const northLat = _tile3395NorthLatDeg(tileResult.ty, actualZoom);
                         const southLat = _tile3395NorthLatDeg(tileResult.ty + 1, actualZoom);
@@ -559,16 +559,16 @@ async function createFinalCanvasWithLayers(boundingBox, zoom, mapConfig, onProgr
                             tileUrl = layer.url.replace('{z}', actualZoom).replace('{x}', x).replace('{y}', y);
                         }
                         const safeUrl = tileUrl + (tileUrl.includes('?') ? '&' : '?') + cacheBust;
-                        tilePromises.push(new Promise((resolve) => {
-                            const img = new Image();
-                            img.crossOrigin = "Anonymous";
-                            img.onload = () => { downloadedCount++; if (onProgress) onProgress(downloadedCount * progressFactor); resolve({ img, x, y, success: true }); };
-                            img.onerror = () => { downloadedCount++; if (onProgress) onProgress(downloadedCount * progressFactor); resolve({ success: false }); };
-                            img.src = safeUrl;
-                        }));
+                        tileJobs.push({ safeUrl, x, y });
                     }
                 }
-                (await Promise.all(tilePromises)).forEach(tileResult => {
+                (await mapWithConcurrency(tileJobs, 8, job => new Promise((resolve) => {
+                    const img = new Image();
+                    img.crossOrigin = "Anonymous";
+                    img.onload = () => { downloadedCount++; if (onProgress) onProgress(downloadedCount * progressFactor); resolve({ img, x: job.x, y: job.y, success: true }); };
+                    img.onerror = () => { downloadedCount++; if (onProgress) onProgress(downloadedCount * progressFactor); resolve({ success: false }); };
+                    img.src = job.safeUrl;
+                }))).forEach(tileResult => {
                     if (tileResult.success) {
                         const tileX = (tileResult.x * TILE_SIZE) - nwPixel.x;
                         const tileY = (tileResult.y * TILE_SIZE) - nwPixel.y;

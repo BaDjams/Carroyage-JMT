@@ -138,12 +138,13 @@ window.getIconLibrary = getIconsSync;
 // LOGIQUE DE SELECTION VISUELLE
 // =============================================================================
 
-function initVisualIconSelector() {
+async function initVisualIconSelector() {
     const visualContainer = document.getElementById('poi-visual-selector');
     const hiddenInput = document.getElementById('poi-type-selector');
     const categoryFilter = document.getElementById('poi-category-filter');
     initIconScaler();
     if (!visualContainer || !hiddenInput) return;
+    await ensureIconsCatalog();
     const allIcons = getIconsSync();
     visualContainer.innerHTML = '';
     visualContainer.className = 'tree-view-container custom-scrollbar'; 
@@ -824,8 +825,11 @@ async function handleZoneVectorExport() {
         }
 
         // --- CAS CLASSIQUE : EXPORT VECTORIEL (KML/KMZ/GPX) ---
+        if (format === 'KMZ') {
+            await ensureJSZip();
+        }
         let kmlFolders = "";
-        const zip = new JSZip();
+        const zip = format === 'KMZ' ? new JSZip() : null;
         const imagesToZip = new Map();
 
         // 1. GENERATION DES DOSSIERS KML
@@ -909,6 +913,7 @@ async function handleZoneVectorExport() {
 
 // --- NOUVELLE FONCTION : GENERATE ZONE MBTILES (OVERLAY TRANSPARENT) ---
 async function generateZoneMBTiles(filename, useUtm, useCfsi, useCado) {
+    await ensureMbtilesOverlayModule();
     if (typeof window.initSqlJs !== 'function') {
         throw new Error("La librairie SQL.js n'est pas chargée.");
     }
@@ -1155,6 +1160,7 @@ async function generateCadoKmlFolder(imagesToZip, isKmz) {
 
 async function generatePoiKmlFolder(pois, imagesToZip, isKmz) {
     let kml = "<Folder><name>Points d'intérêt</name>";
+    await ensureIconsCatalog();
     const allIcons = window.getIconLibrary ? window.getIconLibrary() : [];
 
     for (const [index, poi] of pois.entries()) {
@@ -1280,7 +1286,7 @@ async function zdCreateFinalCanvas(boundingBox, zoom, mapConfig, externalMargin,
         // --- Mode en ligne ---
         const cacheBust = 't=' + Date.now();
         for (const layer of mapConfig.layers) {
-            const promises = [];
+            const tileJobs = [];
             if (layer.type === 'yandex') {
                 console.error('[YANDEX-v26] NEW CODE RUNNING - 3395 iterate approach');
                 // Tuiles Yandex (EPSG:3395) : on itère sur les tuiles 3395 qui couvrent la zone,
@@ -1296,16 +1302,16 @@ async function zdCreateFinalCanvas(boundingBox, zoom, mapConfig, externalMargin,
                     for (let ty = nwTile3395.y; ty <= seTile3395.y; ty++) {
                         const url = layer.url.replace('{z}', actualZoom).replace('{x}', tx).replace('{y}', ty);
                         const safeUrl = url + (url.includes('?') ? '&' : '?') + cacheBust;
-                        promises.push(new Promise(r => {
-                            const i = new Image(); i.crossOrigin = "Anonymous";
-                            i.onload = () => r({ i, tx, ty, ok: true });
-                            i.onerror = () => r({ ok: false });
-                            i.src = safeUrl;
-                        }));
+                        tileJobs.push({ safeUrl, tx, ty });
                     }
                 }
                 let _dbg = true;
-                (await Promise.all(promises)).forEach(res => {
+                (await mapWithConcurrency(tileJobs, 8, job => new Promise(r => {
+                    const i = new Image(); i.crossOrigin = "Anonymous";
+                    i.onload = () => r({ i, tx: job.tx, ty: job.ty, ok: true });
+                    i.onerror = () => r({ ok: false });
+                    i.src = job.safeUrl;
+                }))).forEach(res => {
                     if (res.ok) {
                         // Bords nord et sud de la tuile 3395 → latitude géographique
                         const northLat = _tile3395NorthLatDeg(res.ty, actualZoom);
@@ -1334,15 +1340,15 @@ async function zdCreateFinalCanvas(boundingBox, zoom, mapConfig, externalMargin,
                             url = layer.url.replace('{z}', actualZoom).replace('{x}', x).replace('{y}', y);
                         }
                         const safeUrl = url + (url.includes('?') ? '&' : '?') + cacheBust;
-                        promises.push(new Promise(r => {
-                            const i = new Image(); i.crossOrigin = "Anonymous";
-                            i.onload = () => r({ i, x, y, ok: true });
-                            i.onerror = () => r({ ok: false });
-                            i.src = safeUrl;
-                        }));
+                        tileJobs.push({ safeUrl, x, y });
                     }
                 }
-                (await Promise.all(promises)).forEach(res => {
+                (await mapWithConcurrency(tileJobs, 8, job => new Promise(r => {
+                    const i = new Image(); i.crossOrigin = "Anonymous";
+                    i.onload = () => r({ i, x: job.x, y: job.y, ok: true });
+                    i.onerror = () => r({ ok: false });
+                    i.src = job.safeUrl;
+                }))).forEach(res => {
                     if (res.ok) {
                         const destX = Math.floor((res.x * ZD_TILE_SIZE) - dlNwPx.x);
                         const destY = Math.floor((res.y * ZD_TILE_SIZE) - dlNwPx.y);
@@ -1552,6 +1558,9 @@ async function handleZoneKmzFile(event) {
         loadingMessage.textContent = "Lecture du fichier KML/KMZ...";
         document.getElementById("loading-indicator").classList.remove("hidden");
 
+        if (file.name.toLowerCase().endsWith('.kmz')) {
+            await ensureJSZip();
+        }
         const zip = file.name.toLowerCase().endsWith('.kmz') ? await JSZip.loadAsync(file) : null;
         const kmlFile = zip ? zip.file(/(\.kml)$/i)[0] : null;
         const kmlText = zip ? await kmlFile.async("string") : await file.text();

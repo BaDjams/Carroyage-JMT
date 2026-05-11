@@ -287,7 +287,7 @@ function updateCreatorUI() {
         infoTiles.classList.add('text-red-600');
     } else if (totalTiles > MAX_SAFE_TILES_MEMORY && _opfsAvailable === true) {
         warning.classList.remove('hidden');
-        warning.textContent = `Volume important (${totalTiles.toLocaleString()} tuiles) — mode OPFS activé (stockage disque).`;
+        warning.textContent = `Volume important (${totalTiles.toLocaleString()} tuiles) - OPFS limite la RAM pendant le telechargement, mais l'assemblage SQLite final reste en memoire navigateur.`;
         warning.className = warning.className.replace('text-red', 'text-yellow').replace('text-yellow-500', 'text-yellow-600');
         infoTiles.classList.remove('text-red-600');
     } else {
@@ -570,6 +570,8 @@ class MbtilesJob {
     async assembleFromOPFS() {
         // Phase 2 : lecture OPFS → sql-wasm → export
         const statusEl = document.getElementById(`job-status-${this.id}`);
+        const etaEl = document.getElementById(`job-eta-${this.id}`);
+        if (etaEl) etaEl.textContent = 'Phase finale en RAM navigateur';
         if (statusEl) statusEl.textContent = 'ASSEMBLAGE…';
 
         await this._initDb();
@@ -618,7 +620,6 @@ class MbtilesJob {
             this.db.close();
             this.db = null;
 
-            const blob = new Blob([data], { type: 'application/x-sqlite3' });
             const fname = `${this.filename}.mbtiles`;
 
             const container = document.getElementById(`job-${this.id}`);
@@ -633,7 +634,7 @@ class MbtilesJob {
                             types: [{ description: 'MBTiles', accept: { 'application/x-sqlite3': ['.mbtiles'] } }]
                         });
                         const w = await fh.createWritable();
-                        await w.write(blob);
+                        await w.write(data);
                         await w.close();
                         return;
                     } catch (e) {
@@ -642,6 +643,7 @@ class MbtilesJob {
                     }
                 }
                 // Fallback : lien de téléchargement classique
+                const blob = new Blob([data], { type: 'application/x-sqlite3' });
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement('a');
                 a.href = url; a.download = fname; a.click();

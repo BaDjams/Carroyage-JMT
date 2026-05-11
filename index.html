@@ -13,30 +13,21 @@
 <link rel="stylesheet" href="style.css">
 
 <script src="version.js" defer></script>
-<script src="jszip.min.js" defer></script>
-<script src="FileSaver.min.js" defer></script>
 <script src="openlocationcode.min.js" defer></script>
-<!-- Ajout de SQL.js pour le mode MBTiles -->
-<script src="sql-wasm.js" defer></script>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 <script src="https://unpkg.com/leaflet.wms@0.2.0/dist/leaflet.wms.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.js" defer></script>
-<script src="flowbite.min.js" defer></script>
 <script src="config.private.js" defer onerror="console.warn('config.private.js absent : layers privés désactivés.')"></script>
 <script src="map-layers.js" defer></script>
-<script src="wms-layers.js" defer></script>
 <script src="icons.js" defer></script>
 <script src="settingsManager.js" defer></script>
-<script src="icons-catalog.js" defer></script>
 <script src="utilities.js"></script>
 <script src="carroyageUTM.js" defer></script>
 <script src="carroyageCado.js" defer></script>
 <script src="zoneDownloader.js" defer></script>
 <script src="imagetoprint.js" defer></script>
-<script src="carroyageToMbtiles.js" defer></script>
 <script src="carroyageToCSV.js" defer></script>
-<script src="mbtilesCreator.js" defer></script>
 <script src="carroyageCFSI.js" defer></script>
 <script src="seedManager.js" defer></script>
 <script src="tileSource.js" defer></script>
@@ -1546,7 +1537,7 @@
         }
 
         // --- GESTION DU TOGGLE MODE ---
-        function toggleMode(targetMode) {
+        async function toggleMode(targetMode) {
             const containers = { 
                 cado: document.getElementById('cado-mode-container'),
                 zone: document.getElementById('zone-downloader-mode-container'),
@@ -1574,6 +1565,7 @@
             switch (targetMode) {
                 case 'zone': mapToResize = zoneMap; break;
                 case 'creator':
+                    await ensureMbtilesCreatorModule();
                     if (typeof initCreatorMode === 'function') initCreatorMode();
                     mapToResize = window.creatorMap; 
                     break;
@@ -1587,7 +1579,7 @@
         // =============================================================================
         function setupEventListeners() {
             document.getElementById('mode-selector').addEventListener('click', (e) => {
-                if (e.target.matches('.mode-btn')) toggleMode(e.target.getAttribute('data-mode'));
+                if (e.target.matches('.mode-btn')) toggleMode(e.target.getAttribute('data-mode')).catch(err => alert(err.message));
             });
             
             setupToggle('toggle-coords-btn', 'advanced-coords', 'Options avancées');

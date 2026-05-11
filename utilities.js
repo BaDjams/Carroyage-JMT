@@ -188,6 +188,90 @@ function downloadFile(blob, fileName) {
     document.body.removeChild(a);
 }
 
+// --- CHARGEMENT A LA DEMANDE DES MODULES LOURDS ---
+const _lazyScriptPromises = {};
+
+function loadScriptOnce(src) {
+    if (_lazyScriptPromises[src]) return _lazyScriptPromises[src];
+    _lazyScriptPromises[src] = new Promise((resolve, reject) => {
+        const existing = document.querySelector(`script[src="${src}"]`);
+        if (existing) {
+            if (existing.dataset.loaded === 'true') return resolve();
+            existing.addEventListener('load', () => resolve(), { once: true });
+            existing.addEventListener('error', () => reject(new Error(`Impossible de charger ${src}`)), { once: true });
+            return;
+        }
+
+        const script = document.createElement('script');
+        script.src = src;
+        script.defer = true;
+        script.dataset.loaded = 'true';
+        script.onload = () => resolve();
+        script.onerror = () => reject(new Error(`Impossible de charger ${src}`));
+        document.head.appendChild(script);
+    });
+    return _lazyScriptPromises[src];
+}
+
+async function ensureSqlJs() {
+    if (typeof window.initSqlJs !== 'function') {
+        await loadScriptOnce('sql-wasm.js');
+    }
+    if (typeof window.initSqlJs !== 'function') {
+        throw new Error("SQL.js n'a pas pu etre charge.");
+    }
+}
+
+async function ensureJSZip() {
+    if (typeof window.JSZip !== 'function') {
+        await loadScriptOnce('jszip.min.js');
+    }
+    if (typeof window.JSZip !== 'function') {
+        throw new Error("JSZip n'a pas pu etre charge.");
+    }
+}
+
+async function ensureIconsCatalog() {
+    if (typeof window.ICON_CATALOG === 'undefined' && typeof ICON_CATALOG === 'undefined') {
+        await loadScriptOnce('icons-catalog.js');
+    }
+}
+
+async function ensureMbtilesOverlayModule() {
+    await ensureSqlJs();
+    if (typeof window.generateMbtilesProcess !== 'function' && typeof generateMbtilesProcess !== 'function') {
+        await loadScriptOnce('carroyageToMbtiles.js');
+    }
+    if (typeof window.generateMbtilesProcess !== 'function' && typeof generateMbtilesProcess !== 'function') {
+        throw new Error("Module MBTiles manquant (carroyageToMbtiles.js).");
+    }
+}
+
+async function ensureMbtilesCreatorModule() {
+    await ensureSqlJs();
+    if (typeof window.initCreatorMode !== 'function') {
+        await loadScriptOnce('mbtilesCreator.js');
+    }
+    if (typeof window.initCreatorMode !== 'function') {
+        throw new Error("Module createur MBTiles manquant (mbtilesCreator.js).");
+    }
+}
+
+async function mapWithConcurrency(items, concurrency, mapper) {
+    const results = new Array(items.length);
+    let nextIndex = 0;
+    const workerCount = Math.min(concurrency, items.length);
+
+    await Promise.all(Array.from({ length: workerCount }, async () => {
+        while (nextIndex < items.length) {
+            const index = nextIndex++;
+            results[index] = await mapper(items[index], index);
+        }
+    }));
+
+    return results;
+}
+
 function showError(message) {
     const errorDiv = document.getElementById("error-message");
     errorDiv.textContent = message;

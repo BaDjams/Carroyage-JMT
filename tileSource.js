@@ -14,6 +14,7 @@ let _tsName  = '';
 async function tileSourceLoad(file) {
     tileSourceClear();
     if (!file) return null;
+    await ensureSqlJs();
     if (typeof window.initSqlJs !== 'function') throw new Error("SQL.js non chargé.");
     const SQL = await window.initSqlJs({ locateFile: f => f });
     const buf = await file.arrayBuffer();

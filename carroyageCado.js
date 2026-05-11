@@ -281,6 +281,9 @@ async function handleCadoKmzFile(event) {
         const loadingIndicator = document.getElementById("loading-indicator");
         if(loadingIndicator) loadingIndicator.classList.remove("hidden");
 
+        if (file.name.toLowerCase().endsWith('.kmz')) {
+            await ensureJSZip();
+        }
         const zip = file.name.toLowerCase().endsWith('.kmz') ? await JSZip.loadAsync(file) : null;
         const kmlFile = zip ? zip.file(/(\.kml)$/i)[0] : null;
         const kmlText = zip ? await kmlFile.async("string") : await file.text();
@@ -407,6 +410,7 @@ async function generateGrid() {
         // --- SUPPORT NOUVEAUX FORMATS ---
         
         if (fileFormat === "MBTILES") {
+            await ensureMbtilesOverlayModule();
             // 1. Calcul de la Bounding Box de la grille pour l'export
             let minLat = 90, maxLat = -90, minLon = 180, maxLon = -180;
             const allPoints = [...gridData.horizontalLines.flatMap(l=>l.points), ...gridData.verticalLines.flatMap(l=>l.points)];
@@ -455,6 +459,7 @@ async function generateGrid() {
                 case "KMZ":
                     const kmlContent = generateKML(config, gridData);
                     if (fileFormat === "KMZ") {
+                        await ensureJSZip();
                         mimeType = "application/vnd.google-earth.kmz";
                         fileBlob = await generateKMZ(config, gridData, kmlContent, mimeType);
                         fileName = `${config.gridName}.kmz`;

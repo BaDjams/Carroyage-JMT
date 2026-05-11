@@ -1,6 +1,6 @@
 // sw.js - Service Worker PWA
 
-const CACHE_NAME = 'cado-cache-v36';
+const CACHE_NAME = 'cado-cache-v37';
 
 // Liste EXACTE des fichiers à mettre en cache.
 // Si un seul fichier manque, la PWA ne s'installera pas.
@@ -36,9 +36,7 @@ const ASSETS_TO_CACHE = [
 
   // Librairies tierces
   './jszip.min.js',
-  './FileSaver.min.js',
   './openlocationcode.min.js',
-  './flowbite.min.js',
 
   // Manifeste
   './manifest.json',
