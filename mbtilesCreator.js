@@ -727,20 +727,33 @@ function setupCreatorAddressSearch() {
         timer = setTimeout(async () => {
             try {
                 list.innerHTML = '';
+                const suggestions = await fetchBanAddressSuggestions(input.value, 5);
+                suggestions.forEach(item => {
+                    const li = createAddressSuggestionItem(item, () => {
+                        input.value = item.label;
+                        list.classList.add('hidden');
+                        creatorMap.flyTo([item.lat, item.lon], 13);
+                    }, "px-4 py-2 hover:bg-gray-100 cursor-pointer text-sm dark:text-gray-200 dark:hover:bg-gray-600");
+                    list.appendChild(li);
+                });
+                if (suggestions.length) {
+                    list.classList.remove('hidden');
+                    return;
+                }
+            } catch(e){}
+            try {
+                list.innerHTML = '';
                 const r = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(input.value)}&limit=5`);
                 const d = await r.json();
                 d.forEach(f => {
-                    const li = document.createElement('li');
-                    li.textContent = f.display_name;
-                    li.className = "px-4 py-2 hover:bg-gray-100 cursor-pointer text-sm dark:text-gray-200 dark:hover:bg-gray-600";
-                    li.onclick = () => {
+                    const li = createAddressSuggestionItem({ label: f.display_name }, () => {
                         input.value = f.display_name;
                         list.classList.add('hidden');
                         creatorMap.flyTo([f.lat, f.lon], 13);
-                    };
+                    }, "px-4 py-2 hover:bg-gray-100 cursor-pointer text-sm dark:text-gray-200 dark:hover:bg-gray-600");
                     list.appendChild(li);
                 });
-                list.classList.remove('hidden');
+                if (list.children.length > 0) list.classList.remove('hidden');
             } catch(e){}
         }, 300);
     });

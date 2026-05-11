@@ -1500,18 +1500,15 @@ function setupZoneAddressSearch() {
             list.innerHTML = '';
             let found = false;
             try {
-                const r = await fetch(`https://api-adresse.data.gouv.fr/search/?q=${encodeURIComponent(input.value)}&limit=5`);
-                const d = await r.json();
-                if (d.features?.length) {
+                const suggestions = await fetchBanAddressSuggestions(input.value, 5);
+                if (suggestions.length) {
                     found = true;
-                    d.features.forEach(f => {
-                        const li = document.createElement('li');
-                        li.textContent = f.properties.label;
-                        li.onclick = () => {
-                            input.value = f.properties.label;
+                    suggestions.forEach(item => {
+                        const li = createAddressSuggestionItem(item, () => {
+                            input.value = item.label;
                             list.classList.add('hidden');
-                            window.zoneMap.flyTo([f.geometry.coordinates[1], f.geometry.coordinates[0]], 15);
-                        };
+                            window.zoneMap.flyTo([item.lat, item.lon], 15);
+                        });
                         list.appendChild(li);
                     });
                 }
@@ -1522,13 +1519,11 @@ function setupZoneAddressSearch() {
                     const r = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(input.value)}&limit=5`);
                     const d = await r.json();
                     d.forEach(f => {
-                        const li = document.createElement('li');
-                        li.textContent = f.display_name;
-                        li.onclick = () => {
+                        const li = createAddressSuggestionItem({ label: f.display_name }, () => {
                             input.value = f.display_name;
                             list.classList.add('hidden');
                             window.zoneMap.flyTo([parseFloat(f.lat), parseFloat(f.lon)], 15);
-                        };
+                        });
                         list.appendChild(li);
                     });
                 } catch(e){}

@@ -3,6 +3,97 @@
 // --- CONSTANTES PARTAGÉES ---
 const TILE_SIZE = 256;
 const MAX_ZOOM = 19;
+const BAN_LOOKUP_URL = "https://plateforme.adresse.data.gouv.fr/lookup";
+const BAN_SEARCH_URL = "https://data.geopf.fr/geocodage/search";
+
+const BAN_STATUS_STYLES = {
+    verified: {
+        label: "Adresse certifiée",
+        fill: "#6a6af4",
+        stroke: "#2fc368"
+    },
+    pending: {
+        label: "Adresse en cours de vérification",
+        fill: "#6a6af4",
+        stroke: "#ADB9C9"
+    },
+    unverified: {
+        label: "Adresse non vérifiée",
+        fill: "#E69F00",
+        stroke: "#ADB9C9"
+    },
+    unknown: {
+        label: "Statut non disponible",
+        fill: "#E69F00",
+        stroke: "#ADB9C9"
+    }
+};
+
+function getBanAddressStatus(lookupData) {
+    if (!lookupData) return BAN_STATUS_STYLES.unknown;
+    if (lookupData.certifie === true || lookupData.certified === true) {
+        return BAN_STATUS_STYLES.verified;
+    }
+
+    const sources = Array.isArray(lookupData.sources) ? lookupData.sources : [];
+    const hasBalSource = lookupData.sourcePosition === "bal" || sources.includes("bal");
+    return hasBalSource ? BAN_STATUS_STYLES.pending : BAN_STATUS_STYLES.unverified;
+}
+
+async function enrichBanSuggestion(feature) {
+    const properties = feature.properties || {};
+    const [lon, lat] = feature.geometry?.coordinates || [];
+    const item = {
+        label: properties.label,
+        lat,
+        lon,
+        banId: properties.id,
+        status: BAN_STATUS_STYLES.unknown
+    };
+
+    if (!item.banId) return item;
+
+    try {
+        const response = await fetch(`${BAN_LOOKUP_URL}/${encodeURIComponent(item.banId)}`);
+        if (response.ok) {
+            item.status = getBanAddressStatus(await response.json());
+        }
+    } catch (error) {
+        console.warn("Statut BAN non disponible:", error);
+    }
+
+    return item;
+}
+
+async function fetchBanAddressSuggestions(query, limit = 5) {
+    const response = await fetch(`${BAN_SEARCH_URL}?q=${encodeURIComponent(query)}&limit=${limit}`);
+    const data = await response.json();
+    if (!data.features?.length) return [];
+    return Promise.all(data.features.map(enrichBanSuggestion));
+}
+
+function createAddressSuggestionItem(item, onSelect, className = "") {
+    const li = document.createElement("li");
+    if (className) li.className = className;
+
+    const label = document.createElement("span");
+    label.className = "address-suggestion-label";
+    label.textContent = item.label;
+    li.appendChild(label);
+
+    if (item.status) {
+        const marker = document.createElement("span");
+        marker.className = "ban-status-marker";
+        marker.style.backgroundColor = item.status.fill;
+        marker.style.borderColor = item.status.stroke;
+        marker.title = item.status.label;
+        marker.setAttribute("aria-label", item.status.label);
+        li.appendChild(marker);
+    }
+
+    li.addEventListener("click", () => onSelect(item));
+    return li;
+}
 const R = 6378137; // Rayon de la Terre en mètres
 
 // --- FONCTIONS MATHÉMATIQUES ET DE CONVERSION ---

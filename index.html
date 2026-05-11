@@ -1411,10 +1411,9 @@
 
         async function fetchSuggestions(query) {
             try {
-                const response = await fetch(`https://api-adresse.data.gouv.fr/search/?q=${encodeURIComponent(query)}&limit=5`);
-                const data = await response.json();
-                if (data.features && data.features.length > 0) {
-                    displaySuggestions(data.features.map(f => ({ label: f.properties.label, lat: f.geometry.coordinates[1], lon: f.geometry.coordinates[0] })));
+                const items = await fetchBanAddressSuggestions(query, 5);
+                if (items.length > 0) {
+                    displaySuggestions(items);
                     return;
                 }
             } catch (error) { console.warn("API Adresse.data.gouv.fr non joignable, bascule sur OSM."); }
@@ -1429,9 +1428,7 @@
             suggestionsList.innerHTML = '';
             if (items.length === 0) { suggestionsList.classList.add('hidden'); return; }
             items.forEach(item => {
-                const li = document.createElement('li');
-                li.textContent = item.label;
-                li.addEventListener('click', () => {
+                const li = createAddressSuggestionItem(item, () => {
                     searchInput.value = item.label;
                     suggestionsList.classList.add('hidden');
                     const position = L.latLng(item.lat, item.lon);
