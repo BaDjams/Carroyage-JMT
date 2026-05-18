@@ -13,7 +13,14 @@ let creatorBaseMaps = {};
 // Limites de sécurité
 const MAX_SAFE_TILES_MEMORY = 8000;   // sans OPFS (in-memory sql-wasm)
 const MAX_SAFE_TILES_OPFS   = 100000; // avec OPFS (stockage disque)
-const TILE_SIZE_ESTIMATE_KB = 50;
+const TILE_SIZE_ESTIMATE_KB = 15;     // estimation JPEG q0.85 (~12 Ko/tuile observé)
+
+// Encodage des tuiles. JPEG ≈ 8x plus léger que PNG RGBA sur de l'imagerie
+// ortho/satellite (cf. comparatif Mobac vs MBTiles Creator).
+// JPEG n'a pas de canal alpha : un fond opaque est appliqué avant composition.
+const TILE_FORMAT  = 'image/jpeg';
+const TILE_QUALITY = 0.85;            // 0..1, ignoré si TILE_FORMAT === 'image/png'
+const TILE_BG      = '#ffffff';       // fond pour les zones transparentes (JPEG only)
 
 // Détection OPFS (Origin Private File System) — pas besoin de SharedArrayBuffer
 let _opfsAvailable = null;
@@ -438,7 +445,7 @@ class MbtilesJob {
         this.db.run("CREATE UNIQUE INDEX tile_index on tiles (zoom_level, tile_column, tile_row);");
         const boundsStr = `${this.bounds.getWest()},${this.bounds.getSouth()},${this.bounds.getEast()},${this.bounds.getNorth()}`;
         this.db.run("INSERT INTO metadata VALUES (?, ?)", ["name", this.filename]);
-        this.db.run("INSERT INTO metadata VALUES (?, ?)", ["format", "png"]);
+        this.db.run("INSERT INTO metadata VALUES (?, ?)", ["format", TILE_FORMAT === 'image/jpeg' ? "jpg" : "png"]);
         this.db.run("INSERT INTO metadata VALUES (?, ?)", ["bounds", boundsStr]);
         this.db.run("INSERT INTO metadata VALUES (?, ?)", ["type", "overlay"]);
         this.db.run("INSERT INTO metadata VALUES (?, ?)", ["version", "1.2"]);
@@ -495,13 +502,19 @@ class MbtilesJob {
         const canvas = document.createElement('canvas');
         canvas.width = 256; canvas.height = 256;
         const ctx = canvas.getContext('2d');
+        // JPEG ne gère pas la transparence : on pose un fond opaque avant
+        // composition pour éviter que les zones vides deviennent noires.
+        if (TILE_FORMAT === 'image/jpeg') {
+            ctx.fillStyle = TILE_BG;
+            ctx.fillRect(0, 0, 256, 256);
+        }
         let hasContent = false;
         for (const url of this._tileUrls(tile)) {
             const ok = await this.fetchAndDrawLayer(url, canvas, ctx);
             if (ok) hasContent = true;
         }
         if (!hasContent) return null;
-        return new Promise(r => canvas.toBlob(r, 'image/png'));
+        return new Promise(r => canvas.toBlob(r, TILE_FORMAT, TILE_QUALITY));
     }
 
     async processQueue() {
