@@ -1240,19 +1240,30 @@
 
                     // Ajouter le calque MBTiles
                     const zooms = tileSourceGetZooms();
+                    const zMin = zooms[0], zMax = zooms[zooms.length - 1];
+                    // min/maxNativeZoom = niveaux réellement présents dans le .mbtiles ;
+                    // min/maxZoom volontairement larges → Leaflet ré-échantillonne les
+                    // tuiles hors de cette plage (sur-zoom au-delà de zMax) au lieu
+                    // d'afficher du vide, et la couche n'est pas désactivée si le zoom
+                    // courant est hors plage au moment de l'ajout.
                     const layer = new MbtilesLeafletLayer('', {
-                        minZoom: zooms[0],
-                        maxZoom: zooms[zooms.length - 1],
+                        minNativeZoom: zMin,
+                        maxNativeZoom: zMax,
+                        minZoom: 0,
+                        maxZoom: zMax + 6,
                         tms: false
                     });
-                    layer.addTo(map);
-                    setLayer(layer);
 
-                    // Centrer la vue sur les bounds du fichier
+                    // Positionner la vue AVANT l'ajout : la couche s'initialise à un
+                    // zoom utile (évite le bug du double chargement).
                     if (info.bounds) {
                         const [west, south, east, north] = info.bounds;
-                        map.fitBounds([[south, west], [north, east]]);
+                        map.fitBounds([[south, west], [north, east]], { maxZoom: zMax });
+                    } else if (map.getZoom() < zMin) {
+                        map.setZoom(zMin);
                     }
+                    layer.addTo(map);
+                    setLayer(layer);
                 } else {
                     // Rétablir le calque en ligne par défaut
                     const defaultLayer = baseMaps["Ortho IGN + Routes Google"]
