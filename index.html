@@ -1092,12 +1092,12 @@
                         if (!keyVal) return;
                     }
                     let leafletLayer;
-                    const tileOpts = { attribution: layerConfig.name, maxZoom: layerConfig.maxZoom || 20, keepBuffer: 0, updateWhenZooming: false };
+                    const tileOpts = { attribution: layerConfig.name, maxNativeZoom: layerConfig.maxZoom || 19, maxZoom: 22, keepBuffer: 0, updateWhenZooming: false };
                     const makeTileLayer = (layerData) => {
                         const opts = { ...tileOpts };
                         if (layerData.minZoom !== undefined) opts.minZoom = layerData.minZoom;
-                        if (layerData.maxZoom !== undefined) opts.maxZoom = layerData.maxZoom;
-                        if (layerData.type === 'quadkey') return new L_QuadKeyLayer(layerData.url, { ...opts, maxZoom: layerConfig.maxZoom || 19 });
+                        if (layerData.maxZoom !== undefined) opts.maxNativeZoom = layerData.maxZoom;
+                        if (layerData.type === 'quadkey') return new L_QuadKeyLayer(layerData.url, opts);
                         if (layerData.type === 'yandex')  return new L_YandexLayer(layerData.url, opts);
 
                         return L.tileLayer(layerData.url, opts);
@@ -1114,7 +1114,7 @@
         }
 
         function initializeCadoMap() {
-            cadoMap = L.map('cado-interactive-map', { attributionControl: false }).setView([46.2276, 2.2137], 5);
+            cadoMap = L.map('cado-interactive-map', { attributionControl: false, maxZoom: 22 }).setView([46.2276, 2.2137], 5);
             window.cadoMap = cadoMap;
             cadoBaseMaps = createBaseLayers();
             const defaultLayer = cadoBaseMaps["Ortho IGN + Routes Google"] || cadoBaseMaps["Google Hybrid"] || (Object.keys(cadoBaseMaps).length > 0 ? cadoBaseMaps[Object.keys(cadoBaseMaps)[0]] : null);
@@ -1156,7 +1156,7 @@
         }
 
         function initializeZoneMap() {
-            zoneMap = L.map('zone-interactive-map', { attributionControl: false }).setView([46.2276, 2.2137], 5);
+            zoneMap = L.map('zone-interactive-map', { attributionControl: false, maxZoom: 22 }).setView([46.2276, 2.2137], 5);
             zoneBaseMaps = createBaseLayers();
             const defaultLayer = zoneBaseMaps["Ortho IGN + Routes Google"] || zoneBaseMaps["Google Hybrid"];
             if(defaultLayer) defaultLayer.addTo(zoneMap);

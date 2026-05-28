@@ -1,9 +1,17 @@
 // version.js
 
 // Source unique de vérité pour la version de l'application.
-const APP_VERSION = '22.18';
+const APP_VERSION = '22.19';
 
 const CHANGELOG = [
+  {
+    version: '22.19',
+    date: '2026-05-28',
+    changes: [
+      'Sur-zoom universel jusqu\'au niveau 22 sur tous les fonds de carte (OSM, IGN, Google, Yandex, Bing…)',
+      'Applies aux 3 cartes Leaflet : Carroyage rapide, Export de zone, MBTiles Creator',
+    ],
+  },
   {
     version: '22.18',
     date: '2026-05-28',

@@ -46,7 +46,7 @@ function initCreatorMode() {
     checkOPFS().then(() => updateCreatorUI());
 
     // 1. Initialisation Carte
-    creatorMap = L.map('creator-interactive-map').setView([46.2276, 2.2137], 5);
+    creatorMap = L.map('creator-interactive-map', { maxZoom: 22 }).setView([46.2276, 2.2137], 5);
     
     // Definition locale QuadKey pour Creator
     const L_QuadKeyLayer = L.TileLayer.extend({
@@ -97,15 +97,17 @@ function initCreatorMode() {
             let leafletLayer;
             if (layerConfig.layers.length > 1) {
                 const groupLayers = layerConfig.layers.map(l => {
-                    if (l.type === 'yandex') return new L_YandexLayerCreator(l.url, { maxZoom: layerConfig.maxZoom || 18, attribution: layerConfig.name, keepBuffer: 0, updateWhenZooming: false });
-                    return L.tileLayer(l.url, { maxZoom: layerConfig.maxZoom || 20, attribution: layerConfig.name, keepBuffer: 0, updateWhenZooming: false });
+                    const nativeZ = l.maxZoom ?? layerConfig.maxZoom ?? (l.type === 'yandex' ? 18 : 19);
+                    if (l.type === 'yandex') return new L_YandexLayerCreator(l.url, { maxNativeZoom: nativeZ, maxZoom: 22, attribution: layerConfig.name, keepBuffer: 0, updateWhenZooming: false });
+                    return L.tileLayer(l.url, { maxNativeZoom: nativeZ, maxZoom: 22, attribution: layerConfig.name, keepBuffer: 0, updateWhenZooming: false });
                 });
                 leafletLayer = L.layerGroup(groupLayers);
             } else {
                 const l = layerConfig.layers[0];
-                if (l.type === 'quadkey') leafletLayer = new L_QuadKeyLayer(l.url, { maxZoom: layerConfig.maxZoom || 19, attribution: layerConfig.name });
-                else if (l.type === 'yandex') leafletLayer = new L_YandexLayerCreator(l.url, { maxZoom: layerConfig.maxZoom || 18, attribution: layerConfig.name, keepBuffer: 0, updateWhenZooming: false });
-                else leafletLayer = L.tileLayer(l.url, { maxZoom: layerConfig.maxZoom || 20, attribution: layerConfig.name, keepBuffer: 0, updateWhenZooming: false });
+                const nativeZ = l.maxZoom ?? layerConfig.maxZoom ?? (l.type === 'yandex' ? 18 : 19);
+                if (l.type === 'quadkey') leafletLayer = new L_QuadKeyLayer(l.url, { maxNativeZoom: nativeZ, maxZoom: 22, attribution: layerConfig.name });
+                else if (l.type === 'yandex') leafletLayer = new L_YandexLayerCreator(l.url, { maxNativeZoom: nativeZ, maxZoom: 22, attribution: layerConfig.name, keepBuffer: 0, updateWhenZooming: false });
+                else leafletLayer = L.tileLayer(l.url, { maxNativeZoom: nativeZ, maxZoom: 22, attribution: layerConfig.name, keepBuffer: 0, updateWhenZooming: false });
             }
             if (leafletLayer) creatorBaseMaps[layerConfig.name] = leafletLayer;
         });
