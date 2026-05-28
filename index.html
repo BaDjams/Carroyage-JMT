@@ -950,8 +950,6 @@
         const TILE_LIMIT = 2000;
         let cadoLayerNativeMax = 19;
         let zoneLayerNativeMax = 19;
-        const ZOOM_IND_BLUE   = 'font-bold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-gray-700 px-2 py-0.5 rounded border border-blue-100 dark:border-gray-600 text-sm self-center';
-        const ZOOM_IND_ORANGE = 'font-bold text-orange-600 dark:text-orange-400 bg-orange-50 dark:bg-gray-700 px-2 py-0.5 rounded border border-orange-200 dark:border-gray-600 text-sm self-center';
 
         // Fonction utilitaire pour la rotation
         window.updateDeviation = function(change) {
@@ -1145,7 +1143,7 @@
                 el.textContent = z;
                 const isSurzoom = z > cadoLayerNativeMax;
                 if (label) label.textContent = isSurzoom ? 'Sur-zoom' : 'Zoom';
-                if (indicator) indicator.className = isSurzoom ? ZOOM_IND_ORANGE : ZOOM_IND_BLUE;
+                if (indicator) indicator.classList.toggle('zoom-surzoom', isSurzoom);
             };
             cadoMap.on('zoomend', updateCadoZoom);
             updateCadoZoom();
@@ -1205,7 +1203,7 @@
                 el.textContent = z;
                 const isSurzoom = z > zoneLayerNativeMax;
                 if (label) label.textContent = isSurzoom ? 'Sur-zoom' : 'Zoom';
-                if (indicator) indicator.className = isSurzoom ? ZOOM_IND_ORANGE : ZOOM_IND_BLUE;
+                if (indicator) indicator.classList.toggle('zoom-surzoom', isSurzoom);
                 const generateBtn = document.getElementById('generate-zone-png-button');
                 const surzoomWarn = document.getElementById('zone-surzoom-warning');
                 if (generateBtn) generateBtn.disabled = isSurzoom;

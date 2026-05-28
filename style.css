@@ -540,6 +540,17 @@ input[type="radio"].custom-radio:checked + span {
     display: none !important;
 }
 
+/* ===== INDICATEUR SUR-ZOOM ===== */
+.zoom-surzoom {
+    color: #ea580c !important;
+    background-color: #fff7ed !important;
+    border-color: #fed7aa !important;
+}
+.dark .zoom-surzoom {
+    color: #fb923c !important;
+    background-color: transparent !important;
+}
+
 /* ===== CHANGELOG ===== */
 .changelog-version-btn {
     font-size: 0.7em;
