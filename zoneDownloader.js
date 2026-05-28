@@ -611,10 +611,12 @@ async function generateZonePNG() {
             mapLayerName = tileSourceGetName();
             selectedMap = { layers: [], maxZoom: zoom, name: mapLayerName };
         } else {
-            zoom = parseInt(document.getElementById("zone-info-zoom").textContent, 10);
+            const rawZoom = parseInt(document.getElementById("zone-info-zoom").textContent, 10);
             mapLayerName = document.getElementById("zone-info-layer").textContent;
             selectedMap = MAP_LAYERS.find(m => m.name === mapLayerName);
             if (!selectedMap) throw new Error("Impossible de trouver la configuration du fond de carte.");
+            // Limiter au zoom natif du provider (évite de demander des tuiles inexistantes en sur-zoom)
+            zoom = selectedMap.maxZoom ? Math.min(rawZoom, selectedMap.maxZoom) : rawZoom;
         }
         
         const format = document.querySelector('input[name="image-format-zone"]:checked').value;
@@ -923,7 +925,10 @@ async function generateZoneMBTiles(filename, useUtm, useCfsi, useCado) {
         throw new Error("Module MBTiles manquant (carroyageToMbtiles.js).");
     }
 
-    const zoom = parseInt(document.getElementById("zone-info-zoom").textContent, 10);
+    const rawZoomForMbtiles = parseInt(document.getElementById("zone-info-zoom").textContent, 10);
+    const mbtilesSrcName = document.getElementById("zone-info-layer")?.textContent;
+    const mbtilesSrcLayer = typeof MAP_LAYERS !== 'undefined' ? MAP_LAYERS.find(m => m.name === mbtilesSrcName) : null;
+    const zoom = mbtilesSrcLayer ? Math.min(rawZoomForMbtiles, mbtilesSrcLayer.maxZoom) : rawZoomForMbtiles;
 
     // 1. Bbox
     const nwCoordsStr = document.getElementById("zone-nw-coords").value;
@@ -1197,7 +1202,7 @@ async function generatePoiKmlFolder(pois, imagesToZip, isKmz) {
 async function zdCreateFinalCanvas(boundingBox, zoom, mapConfig, externalMargin, upscaleEnabled = true, rotationAngleDeg = 0) {
     const actualZoom = (typeof tileSourceIsActive === 'function' && tileSourceIsActive())
         ? tileSourceGetBestZoom(zoom)
-        : zoom;
+        : (mapConfig && mapConfig.maxZoom ? Math.min(zoom, mapConfig.maxZoom) : zoom);
 
     const nwPx = zdLatLonToWorldPixels(boundingBox.north, boundingBox.west, actualZoom);
     const sePx = zdLatLonToWorldPixels(boundingBox.south, boundingBox.east, actualZoom);

@@ -139,8 +139,8 @@
                                 </div>
                                 <div class="mbtiles-info-bar text-xs text-gray-400 hidden bg-gray-50 dark:bg-gray-700 rounded px-2 py-1 max-w-xs"></div>
                             </div>
-                            <span class="font-bold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-gray-700 px-2 py-0.5 rounded border border-blue-100 dark:border-gray-600 text-sm self-center">
-                                Zoom : <span id="cado-current-map-zoom">--</span>
+                            <span id="cado-zoom-indicator" class="font-bold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-gray-700 px-2 py-0.5 rounded border border-blue-100 dark:border-gray-600 text-sm self-center">
+                                <span id="cado-zoom-label">Zoom</span> : <span id="cado-current-map-zoom">--</span>
                             </span>
                             <button id="toggle-rotation-btn" type="button" class="text-sm text-blue-600 hover:underline dark:text-blue-400 font-medium flex items-center gap-1 whitespace-nowrap">
                                 <span>🔄 Configurer la rotation</span> <span>▼</span>
@@ -437,8 +437,8 @@
                             </div>
                             <div class="mbtiles-info-bar text-xs text-gray-400 hidden bg-gray-50 dark:bg-gray-700 rounded px-2 py-1"></div>
                         </div>
-                        <span class="font-bold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-gray-700 px-2 py-0.5 rounded border border-blue-100 dark:border-gray-600 text-sm self-center">
-                            Zoom : <span id="zone-current-map-zoom">--</span>
+                        <span id="zone-zoom-indicator" class="font-bold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-gray-700 px-2 py-0.5 rounded border border-blue-100 dark:border-gray-600 text-sm self-center">
+                            <span id="zone-zoom-label">Zoom</span> : <span id="zone-current-map-zoom">--</span>
                         </span>
                         <button id="toggle-zone-rotation-btn" type="button" class="text-sm text-blue-600 hover:underline dark:text-blue-400 font-medium flex items-center gap-1 whitespace-nowrap">
                             <span>🔄 Configurer la rotation</span> <span>▼</span>
@@ -945,6 +945,10 @@
         let cadoMbtilesLayer = null;
         let zoneMbtilesLayer = null;
         const TILE_LIMIT = 2000;
+        let cadoLayerNativeMax = 19;
+        let zoneLayerNativeMax = 19;
+        const ZOOM_IND_BLUE   = 'font-bold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-gray-700 px-2 py-0.5 rounded border border-blue-100 dark:border-gray-600 text-sm self-center';
+        const ZOOM_IND_ORANGE = 'font-bold text-orange-600 dark:text-orange-400 bg-orange-50 dark:bg-gray-700 px-2 py-0.5 rounded border border-orange-200 dark:border-gray-600 text-sm self-center';
 
         // Fonction utilitaire pour la rotation
         window.updateDeviation = function(change) {
@@ -1121,20 +1125,38 @@
 
             if(defaultLayer) defaultLayer.addTo(cadoMap);
             if(Object.keys(cadoBaseMaps).length > 0) L.control.layers(cadoBaseMaps).addTo(cadoMap);
-            
-            const updateCadoZoom = () => { const el = document.getElementById('cado-current-map-zoom'); if (el) el.textContent = cadoMap.getZoom(); };
+
+            // Initialise le zoom natif à partir du layer par défaut
+            if (typeof MAP_LAYERS !== 'undefined') {
+                const defName = ["Ortho IGN + Routes Google", "Google Hybrid"].find(n => cadoBaseMaps[n]) || Object.keys(cadoBaseMaps)[0] || '';
+                const defML = MAP_LAYERS.find(l => l.name === defName);
+                if (defML) cadoLayerNativeMax = defML.maxZoom;
+            }
+
+            const updateCadoZoom = () => {
+                const z = cadoMap.getZoom();
+                const el        = document.getElementById('cado-current-map-zoom');
+                const indicator = document.getElementById('cado-zoom-indicator');
+                const label     = document.getElementById('cado-zoom-label');
+                if (!el) return;
+                el.textContent = z;
+                const isSurzoom = z > cadoLayerNativeMax;
+                if (label) label.textContent = isSurzoom ? 'Sur-zoom' : 'Zoom';
+                if (indicator) indicator.className = isSurzoom ? ZOOM_IND_ORANGE : ZOOM_IND_BLUE;
+            };
             cadoMap.on('zoomend', updateCadoZoom);
             updateCadoZoom();
 
             cadoMap.on('click', handleCadoMapClick);
             initSVContextMenu(cadoMap);
-            
+
             // Synchro bidirectionnelle select ↔ map (mode rapide)
             cadoMap.on('baselayerchange', function(e) {
                 const selector = document.getElementById('map-tile-provider');
                 if (typeof MAP_LAYERS !== 'undefined') {
                     const ml = MAP_LAYERS.find(l => l.name === e.name);
                     if (ml && selector) selector.value = ml.id;
+                    if (ml) { cadoLayerNativeMax = ml.maxZoom; updateCadoZoom(); }
                 }
             });
             document.getElementById('map-tile-provider')?.addEventListener('change', function() {
@@ -1142,6 +1164,8 @@
                 if (ml && cadoBaseMaps[ml.name]) {
                     Object.values(cadoBaseMaps).forEach(l => cadoMap.removeLayer(l));
                     cadoBaseMaps[ml.name].addTo(cadoMap);
+                    cadoLayerNativeMax = ml.maxZoom;
+                    updateCadoZoom();
                 }
             });
 
@@ -1161,8 +1185,25 @@
             const defaultLayer = zoneBaseMaps["Ortho IGN + Routes Google"] || zoneBaseMaps["Google Hybrid"];
             if(defaultLayer) defaultLayer.addTo(zoneMap);
             if(Object.keys(zoneBaseMaps).length > 0) L.control.layers(zoneBaseMaps).addTo(zoneMap);
-            
-            const updateZoneZoom = () => { const el = document.getElementById('zone-current-map-zoom'); if (el) el.textContent = zoneMap.getZoom(); };
+
+            // Initialise le zoom natif à partir du layer par défaut
+            if (typeof MAP_LAYERS !== 'undefined') {
+                const defName = ["Ortho IGN + Routes Google", "Google Hybrid"].find(n => zoneBaseMaps[n]) || Object.keys(zoneBaseMaps)[0] || '';
+                const defML = MAP_LAYERS.find(l => l.name === defName);
+                if (defML) zoneLayerNativeMax = defML.maxZoom;
+            }
+
+            const updateZoneZoom = () => {
+                const z = zoneMap.getZoom();
+                const el        = document.getElementById('zone-current-map-zoom');
+                const indicator = document.getElementById('zone-zoom-indicator');
+                const label     = document.getElementById('zone-zoom-label');
+                if (!el) return;
+                el.textContent = z;
+                const isSurzoom = z > zoneLayerNativeMax;
+                if (label) label.textContent = isSurzoom ? 'Sur-zoom' : 'Zoom';
+                if (indicator) indicator.className = isSurzoom ? ZOOM_IND_ORANGE : ZOOM_IND_BLUE;
+            };
             zoneMap.on('zoomend', updateZoneZoom);
             updateZoneZoom();
 
@@ -1194,6 +1235,7 @@
                 if (typeof MAP_LAYERS !== 'undefined') {
                     const ml = MAP_LAYERS.find(l => l.name === e.name);
                     if (ml && selector) selector.value = ml.id;
+                    if (ml) { zoneLayerNativeMax = ml.maxZoom; updateZoneZoom(); }
                 }
                 updateZoneInfo(e);
             });
@@ -1203,6 +1245,8 @@
                 if (ml && zoneBaseMaps[ml.name]) {
                     Object.values(zoneBaseMaps).forEach(l => zoneMap.removeLayer(l));
                     zoneBaseMaps[ml.name].addTo(zoneMap);
+                    zoneLayerNativeMax = ml.maxZoom;
+                    updateZoneZoom();
                 }
             });
             

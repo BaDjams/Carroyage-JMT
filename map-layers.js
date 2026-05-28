@@ -45,6 +45,17 @@ const MAP_LAYERS = [
         ]
     },
     {
+        "id": "ign_ortho_hd",
+        "name": "Ortho IGN HD",
+        "maxZoom": 20,
+        "layers": [
+            {
+                "url": "https://data.geopf.fr/wmts?Layer=HR.ORTHOIMAGERY.ORTHOPHOTOS&Style=normal&TileMatrixSet=PM&SERVICE=WMTS&REQUEST=GetTile&Version=1.0.0&FORMAT=image/jpeg&TileMatrix={z}&TileCol={x}&TileRow={y}",
+                "type": "xyz"
+            }
+        ]
+    },
+    {
         // Hybride Yandex 100% : sat + routes/labels Yandex en français.
         // Pas de décalage de projection car les deux couches viennent du même serveur.
         "id": "yandex_hybrid",
@@ -132,6 +143,17 @@ const MAP_LAYERS = [
         "layers": [
             {
                 "url": "https://data.geopf.fr/wmts?Layer=GEOGRAPHICALGRIDSYSTEMS.PLANIGNV2&Style=normal&TileMatrixSet=PM&SERVICE=WMTS&REQUEST=GetTile&Version=1.0.0&FORMAT=image/png&TileMatrix={z}&TileCol={x}&TileRow={y}",
+                "type": "xyz"
+            }
+        ]
+    },
+    {
+        "id": "ign_plan_j1",
+        "name": "Plan IGN (J+1)",
+        "maxZoom": 19,
+        "layers": [
+            {
+                "url": "https://data.geopf.fr/wmts?Layer=GEOGRAPHICALGRIDSYSTEMS.MAPS.BDUNI.J1&Style=normal&TileMatrixSet=PM&SERVICE=WMTS&REQUEST=GetTile&Version=1.0.0&FORMAT=image/png&TileMatrix={z}&TileCol={x}&TileRow={y}",
                 "type": "xyz"
             }
         ]

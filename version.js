@@ -1,15 +1,24 @@
 // version.js
 
 // Source unique de vérité pour la version de l'application.
-const APP_VERSION = '22.19';
+const APP_VERSION = '22.20';
 
 const CHANGELOG = [
+  {
+    version: '22.20',
+    date: '2026-05-28',
+    changes: [
+      'Indicateur de zoom bleu → orange "Sur-zoom : XX" quand le niveau dépasse le natif du layer',
+      'Nouveaux fonds de carte IGN : Ortho IGN HD (zoom 20) et Plan IGN J+1 (mises à jour quotidiennes)',
+      'Génération d\'image et export de zone cappés au zoom natif du provider (qualité préservée)',
+    ],
+  },
   {
     version: '22.19',
     date: '2026-05-28',
     changes: [
       'Sur-zoom universel jusqu\'au niveau 22 sur tous les fonds de carte (OSM, IGN, Google, Yandex, Bing…)',
-      'Applies aux 3 cartes Leaflet : Carroyage rapide, Export de zone, MBTiles Creator',
+      'Appliqué aux 3 cartes Leaflet : Carroyage rapide, Export de zone, MBTiles Creator',
     ],
   },
   {
