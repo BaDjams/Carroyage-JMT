@@ -17,7 +17,6 @@ const CHANGELOG = [
     date: '2026-05-28',
     changes: [
       'Indicateur de zoom bleu → orange "Sur-zoom : XX" quand le niveau dépasse le natif du layer',
-      'Nouveaux fonds de carte IGN : Ortho IGN HD (zoom 20) et Plan IGN J+1 (mises à jour quotidiennes)',
       'Génération d\'image et export de zone cappés au zoom natif du provider (qualité préservée)',
     ],
   },
