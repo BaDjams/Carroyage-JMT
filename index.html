@@ -866,10 +866,25 @@
     </footer>
 </div>
 
+<!-- Changelog modal -->
+<div id="modal-changelog" class="hidden fixed inset-0 flex items-center justify-center" style="z-index:9999">
+    <div id="changelog-backdrop" class="absolute inset-0 bg-black bg-opacity-50"></div>
+    <div class="relative bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-lg mx-4 flex flex-col" style="max-height:80vh">
+        <div class="flex items-center justify-between p-5 border-b border-gray-200 dark:border-gray-700 flex-shrink-0">
+            <h3 class="text-base font-semibold text-gray-900 dark:text-white">Notes de mise à jour</h3>
+            <button id="btn-changelog-close" class="text-gray-400 hover:text-gray-700 dark:hover:text-white rounded-lg p-1 hover:bg-gray-100 dark:hover:bg-gray-700">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+        </div>
+        <div id="changelog-entries" class="overflow-y-auto p-5 flex-1"></div>
+    </div>
+</div>
+
 <div id="toast-update" class="hidden fixed top-5 right-5 flex items-center w-full max-w-xs p-4 space-x-4 text-gray-500 bg-white divide-x divide-gray-200 rounded-lg shadow-lg dark:text-gray-400 dark:divide-gray-700 space-x dark:bg-gray-800 z-50" role="alert">
     <div class="text-sm font-normal">
         <div class="text-sm font-semibold text-gray-900 dark:text-white">Mise à jour effectuée !</div>
-        <div class="text-sm font-normal">Version <span id="toast-version-number" class="font-semibold"></span> installée.</div> 
+        <div class="text-sm font-normal">Version <span id="toast-version-number" class="font-semibold"></span> installée.</div>
+        <button id="toast-changelog-btn" class="text-xs text-blue-600 hover:underline dark:text-blue-400 mt-1 block">Voir les nouveautés →</button>
     </div>
     <button type="button" class="ms-auto -mx-1.5 -my-1.5 bg-white text-gray-400 hover:text-gray-900 rounded-lg focus:ring-2 focus:ring-gray-300 p-1.5 hover:bg-gray-100 inline-flex items-center justify-center h-8 w-8 dark:text-gray-500 dark:hover:text-white dark:bg-gray-800 dark:hover:bg-gray-700" data-dismiss-target="#toast-update" aria-label="Close">
         <span class="sr-only">Close</span>
@@ -2128,7 +2143,46 @@
                 const displayVersion = `v${APP_VERSION}`;
                 document.title = `Générateur CADO ${displayVersion}`;
                 const titleElement = document.getElementById('app-title');
-                if (titleElement) titleElement.textContent = `Générateur de carroyage CADO ${displayVersion}`;
+                if (titleElement) {
+                    titleElement.innerHTML = `Générateur de carroyage CADO <button id="app-version-btn" class="changelog-version-btn" title="Voir les notes de mise à jour">${displayVersion}</button>`;
+                    document.getElementById('app-version-btn').addEventListener('click', _openChangelog);
+                }
+            }
+            const closeChangelog = () => document.getElementById('modal-changelog').classList.add('hidden');
+            document.getElementById('btn-changelog-close').addEventListener('click', closeChangelog);
+            document.getElementById('changelog-backdrop').addEventListener('click', closeChangelog);
+            document.getElementById('toast-changelog-btn').addEventListener('click', () => {
+                const toastEl = document.getElementById('toast-update');
+                if (toastEl) toastEl.classList.add('hidden');
+                _openChangelog();
+            });
+        }
+
+        function _openChangelog() {
+            _renderChangelog();
+            document.getElementById('modal-changelog').classList.remove('hidden');
+        }
+
+        function _renderChangelog() {
+            const container = document.getElementById('changelog-entries');
+            if (!container || typeof CHANGELOG === 'undefined') return;
+            container.innerHTML = '';
+            for (const entry of CHANGELOG) {
+                const section = document.createElement('div');
+                section.className = 'changelog-entry';
+                const header = document.createElement('div');
+                header.className = 'changelog-version-header';
+                header.innerHTML = `<span class="changelog-version">v${entry.version}</span><span class="changelog-date">${entry.date}</span>`;
+                const list = document.createElement('ul');
+                list.className = 'changelog-list';
+                for (const change of entry.changes) {
+                    const li = document.createElement('li');
+                    li.textContent = change;
+                    list.appendChild(li);
+                }
+                section.appendChild(header);
+                section.appendChild(list);
+                container.appendChild(section);
             }
         }
 
