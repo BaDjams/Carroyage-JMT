@@ -729,8 +729,11 @@
                             <select id="zone-layer-select" class="input-field flex-grow px-2 py-1 border rounded shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white text-sm"></select>
                         </div>
                     </div>
-                    <div class="flex justify-center mt-6">
-                        <button id="generate-zone-png-button" class="btn-main btn-image w-full sm:w-auto">Télécharger l'image</button>
+                    <div class="mt-6">
+                        <p id="zone-surzoom-warning" class="hidden text-center text-sm font-medium text-orange-600 dark:text-orange-400 mb-3">⚠ Sur-zoom actif — dézoomer au niveau natif pour activer le téléchargement.</p>
+                        <div class="flex justify-center">
+                            <button id="generate-zone-png-button" class="btn-main btn-image w-full sm:w-auto">Télécharger l'image</button>
+                        </div>
                     </div>
                 </div>
 
@@ -1203,6 +1206,10 @@
                 const isSurzoom = z > zoneLayerNativeMax;
                 if (label) label.textContent = isSurzoom ? 'Sur-zoom' : 'Zoom';
                 if (indicator) indicator.className = isSurzoom ? ZOOM_IND_ORANGE : ZOOM_IND_BLUE;
+                const generateBtn = document.getElementById('generate-zone-png-button');
+                const surzoomWarn = document.getElementById('zone-surzoom-warning');
+                if (generateBtn) generateBtn.disabled = isSurzoom;
+                if (surzoomWarn) surzoomWarn.classList.toggle('hidden', !isSurzoom);
             };
             zoneMap.on('zoomend', updateZoneZoom);
             updateZoneZoom();

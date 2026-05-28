@@ -1,9 +1,17 @@
 // version.js
 
 // Source unique de vérité pour la version de l'application.
-const APP_VERSION = '22.20';
+const APP_VERSION = '22.21';
 
 const CHANGELOG = [
+  {
+    version: '22.21',
+    date: '2026-05-28',
+    changes: [
+      'MBTiles Creator : sur-zoom retiré — le rendu reflète fidèlement les tuiles téléchargées',
+      'Export de zone : génération d\'image désactivée en sur-zoom (warning affiché)',
+    ],
+  },
   {
     version: '22.20',
     date: '2026-05-28',
