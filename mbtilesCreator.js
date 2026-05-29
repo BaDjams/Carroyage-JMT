@@ -15,11 +15,16 @@ const MAX_SAFE_TILES_MEMORY = 8000;   // sans OPFS (in-memory sql-wasm)
 const MAX_SAFE_TILES_OPFS   = 100000; // avec OPFS (stockage disque)
 const TILE_SIZE_ESTIMATE_KB = 15;     // estimation JPEG q0.85 (~12 Ko/tuile observé)
 
-// Encodage des tuiles. JPEG ≈ 8x plus léger que PNG RGBA sur de l'imagerie
-// ortho/satellite (cf. comparatif Mobac vs MBTiles Creator).
+// Encodage des tuiles — uniquement pour les couches COMPOSITES (multi-couches),
+// où la fusion de plusieurs images impose un ré-encodage sur canvas.
+// Pour les couches simples (1 seule source), les tuiles sont stockées dans leur
+// format natif tel quel, sans décodage ni recompression (passthrough).
+// JPEG ≈ 8x plus léger que PNG RGBA sur de l'imagerie ortho/satellite.
 // JPEG n'a pas de canal alpha : un fond opaque est appliqué avant composition.
 const TILE_FORMAT  = 'image/jpeg';
-const TILE_QUALITY = 0.85;            // 0..1, ignoré si TILE_FORMAT === 'image/png'
+const TILE_QUALITY = 0.92;            // 0..1, ignoré si TILE_FORMAT === 'image/png'
+                                      // ré-encodage composite : qualité élevée pour
+                                      // rester au plus près de l'ortho d'origine
 const TILE_BG      = '#ffffff';       // fond pour les zones transparentes (JPEG only)
 
 // Détection OPFS (Origin Private File System) — pas besoin de SharedArrayBuffer
@@ -338,6 +343,13 @@ class MbtilesJob {
         this.useOPFS = false;
         this.opfsDir = null;
 
+        // Format de sortie des tuiles écrit dans les métadonnées MBTiles.
+        // - Multi-couches : composition obligatoire → ré-encodage (TILE_FORMAT).
+        // - Mono-couche : null = passthrough natif, détecté sur les octets reçus.
+        this.tileFormat = (layerConfig.layers.length > 1)
+            ? (TILE_FORMAT === 'image/jpeg' ? 'jpg' : 'png')
+            : null;
+
         this.totalTiles = this.computeTotalTiles();
         this._startTime = null;
         this._pausedMs = 0;
@@ -447,7 +459,8 @@ class MbtilesJob {
         this.db.run("CREATE UNIQUE INDEX tile_index on tiles (zoom_level, tile_column, tile_row);");
         const boundsStr = `${this.bounds.getWest()},${this.bounds.getSouth()},${this.bounds.getEast()},${this.bounds.getNorth()}`;
         this.db.run("INSERT INTO metadata VALUES (?, ?)", ["name", this.filename]);
-        this.db.run("INSERT INTO metadata VALUES (?, ?)", ["format", TILE_FORMAT === 'image/jpeg' ? "jpg" : "png"]);
+        // Le 'format' est inséré juste avant le COMMIT (cf. _insertFormatMetadata),
+        // une fois le format réel des tuiles connu en mode passthrough mono-couche.
         this.db.run("INSERT INTO metadata VALUES (?, ?)", ["bounds", boundsStr]);
         this.db.run("INSERT INTO metadata VALUES (?, ?)", ["type", "overlay"]);
         this.db.run("INSERT INTO metadata VALUES (?, ?)", ["version", "1.2"]);
@@ -499,8 +512,21 @@ class MbtilesJob {
         });
     }
 
-    // Fetch + composition d'une tuile sur un canvas dédié → retourne le blob PNG ou null
+    // Récupère une tuile → retourne le blob à stocker (ou null si vide/échec).
     async _processTile(tile) {
+        const urls = this._tileUrls(tile);
+
+        // --- Cas mono-couche : passthrough natif (AUCUNE recompression) ---
+        // On stocke l'octet pour octet ce que renvoie le serveur, dans son
+        // format d'origine (JPEG/PNG/WebP). Évite la perte de génération
+        // d'un re-encodage canvas.toBlob() d'un JPEG en JPEG.
+        if (urls.length === 1) {
+            return this._fetchRawTile(urls[0]);
+        }
+
+        // --- Cas multi-couches : composition obligatoire sur canvas ---
+        // La fusion de plusieurs images impose un ré-encodage : il n'existe
+        // pas de "format natif" pour une tuile composite.
         const canvas = document.createElement('canvas');
         canvas.width = 256; canvas.height = 256;
         const ctx = canvas.getContext('2d');
@@ -511,12 +537,45 @@ class MbtilesJob {
             ctx.fillRect(0, 0, 256, 256);
         }
         let hasContent = false;
-        for (const url of this._tileUrls(tile)) {
+        for (const url of urls) {
             const ok = await this.fetchAndDrawLayer(url, canvas, ctx);
             if (ok) hasContent = true;
         }
         if (!hasContent) return null;
         return new Promise(r => canvas.toBlob(r, TILE_FORMAT, TILE_QUALITY));
+    }
+
+    // Télécharge une tuile et renvoie le blob brut, sans la décoder ni la
+    // ré-encoder. Détecte le format réel (une fois par job) pour les métadonnées.
+    async _fetchRawTile(url) {
+        try {
+            const res = await fetch(url, { mode: 'cors', credentials: 'omit' });
+            if (!res.ok) return null;
+            const blob = await res.blob();
+            if (!blob.size) return null;
+            const head = new Uint8Array(await blob.slice(0, 16).arrayBuffer());
+            const sniffed = this._sniffFormat(head);
+            // Rejette les réponses non-image (erreurs XML/HTML renvoyées en HTTP 200)
+            if (!sniffed && !(blob.type || '').startsWith('image/')) return null;
+            if (this.tileFormat === null) this.tileFormat = sniffed || 'jpg';
+            return blob;
+        } catch {
+            return null;
+        }
+    }
+
+    // Identifie le format d'image d'après la signature binaire (magic bytes).
+    _sniffFormat(b) {
+        if (b.length >= 3 && b[0] === 0xFF && b[1] === 0xD8 && b[2] === 0xFF) return 'jpg';
+        if (b.length >= 8 && b[0] === 0x89 && b[1] === 0x50 && b[2] === 0x4E && b[3] === 0x47) return 'png';
+        if (b.length >= 12 && b[0] === 0x52 && b[1] === 0x49 && b[2] === 0x46 && b[3] === 0x46 &&
+            b[8] === 0x57 && b[9] === 0x45 && b[10] === 0x42 && b[11] === 0x50) return 'webp';
+        return null;
+    }
+
+    // Insère le format réel des tuiles dans les métadonnées (avant COMMIT).
+    _insertFormatMetadata() {
+        this.db.run("INSERT INTO metadata VALUES (?, ?)", ["format", this.tileFormat || 'jpg']);
     }
 
     async processQueue() {
@@ -576,6 +635,7 @@ class MbtilesJob {
             if (this.useOPFS) {
                 await this.assembleFromOPFS();
             } else {
+                this._insertFormatMetadata();
                 this.db.run("COMMIT;");
                 this.finish();
             }
@@ -604,6 +664,7 @@ class MbtilesJob {
             if (count % 100 === 0) await new Promise(r => setTimeout(r, 0));
         }
 
+        this._insertFormatMetadata();
         this.db.run("COMMIT;");
 
         // Nettoyage OPFS

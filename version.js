@@ -1,9 +1,17 @@
 // version.js
 
 // Source unique de vérité pour la version de l'application.
-const APP_VERSION = '22.21';
+const APP_VERSION = '22.22';
 
 const CHANGELOG = [
+  {
+    version: '22.22',
+    date: '2026-05-29',
+    changes: [
+      'MBTiles Creator : tuiles des couches simples stockées dans leur format natif, sans recompression (fin de la perte de qualité JPEG→JPEG)',
+      'Le format réel (JPEG/PNG/WebP) est détecté et inscrit dans les métadonnées MBTiles',
+    ],
+  },
   {
     version: '22.21',
     date: '2026-05-28',
