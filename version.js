@@ -1,9 +1,17 @@
 // version.js
 
 // Source unique de vérité pour la version de l'application.
-const APP_VERSION = '22.22';
+const APP_VERSION = '22.23';
 
 const CHANGELOG = [
+  {
+    version: '22.23',
+    date: '2026-06-23',
+    changes: [
+      'MBTiles volumineux (>2 Go) : ouverture désormais possible sous Chrome/Chromium grâce à une lecture paresseuse par plages d\'octets (moteur wa-sqlite), sans charger toute la base en mémoire — lève la limite ~2 Gio qui bloquait ces fichiers',
+      'Export de zone : nouveau format GeoTIFF (image géoréférencée EPSG:3857, fichier .tif unique) ouvrable directement dans QGIS/ArcGIS — disponible sans rotation du fond de carte',
+    ],
+  },
   {
     version: '22.22',
     date: '2026-05-29',

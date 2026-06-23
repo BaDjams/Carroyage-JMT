@@ -622,7 +622,12 @@ async function generateZonePNG() {
         const format = document.querySelector('input[name="image-format-zone"]:checked').value;
         const quality = parseInt(document.getElementById('zone-jpeg-quality').value) / 100;
         const mimeType = format === 'jpeg' ? 'image/jpeg' : 'image/png';
-        const fileExtension = format === 'jpeg' ? '.jpg' : '.png';
+        const fileExtension = format === 'jpeg' ? '.jpg' : (format === 'geotiff' ? '.tif' : '.png');
+
+        // GeoTIFF v1 : géoréférencement nord-haut axis-aligned → exact uniquement sans rotation.
+        if (format === 'geotiff' && zoneDeviationDeg !== 0) {
+            throw new Error("Export GeoTIFF indisponible avec une rotation du fond de carte (déviation ≠ 0°). Mettez la rotation à 0° ou exportez en PNG/JPEG.");
+        }
 
         loadingMessage.textContent = "Téléchargement et assemblage des fonds de carte...";
         
@@ -766,12 +771,33 @@ async function generateZonePNG() {
         const deviationStr = zoneDeviationDeg !== 0 ? `_dev${Math.round(zoneDeviationDeg)}deg` : '';
         const fileName = `${rawTitle}_zoom${zoom}_${gridTypeStr}${deviationStr}_${dateStr}${originString}${fileExtension}`;
         
-        exportCanvas.toBlob((blob) => {
-            if (blob) { downloadFile(blob, fileName); } 
-            else { 
-                showError("Erreur lors de la création du fichier image."); 
-            }
-        }, mimeType, quality);
+        if (format === 'geotiff') {
+            // Géoréférencement EPSG:3857. nwPixel = coin haut-gauche du contenu (world pixels
+            // Web Mercator au zoom natif) ; dans finalCanvas il est dessiné au pixel
+            // (dynamicMargin, dynamicMargin) et l'échelle native est divisée par scaleFactor.
+            // exportCanvas peut être ré-étiré (upscale 4K) → on corrige par sX/sY.
+            const anchor = geoAnchorFromWorldPixels(nwPixel.x, nwPixel.y, actualZoom);
+            const sX = exportCanvas.width / finalCanvas.width;
+            const sY = exportCanvas.height / finalCanvas.height;
+            const blob = canvasToGeoTIFF(exportCanvas, {
+                originX: anchor.originX,
+                originY: anchor.originY,
+                pixelScaleX: anchor.metersPerPixel / (scaleFactor * sX),
+                pixelScaleY: anchor.metersPerPixel / (scaleFactor * sY),
+                epsg: 3857,
+                tiePointI: dynamicMargin * sX,
+                tiePointJ: dynamicMargin * sY,
+            });
+            if (blob) { downloadFile(blob, fileName); }
+            else { showError("Erreur lors de la création du fichier GeoTIFF."); }
+        } else {
+            exportCanvas.toBlob((blob) => {
+                if (blob) { downloadFile(blob, fileName); }
+                else {
+                    showError("Erreur lors de la création du fichier image.");
+                }
+            }, mimeType, quality);
+        }
     } catch (error) {
         console.error("Erreur image:", error);
         showError(error.message);
@@ -1270,7 +1296,7 @@ async function zdCreateFinalCanvas(boundingBox, zoom, mapConfig, externalMargin,
         // --- Mode MBTiles local ---
         for (let x = nwTile.x; x <= seTile.x; x++) {
             for (let y = nwTile.y; y <= seTile.y; y++) {
-                const blobUrl = tileSourceReadTile(x, y, actualZoom);
+                const blobUrl = await tileSourceReadTile(x, y, actualZoom);
                 if (blobUrl) {
                     await new Promise(resolve => {
                         const img = new Image();

@@ -28,10 +28,11 @@
 <script src="carroyageCado.js" defer></script>
 <script src="zoneDownloader.js" defer></script>
 <script src="imagetoprint.js" defer></script>
+<script src="geotiffExport.js" defer></script>
 <script src="carroyageToCSV.js" defer></script>
 <script src="carroyageCFSI.js" defer></script>
 <script src="seedManager.js" defer></script>
-<script src="tileSource.js" defer></script>
+<script type="module" src="tileSource.js"></script>
 </head>
 <body class="p-4 md:p-6">
 <div class="max-w-5xl mx-auto">
@@ -711,6 +712,7 @@
                         <div class="flex items-center gap-4">
                             <label class="inline-flex items-center"><input type="radio" name="image-format-zone" value="png" class="custom-radio"><span class="ml-2 text-content">PNG</span></label>
                             <label class="inline-flex items-center"><input type="radio" name="image-format-zone" value="jpeg" class="custom-radio" checked><span class="ml-2 text-content">JPEG</span></label>
+                            <label class="inline-flex items-center" title="Image géoréférencée EPSG:3857 (ouverture directe dans QGIS/ArcGIS). Indisponible si une rotation du fond est appliquée."><input type="radio" name="image-format-zone" value="geotiff" class="custom-radio"><span class="ml-2 text-content">GeoTIFF</span></label>
                         </div>
                         <div id="zone-jpeg-quality-container" class="w-full max-w-xs text-center jpeg-quality-slider">
                             <label for="zone-jpeg-quality" class="text-sm text-content">Qualité JPEG : <span id="zone-jpeg-quality-value">92%</span></label>
@@ -1270,16 +1272,20 @@
         const MbtilesLeafletLayer = L.TileLayer.extend({
             createTile: function(coords, done) {
                 const tile = document.createElement('img');
-                const blobUrl = (typeof tileSourceReadTile === 'function')
-                    ? tileSourceReadTile(coords.x, coords.y, coords.z)
-                    : null;
-                if (blobUrl) {
-                    tile.src = blobUrl;
-                    tile.onload  = () => { URL.revokeObjectURL(blobUrl); done(null, tile); };
-                    tile.onerror = () => { URL.revokeObjectURL(blobUrl); done(null, tile); };
-                } else {
-                    done(null, tile);
-                }
+                // tileSourceReadTile est asynchrone (lecture paresseuse du MBTiles par plages).
+                Promise.resolve(
+                    (typeof tileSourceReadTile === 'function')
+                        ? tileSourceReadTile(coords.x, coords.y, coords.z)
+                        : null
+                ).then(blobUrl => {
+                    if (blobUrl) {
+                        tile.onload  = () => { URL.revokeObjectURL(blobUrl); done(null, tile); };
+                        tile.onerror = () => { URL.revokeObjectURL(blobUrl); done(null, tile); };
+                        tile.src = blobUrl;
+                    } else {
+                        done(null, tile);
+                    }
+                }).catch(() => done(null, tile));
                 return tile;
             }
         });

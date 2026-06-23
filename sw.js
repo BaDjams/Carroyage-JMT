@@ -1,8 +1,8 @@
 // sw.js - Service Worker PWA
 // ⚠ Mettre à jour CACHE_NAME à chaque déploiement pour invalider le cache existant.
 
-const CACHE_NAME = 'cado-cache-22.22';
-const SW_APP_VERSION = '22.22';
+const CACHE_NAME = 'cado-cache-22.23';
+const SW_APP_VERSION = '22.23';
 
 // Liste EXACTE des fichiers à mettre en cache.
 // Si un seul fichier manque, la PWA ne s'installera pas.
@@ -31,10 +31,18 @@ const ASSETS_TO_CACHE = [
   './mbtilesCreator.js',
   './seedManager.js',
   './tileSource.js',
+  './geotiffExport.js',
 
-  // SQL.js (WASM)
+  // SQL.js (WASM) — ÉCRITURE des MBTiles (carroyageToMbtiles.js / mbtilesCreator.js)
   './sql-wasm.js',
   './sql-wasm.wasm',
+
+  // wa-sqlite (WASM) — LECTURE paresseuse des MBTiles volumineux (tileSource.js)
+  './vendor/wa-sqlite/wa-sqlite-async.js',
+  './vendor/wa-sqlite/wa-sqlite-async.wasm',
+  './vendor/wa-sqlite/sqlite-api.js',
+  './vendor/wa-sqlite/sqlite-constants.js',
+  './vendor/wa-sqlite/VFS.js',
 
   // Librairies tierces
   './jszip.min.js',

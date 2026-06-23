@@ -486,7 +486,7 @@ async function createFinalCanvasWithLayers(boundingBox, zoom, mapConfig, onProgr
         let downloadedCount = 0;
         for (let x = nwTile.x; x <= seTile.x; x++) {
             for (let y = nwTile.y; y <= seTile.y; y++) {
-                const blobUrl = tileSourceReadTile(x, y, actualZoom);
+                const blobUrl = await tileSourceReadTile(x, y, actualZoom);
                 if (blobUrl) {
                     await new Promise(resolve => {
                         const img = new Image();
