@@ -1,9 +1,17 @@
 // version.js
 
 // Source unique de vérité pour la version de l'application.
-const APP_VERSION = '22.23';
+const APP_VERSION = '23.0';
 
 const CHANGELOG = [
+  {
+    version: '23.0',
+    date: '2026-06-24',
+    changes: [
+      'Carroyage rapide : export GeoTIFF désormais disponible (image géoréférencée EPSG:3857, fichier .tif unique) ouvrable directement dans QGIS/ArcGIS — disponible sans déviation du carroyage',
+      'Fix PWA : la version restait bloquée sur l\'ancien numéro après une mise à jour (le cache du Service Worker ré-enregistrait des fichiers périmés) — le pré-cache ignore désormais le cache HTTP',
+    ],
+  },
   {
     version: '22.23',
     date: '2026-06-23',

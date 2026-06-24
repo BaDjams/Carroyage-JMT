@@ -362,6 +362,7 @@
                                 <div class="flex items-center gap-4">
                                     <label class="inline-flex items-center"><input type="radio" name="image-format-cado" value="png" class="custom-radio"><span class="ml-2 text-content">PNG</span></label>
                                     <label class="inline-flex items-center"><input type="radio" name="image-format-cado" value="jpeg" class="custom-radio" checked><span class="ml-2 text-content">JPEG</span></label>
+                                    <label class="inline-flex items-center" title="Image géoréférencée EPSG:3857 (ouverture directe dans QGIS/ArcGIS). Indisponible si une déviation du carroyage est appliquée."><input type="radio" name="image-format-cado" value="geotiff" class="custom-radio"><span class="ml-2 text-content">GeoTIFF</span></label>
                                 </div>
                                 <div id="cado-jpeg-quality-container" class="w-full max-w-xs text-center jpeg-quality-slider">
                                     <label for="cado-jpeg-quality" class="text-sm text-content">Qualité JPEG : <span id="cado-jpeg-quality-value">92%</span></label>
@@ -2243,7 +2244,9 @@
 
         function registerAndHandleUpdates() {
             if ('serviceWorker' in navigator) {
-                navigator.serviceWorker.register('./sw.js').catch(error => console.error('Échec SW:', error));
+                // updateViaCache: 'none' → le navigateur revérifie sw.js sur le réseau
+                // (jamais depuis le cache HTTP) à chaque contrôle de mise à jour.
+                navigator.serviceWorker.register('./sw.js', { updateViaCache: 'none' }).catch(error => console.error('Échec SW:', error));
                 navigator.serviceWorker.addEventListener('message', event => {
                     if (event.data && event.data.type === 'VERSION_UPDATE') {
                         showUpdateNotification(event.data.version);

@@ -1,8 +1,8 @@
 // sw.js - Service Worker PWA
 // ⚠ Mettre à jour CACHE_NAME à chaque déploiement pour invalider le cache existant.
 
-const CACHE_NAME = 'cado-cache-22.23';
-const SW_APP_VERSION = '22.23';
+const CACHE_NAME = 'cado-cache-23.0';
+const SW_APP_VERSION = '23.0';
 
 // Liste EXACTE des fichiers à mettre en cache.
 // Si un seul fichier manque, la PWA ne s'installera pas.
@@ -61,9 +61,14 @@ self.addEventListener('install', (event) => {
   self.skipWaiting();
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      // On essaie de mettre en cache, mais on ne bloque pas tout si un fichier non-critique manque
-      // Cependant, pour une PWA stricte, il vaut mieux que tout soit là.
-      return cache.addAll(ASSETS_TO_CACHE).catch(err => {
+      // IMPORTANT : `cache: 'reload'` force chaque requête à IGNORER le cache HTTP
+      // du navigateur. Sans ça, addAll() peut ré-enregistrer une version périmée
+      // (ex. version.js d'une version précédente) dans le nouveau cache du SW →
+      // la PWA reste bloquée sur l'ancien numéro de version après un bump.
+      const freshRequests = ASSETS_TO_CACHE.map((u) => new Request(u, { cache: 'reload' }));
+      // On ne bloque pas tout si un fichier non-critique manque, mais pour une PWA
+      // stricte il vaut mieux que tout soit là.
+      return cache.addAll(freshRequests).catch(err => {
           console.error("Erreur lors de la mise en cache des fichiers:", err);
       });
     })

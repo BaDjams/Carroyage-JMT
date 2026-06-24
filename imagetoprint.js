@@ -114,6 +114,14 @@ async function generateImageToPrint() {
         const addressValue = document.getElementById('address-search-input').value.trim();
         config.lineWidth = parseInt(document.getElementById('line-thickness').value, 10) || 1;
 
+        // Format de sortie lu en amont : le géoréférencement GeoTIFF (nord-haut
+        // axis-aligned) n'est exact que sans déviation → on bloque avant de
+        // télécharger les tuiles si une rotation du carroyage est appliquée.
+        const format = document.querySelector('input[name="image-format-cado"]:checked').value;
+        if (format === 'geotiff' && Number(config.deviation) !== 0) {
+            throw new Error("Export GeoTIFF indisponible avec une déviation du carroyage (≠ 0°). Mettez la déviation à 0° ou exportez en PNG/JPEG.");
+        }
+
         // --- 1. CALCUL CORRECT DE LA ZONE DE TÉLÉCHARGEMENT ---
         const startColNum = letterToNumber(config.startCol);
         const endColNum = letterToNumber(config.endCol);
@@ -366,20 +374,40 @@ async function generateImageToPrint() {
         }
         
         // 8. EXPORT
-        const format = document.querySelector('input[name="image-format-cado"]:checked').value;
         const quality = parseInt(document.getElementById('cado-jpeg-quality').value) / 100;
         const mimeType = format === 'jpeg' ? 'image/jpeg' : 'image/png';
-        const fileExtension = format === 'jpeg' ? '.jpg' : '.png';
-        
-        updateDynamicGridName(); 
+        const fileExtension = format === 'jpeg' ? '.jpg' : (format === 'geotiff' ? '.tif' : '.png');
+
+        updateDynamicGridName();
         const finalGridName = document.getElementById('grid-name').value;
         const originString = `_origine=${realA1Coords[1].toFixed(6)},${realA1Coords[0].toFixed(6)}`;
         const fileName = `${finalGridName}${originString}${fileExtension}`;
 
-        exportCanvas.toBlob((blob) => {
-            if (blob) { downloadFile(blob, fileName); } 
-            else { showError("Erreur lors de la création du fichier image."); }
-        }, mimeType, quality);
+        if (format === 'geotiff') {
+            // Géoréférencement EPSG:3857 (nord-haut, valable car déviation = 0).
+            // Le coin haut-gauche du canvas final correspond au world-pixel Web
+            // Mercator (zoomLevel) : pivot - (position du pivot)/scaleFactor.
+            // exportCanvas peut être ré-étiré (upscale 4K) → on corrige par sX/sY.
+            const canvasNwWorldPxX = pivotWorldGlobalPx.x - pivotFinalX / scaleFactor;
+            const canvasNwWorldPxY = pivotWorldGlobalPx.y - pivotFinalY / scaleFactor;
+            const anchor = geoAnchorFromWorldPixels(canvasNwWorldPxX, canvasNwWorldPxY, zoomLevel);
+            const sX = exportCanvas.width / finalCanvas.width;
+            const sY = exportCanvas.height / finalCanvas.height;
+            const blob = canvasToGeoTIFF(exportCanvas, {
+                originX: anchor.originX,
+                originY: anchor.originY,
+                pixelScaleX: anchor.metersPerPixel / (scaleFactor * sX),
+                pixelScaleY: anchor.metersPerPixel / (scaleFactor * sY),
+                epsg: 3857,
+            });
+            if (blob) { downloadFile(blob, fileName); }
+            else { showError("Erreur lors de la création du fichier GeoTIFF."); }
+        } else {
+            exportCanvas.toBlob((blob) => {
+                if (blob) { downloadFile(blob, fileName); }
+                else { showError("Erreur lors de la création du fichier image."); }
+            }, mimeType, quality);
+        }
 
     } catch (error) {
         console.error("Erreur génération image:", error);
