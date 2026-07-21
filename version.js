@@ -8,7 +8,7 @@ const CHANGELOG = [
     version: '23.1',
     date: '2026-07-21',
     changes: [
-      'MBTiles Creator : nouvelle option "Inclure le relief 3D hors-ligne (MNT)" — génère en plus un fichier _MNT.mbtiles (tuiles Terrarium, zoom 0-12) exploitable comme source raster-dem par des applications tierces (ex. CadoTour) sans connexion',
+      'MBTiles Creator : nouvelle option "Inclure le relief 3D hors-ligne (MNT)" — ajoute les tuiles Terrarium au zoom 12 dans le même MBTiles que le fond de carte (zooms 0-12 réservés, fond à partir du zoom 13), exploitable comme source raster-dem par des applications tierces (ex. CadoTour) sans connexion',
     ],
   },
   {

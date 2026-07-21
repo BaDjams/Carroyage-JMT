@@ -216,10 +216,11 @@
 
             <h3 class="text-xl font-semibold mb-3 text-gray-900 dark:text-white">Relief 3D hors-ligne (MNT)</h3>
             <p class="text-sm mb-4">
-                La case <strong>« Inclure le relief 3D hors-ligne »</strong> génère, en plus du fond de carte, un
-                second fichier <code>_MNT.mbtiles</code> contenant le modèle numérique de terrain (altitudes) de la
-                zone. Il permet à des applications compatibles (comme CadoTour, en vue 3D) d'afficher le relief
-                sans connexion internet.
+                La case <strong>« Inclure le relief 3D hors-ligne »</strong> ajoute, dans le même fichier MBTiles,
+                le modèle numérique de terrain (altitudes) au niveau de zoom 12. Cocher cette case réserve ce
+                niveau au relief : les zooms 0 à 12 sont grisés pour le fond de carte, qui démarre alors au
+                zoom 13. Ce fichier unique permet à des applications compatibles (comme CadoTour, en vue 3D)
+                d'afficher à la fois le fond de carte et le relief sans connexion internet.
             </p>
         </section>
 

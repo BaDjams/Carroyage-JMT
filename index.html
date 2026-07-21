@@ -845,8 +845,10 @@
                             <input type="checkbox" id="creator-include-mnt" class="mt-1">
                             <label for="creator-include-mnt" class="text-sm text-gray-700 dark:text-gray-300">
                                 <span class="font-bold">Inclure le relief 3D hors-ligne (MNT)</span> —
-                                génère en plus un second fichier <code>_MNT.mbtiles</code> (modèle numérique de
-                                terrain, zoom 0-12) exploitable par la vue 3D de CadoTour sans connexion.
+                                ajoute dans le même MBTiles les tuiles d'altitude du niveau de zoom 12,
+                                exploitables par la vue 3D de CadoTour sans connexion. Les niveaux de zoom
+                                0 à 12 sont alors réservés au relief et désactivés ci-dessous : le fond de
+                                carte est téléchargé à partir du zoom 13.
                             </label>
                         </div>
 

@@ -482,6 +482,13 @@ input[type="radio"].custom-radio:checked + span {
     background-color: var(--primary-color);
     color: white;
 }
+/* Niveau réservé au MNT (relief 3D) quand la case correspondante est cochée :
+   interdit pour le fond de carte, cf. mbtilesCreator.js (MNT_ZOOM). */
+.zoom-checkbox-label.mnt-locked {
+    opacity: 0.35;
+    cursor: not-allowed;
+    text-decoration: line-through;
+}
 /* --- CSS POUR LES CONTRÔLES DÉTACHÉS (HUD) --- */
 
 /* Ligne rouge de rotation - doit être au-dessus de tout */
