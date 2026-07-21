@@ -840,6 +840,16 @@
                             </div>
                         </div>
 
+                        <!-- Relief 3D (MNT) hors-ligne -->
+                        <div class="mt-4 flex items-start gap-2">
+                            <input type="checkbox" id="creator-include-mnt" class="mt-1">
+                            <label for="creator-include-mnt" class="text-sm text-gray-700 dark:text-gray-300">
+                                <span class="font-bold">Inclure le relief 3D hors-ligne (MNT)</span> —
+                                génère en plus un second fichier <code>_MNT.mbtiles</code> (modèle numérique de
+                                terrain, zoom 0-12) exploitable par la vue 3D de CadoTour sans connexion.
+                            </label>
+                        </div>
+
                         <div class="mt-6 text-center">
                             <button id="creator-start-btn" class="btn-main btn-grid w-full md:w-1/2" disabled>
                                 Lancer la création du MBTiles

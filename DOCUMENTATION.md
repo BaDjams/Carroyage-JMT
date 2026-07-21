@@ -279,6 +279,10 @@ Interface Mode 3 (carte Leaflet + contrôles + barre de progression).
 - `updateCreatorUI()` — barre de progression + alertes (seuil **8000 tuiles** RAM, **100 000** avec OPFS)
 - `checkOPFS()` — détecte le support du stockage privé navigateur
 - `seedTiles(selectedBbox, selectedZoom)` — orchestre via `seedManager.js`
+- Case « Inclure le relief 3D hors-ligne (MNT) » : génère en plus un MBTiles séparé
+  `<nom>_MNT.mbtiles` (tuiles PNG Terrarium/AWS, zoom 0-12, passthrough sans
+  recompression) — exploitable comme source `raster-dem` par des applications
+  tierces (ex. CadoTour, vue 3D) sans connexion.
 
 **Spécifique** : gestion projection EPSG:3395 pour Yandex (correction nécessaire), gestion QuadKey pour Bing.
 

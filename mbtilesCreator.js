@@ -27,6 +27,21 @@ const TILE_QUALITY = 0.92;            // 0..1, ignoré si TILE_FORMAT === 'image
                                       // rester au plus près de l'ortho d'origine
 const TILE_BG      = '#ffffff';       // fond pour les zones transparentes (JPEG only)
 
+// Relief 3D hors-ligne (MNT) — source mondiale "Terrarium" (Mapzen/AWS Open Data
+// Terrain Tiles), la même que celle utilisée en ligne par la vue 3D de CadoTour
+// (map3d.js : DEM_URL / DEM_MAXZOOM = 12 — la donnée source est ~30 m (SRTM),
+// au-delà MapLibre sur-échantillonne lui-même le dernier niveau natif).
+// Généré comme un MBTiles séparé (mono-couche → passthrough, cf. TILE_FORMAT
+// ci-dessus) : l'encodage RVB de l'altitude ne doit jamais être recompressé.
+const MNT_TILE_URL = 'https://elevation-tiles-prod.s3.amazonaws.com/terrarium/{z}/{x}/{y}.png';
+const MNT_MAX_ZOOM = 12;
+const MNT_LAYER_CONFIG = {
+    id: 'mnt_terrarium',
+    name: 'Relief (MNT Terrarium)',
+    maxZoom: MNT_MAX_ZOOM,
+    layers: [{ url: MNT_TILE_URL, type: 'xyz' }]
+};
+
 // Détection OPFS (Origin Private File System) — pas besoin de SharedArrayBuffer
 let _opfsAvailable = null;
 async function checkOPFS() {
@@ -793,6 +808,14 @@ function startMbtilesJob() {
     const job = new MbtilesJob(jobIdCounter++, currentCreatorBounds, zooms, layerConfig, filename);
     activeJobs.push(job);
     job.start();
+
+    if (document.getElementById('creator-include-mnt')?.checked) {
+        const mntZooms = [];
+        for (let z = 0; z <= MNT_MAX_ZOOM; z++) mntZooms.push(z);
+        const mntJob = new MbtilesJob(jobIdCounter++, currentCreatorBounds, mntZooms, MNT_LAYER_CONFIG, `${filename}_MNT`);
+        activeJobs.push(mntJob);
+        mntJob.start();
+    }
 }
 
 function setupCreatorAddressSearch() {

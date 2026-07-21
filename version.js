@@ -1,9 +1,16 @@
 // version.js
 
 // Source unique de vérité pour la version de l'application.
-const APP_VERSION = '23.0';
+const APP_VERSION = '23.1';
 
 const CHANGELOG = [
+  {
+    version: '23.1',
+    date: '2026-07-21',
+    changes: [
+      'MBTiles Creator : nouvelle option "Inclure le relief 3D hors-ligne (MNT)" — génère en plus un fichier _MNT.mbtiles (tuiles Terrarium, zoom 0-12) exploitable comme source raster-dem par des applications tierces (ex. CadoTour) sans connexion',
+    ],
+  },
   {
     version: '23.0',
     date: '2026-06-24',
