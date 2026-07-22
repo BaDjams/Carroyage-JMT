@@ -1008,11 +1008,13 @@
         function createBaseLayers() {
             const baseMaps = {};
             // Correction de projection Yandex : EPSG:3395 (Mercator ellipsoïdal WGS84)
-            // vs EPSG:3857 (Pseudo-Mercator sphérique) utilisé par Leaflet.
-            // Approche en 2 étapes :
-            //   1. getTileUrl  → trouve la tuile EPSG:3395 qui contient le bord nord de la tuile EPSG:3857
-            //   2. createTile  → applique un décalage CSS vertical en pixels pour corriger
-            //                    le sous-alignement résiduel (~pixel-perfect)
+            // vs EPSG:3857 (Pseudo-Mercator sphérique) utilisé par Leaflet. Chaque tuile
+            // Leaflet est un <canvas> sur lequel on REPROJETTE les 1-2 tuiles Yandex
+            // couvrant exactement sa plage de latitudes (cf. createTile ci-dessous).
+            // Deux tuiles Leaflet voisines se partagent mathématiquement la même
+            // frontière 3395 → aucun jour possible entre les rangées (contrairement à
+            // l'ancien décalage CSS approché — marginTop + étirement de hauteur —
+            // qui laissait des jours horizontaux et déformait légèrement l'image).
             const e_WGS84 = 0.0818191908426215;
 
             function yMerc3395(latRad) {
@@ -1025,37 +1027,71 @@
                 return Math.atan(Math.sinh(Math.PI * (1 - 2 * yTile / n)));
             }
 
-            const L_YandexLayer = L.TileLayer.extend({
-                getTileUrl: function (coords) {
-                    const z = coords.z, x = coords.x;
-                    const n = Math.pow(2, z);
-                    // Bord nord de la tuile EPSG:3857 → tuile EPSG:3395 qui le contient
-                    const latN = lat3857(coords.y, n);
-                    const y3395 = Math.floor(n / 2 * (1 - yMerc3395(latN) / Math.PI));
-                    // Stocker les coords pour createTile
-                    this._lastCoords = { z, x, yReq: coords.y, y3395 };
-                    return L.Util.template(this._url, L.extend({}, this.options, { x, y: y3395, z }));
+            const L_YandexLayer = L.GridLayer.extend({
+                initialize: function (url, options) {
+                    this._url = url;
+                    L.GridLayer.prototype.initialize.call(this, options);
                 },
                 createTile: function (coords, done) {
-                    const tile = L.TileLayer.prototype.createTile.call(this, coords, done);
-                    const z = coords.z, n = Math.pow(2, z);
-                    const tileSize = this.getTileSize().y; // généralement 256
+                    const ts = this.getTileSize().y; // généralement 256
+                    const tile = document.createElement('canvas');
+                    tile.width = ts; tile.height = ts;
 
-                    // Bord nord EPSG:3857 de la tuile demandée par Leaflet
-                    const latN_3857 = lat3857(coords.y, n);
-                    // Tuile EPSG:3395 sélectionnée pour ce bord nord
-                    const y3395 = Math.floor(n / 2 * (1 - yMerc3395(latN_3857) / Math.PI));
-                    // Position en pixels du bord nord EPSG:3857 dans la tuile EPSG:3395
-                    const latN_3395 = lat3857(y3395 * 2 / n, n * 2 / n); // bord nord de y3395
-                    // En EPSG:3395, la latitude latN_3857 est à quelle fraction de la tuile y3395 ?
-                    const fracY = (n / 2 * (1 - yMerc3395(latN_3857) / Math.PI)) - y3395;
-                    // Décalage : la tuile doit être décalée vers le haut de fracY * tileSize pixels
-                    // marginTop sub-pixel : décalage précis pour l'alignement projection
-                    const offsetPx = -(fracY * tileSize);
-                    tile.style.marginTop = offsetPx + 'px';
-                    // Extension de hauteur pour combler le gap sous la tuile décalée.
-                    // Les pixels étirés en bas sont toujours couverts par la tuile suivante.
-                    tile.style.height = (tileSize + Math.ceil(-offsetPx) + 1) + 'px';
+                    const z = coords.z, n = Math.pow(2, z);
+                    // Plage de pixels VERTICAUX du monde EPSG:3395 (à ce zoom) couverte
+                    // par la tuile EPSG:3857 demandée : bords nord et sud convertis via
+                    // lat 3857 → ordonnée Mercator 3395. Les X sont identiques dans les
+                    // deux projections (même découpage en longitude).
+                    const py = (yTile) => n * ts / 2 * (1 - yMerc3395(lat3857(yTile, n)) / Math.PI);
+                    const pyN = py(coords.y), pyS = py(coords.y + 1);
+                    const H = pyS - pyN; // hauteur 3395 correspondante (≈ ts, pas exactement)
+
+                    // Tuiles sources 3395 couvrant [pyN, pyS) — 1 ou 2 en pratique.
+                    const ty0 = Math.max(0, Math.floor(pyN / ts));
+                    const ty1 = Math.min(n - 1, Math.floor((pyS - 1e-9) / ts));
+                    const srcs = [];
+                    for (let ty = ty0; ty <= ty1; ty++)
+                        srcs.push({ ty, url: L.Util.template(this._url, L.extend({}, this.options, { x: coords.x, y: ty, z })) });
+
+                    // Chargement en CORS d'abord (Yandex sert les en-têtes quand on les
+                    // demande) : le canvas reste « propre » et réutilisable (export,
+                    // capture…). Repli sans crossOrigin si le CORS échoue.
+                    const load = (url) => new Promise(resolve => {
+                        const img = new Image();
+                        img.crossOrigin = 'anonymous';
+                        img.onload = () => resolve(img);
+                        img.onerror = () => {
+                            const raw = new Image();
+                            raw.onload = () => resolve(raw);
+                            raw.onerror = () => resolve(null);
+                            raw.src = url;
+                        };
+                        img.src = url;
+                    });
+
+                    Promise.all(srcs.map(s => load(s.url))).then(imgs => {
+                        const ctx = tile.getContext('2d');
+                        let drawn = 0;
+                        for (let i = 0; i < srcs.length; i++) {
+                            const img = imgs[i];
+                            if (!img) continue;
+                            const ty = srcs[i].ty;
+                            // Bande de la tuile source comprise dans [pyN, pyS], remappée
+                            // linéairement sur la hauteur du canvas (la non-linéarité
+                            // 3857↔3395 sur 256 px est très en dessous du pixel).
+                            const srcTop = Math.max(pyN, ty * ts);
+                            const srcBot = Math.min(pyS, (ty + 1) * ts);
+                            const sy = srcTop - ty * ts, sh = srcBot - srcTop;
+                            const dy = (srcTop - pyN) * ts / H, dh = sh * ts / H;
+                            // +1 px de recouvrement (sauf dernière bande) : la bande
+                            // suivante, opaque, repeint par-dessus — supprime le liseré
+                            // d'anticrénelage aux frontières fractionnaires.
+                            const over = (i < srcs.length - 1) ? 1 : 0;
+                            ctx.drawImage(img, 0, sy, img.width, sh, 0, dy, ts, dh + over);
+                            drawn++;
+                        }
+                        done(drawn ? null : new Error('tuiles Yandex indisponibles'), tile);
+                    });
                     return tile;
                 }
             });
