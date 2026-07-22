@@ -69,25 +69,61 @@ function initCreatorMode() {
         }
     });
 
-    // Correction projection Yandex EPSG:3395 (même logique que dans index.html)
-    const L_YandexLayerCreator = L.TileLayer.extend({
-        getTileUrl: function (coords) {
-            const z = coords.z, x = coords.x;
-            const n = Math.pow(2, z);
-            const latN = Math.atan(Math.sinh(Math.PI * (1 - 2 * coords.y / n)));
-            const y3395 = Math.floor(n / 2 * (1 - _yMerc3395(latN) / Math.PI));
-            return L.Util.template(this._url, L.extend({}, this.options, { x, y: y3395, z }));
+    // Correction projection Yandex EPSG:3395 — reprojection EXACTE sur canvas
+    // (même logique que index.html/createBaseLayers : chaque tuile Leaflet
+    // assemble au pixel près les 1-2 tuiles Yandex couvrant sa plage de
+    // latitudes, au lieu de l'ancien décalage CSS approché qui laissait des
+    // jours horizontaux entre les rangées). _lat3857/_yMerc3395 : zoneDownloader.js.
+    const L_YandexLayerCreator = L.GridLayer.extend({
+        initialize: function (url, options) {
+            this._url = url;
+            L.GridLayer.prototype.initialize.call(this, options);
         },
         createTile: function (coords, done) {
-            const tile = L.TileLayer.prototype.createTile.call(this, coords, done);
+            const ts = this.getTileSize().y;
+            const tile = document.createElement('canvas');
+            tile.width = ts; tile.height = ts;
+
             const z = coords.z, n = Math.pow(2, z);
-            const tileSize = this.getTileSize().y;
-            const latN_3857 = Math.atan(Math.sinh(Math.PI * (1 - 2 * coords.y / n)));
-            const y3395 = Math.floor(n / 2 * (1 - _yMerc3395(latN_3857) / Math.PI));
-            const fracY = (n / 2 * (1 - _yMerc3395(latN_3857) / Math.PI)) - y3395;
-            const offsetPx = -(fracY * tileSize);
-            tile.style.marginTop = offsetPx + 'px';
-            tile.style.height = (tileSize + Math.ceil(-offsetPx) + 1) + 'px';
+            const py = (yTile) => n * ts / 2 * (1 - _yMerc3395(_lat3857(yTile, n)) / Math.PI);
+            const pyN = py(coords.y), pyS = py(coords.y + 1);
+            const H = pyS - pyN;
+
+            const ty0 = Math.max(0, Math.floor(pyN / ts));
+            const ty1 = Math.min(n - 1, Math.floor((pyS - 1e-9) / ts));
+            const srcs = [];
+            for (let ty = ty0; ty <= ty1; ty++)
+                srcs.push({ ty, url: L.Util.template(this._url, L.extend({}, this.options, { x: coords.x, y: ty, z })) });
+
+            const load = (url) => new Promise(resolve => {
+                const img = new Image();
+                img.crossOrigin = 'anonymous';
+                img.onload = () => resolve(img);
+                img.onerror = () => {
+                    const raw = new Image();
+                    raw.onload = () => resolve(raw);
+                    raw.onerror = () => resolve(null);
+                    raw.src = url;
+                };
+                img.src = url;
+            });
+
+            Promise.all(srcs.map(s => load(s.url))).then(imgs => {
+                const ctx = tile.getContext('2d');
+                let drawn = 0;
+                for (let i = 0; i < srcs.length; i++) {
+                    const img = imgs[i];
+                    if (!img) continue;
+                    const ty = srcs[i].ty;
+                    const srcTop = Math.max(pyN, ty * ts), srcBot = Math.min(pyS, (ty + 1) * ts);
+                    const sy = srcTop - ty * ts, sh = srcBot - srcTop;
+                    const dy = (srcTop - pyN) * ts / H, dh = sh * ts / H;
+                    const over = (i < srcs.length - 1) ? 1 : 0;
+                    ctx.drawImage(img, 0, sy, img.width, sh, 0, dy, ts, dh + over);
+                    drawn++;
+                }
+                done(drawn ? null : new Error('tuiles Yandex indisponibles'), tile);
+            });
             return tile;
         }
     });
@@ -344,9 +380,12 @@ class MbtilesJob {
         this.opfsDir = null;
 
         // Format de sortie des tuiles écrit dans les métadonnées MBTiles.
-        // - Multi-couches : composition obligatoire → ré-encodage (TILE_FORMAT).
-        // - Mono-couche : null = passthrough natif, détecté sur les octets reçus.
-        this.tileFormat = (layerConfig.layers.length > 1)
+        // - Multi-couches OU Yandex (reprojection toujours par canvas, même
+        //   mono-couche) : ré-encodage obligatoire (TILE_FORMAT).
+        // - Mono-couche sans Yandex : null = passthrough natif, détecté sur
+        //   les octets reçus.
+        const hasYandexLayer = layerConfig.layers.some(l => l.type === 'yandex');
+        this.tileFormat = (layerConfig.layers.length > 1 || hasYandexLayer)
             ? (TILE_FORMAT === 'image/jpeg' ? 'jpg' : 'png')
             : null;
 
@@ -495,38 +534,89 @@ class MbtilesJob {
         }
     }
 
-    // Construit les URLs pour une tuile (toutes les couches)
-    _tileUrls(tile) {
-        return this.layerConfig.layers.map(layer => {
-            if (layer.type === 'quadkey') {
-                const q = coordsToQuadKey(tile.x, tile.y, tile.z);
-                return layer.url.replace('{q}', q).replace('{s}', (tile.x + tile.y) % 4);
-            } else if (layer.type === 'yandex') {
-                const n = Math.pow(2, tile.z);
-                const latN = Math.atan(Math.sinh(Math.PI * (1 - 2 * tile.y / n)));
-                const y3395 = Math.floor(n / 2 * (1 - _yMerc3395(latN) / Math.PI));
-                return layer.url.replace('{z}', tile.z).replace('{x}', tile.x).replace('{y}', y3395);
-            } else {
-                return layer.url.replace('{z}', tile.z).replace('{x}', tile.x).replace('{y}', tile.y);
-            }
-        });
+    // Construit l'URL d'une couche NON-Yandex pour une tuile (Yandex a besoin
+    // de 1-2 URLs + un découpage en bandes — cf. _yandexBands ci-dessous, pas
+    // d'une simple URL unique).
+    _layerUrl(layer, tile) {
+        if (layer.type === 'quadkey') {
+            const q = coordsToQuadKey(tile.x, tile.y, tile.z);
+            return layer.url.replace('{q}', q).replace('{s}', (tile.x + tile.y) % 4);
+        }
+        return layer.url.replace('{z}', tile.z).replace('{x}', tile.x).replace('{y}', tile.y);
+    }
+
+    // Bandes source EPSG:3395 nécessaires pour reprojeter EXACTEMENT une tuile
+    // EPSG:3857 (tile.z/x/y) — même calcul que L_YandexLayerCreator (tuile
+    // Leaflet), exprimé directement en coordonnées pixel source→destination
+    // pour un dessin sur canvas 256×256. Sans ce découpage (ancien code :
+    // 1 seule tuile 3395 "la plus proche" étirée sur toute la tuile 256×256),
+    // les tuiles Yandex stockées dans le .mbtiles étaient visiblement
+    // décalées/mal alignées entre rangées voisines — aucune correction
+    // n'existait à la génération (contrairement à l'affichage Leaflet, qui
+    // avait au moins le décalage CSS approché).
+    _yandexBands(layer, tile) {
+        const ts = 256, z = tile.z, n = Math.pow(2, z);
+        const py = (yTile) => n * ts / 2 * (1 - _yMerc3395(_lat3857(yTile, n)) / Math.PI);
+        const pyN = py(tile.y), pyS = py(tile.y + 1);
+        const H = pyS - pyN;
+        const ty0 = Math.max(0, Math.floor(pyN / ts));
+        const ty1 = Math.min(n - 1, Math.floor((pyS - 1e-9) / ts));
+        const bands = [];
+        for (let ty = ty0; ty <= ty1; ty++) {
+            const srcTop = Math.max(pyN, ty * ts), srcBot = Math.min(pyS, (ty + 1) * ts);
+            bands.push({
+                url: layer.url.replace('{z}', z).replace('{x}', tile.x).replace('{y}', ty),
+                sy: srcTop - ty * ts, sh: srcBot - srcTop,
+                dy: (srcTop - pyN) * ts / H, dh: (srcBot - srcTop) * ts / H,
+            });
+        }
+        return bands;
+    }
+
+    // Dessine une couche Yandex reprojetée sur le canvas de la tuile (1-2
+    // bandes assemblées au pixel près) → true si au moins une bande a pu être
+    // dessinée. Chargement des sources en parallèle, dessin nord→sud ensuite.
+    async _drawYandexLayer(canvas, ctx, layer, tile) {
+        const bands = this._yandexBands(layer, tile);
+        const imgs = await Promise.all(bands.map(b => new Promise(resolve => {
+            const img = new Image();
+            img.crossOrigin = 'anonymous';
+            img.onload = () => resolve(img);
+            img.onerror = () => resolve(null);
+            img.src = b.url;
+        })));
+        let drawn = 0;
+        for (let i = 0; i < bands.length; i++) {
+            const img = imgs[i];
+            if (!img) continue;
+            const b = bands[i];
+            // +1 px de recouvrement (sauf dernière bande) : supprime le liseré
+            // d'anticrénelage aux frontières fractionnaires (la bande suivante,
+            // opaque, repeint par-dessus).
+            const over = (i < bands.length - 1) ? 1 : 0;
+            try { ctx.drawImage(img, 0, b.sy, img.width, b.sh, 0, b.dy, 256, b.dh + over); drawn++; }
+            catch { /* image cassée → bande ignorée, les autres continuent */ }
+        }
+        return drawn > 0;
     }
 
     // Récupère une tuile → retourne le blob à stocker (ou null si vide/échec).
     async _processTile(tile) {
-        const urls = this._tileUrls(tile);
+        const hasYandex = this.layerConfig.layers.some(l => l.type === 'yandex');
 
-        // --- Cas mono-couche : passthrough natif (AUCUNE recompression) ---
+        // --- Cas mono-couche SANS Yandex : passthrough natif (AUCUNE recompression) ---
         // On stocke l'octet pour octet ce que renvoie le serveur, dans son
         // format d'origine (JPEG/PNG/WebP). Évite la perte de génération
-        // d'un re-encodage canvas.toBlob() d'un JPEG en JPEG.
-        if (urls.length === 1) {
-            return this._fetchRawTile(urls[0]);
+        // d'un re-encodage canvas.toBlob() d'un JPEG en JPEG. Une couche Yandex
+        // DOIT toujours passer par le canvas : sa reprojection (1-2 bandes
+        // source) ne peut jamais être un simple octet-pour-octet.
+        if (this.layerConfig.layers.length === 1 && !hasYandex) {
+            return this._fetchRawTile(this._layerUrl(this.layerConfig.layers[0], tile));
         }
 
-        // --- Cas multi-couches : composition obligatoire sur canvas ---
-        // La fusion de plusieurs images impose un ré-encodage : il n'existe
-        // pas de "format natif" pour une tuile composite.
+        // --- Cas multi-couches ou reprojection Yandex : composition sur canvas ---
+        // La fusion de plusieurs images (ou la reprojection Yandex) impose un
+        // ré-encodage : il n'existe pas de "format natif" pour une tuile composite.
         const canvas = document.createElement('canvas');
         canvas.width = 256; canvas.height = 256;
         const ctx = canvas.getContext('2d');
@@ -537,8 +627,10 @@ class MbtilesJob {
             ctx.fillRect(0, 0, 256, 256);
         }
         let hasContent = false;
-        for (const url of urls) {
-            const ok = await this.fetchAndDrawLayer(url, canvas, ctx);
+        for (const layer of this.layerConfig.layers) {
+            const ok = layer.type === 'yandex'
+                ? await this._drawYandexLayer(canvas, ctx, layer, tile)
+                : await this.fetchAndDrawLayer(this._layerUrl(layer, tile), canvas, ctx);
             if (ok) hasContent = true;
         }
         if (!hasContent) return null;
