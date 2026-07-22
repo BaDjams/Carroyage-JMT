@@ -1,9 +1,16 @@
 // version.js
 
 // Source unique de vérité pour la version de l'application.
-const APP_VERSION = '23.0';
+const APP_VERSION = '23.1';
 
 const CHANGELOG = [
+  {
+    version: '23.1',
+    date: '2026-07-21',
+    changes: [
+      'MBTiles Creator : nouvelle option "Inclure le relief 3D hors-ligne (MNT)" — ajoute les tuiles Terrarium au zoom 12 dans le même MBTiles que le fond de carte (zooms 0-12 réservés, fond à partir du zoom 13), exploitable comme source raster-dem par des applications tierces (ex. CadoTour) sans connexion',
+    ],
+  },
   {
     version: '23.0',
     date: '2026-06-24',

@@ -27,6 +27,24 @@ const TILE_QUALITY = 0.92;            // 0..1, ignoré si TILE_FORMAT === 'image
                                       // rester au plus près de l'ortho d'origine
 const TILE_BG      = '#ffffff';       // fond pour les zones transparentes (JPEG only)
 
+// Relief 3D hors-ligne (MNT) — source mondiale "Terrarium" (Mapzen/AWS Open Data
+// Terrain Tiles), la même que celle utilisée en ligne par la vue 3D de CadoTour
+// (map3d.js : DEM_URL / DEM_MAXZOOM = 12 — la donnée source est ~30 m (SRTM),
+// au-delà MapLibre sur-échantillonne lui-même le dernier niveau natif).
+//
+// Le MNT est écrit dans le MÊME MBTiles que le fond de carte, sur le seul
+// niveau de zoom 12, réservé à cet usage : quand l'option est cochée, les
+// niveaux 0-12 sont interdits pour le fond (grisés dans le sélecteur) — le
+// fond est alors téléchargé à partir du zoom 13. Le zoom 12 ne collisionne
+// donc jamais avec une vraie tuile de fond dans la table `tiles` (même clé
+// zoom/x/y). Une métadonnée `mnt_zoom` signale la convention aux lecteurs qui
+// la connaissent (CadoTour) pour qu'ils excluent ce niveau du rendu 2D et
+// l'utilisent comme source `raster-dem` pour la vue 3D.
+// Toujours en passthrough (pas de recompression) : l'encodage RVB de
+// l'altitude ne doit jamais être altéré.
+const MNT_TILE_URL = 'https://elevation-tiles-prod.s3.amazonaws.com/terrarium/{z}/{x}/{y}.png';
+const MNT_ZOOM = 12; // seul niveau réservé au MNT — les niveaux < 13 sont interdits pour le fond
+
 // Détection OPFS (Origin Private File System) — pas besoin de SharedArrayBuffer
 let _opfsAvailable = null;
 async function checkOPFS() {
@@ -235,6 +253,7 @@ function initCreatorMode() {
     document.getElementById('creator-start-btn').addEventListener('click', startMbtilesJob);
     document.getElementById('creator-select-all-zooms').addEventListener('click', () => toggleZooms(true));
     document.getElementById('creator-select-none-zooms').addEventListener('click', () => toggleZooms(false));
+    document.getElementById('creator-include-mnt')?.addEventListener('change', applyMntZoomLock);
 }
 
 window.initCreatorMode = initCreatorMode;
@@ -269,6 +288,7 @@ function generateZoomCheckboxes(maxZoom) {
         div.textContent = `Z${z}`;
         div.dataset.zoom = z;
         div.onclick = function() {
+            if (this.classList.contains('mnt-locked')) return;
             this.classList.toggle('checked');
             updateCreatorUI();
         };
@@ -282,12 +302,33 @@ function generateZoomCheckboxes(maxZoom) {
             }
         }
     }
+    applyMntZoomLock();
 }
 
 function toggleZooms(state) {
     document.querySelectorAll('.zoom-checkbox-label').forEach(el => {
+        if (el.classList.contains('mnt-locked')) { el.classList.remove('checked'); return; }
         if(state) el.classList.add('checked');
         else el.classList.remove('checked');
+    });
+    updateCreatorUI();
+}
+
+// Case "Inclure le relief 3D hors-ligne" cochée : les niveaux 0-12 (réservés
+// au MNT, cf. MNT_ZOOM) sont interdits pour le fond de carte — le zoom 12 ne
+// doit jamais contenir de tuile de fond dans le MBTiles final. Ré-appliqué à
+// chaque régénération de la grille (changement de fond de carte) et à chaque
+// bascule de la case.
+function applyMntZoomLock() {
+    const locked = document.getElementById('creator-include-mnt')?.checked;
+    document.querySelectorAll('.zoom-checkbox-label').forEach(el => {
+        const z = parseInt(el.dataset.zoom, 10);
+        if (locked && z <= MNT_ZOOM) {
+            el.classList.remove('checked');
+            el.classList.add('mnt-locked');
+        } else {
+            el.classList.remove('mnt-locked');
+        }
     });
     updateCreatorUI();
 }
@@ -325,6 +366,11 @@ function updateCreatorUI() {
         const tiles = getTileRange(currentCreatorBounds, z);
         totalTiles += (tiles.xMax - tiles.xMin + 1) * (tiles.yMax - tiles.yMin + 1);
     });
+
+    if (document.getElementById('creator-include-mnt')?.checked) {
+        const mntTiles = getTileRange(currentCreatorBounds, MNT_ZOOM);
+        totalTiles += (mntTiles.xMax - mntTiles.xMin + 1) * (mntTiles.yMax - mntTiles.yMin + 1);
+    }
 
     infoTiles.textContent = totalTiles.toLocaleString() + " tuiles";
     const sizeMb = (totalTiles * TILE_SIZE_ESTIMATE_KB) / 1024;
@@ -365,12 +411,13 @@ function getTileRange(bounds, zoom) {
 // --- JOB MANAGEMENT ---
 
 class MbtilesJob {
-    constructor(id, bounds, zooms, layerConfig, filename) {
+    constructor(id, bounds, zooms, layerConfig, filename, includeMnt = false) {
         this.id = id;
         this.bounds = bounds;
         this.zooms = zooms;
         this.layerConfig = layerConfig;
         this.filename = filename;
+        this.includeMnt = includeMnt; // ajoute le MNT (zoom MNT_ZOOM) dans ce même MBTiles
         this.status = 'pending';
         this.totalTiles = 0;
         this.processedTiles = 0;
@@ -402,6 +449,10 @@ class MbtilesJob {
             const range = getTileRange(this.bounds, z);
             count += (range.xMax - range.xMin + 1) * (Math.max(range.yMin, range.yMax) - Math.min(range.yMin, range.yMax) + 1);
         });
+        if (this.includeMnt) {
+            const range = getTileRange(this.bounds, MNT_ZOOM);
+            count += (range.xMax - range.xMin + 1) * (Math.max(range.yMin, range.yMax) - Math.min(range.yMin, range.yMax) + 1);
+        }
         return count;
     }
 
@@ -412,7 +463,19 @@ class MbtilesJob {
             const yEnd = Math.max(range.yMin, range.yMax);
             for (let x = range.xMin; x <= range.xMax; x++) {
                 for (let y = yStart; y <= yEnd; y++) {
-                    yield { x, y, z };
+                    yield { x, y, z, mnt: false };
+                }
+            }
+        }
+        // MNT en dernier : le premier tuile récupérée (utilisée pour détecter le
+        // format passthrough, cf. _fetchRawTile) reste une tuile de fond.
+        if (this.includeMnt) {
+            const range = getTileRange(this.bounds, MNT_ZOOM);
+            const yStart = Math.min(range.yMin, range.yMax);
+            const yEnd = Math.max(range.yMin, range.yMax);
+            for (let x = range.xMin; x <= range.xMax; x++) {
+                for (let y = yStart; y <= yEnd; y++) {
+                    yield { x, y, z: MNT_ZOOM, mnt: true };
                 }
             }
         }
@@ -503,6 +566,10 @@ class MbtilesJob {
         this.db.run("INSERT INTO metadata VALUES (?, ?)", ["bounds", boundsStr]);
         this.db.run("INSERT INTO metadata VALUES (?, ?)", ["type", "overlay"]);
         this.db.run("INSERT INTO metadata VALUES (?, ?)", ["version", "1.2"]);
+        // Convention lue par CadoTour (tileSource.js) : ce niveau de zoom contient
+        // le MNT (Terrarium) et non une tuile de fond — à exclure du rendu 2D et
+        // à utiliser comme source raster-dem pour la vue 3D.
+        if (this.includeMnt) this.db.run("INSERT INTO metadata VALUES (?, ?)", ["mnt_zoom", String(MNT_ZOOM)]);
     }
 
     async start() {
@@ -602,6 +669,12 @@ class MbtilesJob {
 
     // Récupère une tuile → retourne le blob à stocker (ou null si vide/échec).
     async _processTile(tile) {
+        // Tuile MNT (zoom réservé) : toujours mono-source, passthrough — jamais
+        // composée avec le fond, même si celui-ci est multi-couches ou Yandex.
+        if (tile.mnt) {
+            return this._fetchRawTile(MNT_TILE_URL.replace('{z}', tile.z).replace('{x}', tile.x).replace('{y}', tile.y));
+        }
+
         const hasYandex = this.layerConfig.layers.some(l => l.type === 'yandex');
 
         // --- Cas mono-couche SANS Yandex : passthrough natif (AUCUNE recompression) ---
@@ -881,8 +954,9 @@ function startMbtilesJob() {
     const layerConfig = MAP_LAYERS.find(l => l.id === layerId);
     let filename = document.getElementById('creator-filename').value.trim();
     if (!filename) filename = `Carte_Offline_${Date.now()}`;
+    const includeMnt = document.getElementById('creator-include-mnt')?.checked || false;
 
-    const job = new MbtilesJob(jobIdCounter++, currentCreatorBounds, zooms, layerConfig, filename);
+    const job = new MbtilesJob(jobIdCounter++, currentCreatorBounds, zooms, layerConfig, filename, includeMnt);
     activeJobs.push(job);
     job.start();
 }
