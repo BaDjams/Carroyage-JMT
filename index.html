@@ -363,6 +363,7 @@
                                     <label class="inline-flex items-center"><input type="radio" name="image-format-cado" value="png" class="custom-radio"><span class="ml-2 text-content">PNG</span></label>
                                     <label class="inline-flex items-center"><input type="radio" name="image-format-cado" value="jpeg" class="custom-radio" checked><span class="ml-2 text-content">JPEG</span></label>
                                     <label class="inline-flex items-center" title="Image géoréférencée EPSG:3857 (ouverture directe dans QGIS/ArcGIS). Indisponible si une déviation du carroyage est appliquée."><input type="radio" name="image-format-cado" value="geotiff" class="custom-radio"><span class="ml-2 text-content">GeoTIFF</span></label>
+                                    <label class="inline-flex items-center" title="GeoTIFF compressé JPEG : un seul fichier .tif géoréférencé EPSG:3857, bien plus léger que le GeoTIFF standard (compression JPEG, avec pertes). Ouverture directe dans QGIS/ArcGIS. Indisponible si une déviation du carroyage est appliquée."><input type="radio" name="image-format-cado" value="geotiff-jpeg" class="custom-radio"><span class="ml-2 text-content">GeoTIFF JPEG</span></label>
                                 </div>
                                 <div id="cado-jpeg-quality-container" class="w-full max-w-xs text-center jpeg-quality-slider">
                                     <label for="cado-jpeg-quality" class="text-sm text-content">Qualité JPEG : <span id="cado-jpeg-quality-value">92%</span></label>
@@ -714,6 +715,8 @@
                             <label class="inline-flex items-center"><input type="radio" name="image-format-zone" value="png" class="custom-radio"><span class="ml-2 text-content">PNG</span></label>
                             <label class="inline-flex items-center"><input type="radio" name="image-format-zone" value="jpeg" class="custom-radio" checked><span class="ml-2 text-content">JPEG</span></label>
                             <label class="inline-flex items-center" title="Image géoréférencée EPSG:3857 (ouverture directe dans QGIS/ArcGIS). Indisponible si une rotation du fond est appliquée."><input type="radio" name="image-format-zone" value="geotiff" class="custom-radio"><span class="ml-2 text-content">GeoTIFF</span></label>
+                            <label class="inline-flex items-center" title="GeoTIFF compressé JPEG : un seul fichier .tif géoréférencé EPSG:3857, bien plus léger que le GeoTIFF standard (compression JPEG, avec pertes). Ouverture directe dans QGIS/ArcGIS. Indisponible si une rotation du fond est appliquée."><input type="radio" name="image-format-zone" value="geotiff-jpeg" class="custom-radio"><span class="ml-2 text-content">GeoTIFF JPEG</span></label>
+                            <label class="inline-flex items-center" title="Image géoréférencée reprojetée en UTM (zone calculée au centre de la zone exportée), compressée JPEG, fichier .tif unique. Ouverture directe dans QGIS/ArcGIS. Indisponible si une rotation du fond est appliquée."><input type="radio" name="image-format-zone" value="geotiff-utm" class="custom-radio"><span class="ml-2 text-content">GeoTIFF UTM</span></label>
                         </div>
                         <div id="zone-jpeg-quality-container" class="w-full max-w-xs text-center jpeg-quality-slider">
                             <label for="zone-jpeg-quality" class="text-sm text-content">Qualité JPEG : <span id="zone-jpeg-quality-value">92%</span></label>
@@ -755,11 +758,13 @@
                                 <label class="inline-flex items-center"><input type="radio" name="zone-file-format" value="MBTILES" class="custom-radio"><span class="px-3 py-1 border border-default rounded cursor-pointer text-sm button-outline w-32 text-center bg-green-100 dark:bg-green-900 border-green-400">DJI (MBTILES)</span></label>
                                 <label class="inline-flex items-center"><input type="radio" name="zone-file-format" value="GPX" class="custom-radio"><span class="px-3 py-1 border border-default rounded cursor-pointer text-sm button-outline w-24 text-center">GPX</span></label>
                                 <label class="inline-flex items-center"><input type="radio" name="zone-file-format" value="CSV" class="custom-radio"><span class="px-3 py-1 border border-default rounded cursor-pointer text-sm button-outline w-24 text-center">CSV</span></label>
+                                <label class="inline-flex items-center" title="Modèle numérique de terrain ASTER GDEM V3 (résolution ~30 m) de la zone dessinée, format ESRI ASCII Grid (.dem) ouvrable dans QGIS/ArcGIS. Récupéré via l'API OpenTopography (clé gratuite requise dans config.private.js)."><input type="radio" name="zone-file-format" value="DEM" class="custom-radio"><span class="px-3 py-1 border border-default rounded cursor-pointer text-sm button-outline w-24 text-center">DEM (ASTER)</span></label>
                             </div>
                         </div>
 
                         <div class="text-xs text-secondary text-center italic">
-                            <strong>Note :</strong> L'export DJI crée un fichier <code>.mbtiles</code> transparent contenant uniquement les grilles et tracés (sans fond de carte), à placer dans le dossier de la télécommande.
+                            <strong>Note :</strong> L'export DJI crée un fichier <code>.mbtiles</code> transparent contenant uniquement les grilles et tracés (sans fond de carte), à placer dans le dossier de la télécommande.<br>
+                            <strong>DEM :</strong> altitude ASTER GDEM V3 (~30 m/pixel) de la zone dessinée, via l'API OpenTopography — nécessite une clé API gratuite.
                         </div>
                     </div>
 
@@ -1944,7 +1949,9 @@
             function handleFormatChange(event) {
                 const mode = event.target.name.includes('cado') ? 'cado' : 'zone';
                 const qualityContainer = document.getElementById(`${mode}-jpeg-quality-container`);
-                if(qualityContainer) qualityContainer.classList.toggle('visible', event.target.value === 'jpeg');
+                // Le curseur qualité sert au JPEG simple comme aux variantes GeoTIFF compressées JPEG.
+                const usesJpegQuality = event.target.value === 'jpeg' || event.target.value === 'geotiff-jpeg' || event.target.value === 'geotiff-utm';
+                if(qualityContainer) qualityContainer.classList.toggle('visible', usesJpegQuality);
             }
 
             document.querySelectorAll('input[name="image-format-cado"]').forEach(radio => radio.addEventListener('change', handleFormatChange));

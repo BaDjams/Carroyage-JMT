@@ -6,6 +6,8 @@ const IGN_API_KEY = "ign_scan_ws";
 if (typeof IGN_PRIVATE_API_KEY === 'undefined') var IGN_PRIVATE_API_KEY = '';
 if (typeof MAPY_API_KEY === 'undefined') var MAPY_API_KEY = '';
 if (typeof GOOGLE_MAPS_API_KEY === 'undefined') var GOOGLE_MAPS_API_KEY = '';
+// Export .dem (ASTER GDEM V3) : clé gratuite sur portal.opentopography.org.
+if (typeof OPENTOPOGRAPHY_API_KEY === 'undefined') var OPENTOPOGRAPHY_API_KEY = '';
 
 const MAP_LAYERS = [
     {

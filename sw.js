@@ -1,8 +1,8 @@
 // sw.js - Service Worker PWA
 // ⚠ Mettre à jour CACHE_NAME à chaque déploiement pour invalider le cache existant.
 
-const CACHE_NAME = 'cado-cache-23.0';
-const SW_APP_VERSION = '23.0';
+const CACHE_NAME = 'cado-cache-23.2';
+const SW_APP_VERSION = '23.2';
 
 // Liste EXACTE des fichiers à mettre en cache.
 // Si un seul fichier manque, la PWA ne s'installera pas.

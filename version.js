@@ -1,9 +1,24 @@
 // version.js
 
 // Source unique de vérité pour la version de l'application.
-const APP_VERSION = '23.0';
+const APP_VERSION = '23.2';
 
 const CHANGELOG = [
+  {
+    version: '23.2',
+    date: '2026-07-23',
+    changes: [
+      'Export de zone : nouveau format « GeoTIFF UTM » — image reprojetée dans la zone UTM locale (compressée JPEG, fichier .tif unique), en plus du GeoTIFF EPSG:3857 existant',
+      'Fichiers numériques (export de zone) : nouveau format « DEM (ASTER) » — modèle numérique de terrain ASTER GDEM V3 (~30 m/pixel) de la zone dessinée, au format ESRI ASCII Grid (.dem), via l\'API OpenTopography (clé gratuite requise dans config.private.js)',
+    ],
+  },
+  {
+    version: '23.1',
+    date: '2026-07-16',
+    changes: [
+      'Nouveau format d\'export « GeoTIFF JPEG » (Carroyage rapide et Export de zone) : un seul fichier .tif géoréférencé EPSG:3857 mais compressé en JPEG — bien plus léger que le GeoTIFF standard non compressé, ouvrable directement dans QGIS/ArcGIS (disponible sans déviation/rotation)',
+    ],
+  },
   {
     version: '23.0',
     date: '2026-06-24',

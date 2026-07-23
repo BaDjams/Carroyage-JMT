@@ -620,13 +620,16 @@ async function generateZonePNG() {
         }
         
         const format = document.querySelector('input[name="image-format-zone"]:checked').value;
+        const isGeoTiffFormat = (format === 'geotiff' || format === 'geotiff-jpeg' || format === 'geotiff-utm');
         const quality = parseInt(document.getElementById('zone-jpeg-quality').value) / 100;
         const mimeType = format === 'jpeg' ? 'image/jpeg' : 'image/png';
-        const fileExtension = format === 'jpeg' ? '.jpg' : (format === 'geotiff' ? '.tif' : '.png');
+        const fileExtension = format === 'jpeg' ? '.jpg'
+            : isGeoTiffFormat ? '.tif'
+            : '.png';
 
-        // GeoTIFF v1 : géoréférencement nord-haut axis-aligned → exact uniquement sans rotation.
-        if (format === 'geotiff' && zoneDeviationDeg !== 0) {
-            throw new Error("Export GeoTIFF indisponible avec une rotation du fond de carte (déviation ≠ 0°). Mettez la rotation à 0° ou exportez en PNG/JPEG.");
+        // Géoréférencement v1 (GeoTIFF) : nord-haut axis-aligned → exact uniquement sans rotation.
+        if (isGeoTiffFormat && zoneDeviationDeg !== 0) {
+            throw new Error("Export géoréférencé (GeoTIFF) indisponible avec une rotation du fond de carte (déviation ≠ 0°). Mettez la rotation à 0° ou exportez en PNG/JPEG.");
         }
 
         loadingMessage.textContent = "Téléchargement et assemblage des fonds de carte...";
@@ -771,7 +774,7 @@ async function generateZonePNG() {
         const deviationStr = zoneDeviationDeg !== 0 ? `_dev${Math.round(zoneDeviationDeg)}deg` : '';
         const fileName = `${rawTitle}_zoom${zoom}_${gridTypeStr}${deviationStr}_${dateStr}${originString}${fileExtension}`;
         
-        if (format === 'geotiff') {
+        if (isGeoTiffFormat) {
             // Géoréférencement EPSG:3857. nwPixel = coin haut-gauche du contenu (world pixels
             // Web Mercator au zoom natif) ; dans finalCanvas il est dessiné au pixel
             // (dynamicMargin, dynamicMargin) et l'échelle native est divisée par scaleFactor.
@@ -779,17 +782,44 @@ async function generateZonePNG() {
             const anchor = geoAnchorFromWorldPixels(nwPixel.x, nwPixel.y, actualZoom);
             const sX = exportCanvas.width / finalCanvas.width;
             const sY = exportCanvas.height / finalCanvas.height;
-            const blob = canvasToGeoTIFF(exportCanvas, {
-                originX: anchor.originX,
-                originY: anchor.originY,
-                pixelScaleX: anchor.metersPerPixel / (scaleFactor * sX),
-                pixelScaleY: anchor.metersPerPixel / (scaleFactor * sY),
-                epsg: 3857,
-                tiePointI: dynamicMargin * sX,
-                tiePointJ: dynamicMargin * sY,
-            });
-            if (blob) { downloadFile(blob, fileName); }
-            else { showError("Erreur lors de la création du fichier GeoTIFF."); }
+
+            if (format === 'geotiff-utm') {
+                // Reprojection UTM : on réutilise la même transformation lat/lon → pixel
+                // que celle qui a servi à dessiner grilles/tracés sur finalCanvas, mise à
+                // l'échelle de exportCanvas (upscale éventuel).
+                const latLonToExportPx = (lat, lon) => {
+                    const p = latLonToCanvasPixels(lat, lon);
+                    return { x: p.x * sX, y: p.y * sY };
+                };
+                const blob = await canvasToGeoTIFFUTM(exportCanvas, {
+                    latLonToPx: latLonToExportPx,
+                    bounds: finalBoundingBox,
+                    metersPerPixel: anchor.metersPerPixel / (scaleFactor * sX),
+                    quality,
+                });
+                if (blob) { downloadFile(blob, fileName); }
+                else { showError("Erreur lors de la création du GeoTIFF UTM."); }
+            } else {
+                const geoOpts = {
+                    originX: anchor.originX,
+                    originY: anchor.originY,
+                    pixelScaleX: anchor.metersPerPixel / (scaleFactor * sX),
+                    pixelScaleY: anchor.metersPerPixel / (scaleFactor * sY),
+                    epsg: 3857,
+                    tiePointI: dynamicMargin * sX,
+                    tiePointJ: dynamicMargin * sY,
+                };
+                if (format === 'geotiff-jpeg') {
+                    geoOpts.quality = quality;
+                    const blob = await canvasToGeoTIFFJpeg(exportCanvas, geoOpts);
+                    if (blob) { downloadFile(blob, fileName); }
+                    else { showError("Erreur lors de la création du GeoTIFF JPEG."); }
+                } else {
+                    const blob = canvasToGeoTIFF(exportCanvas, geoOpts);
+                    if (blob) { downloadFile(blob, fileName); }
+                    else { showError("Erreur lors de la création du fichier GeoTIFF."); }
+                }
+            }
         } else {
             exportCanvas.toBlob((blob) => {
                 if (blob) { downloadFile(blob, fileName); }
@@ -835,7 +865,7 @@ async function handleZoneVectorExport() {
         }
     }
 
-    if (!useUtm && !useCfsi && !useCado && userPOIs.length === 0 && format !== 'MBTILES') {
+    if (!useUtm && !useCfsi && !useCado && userPOIs.length === 0 && format !== 'MBTILES' && format !== 'DEM') {
         if (!confirm("Aucune grille sélectionnée. Voulez-vous exporter uniquement les points d'intérêt ?")) {
             return;
         }
@@ -849,6 +879,12 @@ async function handleZoneVectorExport() {
         // --- CAS SPECIAL : EXPORT DJI MBTILES (RASTER TRANSPARENT) ---
         if (format === 'MBTILES') {
             await generateZoneMBTiles(filenameBase, useUtm, useCfsi, useCado);
+            return; // STOP ICI
+        }
+
+        // --- CAS SPECIAL : EXPORT DEM (ALTITUDE ASTER GDEM V3) ---
+        if (format === 'DEM') {
+            await generateZoneDEM(filenameBase);
             return; // STOP ICI
         }
 
@@ -937,6 +973,42 @@ async function handleZoneVectorExport() {
     } finally {
         loadingIndicator.classList.add("hidden");
     }
+}
+
+// --- NOUVELLE FONCTION : EXPORT DEM (ALTITUDE ASTER GDEM V3, VIA OPENTOPOGRAPHY) ---
+// Récupère le MNT ASTER GDEM V3 (résolution ~30 m) de la zone dessinée, au format
+// ESRI ASCII Grid (.dem), directement ouvrable dans QGIS/ArcGIS. Nécessite une clé
+// API OpenTopography gratuite (portal.opentopography.org) dans config.private.js.
+async function generateZoneDEM(filenameBase) {
+    if (typeof OPENTOPOGRAPHY_API_KEY === 'undefined' || !OPENTOPOGRAPHY_API_KEY) {
+        throw new Error("Export DEM (ASTER GDEM V3) indisponible : aucune clé API OpenTopography configurée. Ajoutez OPENTOPOGRAPHY_API_KEY dans config.private.js (clé gratuite sur portal.opentopography.org).");
+    }
+
+    const nwCoordsStr = document.getElementById("zone-nw-coords").value;
+    const seCoordsStr = document.getElementById("zone-se-coords").value;
+    if (!nwCoordsStr || !seCoordsStr) {
+        throw new Error("Veuillez d'abord dessiner une zone rectangulaire sur la carte.");
+    }
+    const [north, west] = nwCoordsStr.split(',').map(c => parseFloat(c.trim()));
+    const [south, east] = seCoordsStr.split(',').map(c => parseFloat(c.trim()));
+    if ([north, west, south, east].some(Number.isNaN)) {
+        throw new Error("Coordonnées de la zone invalides.");
+    }
+
+    const params = new URLSearchParams({
+        demtype: 'ASTGTMv3',
+        south, north, west, east,
+        outputFormat: 'AAIGrid',
+        API_Key: OPENTOPOGRAPHY_API_KEY,
+    });
+    const response = await fetch(`https://portal.opentopography.org/API/globaldem?${params.toString()}`);
+    if (!response.ok) {
+        const errText = await response.text().catch(() => '');
+        throw new Error(`Échec de la récupération du MNT ASTER GDEM V3 (OpenTopography, HTTP ${response.status}). ${errText.slice(0, 200)}`);
+    }
+    const demText = await response.text();
+    const blob = new Blob([demText], { type: 'text/plain' });
+    downloadFile(blob, `${filenameBase}_ASTER-GDEM-V3.dem`);
 }
 
 // --- NOUVELLE FONCTION : GENERATE ZONE MBTILES (OVERLAY TRANSPARENT) ---
