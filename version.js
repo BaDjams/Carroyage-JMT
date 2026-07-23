@@ -1,11 +1,11 @@
 // version.js
 
 // Source unique de vérité pour la version de l'application.
-const APP_VERSION = '23.2';
+const APP_VERSION = '23.3';
 
 const CHANGELOG = [
   {
-    version: '23.2',
+    version: '23.3',
     date: '2026-07-23',
     changes: [
       'Export de zone : nouveau format « GeoTIFF UTM » — image reprojetée dans la zone UTM locale (compressée JPEG, fichier .tif unique), en plus du GeoTIFF EPSG:3857 existant',
@@ -13,10 +13,17 @@ const CHANGELOG = [
     ],
   },
   {
-    version: '23.1',
+    version: '23.2',
     date: '2026-07-16',
     changes: [
       'Nouveau format d\'export « GeoTIFF JPEG » (Carroyage rapide et Export de zone) : un seul fichier .tif géoréférencé EPSG:3857 mais compressé en JPEG — bien plus léger que le GeoTIFF standard non compressé, ouvrable directement dans QGIS/ArcGIS (disponible sans déviation/rotation)',
+    ],
+  },
+  {
+    version: '23.1',
+    date: '2026-07-21',
+    changes: [
+      'MBTiles Creator : nouvelle option "Inclure le relief 3D hors-ligne (MNT)" — ajoute les tuiles Terrarium au zoom 12 dans le même MBTiles que le fond de carte (zooms 0-12 réservés, fond à partir du zoom 13), exploitable comme source raster-dem par des applications tierces (ex. CadoTour) sans connexion',
     ],
   },
   {

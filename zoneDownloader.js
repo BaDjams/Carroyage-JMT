@@ -9,6 +9,12 @@ function _yMerc3395(latRad) {
     return Math.log(Math.tan(Math.PI / 4 + latRad / 2) *
         Math.pow((1 - _e_WGS84 * s) / (1 + _e_WGS84 * s), _e_WGS84 / 2));
 }
+// Latitude (rad) du bord nord d'une tuile EPSG:3857 (Web Mercator sphérique
+// standard, utilisé par Leaflet) — sert de point de départ à la reprojection
+// Yandex (3395), qui compare cette latitude à la même tuile en 3395.
+function _lat3857(yTile, n) {
+    return Math.atan(Math.sinh(Math.PI * (1 - 2 * yTile / n)));
+}
 // Inverse Mercator ellipsoïdal : de la valeur m (rad) vers la latitude (rad), itératif
 function _inverseMerc3395(m) {
     let lat = 2 * Math.atan(Math.exp(m)) - Math.PI / 2;

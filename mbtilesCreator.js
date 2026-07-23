@@ -27,6 +27,24 @@ const TILE_QUALITY = 0.92;            // 0..1, ignoré si TILE_FORMAT === 'image
                                       // rester au plus près de l'ortho d'origine
 const TILE_BG      = '#ffffff';       // fond pour les zones transparentes (JPEG only)
 
+// Relief 3D hors-ligne (MNT) — source mondiale "Terrarium" (Mapzen/AWS Open Data
+// Terrain Tiles), la même que celle utilisée en ligne par la vue 3D de CadoTour
+// (map3d.js : DEM_URL / DEM_MAXZOOM = 12 — la donnée source est ~30 m (SRTM),
+// au-delà MapLibre sur-échantillonne lui-même le dernier niveau natif).
+//
+// Le MNT est écrit dans le MÊME MBTiles que le fond de carte, sur le seul
+// niveau de zoom 12, réservé à cet usage : quand l'option est cochée, les
+// niveaux 0-12 sont interdits pour le fond (grisés dans le sélecteur) — le
+// fond est alors téléchargé à partir du zoom 13. Le zoom 12 ne collisionne
+// donc jamais avec une vraie tuile de fond dans la table `tiles` (même clé
+// zoom/x/y). Une métadonnée `mnt_zoom` signale la convention aux lecteurs qui
+// la connaissent (CadoTour) pour qu'ils excluent ce niveau du rendu 2D et
+// l'utilisent comme source `raster-dem` pour la vue 3D.
+// Toujours en passthrough (pas de recompression) : l'encodage RVB de
+// l'altitude ne doit jamais être altéré.
+const MNT_TILE_URL = 'https://elevation-tiles-prod.s3.amazonaws.com/terrarium/{z}/{x}/{y}.png';
+const MNT_ZOOM = 12; // seul niveau réservé au MNT — les niveaux < 13 sont interdits pour le fond
+
 // Détection OPFS (Origin Private File System) — pas besoin de SharedArrayBuffer
 let _opfsAvailable = null;
 async function checkOPFS() {
@@ -69,25 +87,61 @@ function initCreatorMode() {
         }
     });
 
-    // Correction projection Yandex EPSG:3395 (même logique que dans index.html)
-    const L_YandexLayerCreator = L.TileLayer.extend({
-        getTileUrl: function (coords) {
-            const z = coords.z, x = coords.x;
-            const n = Math.pow(2, z);
-            const latN = Math.atan(Math.sinh(Math.PI * (1 - 2 * coords.y / n)));
-            const y3395 = Math.floor(n / 2 * (1 - _yMerc3395(latN) / Math.PI));
-            return L.Util.template(this._url, L.extend({}, this.options, { x, y: y3395, z }));
+    // Correction projection Yandex EPSG:3395 — reprojection EXACTE sur canvas
+    // (même logique que index.html/createBaseLayers : chaque tuile Leaflet
+    // assemble au pixel près les 1-2 tuiles Yandex couvrant sa plage de
+    // latitudes, au lieu de l'ancien décalage CSS approché qui laissait des
+    // jours horizontaux entre les rangées). _lat3857/_yMerc3395 : zoneDownloader.js.
+    const L_YandexLayerCreator = L.GridLayer.extend({
+        initialize: function (url, options) {
+            this._url = url;
+            L.GridLayer.prototype.initialize.call(this, options);
         },
         createTile: function (coords, done) {
-            const tile = L.TileLayer.prototype.createTile.call(this, coords, done);
+            const ts = this.getTileSize().y;
+            const tile = document.createElement('canvas');
+            tile.width = ts; tile.height = ts;
+
             const z = coords.z, n = Math.pow(2, z);
-            const tileSize = this.getTileSize().y;
-            const latN_3857 = Math.atan(Math.sinh(Math.PI * (1 - 2 * coords.y / n)));
-            const y3395 = Math.floor(n / 2 * (1 - _yMerc3395(latN_3857) / Math.PI));
-            const fracY = (n / 2 * (1 - _yMerc3395(latN_3857) / Math.PI)) - y3395;
-            const offsetPx = -(fracY * tileSize);
-            tile.style.marginTop = offsetPx + 'px';
-            tile.style.height = (tileSize + Math.ceil(-offsetPx) + 1) + 'px';
+            const py = (yTile) => n * ts / 2 * (1 - _yMerc3395(_lat3857(yTile, n)) / Math.PI);
+            const pyN = py(coords.y), pyS = py(coords.y + 1);
+            const H = pyS - pyN;
+
+            const ty0 = Math.max(0, Math.floor(pyN / ts));
+            const ty1 = Math.min(n - 1, Math.floor((pyS - 1e-9) / ts));
+            const srcs = [];
+            for (let ty = ty0; ty <= ty1; ty++)
+                srcs.push({ ty, url: L.Util.template(this._url, L.extend({}, this.options, { x: coords.x, y: ty, z })) });
+
+            const load = (url) => new Promise(resolve => {
+                const img = new Image();
+                img.crossOrigin = 'anonymous';
+                img.onload = () => resolve(img);
+                img.onerror = () => {
+                    const raw = new Image();
+                    raw.onload = () => resolve(raw);
+                    raw.onerror = () => resolve(null);
+                    raw.src = url;
+                };
+                img.src = url;
+            });
+
+            Promise.all(srcs.map(s => load(s.url))).then(imgs => {
+                const ctx = tile.getContext('2d');
+                let drawn = 0;
+                for (let i = 0; i < srcs.length; i++) {
+                    const img = imgs[i];
+                    if (!img) continue;
+                    const ty = srcs[i].ty;
+                    const srcTop = Math.max(pyN, ty * ts), srcBot = Math.min(pyS, (ty + 1) * ts);
+                    const sy = srcTop - ty * ts, sh = srcBot - srcTop;
+                    const dy = (srcTop - pyN) * ts / H, dh = sh * ts / H;
+                    const over = (i < srcs.length - 1) ? 1 : 0;
+                    ctx.drawImage(img, 0, sy, img.width, sh, 0, dy, ts, dh + over);
+                    drawn++;
+                }
+                done(drawn ? null : new Error('tuiles Yandex indisponibles'), tile);
+            });
             return tile;
         }
     });
@@ -199,6 +253,7 @@ function initCreatorMode() {
     document.getElementById('creator-start-btn').addEventListener('click', startMbtilesJob);
     document.getElementById('creator-select-all-zooms').addEventListener('click', () => toggleZooms(true));
     document.getElementById('creator-select-none-zooms').addEventListener('click', () => toggleZooms(false));
+    document.getElementById('creator-include-mnt')?.addEventListener('change', applyMntZoomLock);
 }
 
 window.initCreatorMode = initCreatorMode;
@@ -233,6 +288,7 @@ function generateZoomCheckboxes(maxZoom) {
         div.textContent = `Z${z}`;
         div.dataset.zoom = z;
         div.onclick = function() {
+            if (this.classList.contains('mnt-locked')) return;
             this.classList.toggle('checked');
             updateCreatorUI();
         };
@@ -246,12 +302,33 @@ function generateZoomCheckboxes(maxZoom) {
             }
         }
     }
+    applyMntZoomLock();
 }
 
 function toggleZooms(state) {
     document.querySelectorAll('.zoom-checkbox-label').forEach(el => {
+        if (el.classList.contains('mnt-locked')) { el.classList.remove('checked'); return; }
         if(state) el.classList.add('checked');
         else el.classList.remove('checked');
+    });
+    updateCreatorUI();
+}
+
+// Case "Inclure le relief 3D hors-ligne" cochée : les niveaux 0-12 (réservés
+// au MNT, cf. MNT_ZOOM) sont interdits pour le fond de carte — le zoom 12 ne
+// doit jamais contenir de tuile de fond dans le MBTiles final. Ré-appliqué à
+// chaque régénération de la grille (changement de fond de carte) et à chaque
+// bascule de la case.
+function applyMntZoomLock() {
+    const locked = document.getElementById('creator-include-mnt')?.checked;
+    document.querySelectorAll('.zoom-checkbox-label').forEach(el => {
+        const z = parseInt(el.dataset.zoom, 10);
+        if (locked && z <= MNT_ZOOM) {
+            el.classList.remove('checked');
+            el.classList.add('mnt-locked');
+        } else {
+            el.classList.remove('mnt-locked');
+        }
     });
     updateCreatorUI();
 }
@@ -289,6 +366,11 @@ function updateCreatorUI() {
         const tiles = getTileRange(currentCreatorBounds, z);
         totalTiles += (tiles.xMax - tiles.xMin + 1) * (tiles.yMax - tiles.yMin + 1);
     });
+
+    if (document.getElementById('creator-include-mnt')?.checked) {
+        const mntTiles = getTileRange(currentCreatorBounds, MNT_ZOOM);
+        totalTiles += (mntTiles.xMax - mntTiles.xMin + 1) * (mntTiles.yMax - mntTiles.yMin + 1);
+    }
 
     infoTiles.textContent = totalTiles.toLocaleString() + " tuiles";
     const sizeMb = (totalTiles * TILE_SIZE_ESTIMATE_KB) / 1024;
@@ -329,12 +411,13 @@ function getTileRange(bounds, zoom) {
 // --- JOB MANAGEMENT ---
 
 class MbtilesJob {
-    constructor(id, bounds, zooms, layerConfig, filename) {
+    constructor(id, bounds, zooms, layerConfig, filename, includeMnt = false) {
         this.id = id;
         this.bounds = bounds;
         this.zooms = zooms;
         this.layerConfig = layerConfig;
         this.filename = filename;
+        this.includeMnt = includeMnt; // ajoute le MNT (zoom MNT_ZOOM) dans ce même MBTiles
         this.status = 'pending';
         this.totalTiles = 0;
         this.processedTiles = 0;
@@ -344,9 +427,12 @@ class MbtilesJob {
         this.opfsDir = null;
 
         // Format de sortie des tuiles écrit dans les métadonnées MBTiles.
-        // - Multi-couches : composition obligatoire → ré-encodage (TILE_FORMAT).
-        // - Mono-couche : null = passthrough natif, détecté sur les octets reçus.
-        this.tileFormat = (layerConfig.layers.length > 1)
+        // - Multi-couches OU Yandex (reprojection toujours par canvas, même
+        //   mono-couche) : ré-encodage obligatoire (TILE_FORMAT).
+        // - Mono-couche sans Yandex : null = passthrough natif, détecté sur
+        //   les octets reçus.
+        const hasYandexLayer = layerConfig.layers.some(l => l.type === 'yandex');
+        this.tileFormat = (layerConfig.layers.length > 1 || hasYandexLayer)
             ? (TILE_FORMAT === 'image/jpeg' ? 'jpg' : 'png')
             : null;
 
@@ -363,6 +449,10 @@ class MbtilesJob {
             const range = getTileRange(this.bounds, z);
             count += (range.xMax - range.xMin + 1) * (Math.max(range.yMin, range.yMax) - Math.min(range.yMin, range.yMax) + 1);
         });
+        if (this.includeMnt) {
+            const range = getTileRange(this.bounds, MNT_ZOOM);
+            count += (range.xMax - range.xMin + 1) * (Math.max(range.yMin, range.yMax) - Math.min(range.yMin, range.yMax) + 1);
+        }
         return count;
     }
 
@@ -373,7 +463,19 @@ class MbtilesJob {
             const yEnd = Math.max(range.yMin, range.yMax);
             for (let x = range.xMin; x <= range.xMax; x++) {
                 for (let y = yStart; y <= yEnd; y++) {
-                    yield { x, y, z };
+                    yield { x, y, z, mnt: false };
+                }
+            }
+        }
+        // MNT en dernier : le premier tuile récupérée (utilisée pour détecter le
+        // format passthrough, cf. _fetchRawTile) reste une tuile de fond.
+        if (this.includeMnt) {
+            const range = getTileRange(this.bounds, MNT_ZOOM);
+            const yStart = Math.min(range.yMin, range.yMax);
+            const yEnd = Math.max(range.yMin, range.yMax);
+            for (let x = range.xMin; x <= range.xMax; x++) {
+                for (let y = yStart; y <= yEnd; y++) {
+                    yield { x, y, z: MNT_ZOOM, mnt: true };
                 }
             }
         }
@@ -464,6 +566,10 @@ class MbtilesJob {
         this.db.run("INSERT INTO metadata VALUES (?, ?)", ["bounds", boundsStr]);
         this.db.run("INSERT INTO metadata VALUES (?, ?)", ["type", "overlay"]);
         this.db.run("INSERT INTO metadata VALUES (?, ?)", ["version", "1.2"]);
+        // Convention lue par CadoTour (tileSource.js) : ce niveau de zoom contient
+        // le MNT (Terrarium) et non une tuile de fond — à exclure du rendu 2D et
+        // à utiliser comme source raster-dem pour la vue 3D.
+        if (this.includeMnt) this.db.run("INSERT INTO metadata VALUES (?, ?)", ["mnt_zoom", String(MNT_ZOOM)]);
     }
 
     async start() {
@@ -495,38 +601,95 @@ class MbtilesJob {
         }
     }
 
-    // Construit les URLs pour une tuile (toutes les couches)
-    _tileUrls(tile) {
-        return this.layerConfig.layers.map(layer => {
-            if (layer.type === 'quadkey') {
-                const q = coordsToQuadKey(tile.x, tile.y, tile.z);
-                return layer.url.replace('{q}', q).replace('{s}', (tile.x + tile.y) % 4);
-            } else if (layer.type === 'yandex') {
-                const n = Math.pow(2, tile.z);
-                const latN = Math.atan(Math.sinh(Math.PI * (1 - 2 * tile.y / n)));
-                const y3395 = Math.floor(n / 2 * (1 - _yMerc3395(latN) / Math.PI));
-                return layer.url.replace('{z}', tile.z).replace('{x}', tile.x).replace('{y}', y3395);
-            } else {
-                return layer.url.replace('{z}', tile.z).replace('{x}', tile.x).replace('{y}', tile.y);
-            }
-        });
+    // Construit l'URL d'une couche NON-Yandex pour une tuile (Yandex a besoin
+    // de 1-2 URLs + un découpage en bandes — cf. _yandexBands ci-dessous, pas
+    // d'une simple URL unique).
+    _layerUrl(layer, tile) {
+        if (layer.type === 'quadkey') {
+            const q = coordsToQuadKey(tile.x, tile.y, tile.z);
+            return layer.url.replace('{q}', q).replace('{s}', (tile.x + tile.y) % 4);
+        }
+        return layer.url.replace('{z}', tile.z).replace('{x}', tile.x).replace('{y}', tile.y);
+    }
+
+    // Bandes source EPSG:3395 nécessaires pour reprojeter EXACTEMENT une tuile
+    // EPSG:3857 (tile.z/x/y) — même calcul que L_YandexLayerCreator (tuile
+    // Leaflet), exprimé directement en coordonnées pixel source→destination
+    // pour un dessin sur canvas 256×256. Sans ce découpage (ancien code :
+    // 1 seule tuile 3395 "la plus proche" étirée sur toute la tuile 256×256),
+    // les tuiles Yandex stockées dans le .mbtiles étaient visiblement
+    // décalées/mal alignées entre rangées voisines — aucune correction
+    // n'existait à la génération (contrairement à l'affichage Leaflet, qui
+    // avait au moins le décalage CSS approché).
+    _yandexBands(layer, tile) {
+        const ts = 256, z = tile.z, n = Math.pow(2, z);
+        const py = (yTile) => n * ts / 2 * (1 - _yMerc3395(_lat3857(yTile, n)) / Math.PI);
+        const pyN = py(tile.y), pyS = py(tile.y + 1);
+        const H = pyS - pyN;
+        const ty0 = Math.max(0, Math.floor(pyN / ts));
+        const ty1 = Math.min(n - 1, Math.floor((pyS - 1e-9) / ts));
+        const bands = [];
+        for (let ty = ty0; ty <= ty1; ty++) {
+            const srcTop = Math.max(pyN, ty * ts), srcBot = Math.min(pyS, (ty + 1) * ts);
+            bands.push({
+                url: layer.url.replace('{z}', z).replace('{x}', tile.x).replace('{y}', ty),
+                sy: srcTop - ty * ts, sh: srcBot - srcTop,
+                dy: (srcTop - pyN) * ts / H, dh: (srcBot - srcTop) * ts / H,
+            });
+        }
+        return bands;
+    }
+
+    // Dessine une couche Yandex reprojetée sur le canvas de la tuile (1-2
+    // bandes assemblées au pixel près) → true si au moins une bande a pu être
+    // dessinée. Chargement des sources en parallèle, dessin nord→sud ensuite.
+    async _drawYandexLayer(canvas, ctx, layer, tile) {
+        const bands = this._yandexBands(layer, tile);
+        const imgs = await Promise.all(bands.map(b => new Promise(resolve => {
+            const img = new Image();
+            img.crossOrigin = 'anonymous';
+            img.onload = () => resolve(img);
+            img.onerror = () => resolve(null);
+            img.src = b.url;
+        })));
+        let drawn = 0;
+        for (let i = 0; i < bands.length; i++) {
+            const img = imgs[i];
+            if (!img) continue;
+            const b = bands[i];
+            // +1 px de recouvrement (sauf dernière bande) : supprime le liseré
+            // d'anticrénelage aux frontières fractionnaires (la bande suivante,
+            // opaque, repeint par-dessus).
+            const over = (i < bands.length - 1) ? 1 : 0;
+            try { ctx.drawImage(img, 0, b.sy, img.width, b.sh, 0, b.dy, 256, b.dh + over); drawn++; }
+            catch { /* image cassée → bande ignorée, les autres continuent */ }
+        }
+        return drawn > 0;
     }
 
     // Récupère une tuile → retourne le blob à stocker (ou null si vide/échec).
     async _processTile(tile) {
-        const urls = this._tileUrls(tile);
-
-        // --- Cas mono-couche : passthrough natif (AUCUNE recompression) ---
-        // On stocke l'octet pour octet ce que renvoie le serveur, dans son
-        // format d'origine (JPEG/PNG/WebP). Évite la perte de génération
-        // d'un re-encodage canvas.toBlob() d'un JPEG en JPEG.
-        if (urls.length === 1) {
-            return this._fetchRawTile(urls[0]);
+        // Tuile MNT (zoom réservé) : toujours mono-source, passthrough — jamais
+        // composée avec le fond, même si celui-ci est multi-couches ou Yandex.
+        if (tile.mnt) {
+            return this._fetchRawTile(MNT_TILE_URL.replace('{z}', tile.z).replace('{x}', tile.x).replace('{y}', tile.y));
         }
 
-        // --- Cas multi-couches : composition obligatoire sur canvas ---
-        // La fusion de plusieurs images impose un ré-encodage : il n'existe
-        // pas de "format natif" pour une tuile composite.
+        const hasYandex = this.layerConfig.layers.some(l => l.type === 'yandex');
+
+        // --- Cas mono-couche SANS Yandex : passthrough natif (AUCUNE recompression) ---
+        // On stocke l'octet pour octet ce que renvoie le serveur, dans son
+        // format d'origine (JPEG/PNG/WebP). Évite la perte de génération
+        // d'un re-encodage canvas.toBlob() d'un JPEG en JPEG. Une couche Yandex
+        // DOIT toujours passer par le canvas : sa reprojection (1-2 bandes
+        // source) ne peut jamais être un simple octet-pour-octet.
+        if (this.layerConfig.layers.length === 1 && !hasYandex) {
+            return this._fetchRawTile(this._layerUrl(this.layerConfig.layers[0], tile));
+        }
+
+        // --- Cas multi-couches ou reprojection Yandex : composition sur canvas ---
+        // La fusion de plusieurs images (ou la reprojection Yandex) impose un
+        // ré-encodage : il n'existe pas de "format natif" pour une tuile composite.
         const canvas = document.createElement('canvas');
         canvas.width = 256; canvas.height = 256;
         const ctx = canvas.getContext('2d');
@@ -537,8 +700,10 @@ class MbtilesJob {
             ctx.fillRect(0, 0, 256, 256);
         }
         let hasContent = false;
-        for (const url of urls) {
-            const ok = await this.fetchAndDrawLayer(url, canvas, ctx);
+        for (const layer of this.layerConfig.layers) {
+            const ok = layer.type === 'yandex'
+                ? await this._drawYandexLayer(canvas, ctx, layer, tile)
+                : await this.fetchAndDrawLayer(this._layerUrl(layer, tile), canvas, ctx);
             if (ok) hasContent = true;
         }
         if (!hasContent) return null;
@@ -789,8 +954,9 @@ function startMbtilesJob() {
     const layerConfig = MAP_LAYERS.find(l => l.id === layerId);
     let filename = document.getElementById('creator-filename').value.trim();
     if (!filename) filename = `Carte_Offline_${Date.now()}`;
+    const includeMnt = document.getElementById('creator-include-mnt')?.checked || false;
 
-    const job = new MbtilesJob(jobIdCounter++, currentCreatorBounds, zooms, layerConfig, filename);
+    const job = new MbtilesJob(jobIdCounter++, currentCreatorBounds, zooms, layerConfig, filename, includeMnt);
     activeJobs.push(job);
     job.start();
 }
