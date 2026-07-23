@@ -1,9 +1,16 @@
 // version.js
 
 // Source unique de vérité pour la version de l'application.
-const APP_VERSION = '23.3';
+const APP_VERSION = '23.4';
 
 const CHANGELOG = [
+  {
+    version: '23.4',
+    date: '2026-07-23',
+    changes: [
+      'Menu clic-droit sur la carte : nouvelle option « Voir sur Look Around (Apple) » (via lookmap.skzk.dev), en plus de Street View et DualMaps',
+    ],
+  },
   {
     version: '23.3',
     date: '2026-07-23',
