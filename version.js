@@ -1,9 +1,16 @@
 // version.js
 
 // Source unique de vérité pour la version de l'application.
-const APP_VERSION = '23.4';
+const APP_VERSION = '23.5';
 
 const CHANGELOG = [
+  {
+    version: '23.5',
+    date: '2026-07-23',
+    changes: [
+      'DualMaps mis à jour vers la v9 (data.mapchannels.com/dualmaps9), la v8 utilisée jusque-là étant obsolète — paramètres d\'URL inchangés (vérifiés compatibles)',
+    ],
+  },
   {
     version: '23.4',
     date: '2026-07-23',

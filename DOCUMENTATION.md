@@ -511,7 +511,8 @@ Format compatible QGIS/Google Earth Pro : une colonne `WKT` + colonnes label/typ
 
 Ajouté récemment dans `index.html`. Clic droit sur la carte → menu contextuel :
 - **Voir le Street View ici** : modal 360° via Google Maps JS API (si `GOOGLE_MAPS_API_KEY` présente) ou fallback iframe `output=svembed`
-- **Voir sur DualMaps** : iframe vers `data.mapchannels.com/dualmaps8/`
+- **Voir sur DualMaps** : iframe vers `data.mapchannels.com/dualmaps9/` (v9 depuis v23.5 — mêmes paramètres d'URL que v8, vérifié compatible)
+- **Voir sur Look Around (Apple)** : nouvel onglet vers `lookmap.skzk.dev` (site tiers non officiel, pas d'embed iframe fiable)
 
 ### 9.1 Architecture
 

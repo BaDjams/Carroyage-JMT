@@ -933,7 +933,8 @@ em { font-style: italic; }
 <h2 id="9-street-view-dualmaps">9. Street View &amp; DualMaps</h2>
 <p>Ajouté récemment dans <code>index.html</code>. Clic droit sur la carte → menu contextuel :
 - <strong>Voir le Street View ici</strong> : modal 360° via Google Maps JS API (si <code>GOOGLE_MAPS_API_KEY</code> présente) ou fallback iframe <code>output=svembed</code>
-- <strong>Voir sur DualMaps</strong> : iframe vers <code>data.mapchannels.com/dualmaps8/</code></p>
+- <strong>Voir sur DualMaps</strong> : iframe vers <code>data.mapchannels.com/dualmaps9/</code> (v9 depuis v23.5 — mêmes paramètres d'URL que v8, vérifié compatible)
+- <strong>Voir sur Look Around (Apple)</strong> : nouvel onglet vers <code>lookmap.skzk.dev</code> (site tiers non officiel, pas d'embed iframe fiable)</p>
 <h3 id="91-architecture">9.1 Architecture</h3>
 <ul>
 <li><strong>Backdrop</strong> + <strong>modal</strong> en z-index 10001/10002 (inline <code>style="z-index:..."</code>, <strong>pas</strong> Tailwind <code>z-[...]</code> qui ne fonctionne pas en précompilé)</li>
