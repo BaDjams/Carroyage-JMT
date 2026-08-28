@@ -87,6 +87,24 @@ def analyze(path: str) -> dict:
         if not color_sample and f == "PNG":
             color_sample = png_color_info(blob)
 
+    # Relief (MNT). V2 : table `terrain_tiles` + métadonnées mnt_storage /
+    # mnt_minzoom / mnt_maxzoom. V1 : un seul niveau de `tiles`, annoncé par
+    # mnt_zoom — sans table dédiée.
+    meta = dict(cur.execute("SELECT name, value FROM metadata").fetchall())
+    if "terrain_tiles" in names:
+        mnt_rows, mnt_bytes = cur.execute(
+            "SELECT count(*), coalesce(sum(length(tile_data)),0) FROM terrain_tiles"
+        ).fetchone()
+        mnt_zooms = cur.execute(
+            "SELECT zoom_level, count(*) FROM terrain_tiles "
+            "GROUP BY zoom_level ORDER BY zoom_level"
+        ).fetchall()
+        mnt = {"format": "V2", "rows": mnt_rows, "bytes": mnt_bytes, "per_zoom": mnt_zooms}
+    elif "mnt_zoom" in meta:
+        mnt = {"format": "V1", "zoom": meta["mnt_zoom"]}
+    else:
+        mnt = None
+
     # Tuiles "vides" = doublons exacts les plus fréquents
     top_dups = cur.execute(
         "SELECT length(tile_data) AS L, count(*) AS C FROM tiles "
@@ -105,6 +123,7 @@ def analyze(path: str) -> dict:
         "color_sample": color_sample,
         "per_zoom": per_zoom,
         "top_dup": top_dups,
+        "mnt": mnt,
     }
 
 
@@ -136,6 +155,16 @@ def report(r: dict) -> None:
     if r["top_dup"]:
         L, C = r["top_dup"]
         print(f"  Tuile la + répétée    : {C} occurrences ({L} o chacune)")
+    mnt = r["mnt"]
+    if mnt is None:
+        print("  Relief 3D (MNT)       : absent")
+    elif mnt["format"] == "V1":
+        print(f"  Relief 3D (MNT)       : V1 — un seul niveau (z{mnt['zoom']}) dans `tiles`")
+    else:
+        niveaux = ", ".join(f"z{z}:{c}" for z, c in mnt["per_zoom"])
+        print(f"  Relief 3D (MNT)       : V2 — {mnt['rows']} tuiles dans `terrain_tiles`"
+              f" ({human(mnt['bytes'])})")
+        print(f"    par niveau          : {niveaux}")
     print("  Par niveau de zoom (z, nb, moy, min, max) :")
     for z, c, a, mn, mx in r["per_zoom"]:
         print(f"    z{z:>2} : {c:>7} tuiles | moy {human(a or 0):>9} "

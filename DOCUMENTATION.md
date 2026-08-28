@@ -280,11 +280,18 @@ Interface Mode 3 (carte Leaflet + contrôles + barre de progression).
 - `checkOPFS()` — détecte le support du stockage privé navigateur
 - `seedTiles(selectedBbox, selectedZoom)` — orchestre via `seedManager.js`
 - Case « Inclure le relief 3D hors-ligne (MNT) » : ajoute les tuiles PNG Terrarium/AWS
-  du MNT (passthrough sans recompression) au niveau de zoom 12 dans le MÊME
-  MBTiles que le fond de carte. Ce niveau est alors réservé (zooms 0-12 grisés
-  pour le fond, qui démarre au zoom 13) — une métadonnée `mnt_zoom` signale la
-  convention aux lecteurs qui la connaissent (ex. CadoTour, source `raster-dem`
-  en vue 3D, tuiles de fond ignorées à ce niveau en vue 2D).
+  du MNT (passthrough sans recompression) dans le MÊME fichier que le fond de carte,
+  mais dans une table SÉPARÉE `terrain_tiles` (même structure `zoom_level`,
+  `tile_column`, `tile_row`, `tile_data`, même index unique), avec toute la pyramide
+  du niveau 0 au niveau 12. Aucun niveau de zoom n'est donc réservé : le fond garde
+  tous les siens, y compris le 12, une même clé z/x/y pouvant exister dans les deux
+  tables sans collision. Métadonnées écrites : `mnt_storage=terrain_tiles`,
+  `mnt_minzoom=0`, `mnt_maxzoom=12`, `mnt_encoding=terrarium` — lues par CadoTour,
+  qui en fait sa source `raster-dem` en vue 3D.
+  L'ancien format (`mnt_zoom=12`, MNT rangé dans `tiles` à la place du fond) n'est
+  plus écrit, mais reste lu par CadoTour ; il n'est délibérément plus annoncé pour
+  qu'une version ancienne ne prenne pas une tuile de fond du niveau 12 pour une
+  carte d'altitude.
 
 **Spécifique** : gestion projection EPSG:3395 pour Yandex (correction nécessaire), gestion QuadKey pour Bing.
 

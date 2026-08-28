@@ -1,9 +1,19 @@
 // version.js
 
 // Source unique de vérité pour la version de l'application.
-const APP_VERSION = '23.5';
+const APP_VERSION = '23.6';
 
 const CHANGELOG = [
+  {
+    version: '23.6',
+    date: '2026-08-28',
+    changes: [
+      'Relief 3D hors-ligne (MNT) : le fichier .mbtiles contient désormais une pyramide d\'altitude COMPLÈTE du niveau 0 au niveau 12, rangée dans une table séparée (`terrain_tiles`) au lieu d\'un seul niveau pris dans les tuiles du fond',
+      'Conséquence directe : cocher « Inclure le relief 3D hors-ligne » ne réserve plus AUCUN niveau de zoom. Les niveaux 0 à 12 redeviennent sélectionnables pour le fond de carte, et le zoom 12 peut contenir à la fois du fond et du relief',
+      'Conséquence dans CadoTour : la vue 3D garde du relief en dézoomant et sur les tuiles lointaines, qui s\'aplatissaient jusqu\'ici faute de données d\'altitude aux niveaux inférieurs',
+      'Les fichiers déjà produits (ancien format, métadonnée `mnt_zoom`) restent lus tels quels par CadoTour. Le nouveau format ne l\'écrit plus : une version ancienne de CadoTour annoncera simplement le relief indisponible, plutôt que de prendre une tuile de fond pour une carte d\'altitude',
+    ],
+  },
   {
     version: '23.5',
     date: '2026-07-23',
