@@ -28,22 +28,40 @@ const TILE_QUALITY = 0.92;            // 0..1, ignoré si TILE_FORMAT === 'image
 const TILE_BG      = '#ffffff';       // fond pour les zones transparentes (JPEG only)
 
 // Relief 3D hors-ligne (MNT) — source mondiale "Terrarium" (Mapzen/AWS Open Data
-// Terrain Tiles), la même que celle utilisée en ligne par la vue 3D de CadoTour
-// (map3d.js : DEM_URL / DEM_MAXZOOM = 12 — la donnée source est ~30 m (SRTM),
-// au-delà MapLibre sur-échantillonne lui-même le dernier niveau natif).
+// Terrain Tiles), la même que celle utilisée en ligne par la vue 3D de CadoTour.
 //
-// Le MNT est écrit dans le MÊME MBTiles que le fond de carte, sur le seul
-// niveau de zoom 12, réservé à cet usage : quand l'option est cochée, les
-// niveaux 0-12 sont interdits pour le fond (grisés dans le sélecteur) — le
-// fond est alors téléchargé à partir du zoom 13. Le zoom 12 ne collisionne
-// donc jamais avec une vraie tuile de fond dans la table `tiles` (même clé
-// zoom/x/y). Une métadonnée `mnt_zoom` signale la convention aux lecteurs qui
-// la connaissent (CadoTour) pour qu'ils excluent ce niveau du rendu 2D et
-// l'utilisent comme source `raster-dem` pour la vue 3D.
-// Toujours en passthrough (pas de recompression) : l'encodage RVB de
-// l'altitude ne doit jamais être altéré.
+// FORMAT V2 :
+// - le fond reste un MBTiles standard, dans la table `tiles`, à TOUS les zooms
+//   choisis par l'utilisateur — y compris le zoom 12 et les niveaux inférieurs ;
+// - le relief part dans une table `terrain_tiles` à part, de même structure
+//   z/x/y/data, pour que fond et MNT puissent coexister au même niveau ;
+// - la pyramide MNT 0..12 est téléchargée telle quelle depuis Terrarium.
+//
+// L'ancien format (V1) rangeait le MNT DANS `tiles`, au seul niveau 12, à la
+// place du fond : les niveaux 0-12 devaient donc être interdits au fond pour
+// qu'aucune clé zoom/x/y n'entre en collision. Deux tables distinctes lèvent
+// cette contrainte.
+//
+// Terrarium publie déjà tous ces niveaux : aucun rééchantillonnage n'est fait
+// dans le navigateur. Le niveau 12 reste le maximum utile (donnée source ~30 m,
+// SRTM) ; au-delà, MapLibre sur-échantillonne lui-même le niveau 12.
+//
+// Métadonnées V2 :
+//   mnt_storage = terrain_tiles
+//   mnt_minzoom = 0
+//   mnt_maxzoom = 12
+//   mnt_encoding = terrarium
+//
+// IMPORTANT : ne PAS écrire `mnt_zoom` dans les nouveaux fichiers. Cette clé
+// décrit le format V1 ; une ancienne version de CadoTour qui la lirait sur un
+// fichier V2 prendrait une tuile de FOND du niveau 12 pour une carte d'altitude.
+// Sans elle, elle se contente d'annoncer le relief indisponible.
+//
+// Le MNT est toujours téléchargé en passthrough (pas de recompression) :
+// l'encodage RVB de l'altitude ne doit jamais être altéré.
 const MNT_TILE_URL = 'https://elevation-tiles-prod.s3.amazonaws.com/terrarium/{z}/{x}/{y}.png';
-const MNT_ZOOM = 12; // seul niveau réservé au MNT — les niveaux < 13 sont interdits pour le fond
+const MNT_MIN_ZOOM = 0;
+const MNT_MAX_ZOOM = 12;
 
 // Détection OPFS (Origin Private File System) — pas besoin de SharedArrayBuffer
 let _opfsAvailable = null;
@@ -253,7 +271,9 @@ function initCreatorMode() {
     document.getElementById('creator-start-btn').addEventListener('click', startMbtilesJob);
     document.getElementById('creator-select-all-zooms').addEventListener('click', () => toggleZooms(true));
     document.getElementById('creator-select-none-zooms').addEventListener('click', () => toggleZooms(false));
-    document.getElementById('creator-include-mnt')?.addEventListener('change', applyMntZoomLock);
+    // La case ne verrouille plus aucun niveau de fond (cf. FORMAT V2 en tête de
+    // fichier) : elle ne change que le compte de tuiles à télécharger.
+    document.getElementById('creator-include-mnt')?.addEventListener('change', updateCreatorUI);
 }
 
 window.initCreatorMode = initCreatorMode;
@@ -288,7 +308,6 @@ function generateZoomCheckboxes(maxZoom) {
         div.textContent = `Z${z}`;
         div.dataset.zoom = z;
         div.onclick = function() {
-            if (this.classList.contains('mnt-locked')) return;
             this.classList.toggle('checked');
             updateCreatorUI();
         };
@@ -302,33 +321,13 @@ function generateZoomCheckboxes(maxZoom) {
             }
         }
     }
-    applyMntZoomLock();
+    updateCreatorUI();
 }
 
 function toggleZooms(state) {
     document.querySelectorAll('.zoom-checkbox-label').forEach(el => {
-        if (el.classList.contains('mnt-locked')) { el.classList.remove('checked'); return; }
         if(state) el.classList.add('checked');
         else el.classList.remove('checked');
-    });
-    updateCreatorUI();
-}
-
-// Case "Inclure le relief 3D hors-ligne" cochée : les niveaux 0-12 (réservés
-// au MNT, cf. MNT_ZOOM) sont interdits pour le fond de carte — le zoom 12 ne
-// doit jamais contenir de tuile de fond dans le MBTiles final. Ré-appliqué à
-// chaque régénération de la grille (changement de fond de carte) et à chaque
-// bascule de la case.
-function applyMntZoomLock() {
-    const locked = document.getElementById('creator-include-mnt')?.checked;
-    document.querySelectorAll('.zoom-checkbox-label').forEach(el => {
-        const z = parseInt(el.dataset.zoom, 10);
-        if (locked && z <= MNT_ZOOM) {
-            el.classList.remove('checked');
-            el.classList.add('mnt-locked');
-        } else {
-            el.classList.remove('mnt-locked');
-        }
     });
     updateCreatorUI();
 }
@@ -368,8 +367,11 @@ function updateCreatorUI() {
     });
 
     if (document.getElementById('creator-include-mnt')?.checked) {
-        const mntTiles = getTileRange(currentCreatorBounds, MNT_ZOOM);
-        totalTiles += (mntTiles.xMax - mntTiles.xMin + 1) * (mntTiles.yMax - mntTiles.yMin + 1);
+        for (let z = MNT_MIN_ZOOM; z <= MNT_MAX_ZOOM; z++) {
+            const mntTiles = getTileRange(currentCreatorBounds, z);
+            totalTiles += (mntTiles.xMax - mntTiles.xMin + 1)
+                * (Math.max(mntTiles.yMin, mntTiles.yMax) - Math.min(mntTiles.yMin, mntTiles.yMax) + 1);
+        }
     }
 
     infoTiles.textContent = totalTiles.toLocaleString() + " tuiles";
@@ -417,7 +419,7 @@ class MbtilesJob {
         this.zooms = zooms;
         this.layerConfig = layerConfig;
         this.filename = filename;
-        this.includeMnt = includeMnt; // ajoute le MNT (zoom MNT_ZOOM) dans ce même MBTiles
+        this.includeMnt = includeMnt; // ajoute terrain_tiles z0..z12 dans ce même fichier
         this.status = 'pending';
         this.totalTiles = 0;
         this.processedTiles = 0;
@@ -450,8 +452,11 @@ class MbtilesJob {
             count += (range.xMax - range.xMin + 1) * (Math.max(range.yMin, range.yMax) - Math.min(range.yMin, range.yMax) + 1);
         });
         if (this.includeMnt) {
-            const range = getTileRange(this.bounds, MNT_ZOOM);
-            count += (range.xMax - range.xMin + 1) * (Math.max(range.yMin, range.yMax) - Math.min(range.yMin, range.yMax) + 1);
+            for (let z = MNT_MIN_ZOOM; z <= MNT_MAX_ZOOM; z++) {
+                const range = getTileRange(this.bounds, z);
+                count += (range.xMax - range.xMin + 1)
+                    * (Math.max(range.yMin, range.yMax) - Math.min(range.yMin, range.yMax) + 1);
+            }
         }
         return count;
     }
@@ -467,15 +472,17 @@ class MbtilesJob {
                 }
             }
         }
-        // MNT en dernier : le premier tuile récupérée (utilisée pour détecter le
-        // format passthrough, cf. _fetchRawTile) reste une tuile de fond.
+        // MNT en dernier : la première tuile récupérée (celle qui sert à détecter
+        // le format passthrough, cf. _fetchRawTile) reste une tuile de fond.
         if (this.includeMnt) {
-            const range = getTileRange(this.bounds, MNT_ZOOM);
-            const yStart = Math.min(range.yMin, range.yMax);
-            const yEnd = Math.max(range.yMin, range.yMax);
-            for (let x = range.xMin; x <= range.xMax; x++) {
-                for (let y = yStart; y <= yEnd; y++) {
-                    yield { x, y, z: MNT_ZOOM, mnt: true };
+            for (let z = MNT_MIN_ZOOM; z <= MNT_MAX_ZOOM; z++) {
+                const range = getTileRange(this.bounds, z);
+                const yStart = Math.min(range.yMin, range.yMax);
+                const yEnd = Math.max(range.yMin, range.yMax);
+                for (let x = range.xMin; x <= range.xMax; x++) {
+                    for (let y = yStart; y <= yEnd; y++) {
+                        yield { x, y, z, mnt: true };
+                    }
                 }
             }
         }
@@ -559,6 +566,10 @@ class MbtilesJob {
         this.db.run("CREATE TABLE metadata (name text, value text);");
         this.db.run("CREATE TABLE tiles (zoom_level integer, tile_column integer, tile_row integer, tile_data blob);");
         this.db.run("CREATE UNIQUE INDEX tile_index on tiles (zoom_level, tile_column, tile_row);");
+        if (this.includeMnt) {
+            this.db.run("CREATE TABLE terrain_tiles (zoom_level integer, tile_column integer, tile_row integer, tile_data blob);");
+            this.db.run("CREATE UNIQUE INDEX terrain_tile_index on terrain_tiles (zoom_level, tile_column, tile_row);");
+        }
         const boundsStr = `${this.bounds.getWest()},${this.bounds.getSouth()},${this.bounds.getEast()},${this.bounds.getNorth()}`;
         this.db.run("INSERT INTO metadata VALUES (?, ?)", ["name", this.filename]);
         // Le 'format' est inséré juste avant le COMMIT (cf. _insertFormatMetadata),
@@ -566,10 +577,15 @@ class MbtilesJob {
         this.db.run("INSERT INTO metadata VALUES (?, ?)", ["bounds", boundsStr]);
         this.db.run("INSERT INTO metadata VALUES (?, ?)", ["type", "overlay"]);
         this.db.run("INSERT INTO metadata VALUES (?, ?)", ["version", "1.2"]);
-        // Convention lue par CadoTour (tileSource.js) : ce niveau de zoom contient
-        // le MNT (Terrarium) et non une tuile de fond — à exclure du rendu 2D et
-        // à utiliser comme source raster-dem pour la vue 3D.
-        if (this.includeMnt) this.db.run("INSERT INTO metadata VALUES (?, ?)", ["mnt_zoom", String(MNT_ZOOM)]);
+        // Convention lue par CadoTour (tileSource.js) : le relief vit dans
+        // `terrain_tiles`, sur la plage annoncée ici, et sert de source
+        // raster-dem à la vue 3D. Pas de `mnt_zoom` : cf. l'entête du fichier.
+        if (this.includeMnt) {
+            this.db.run("INSERT INTO metadata VALUES (?, ?)", ["mnt_storage", "terrain_tiles"]);
+            this.db.run("INSERT INTO metadata VALUES (?, ?)", ["mnt_minzoom", String(MNT_MIN_ZOOM)]);
+            this.db.run("INSERT INTO metadata VALUES (?, ?)", ["mnt_maxzoom", String(MNT_MAX_ZOOM)]);
+            this.db.run("INSERT INTO metadata VALUES (?, ?)", ["mnt_encoding", "terrarium"]);
+        }
     }
 
     async start() {
@@ -669,10 +685,13 @@ class MbtilesJob {
 
     // Récupère une tuile → retourne le blob à stocker (ou null si vide/échec).
     async _processTile(tile) {
-        // Tuile MNT (zoom réservé) : toujours mono-source, passthrough — jamais
-        // composée avec le fond, même si celui-ci est multi-couches ou Yandex.
+        // Tuile MNT : toujours mono-source, passthrough — jamais composée avec le
+        // fond, même si celui-ci est multi-couches ou Yandex.
         if (tile.mnt) {
-            return this._fetchRawTile(MNT_TILE_URL.replace('{z}', tile.z).replace('{x}', tile.x).replace('{y}', tile.y));
+            return this._fetchRawTile(
+                MNT_TILE_URL.replace('{z}', tile.z).replace('{x}', tile.x).replace('{y}', tile.y),
+                false
+            );
         }
 
         const hasYandex = this.layerConfig.layers.some(l => l.type === 'yandex');
@@ -712,7 +731,7 @@ class MbtilesJob {
 
     // Télécharge une tuile et renvoie le blob brut, sans la décoder ni la
     // ré-encoder. Détecte le format réel (une fois par job) pour les métadonnées.
-    async _fetchRawTile(url) {
+    async _fetchRawTile(url, detectBaseFormat = true) {
         try {
             const res = await fetch(url, { mode: 'cors', credentials: 'omit' });
             if (!res.ok) return null;
@@ -722,7 +741,10 @@ class MbtilesJob {
             const sniffed = this._sniffFormat(head);
             // Rejette les réponses non-image (erreurs XML/HTML renvoyées en HTTP 200)
             if (!sniffed && !(blob.type || '').startsWith('image/')) return null;
-            if (this.tileFormat === null) this.tileFormat = sniffed || 'jpg';
+            // La métadonnée `format` d'un MBTiles ne décrit que la table `tiles`.
+            // Les tuiles Terrarium de `terrain_tiles` sont toujours du PNG et ne
+            // doivent pas l'influencer.
+            if (detectBaseFormat && this.tileFormat === null) this.tileFormat = sniffed || 'jpg';
             return blob;
         } catch {
             return null;
@@ -751,13 +773,17 @@ class MbtilesJob {
         const writeTile = async (tile, blob) => {
             const tmsY = (1 << tile.z) - 1 - tile.y;
             if (this.useOPFS) {
-                const fh = await this.opfsDir.getFileHandle(`${tile.z}_${tile.x}_${tmsY}`, { create: true });
+                // Préfixe obligatoire : fond et MNT peuvent désormais porter la
+                // même clé z/x/y, il leur faut deux noms de fichier distincts.
+                const kind = tile.mnt ? 'm' : 'b';
+                const fh = await this.opfsDir.getFileHandle(`${kind}_${tile.z}_${tile.x}_${tmsY}`, { create: true });
                 const w = await fh.createWritable();
                 await w.write(blob);
                 await w.close();
             } else {
                 const u8 = new Uint8Array(await blob.arrayBuffer());
-                this.db.run("INSERT INTO tiles VALUES (?, ?, ?, ?)", [tile.z, tile.x, tmsY, u8]);
+                const table = tile.mnt ? 'terrain_tiles' : 'tiles';
+                this.db.run(`INSERT INTO ${table} VALUES (?, ?, ?, ?)`, [tile.z, tile.x, tmsY, u8]);
             }
         };
 
@@ -821,10 +847,15 @@ class MbtilesJob {
         for await (const [name, handle] of this.opfsDir.entries()) {
             if (handle.kind !== 'file') continue;
             const parts = name.split('_');
-            const z = parseInt(parts[0]), x = parseInt(parts[1]), tmsY = parseInt(parts[2]);
+            // b_z_x_tmsY = fond ; m_z_x_tmsY = relief. Aucun nom de l'ancien
+            // format n'est attendu ici : le dossier OPFS est recréé au début de
+            // chaque job.
+            const kind = parts[0];
+            const z = parseInt(parts[1]), x = parseInt(parts[2]), tmsY = parseInt(parts[3]);
             const file = await handle.getFile();
             const u8 = new Uint8Array(await file.arrayBuffer());
-            this.db.run("INSERT INTO tiles VALUES (?, ?, ?, ?)", [z, x, tmsY, u8]);
+            const table = kind === 'm' ? 'terrain_tiles' : 'tiles';
+            this.db.run(`INSERT INTO ${table} VALUES (?, ?, ?, ?)`, [z, x, tmsY, u8]);
             count++;
             if (count % 100 === 0) await new Promise(r => setTimeout(r, 0));
         }
