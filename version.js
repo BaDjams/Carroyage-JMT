@@ -11,6 +11,12 @@ const CHANGELOG = [
       'Coordonnées : nouveau champ « Coordonnées MGRS » (options avancées) — conversion dans les deux sens avec tous les autres formats, précision de 1 m à 100 km selon le nombre de chiffres saisis (formats « 31U DQ 48251 11942 » et « 31UDQ4825111942 » acceptés)',
       'Export de zone : nouveau carroyage « Grille MGRS (1km) » — même quadrillage que la grille UTM mais désigné à la militaire (lignes numérotées sur 2 chiffres, désignateur du carré de 100 km au centre), disponible en image, KML/KMZ et MBTiles',
       'Correction UTM : la bande de latitude N (0° à 8° N) était traitée comme l\'hémisphère sud lors de la conversion UTM → WGS84, ce qui décalait de 10 000 km les conversions et les grilles proches de l\'équateur',
+    date: '2026-08-28',
+    changes: [
+      'Relief 3D hors-ligne (MNT) : le fichier .mbtiles contient désormais une pyramide d\'altitude COMPLÈTE du niveau 0 au niveau 12, rangée dans une table séparée (`terrain_tiles`) au lieu d\'un seul niveau pris dans les tuiles du fond',
+      'Conséquence directe : cocher « Inclure le relief 3D hors-ligne » ne réserve plus AUCUN niveau de zoom. Les niveaux 0 à 12 redeviennent sélectionnables pour le fond de carte, et le zoom 12 peut contenir à la fois du fond et du relief',
+      'Conséquence dans CadoTour : la vue 3D garde du relief en dézoomant et sur les tuiles lointaines, qui s\'aplatissaient jusqu\'ici faute de données d\'altitude aux niveaux inférieurs',
+      'Les fichiers déjà produits (ancien format, métadonnée `mnt_zoom`) restent lus tels quels par CadoTour. Le nouveau format ne l\'écrit plus : une version ancienne de CadoTour annoncera simplement le relief indisponible, plutôt que de prendre une tuile de fond pour une carte d\'altitude',
     ],
   },
   {
