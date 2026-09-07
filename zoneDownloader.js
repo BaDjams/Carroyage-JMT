@@ -567,7 +567,10 @@ async function generateZonePNG() {
     const gridChoiceEl = document.querySelector('input[name="zone-grid-choice"]:checked');
     const gridChoice = gridChoiceEl ? gridChoiceEl.value : 'none';
 
-    const useUtm = (gridChoice === 'utm');
+    // MGRS et UTM partagent la même géométrie de grille (mailles 1 km) : useUtm couvre
+    // les deux, gridMode distingue seulement l'étiquetage (numéros de zone vs carrés 100 km).
+    const gridMode = (gridChoice === 'mgrs') ? 'mgrs' : 'utm';
+    const useUtm = (gridChoice === 'utm' || gridChoice === 'mgrs');
     const useCfsi = (gridChoice === 'cfsi');
     const useCado = (gridChoice === 'cado');
 
@@ -640,7 +643,7 @@ async function generateZonePNG() {
 
         loadingMessage.textContent = "Téléchargement et assemblage des fonds de carte...";
         
-        // CORRECTION : Seul le mode UTM nécessite une marge blanche externe pour les labels
+        // CORRECTION : Seuls les modes UTM/MGRS nécessitent une marge blanche externe pour les labels
         const needsExternalMargin = useUtm;
         
         // 1. Fond de Carte (Tuiles) - Z-INDEX 1
@@ -664,9 +667,9 @@ async function generateZonePNG() {
         // 2. DESSIN DES GRILLES - Z-INDEX 2
         
         if (useUtm) {
-            loadingMessage.textContent = "Dessin de la grille UTM...";
+            loadingMessage.textContent = `Dessin de la grille ${gridMode.toUpperCase()}...`;
             const cartoucheFontSize = Math.max(10 * scaleFactor, Math.min(48 * scaleFactor, finalCanvas.width * 0.007));
-            await drawUtmGridOnCanvas(ctx, finalBoundingBox, latLonToCanvasPixels, dynamicMargin, cartoucheFontSize, baseThickness * scaleFactor);
+            await drawUtmGridOnCanvas(ctx, finalBoundingBox, latLonToCanvasPixels, dynamicMargin, cartoucheFontSize, baseThickness * scaleFactor, gridMode);
         }
 
         if (useCfsi) {
@@ -765,7 +768,7 @@ async function generateZonePNG() {
 
         let gridTypeStr = "Map";
         if (useCado) gridTypeStr += "_CADO";
-        if (useUtm) gridTypeStr += "_UTM";
+        if (useUtm) gridTypeStr += (gridMode === 'mgrs') ? "_MGRS" : "_UTM";
         if (useCfsi) gridTypeStr += "_CFSI";
 
         let rawTitle = document.getElementById("zone-title").value || "Export";
@@ -854,7 +857,9 @@ async function handleZoneVectorExport() {
     const gridChoiceEl = document.querySelector('input[name="zone-grid-choice"]:checked');
     const gridChoice = gridChoiceEl ? gridChoiceEl.value : 'none';
 
-    const useUtm = (gridChoice === 'utm');
+    // Cf. generateZonePNG : la grille MGRS est la grille UTM avec une autre désignation.
+    const gridMode = (gridChoice === 'mgrs') ? 'mgrs' : 'utm';
+    const useUtm = (gridChoice === 'utm' || gridChoice === 'mgrs');
     const useCfsi = (gridChoice === 'cfsi');
     const useCado = (gridChoice === 'cado');
     
@@ -884,7 +889,7 @@ async function handleZoneVectorExport() {
     try {
         // --- CAS SPECIAL : EXPORT DJI MBTILES (RASTER TRANSPARENT) ---
         if (format === 'MBTILES') {
-            await generateZoneMBTiles(filenameBase, useUtm, useCfsi, useCado);
+            await generateZoneMBTiles(filenameBase, useUtm, useCfsi, useCado, gridMode);
             return; // STOP ICI
         }
 
@@ -904,7 +909,7 @@ async function handleZoneVectorExport() {
 
         // 1. GENERATION DES DOSSIERS KML
         if (useUtm) {
-            kmlFolders += await generateUtmKmlFolder();
+            kmlFolders += await generateUtmKmlFolder(gridMode);
         }
         if (useCfsi) {
             kmlFolders += await generateCfsiKmlFolder();
@@ -1018,7 +1023,7 @@ async function generateZoneDEM(filenameBase) {
 }
 
 // --- NOUVELLE FONCTION : GENERATE ZONE MBTILES (OVERLAY TRANSPARENT) ---
-async function generateZoneMBTiles(filename, useUtm, useCfsi, useCado) {
+async function generateZoneMBTiles(filename, useUtm, useCfsi, useCado, gridMode = 'utm') {
     await ensureMbtilesOverlayModule();
     if (typeof window.initSqlJs !== 'function') {
         throw new Error("La librairie SQL.js n'est pas chargée.");
@@ -1077,7 +1082,9 @@ async function generateZoneMBTiles(filename, useUtm, useCfsi, useCado) {
         useCado, 
         boundingBox, 
         zoom, 
-        window.userPOIs
+        window.userPOIs,
+        null,
+        gridMode
     );
 
     // 3. Téléchargement
@@ -1086,7 +1093,7 @@ async function generateZoneMBTiles(filename, useUtm, useCfsi, useCado) {
 
 // --- GENERATEURS DE DOSSIERS KML ---
 
-async function generateUtmKmlFolder() {
+async function generateUtmKmlFolder(gridMode = 'utm') {
     const nwCoordsStr = document.getElementById("zone-nw-coords").value;
     const seCoordsStr = document.getElementById("zone-se-coords").value;
     const [nwLat, nwLon] = nwCoordsStr.split(',').map(c => parseFloat(c.trim()));
@@ -1094,7 +1101,9 @@ async function generateUtmKmlFolder() {
 
     const startZone = WGS84_to_UTM.fromLatLon(nwLat, nwLon).zoneNumber;
     const endZone = WGS84_to_UTM.fromLatLon(seLat, seLon).zoneNumber;
-    let kml = "<Folder><name>Grille UTM</name>";
+    const isMgrs = (gridMode === 'mgrs');
+    let kml = `<Folder><name>Grille ${isMgrs ? 'MGRS' : 'UTM'}</name>`;
+    let squaresKml = "";
 
     for (let zone = startZone; zone <= endZone; zone++) {
         const zoneBoundaryLeft = (zone - 1) * 6 - 180;
@@ -1103,7 +1112,7 @@ async function generateUtmKmlFolder() {
         const clipLonEnd = Math.min(seLon, zoneBoundaryRight);
         if (clipLonStart >= clipLonEnd) continue;
 
-        const gridData = calculateGridForZoneStrip(nwLat, clipLonStart, seLat, clipLonEnd, zone);
+        const gridData = calculateGridForZoneStrip(nwLat, clipLonStart, seLat, clipLonEnd, zone, gridMode);
         
         [...gridData.eastingLines, ...gridData.northingLines].forEach(line => {
              kml += `
@@ -1113,8 +1122,21 @@ async function generateUtmKmlFolder() {
                 <LineString><coordinates>${line.coordinates.map(c=>c.join(',')).join(' ')}</coordinates></LineString>
              </Placemark>`;
         });
+
+        // MGRS : désignateurs des carrés de 100 km, au centre de chaque carré visible
+        (gridData.squareLabels || []).forEach(sq => {
+            squaresKml += `
+             <Placemark>
+                <name>${sq.name}</name>
+                <styleUrl>#commonLabelStyle</styleUrl>
+                <Point><coordinates>${sq.lon},${sq.lat},0</coordinates></Point>
+             </Placemark>`;
+        });
     }
     kml += "</Folder>";
+    if (squaresKml) {
+        kml += `<Folder><name>Carrés MGRS 100 km</name>${squaresKml}</Folder>`;
+    }
     return kml;
 }
 
@@ -1902,16 +1924,22 @@ function drawZoneKmlFeatures(ctx, zoom, features, latLonToCanvasPixels) {
     });
 }
 
-async function drawUtmGridOnCanvas(ctx, boundingBox, latLonToCanvasPixels, margin, cartoucheFontSize, lineWidth = 1) {
+// Dessine la grille UTM ou MGRS (même géométrie, désignation différente) :
+// en MGRS les lignes portent leurs deux derniers chiffres et chaque carré de
+// 100 km reçoit son désignateur au centre.
+async function drawUtmGridOnCanvas(ctx, boundingBox, latLonToCanvasPixels, margin, cartoucheFontSize, lineWidth = 1, gridMode = 'utm') {
+    const isMgrs = (gridMode === 'mgrs');
     const color = document.getElementById('utm-grid-color').value;
     const opacity = (100 - parseInt(document.getElementById('utm-transparency').value)) / 100;
     const r = parseInt(color.slice(1, 3), 16), g = parseInt(color.slice(3, 5), 16), b = parseInt(color.slice(5, 7), 16);
     const gridLineColor = `rgba(${r}, ${g}, ${b}, ${opacity})`;
+    const gridLineColorSolid = `rgb(${r}, ${g}, ${b})`;
     const nwLat = boundingBox.north, nwLon = boundingBox.west, seLat = boundingBox.south, seLon = boundingBox.east;
     const drawingBox = { x: margin, y: margin, width: ctx.canvas.width - margin * 2, height: ctx.canvas.height - margin * 2 };
     const startZone = WGS84_to_UTM.fromLatLon(nwLat, nwLon).zoneNumber;
     const endZone = WGS84_to_UTM.fromLatLon(seLat, seLon).zoneNumber;
     const labelsToDraw = [];
+    const squareLabelsToDraw = [];
     
     ctx.save();
     ctx.beginPath(); ctx.rect(drawingBox.x, drawingBox.y, drawingBox.width, drawingBox.height); ctx.clip();
@@ -1922,12 +1950,15 @@ async function drawUtmGridOnCanvas(ctx, boundingBox, latLonToCanvasPixels, margi
         const clipLonEnd = Math.min(seLon, zone * 6 - 180);
         if (clipLonStart >= clipLonEnd) continue;
         
-        const gridData = calculateGridForZoneStrip(nwLat, clipLonStart, seLat, clipLonEnd, zone);
+        const gridData = calculateGridForZoneStrip(nwLat, clipLonStart, seLat, clipLonEnd, zone, gridMode);
         const allLines = [...gridData.eastingLines, ...gridData.northingLines];
+        squareLabelsToDraw.push(...(gridData.squareLabels || []));
 
         for (const line of allLines) {
-            const isMajorLine = (parseInt(line.name.split(' ')[1], 10) % 5 === 0);
-            ctx.lineWidth = isMajorLine ? lineWidth * 2 : lineWidth;
+            // Les limites de carrés de 100 km sont soulignées en MGRS : ce sont elles
+            // qui délimitent le domaine de validité des désignateurs à deux lettres.
+            if (isMgrs && line.major100k) ctx.lineWidth = lineWidth * 3;
+            else ctx.lineWidth = line.major ? lineWidth * 2 : lineWidth;
             ctx.strokeStyle = gridLineColor;
             ctx.beginPath();
             let firstCanvasPoint = null, lastCanvasPoint = null;
@@ -1961,6 +1992,25 @@ async function drawUtmGridOnCanvas(ctx, boundingBox, latLonToCanvasPixels, margi
             }
             ctx.stroke();
         }
+    }
+
+    // Désignateurs des carrés de 100 km (MGRS), au centre de chaque carré visible.
+    if (isMgrs && squareLabelsToDraw.length > 0) {
+        const squareFontSize = cartoucheFontSize * 1.6;
+        ctx.font = `bold ${squareFontSize}px Arial`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.lineWidth = Math.max(2, squareFontSize * 0.12);
+        ctx.lineJoin = 'round';
+        for (const sq of squareLabelsToDraw) {
+            const p = latLonToCanvasPixels(sq.lat, sq.lon);
+            ctx.strokeStyle = 'rgba(0, 0, 0, 0.75)';
+            ctx.strokeText(sq.name, p.x, p.y);
+            ctx.fillStyle = gridLineColorSolid;
+            ctx.fillText(sq.name, p.x, p.y);
+        }
+        ctx.textAlign = 'start';
+        ctx.textBaseline = 'alphabetic';
     }
     ctx.restore();
 

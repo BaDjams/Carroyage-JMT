@@ -56,7 +56,9 @@ const WGS84_to_UTM = (function() {
         const e1 = (1 - Math.sqrt(1 - eccSquared)) / (1 + Math.sqrt(1 - eccSquared));
         const x = easting - 500000.0;
         let y = northing;
-        if ('CDEFGHJKLMN'.includes(zoneLetter)) y -= 10000000.0;
+        // Bandes C à M = hémisphère sud (false northing de 10 000 km). La bande N,
+        // qui couvre 0° à 8° N, appartient à l'hémisphère nord et ne doit pas être décalée.
+        if ('CDEFGHJKLM'.includes(zoneLetter)) y -= 10000000.0;
         
         const lonOrigin = (zoneNumber - 1) * 6 - 180 + 3;
         const M = y / k0;
@@ -76,6 +78,165 @@ const WGS84_to_UTM = (function() {
     }
     
     return { fromLatLon, toLatLon, getUTMZoneLetter };
+})();
+
+/**********************************************************************************/
+/*    BIBLIOTHÈQUE DE CONVERSION WGS84 <> MGRS                                    */
+/*    (MGRS = UTM + identifiant de carré de 100 km, cf. TM 8358.1 / NGA)          */
+/**********************************************************************************/
+const WGS84_to_MGRS = (function() {
+    // Codes ASCII utilisés pour la rotation des lettres (I et O sont exclus du MGRS).
+    const A = 65, I = 73, O = 79, V = 86, Z = 90;
+
+    // Le jeu de lettres du carré 100 km dépend de la zone UTM (cycle de 6 zones).
+    const SET_ORIGIN_COLUMN_LETTERS = 'AJSAJS';
+    const SET_ORIGIN_ROW_LETTERS    = 'AFAFAF';
+
+    // Northing minimal (en m) de chaque bande de latitude : sert à lever l'ambiguïté
+    // du cycle de 2 000 km des lettres de ligne lors du décodage.
+    const MIN_NORTHING = {
+        C: 1100000, D: 2000000, E: 2800000, F: 3700000, G: 4600000, H: 5500000,
+        J: 6400000, K: 7300000, L: 8200000, M: 9100000, N: 0,       P: 800000,
+        Q: 1700000, R: 2600000, S: 3500000, T: 4400000, U: 5300000, V: 6200000,
+        W: 7000000, X: 7900000
+    };
+
+    function get100kSetForZone(zoneNumber) {
+        const setParm = zoneNumber % 6;
+        return setParm === 0 ? 6 : setParm;
+    }
+
+    // Lettre suivante en sautant I et O, avec bouclage en fin d'alphabet.
+    function nextLetterCode(code, maxCode) {
+        code++;
+        if (code === I) code++;
+        if (code === O) code++;
+        if (code > maxCode) code = A;
+        return code;
+    }
+
+    // Identifiant à deux lettres du carré de 100 km contenant (easting, northing).
+    function get100kID(easting, northing, zoneNumber) {
+        const setIndex = get100kSetForZone(zoneNumber) - 1;
+        const column = Math.floor(easting / 100000);          // 1 à 8
+        const row = Math.floor(northing / 100000) % 20;       // 0 à 19
+
+        let colCode = SET_ORIGIN_COLUMN_LETTERS.charCodeAt(setIndex);
+        for (let i = 1; i < column; i++) colCode = nextLetterCode(colCode, Z);
+
+        let rowCode = SET_ORIGIN_ROW_LETTERS.charCodeAt(setIndex);
+        for (let i = 0; i < row; i++) rowCode = nextLetterCode(rowCode, V);
+
+        return String.fromCharCode(colCode) + String.fromCharCode(rowCode);
+    }
+
+    // Easting (m) de l'origine du carré 100 km désigné par la lettre de colonne.
+    function getEastingFrom100kChar(letter, setNumber) {
+        let curCol = SET_ORIGIN_COLUMN_LETTERS.charCodeAt(setNumber - 1);
+        let easting = 100000;
+        for (let i = 0; i < 8; i++) {
+            if (curCol === letter.charCodeAt(0)) return easting;
+            curCol = nextLetterCode(curCol, Z);
+            easting += 100000;
+        }
+        throw new Error(`Lettre de colonne « ${letter} » invalide pour la zone (jeu ${setNumber}).`);
+    }
+
+    // Northing (m) de l'origine du carré 100 km, avant recalage sur la bande de latitude.
+    function getNorthingFrom100kChar(letter, setNumber) {
+        let curRow = SET_ORIGIN_ROW_LETTERS.charCodeAt(setNumber - 1);
+        let northing = 0;
+        for (let i = 0; i < 20; i++) {
+            if (curRow === letter.charCodeAt(0)) return northing;
+            curRow = nextLetterCode(curRow, V);
+            northing += 100000;
+        }
+        throw new Error(`Lettre de ligne « ${letter} » invalide pour la zone (jeu ${setNumber}).`);
+    }
+
+    /**
+     * Encode un point WGS84 en référence MGRS.
+     * @param {number} lat
+     * @param {number} lon
+     * @param {number} digits nombre de chiffres par axe (1 à 5) — 5 = précision 1 m
+     * @param {boolean} spaced insère des espaces (forme lisible « 31U DQ 48251 11942 »)
+     */
+    function fromLatLon(lat, lon, digits = 5, spaced = true) {
+        if (isNaN(lat) || isNaN(lon)) throw new Error("Coordonnées décimales invalides.");
+        if (lat >= 84 || lat < -80) throw new Error("MGRS indisponible au-delà de 84°N / 80°S (zones polaires UPS non gérées).");
+        digits = Math.min(5, Math.max(1, Math.round(digits)));
+
+        const utm = WGS84_to_UTM.fromLatLon(lat, lon);
+        if (!utm.zoneLetter) throw new Error("Bande de latitude MGRS indéterminée.");
+
+        const easting = Math.floor(utm.easting);
+        const northing = Math.floor(utm.northing);
+        const id100k = get100kID(easting, northing, utm.zoneNumber);
+
+        // Chiffres de position à l'intérieur du carré de 100 km, tronqués à la précision demandée.
+        const divisor = Math.pow(10, 5 - digits);
+        const e = String(Math.floor((easting % 100000) / divisor)).padStart(digits, '0');
+        const n = String(Math.floor((northing % 100000) / divisor)).padStart(digits, '0');
+
+        const zone = `${String(utm.zoneNumber).padStart(2, '0')}${utm.zoneLetter}`;
+        return spaced ? `${zone} ${id100k} ${e} ${n}` : `${zone}${id100k}${e}${n}`;
+    }
+
+    /**
+     * Décode une référence MGRS. Le point retourné est le coin sud-ouest du carré
+     * désigné (convention topographique), avec la taille du carré en mètres.
+     * Accepte les formes « 31UDQ4825111942 », « 31U DQ 48251 11942 », « 31 U DQ ... ».
+     */
+    function toLatLon(mgrsStr) {
+        if (typeof mgrsStr !== 'string') throw new Error("Référence MGRS invalide.");
+        const clean = mgrsStr.toUpperCase().replace(/[\s,]+/g, '');
+        const match = clean.match(/^(\d{1,2})([C-HJ-NP-X])([A-HJ-NP-Z])([A-HJ-NP-V])(\d*)$/);
+        if (!match) throw new Error("Format MGRS invalide. Attendu : 31U DQ 48251 11942");
+
+        const zoneNumber = parseInt(match[1], 10);
+        const zoneLetter = match[2];
+        const colLetter = match[3];
+        const rowLetter = match[4];
+        const numeric = match[5];
+
+        if (zoneNumber < 1 || zoneNumber > 60) throw new Error("Numéro de zone MGRS hors plage (1 à 60).");
+        if (numeric.length % 2 !== 0 || numeric.length > 10) {
+            throw new Error("Le bloc numérique MGRS doit comporter un nombre pair de chiffres (2 à 10).");
+        }
+
+        const setNumber = get100kSetForZone(zoneNumber);
+        const east100k = getEastingFrom100kChar(colLetter, setNumber);
+        let north100k = getNorthingFrom100kChar(rowLetter, setNumber);
+
+        // Les lettres de ligne se répètent tous les 2 000 km : on remonte jusqu'à
+        // atteindre le northing minimal de la bande de latitude.
+        const minNorthing = MIN_NORTHING[zoneLetter];
+        if (minNorthing === undefined) throw new Error(`Bande de latitude « ${zoneLetter} » inconnue.`);
+        while (north100k < minNorthing) north100k += 2000000;
+
+        // Chiffres restants : moitié easting, moitié northing.
+        const half = numeric.length / 2;
+        const factor = half === 0 ? 0 : Math.pow(10, 5 - half);
+        // Les northings de MIN_NORTHING incluent déjà le false northing sud : la valeur
+        // obtenue est directement un northing UTM exploitable par WGS84_to_UTM.toLatLon.
+        const easting = east100k + (half === 0 ? 0 : parseInt(numeric.slice(0, half), 10) * factor);
+        const northing = north100k + (half === 0 ? 0 : parseInt(numeric.slice(half), 10) * factor);
+
+        const wgs = WGS84_to_UTM.toLatLon(easting, northing, zoneNumber, zoneLetter);
+        if (isNaN(wgs.latitude) || isNaN(wgs.longitude)) throw new Error("Conversion MGRS impossible.");
+
+        return {
+            latitude: wgs.latitude,
+            longitude: wgs.longitude,
+            easting: easting,
+            northing: northing,
+            zoneNumber: zoneNumber,
+            zoneLetter: zoneLetter,
+            precision: half === 0 ? 100000 : factor   // taille du carré en mètres
+        };
+    }
+
+    return { fromLatLon, toLatLon, get100kID };
 })();
 
 // Fonction utilitaire de couleur
@@ -238,7 +399,20 @@ function clipAxis(points, axis, boundary, isMin) {
     return newPoints;
 }
 
-function calculateGridForZoneStrip(nwLat, nwLon, seLat, seLon, zoneToUse) {
+// Étiquette MGRS d'une ligne de grille : les deux derniers chiffres du kilomètre
+// (00 à 99), comme sur les cartes militaires (le carré de 100 km lève l'ambiguïté).
+function formatMgrsLineLabel(km) {
+    return String(((km % 100) + 100) % 100).padStart(2, '0');
+}
+
+/**
+ * Calcule les lignes de grille 1 km d'une bande de zone UTM.
+ * @param {string} labelMode 'utm' (étiquettes « 31U 448 ») ou 'mgrs' (étiquettes « 48 »
+ *        + identifiants des carrés de 100 km). La géométrie est identique : le MGRS
+ *        est le même quadrillage que l'UTM, seule la désignation change.
+ */
+function calculateGridForZoneStrip(nwLat, nwLon, seLat, seLon, zoneToUse, labelMode = 'utm') {
+    const isMgrs = (labelMode === 'mgrs');
     const utm_nw = WGS84_to_UTM.fromLatLon(nwLat, nwLon, zoneToUse);
     const utm_ne = WGS84_to_UTM.fromLatLon(nwLat, seLon, zoneToUse);
     const utm_sw = WGS84_to_UTM.fromLatLon(seLat, nwLon, zoneToUse);
@@ -268,12 +442,16 @@ function calculateGridForZoneStrip(nwLat, nwLon, seLat, seLon, zoneToUse) {
         
         const clipped = clipLineToRect(linePoints, nwLat, seLat, seLon, nwLon);
         if (clipped.length > 1) {
+             const km = Math.round(e / 1000);
              // CORRECTION ICI : Ajout de la lettre après le numéro de zone (ex: 30T 722)
              eastingLines.push({ 
-                 name: `${zoneToUse}${zoneLetter} ${Math.round(e / 1000)}`, 
+                 name: isMgrs ? formatMgrsLineLabel(km) : `${zoneToUse}${zoneLetter} ${km}`, 
                  coordinates: clipped, 
                  zone: `${zoneToUse}${zoneLetter}`,
-                 type: 'easting'
+                 type: 'easting',
+                 km: km,
+                 major: isMgrs ? (km % 10 === 0) : (km % 5 === 0),
+                 major100k: (km % 100 === 0)
              });
         }
     }
@@ -296,16 +474,48 @@ function calculateGridForZoneStrip(nwLat, nwLon, seLat, seLon, zoneToUse) {
         
         const clipped = clipLineToRect(linePoints, nwLat, seLat, seLon, nwLon);
         if (clipped.length > 1) {
+            const km = Math.round(n / 1000);
             // CORRECTION ICI : Ajout du numéro de zone avant la lettre (ex: 30T 4941)
             northingLines.push({ 
-                name: `${zoneToUse}${zoneLetterForN} ${Math.round(n / 1000)}`, 
+                name: isMgrs ? formatMgrsLineLabel(km) : `${zoneToUse}${zoneLetterForN} ${km}`, 
                 coordinates: clipped, 
                 zone: `${zoneToUse}${zoneLetterForN}`,
-                type: 'northing'
+                type: 'northing',
+                km: km,
+                major: isMgrs ? (km % 10 === 0) : (km % 5 === 0),
+                major100k: (km % 100 === 0)
             });
         }
     }
-    return { eastingLines, northingLines };
+    // --- Identifiants des carrés de 100 km (MGRS uniquement) ---
+    // Sur une carte MGRS, les chiffres des lignes ne suffisent pas : chaque carré de
+    // 100 km porte son désignateur à deux lettres (ex. « 31U DQ »), placé au centre
+    // de la portion visible du carré.
+    const squareLabels = [];
+    if (isMgrs && typeof WGS84_to_MGRS !== 'undefined') {
+        const hemisphereLetter = WGS84_to_UTM.getUTMZoneLetter((nwLat + seLat) / 2);
+        if (hemisphereLetter) {
+            for (let e0 = Math.floor(minEasting / 100000) * 100000; e0 < maxEasting; e0 += 100000) {
+                for (let n0 = Math.floor(minNorthing / 100000) * 100000; n0 < maxNorthing; n0 += 100000) {
+                    const centerE = (Math.max(e0, minEasting) + Math.min(e0 + 100000, maxEasting)) / 2;
+                    const centerN = (Math.max(n0, minNorthing) + Math.min(n0 + 100000, maxNorthing)) / 2;
+                    const p = WGS84_to_UTM.toLatLon(centerE, centerN, zoneToUse, hemisphereLetter);
+                    if (isNaN(p.latitude) || isNaN(p.longitude)) continue;
+                    if (p.latitude > nwLat || p.latitude < seLat || p.longitude < nwLon || p.longitude > seLon) continue;
+                    const band = WGS84_to_UTM.getUTMZoneLetter(p.latitude);
+                    if (!band) continue;
+                    squareLabels.push({
+                        name: `${String(zoneToUse).padStart(2, '0')}${band} ${WGS84_to_MGRS.get100kID(centerE, centerN, zoneToUse)}`,
+                        lat: p.latitude,
+                        lon: p.longitude,
+                        zone: `${zoneToUse}${band}`
+                    });
+                }
+            }
+        }
+    }
+
+    return { eastingLines, northingLines, squareLabels };
 }
 
 function createUTM_KML(eastingLines, northingLines, boundaryLines, config, poiKml = "", zoneFrame = null) {

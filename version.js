@@ -1,9 +1,18 @@
 // version.js
 
 // Source unique de vérité pour la version de l'application.
-const APP_VERSION = '23.5';
+const APP_VERSION = '23.6';
 
 const CHANGELOG = [
+  {
+    version: '23.6',
+    date: '2026-09-07',
+    changes: [
+      'Coordonnées : nouveau champ « Coordonnées MGRS » (options avancées) — conversion dans les deux sens avec tous les autres formats, précision de 1 m à 100 km selon le nombre de chiffres saisis (formats « 31U DQ 48251 11942 » et « 31UDQ4825111942 » acceptés)',
+      'Export de zone : nouveau carroyage « Grille MGRS (1km) » — même quadrillage que la grille UTM mais désigné à la militaire (lignes numérotées sur 2 chiffres, désignateur du carré de 100 km au centre), disponible en image, KML/KMZ et MBTiles',
+      'Correction UTM : la bande de latitude N (0° à 8° N) était traitée comme l\'hémisphère sud lors de la conversion UTM → WGS84, ce qui décalait de 10 000 km les conversions et les grilles proches de l\'équateur',
+    ],
+  },
   {
     version: '23.5',
     date: '2026-07-23',

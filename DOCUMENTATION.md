@@ -30,7 +30,7 @@
 
 ## 1. Vue d'ensemble
 
-**Carroyage-JMT** (alias **CADO**) est une application web monopage (PWA) écrite en HTML/CSS/JavaScript pur, sans étape de bundling. Elle permet de générer des carroyages tactiques (grilles de référence) sur fond cartographique selon trois systèmes de coordonnées (CADO, UTM, CFSI/DFCI), de les exporter dans plusieurs formats (KML, KMZ, GeoJSON, GPX, CSV, MBTiles, PNG haute résolution), de prévisualiser en temps réel sur carte Leaflet et de fonctionner hors-ligne grâce à un service worker.
+**Carroyage-JMT** (alias **CADO**) est une application web monopage (PWA) écrite en HTML/CSS/JavaScript pur, sans étape de bundling. Elle permet de générer des carroyages tactiques (grilles de référence) sur fond cartographique selon quatre systèmes de coordonnées (CADO, UTM, MGRS, CFSI/DFCI), de les exporter dans plusieurs formats (KML, KMZ, GeoJSON, GPX, CSV, MBTiles, PNG haute résolution), de prévisualiser en temps réel sur carte Leaflet et de fonctionner hors-ligne grâce à un service worker.
 
 **Domaine d'usage** : opérations de terrain (sécurité civile, gendarmerie, drones DJI, recherches en zones étendues).
 
@@ -84,7 +84,7 @@ L'ordre dans `index.html` est important — plusieurs fichiers exposent des vari
 5. icons.js / icons-catalog.js → ICON_LIBRARY, ICON_CATALOG
 6. carroyageCado.js    → générateur CADO + init Leaflet mode 1
 7. carroyageCFSI.js    → CFSI_UTILS
-8. carroyageUTM.js     → WGS84_to_UTM
+8. carroyageUTM.js     → WGS84_to_UTM, WGS84_to_MGRS
 9. zoneDownloader.js   → orchestrateur mode 2
 10. carroyageToMbtiles.js / carroyageToCSV.js → exports
 11. seedManager.js     → encodage seeds
@@ -104,7 +104,7 @@ L'ordre dans `index.html` est important — plusieurs fichiers exposent des vari
 | `cadoKmlResources`, `kmlResources` | images embarquées dans KMZ importés |
 | `currentIconLibrary` | bibliothèque d'icônes courante (modifiable) |
 | `MAP_LAYERS`, `ICON_LIBRARY`, `ICON_CATALOG` | catalogues statiques |
-| `CFSI_UTILS`, `WGS84_to_UTM` | namespaces de conversion |
+| `CFSI_UTILS`, `WGS84_to_UTM`, `WGS84_to_MGRS` | namespaces de conversion |
 
 ### 3.4 Contrats inter-modules via le DOM
 
@@ -128,13 +128,13 @@ Plutôt que des imports/exports, les modules communiquent via des IDs DOM stable
 
 ### Mode 1 — Carroyage rapide (CADO)
 
-Génère un quadrillage CADO **centré sur un point unique** (lat/lon en décimal, DMS, UTM ou Mercator). Aperçu temps réel sur carte Leaflet, exports KML/KMZ/GeoJSON/GPX/CSV/PNG/MBTiles.
+Génère un quadrillage CADO **centré sur un point unique** (lat/lon en décimal, DMS, DM, UTM, MGRS ou Mercator). Aperçu temps réel sur carte Leaflet, exports KML/KMZ/GeoJSON/GPX/CSV/PNG/MBTiles.
 
 **Fichier pivot** : `carroyageCado.js` (~43 KB).
 
 ### Mode 2 — Export de zone
 
-L'utilisateur dessine un rectangle (Leaflet.draw) ou importe un KML/KMZ existant. Génère plusieurs grilles superposées (UTM + CFSI + CADO, au choix) sur la zone, gère les POI utilisateur.
+L'utilisateur dessine un rectangle (Leaflet.draw) ou importe un KML/KMZ existant. Génère plusieurs grilles superposées (UTM, MGRS, CFSI ou CADO, au choix) sur la zone, gère les POI utilisateur.
 
 **Fichier pivot** : `zoneDownloader.js`.
 
@@ -215,14 +215,15 @@ Système CFSI/DFCI français (Lambert 93 / NTF, mailles 100 m).
 - Décodage : Lambert → carré 100 km (alphabet 13×20) → 20 km → 2 km → 100 m
 - **Rendu adaptatif** selon zoom : pleins codes (< 700 m), 100 m avec coloration (< 3500 m), 2 km au-delà
 
-#### `carroyageUTM.js` (~19 KB)
+#### `carroyageUTM.js` (~27 KB)
 
-Système UTM (Universal Transverse Mercator), mailles 1 km, multi-zones.
+Systèmes UTM (Universal Transverse Mercator) et MGRS, mailles 1 km, multi-zones.
 
 **Exports** :
 - `WGS84_to_UTM` (IIFE) avec `fromLatLon(lat, lon, forceZone)`, `toLatLon(...)`, `getUTMZoneLetter(lat)`
+- `WGS84_to_MGRS` (IIFE) avec `fromLatLon(lat, lon, digits, spaced)`, `toLatLon(mgrsStr)`, `get100kID(...)`
 - `generateUTMGrid()` — export KMZ avec POI
-- `calculateGridForZoneStrip(...)` — génère lignes par zone avec clipping
+- `calculateGridForZoneStrip(..., labelMode)` — génère lignes par zone avec clipping ; `labelMode` vaut `'utm'` ou `'mgrs'` et ne change que l'étiquetage (+ `squareLabels` en MGRS)
 - `createUTM_KML()` — organise lignes par zone et type (Easting/Northing)
 
 **Algorithmes** :
@@ -407,7 +408,16 @@ Voir §10 pour la stratégie complète.
 - **Étiquettes** : easting/northing en kilomètres
 - **Exceptions** : Norvège (32V), Svalbard (31X, 33X, 35X, 37X)
 
-### 6.3 CFSI / DFCI
+### 6.3 MGRS
+
+- **Géométrie** : strictement identique à la grille UTM (mailles 1 km, mêmes lignes)
+- **Désignation** : zone + bande de latitude + carré de 100 km (2 lettres) + easting/northing tronqués, ex. `31U DQ 48251 11942`
+- **Étiquettes de lignes** : deux derniers chiffres du kilomètre (00 à 99) ; le carré de 100 km lève l'ambiguïté
+- **Carrés de 100 km** : leur désignateur est écrit au centre de chaque carré visible ; leurs limites sont tracées plus épaisses
+- **Conversion** : `WGS84_to_MGRS.toLatLon()` renvoie le **coin sud-ouest** du carré désigné, avec sa taille (`precision`) — une référence tronquée désigne un carré, pas un point
+- **Limites** : hors zones polaires (84° N à 80° S) ; le système UPS n'est pas géré
+
+### 6.4 CFSI / DFCI
 
 - **Maille** : 100 m, nichée dans des carrés 2 km, 20 km, 100 km
 - **Projection** : Lambert II étendu (NTF Helmert)
@@ -821,6 +831,7 @@ Pas de Conventional Commits stricts, mais préfixes courants :
 | **CADO** | Système de carroyage maison (cellules à origine A1) |
 | **CFSI / DFCI** | Carroyage Français de Sécurité Incendie / Défense de la Forêt Contre l'Incendie |
 | **UTM** | Universal Transverse Mercator (projection cartographique) |
+| **MGRS** | Military Grid Reference System (désignation alphanumérique de la grille UTM) |
 | **MBTiles** | Format SQLite pour bases de tuiles cartographiques (spec MapBox) |
 | **OPFS** | Origin Private File System (stockage navigateur, hors quota localStorage) |
 | **TMS** | Tile Map Service (convention de tuilage avec Y inversé) |

@@ -3,8 +3,9 @@
 /**
  * Orchestrateur principal pour la génération de MBTiles (Overlay DJI)
  * Accepte optionalCadoData { config, gridData } pour le Mode 1.
+ * gridMode ('utm' ou 'mgrs') choisit la désignation de la grille UTM dessinée.
  */
-async function generateMbtilesProcess(filename, useUtm, useCfsi, useCado, bbox, baseZoom, userPOIs, optionalCadoData = null) {
+async function generateMbtilesProcess(filename, useUtm, useCfsi, useCado, bbox, baseZoom, userPOIs, optionalCadoData = null, gridMode = 'utm') {
     if (typeof window.initSqlJs !== 'function') throw new Error("SQL.js non chargé.");
 
    
@@ -76,7 +77,7 @@ async function generateMbtilesProcess(filename, useUtm, useCfsi, useCado, bbox, 
 
     // 4. Boucle de génération sur les niveaux de zoom
     for (let z = minZ; z <= maxZ; z++) {
-        await processZoomLevel(db, z, bbox, useUtm, useCfsi, cadoConfig, cadoGridData, userPOIs, maxCanvasSize, poiImgCache);
+        await processZoomLevel(db, z, bbox, useUtm, useCfsi, cadoConfig, cadoGridData, userPOIs, maxCanvasSize, poiImgCache, gridMode);
     }
 
     // 4. Export
@@ -87,7 +88,7 @@ async function generateMbtilesProcess(filename, useUtm, useCfsi, useCado, bbox, 
 /**
  * Traite un niveau de zoom : Dessin Vectoriel -> Rasterisation -> Tuilage
  */
-async function processZoomLevel(db, zoom, bbox, useUtm, useCfsi, cadoConfig, cadoGridData, userPOIs, maxLimit, poiImgCache = {}) {
+async function processZoomLevel(db, zoom, bbox, useUtm, useCfsi, cadoConfig, cadoGridData, userPOIs, maxLimit, poiImgCache = {}, gridMode = 'utm') {
     const nwPx = mbtLatLonToPx(bbox.north, bbox.west, zoom);
     const sePx = mbtLatLonToPx(bbox.south, bbox.east, zoom);
     
@@ -119,9 +120,9 @@ async function processZoomLevel(db, zoom, bbox, useUtm, useCfsi, cadoConfig, cad
     
     // --- DESSIN DES COUCHES ---
     
-    // 1. UTM
+    // 1. UTM / MGRS
     if (useUtm) {
-        drawDigitalUtm(ctx, bbox, project, color);
+        drawDigitalUtm(ctx, bbox, project, color, gridMode);
     }
 
     // 2. CFSI
@@ -198,8 +199,12 @@ function drawSimpleText(ctx, text, x, y, color, size, align="center") {
     ctx.fillText(text, x, y);
 }
 
-function drawDigitalUtm(ctx, bbox, project, color) {
+// Grille UTM ou MGRS : même tracé, seule l'étiquette des lignes change. En MGRS on
+// ajoute au centre de chaque carré de 100 km son désignateur (ex. « 31U DQ »).
+function drawDigitalUtm(ctx, bbox, project, color, gridMode = 'utm') {
     if (typeof WGS84_to_UTM === 'undefined') return;
+
+    const isMgrs = (gridMode === 'mgrs');
 
     const startZone = WGS84_to_UTM.fromLatLon(bbox.north, bbox.west).zoneNumber;
     const endZone = WGS84_to_UTM.fromLatLon(bbox.south, bbox.east).zoneNumber;
@@ -216,7 +221,7 @@ function drawDigitalUtm(ctx, bbox, project, color) {
         const cRight = Math.min(bbox.east, zRight);
         if (cLeft >= cRight) continue;
 
-        const grid = calculateGridForZoneStrip(bbox.north, cLeft, bbox.south, cRight, zone);
+        const grid = calculateGridForZoneStrip(bbox.north, cLeft, bbox.south, cRight, zone, gridMode);
         const lines = [...grid.eastingLines, ...grid.northingLines];
 
         lines.forEach(line => {
@@ -247,6 +252,13 @@ function drawDigitalUtm(ctx, bbox, project, color) {
                 ctx.restore();
             }
         });
+
+        if (isMgrs) {
+            (grid.squareLabels || []).forEach(sq => {
+                const p = project(sq.lat, sq.lon);
+                drawSimpleText(ctx, sq.name, p.x, p.y, color, fontSize * 1.8);
+            });
+        }
     }
 }
 
