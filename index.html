@@ -221,6 +221,14 @@
                                         <button id="view-on-maps-utm" class="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-sm md:text-base">Voir sur la carte</button>
                                     </div>
                                 </div>
+                                <div class="flex flex-col md:flex-row md:items-center space-y-2 md:space-y-0">
+                                    <label for="mgrs-coords" class="md:w-1/3 text-sm md:text-base text-content">Coordonnées MGRS :</label>
+                                    <div class="md:w-2/3 flex space-x-2">
+                                        <input type="text" id="mgrs-coords" class="input-field w-full px-3 py-2 border rounded shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white text-base" placeholder="Zone Bande Carré Easting Northing (ex: 31U DQ 48252 11943)">
+                                        <button id="convert-from-mgrs" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-sm md:text-base">Convertir</button>
+                                        <button id="view-on-maps-mgrs" class="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-sm md:text-base">Voir sur la carte</button>
+                                    </div>
+                                </div>
                             </div>
                             <div class="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
                                 <label for="cado-kmz-input" class="block text-sm font-medium text-content mb-2">Importer un calque (KML/KMZ) :</label>
@@ -619,7 +627,7 @@
                     <div class="space-y-4">
                         <p class="text-sm text-secondary">Sélectionnez le type de grille à appliquer (Choix unique).</p>
                         
-                        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                        <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
                             <!-- Option AUCUN -->
                             <label class="flex items-start p-3 border rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer transition-colors h-full dark:border-gray-600">
                                 <div class="flex items-center h-5">
@@ -639,6 +647,17 @@
                                 <div class="ml-3 text-sm">
                                     <span class="font-medium text-gray-900 dark:text-white">Grille UTM (1km)</span>
                                     <p class="text-gray-500 dark:text-gray-400 text-xs mt-1">Standard international/militaire.</p>
+                                </div>
+                            </label>
+
+                            <!-- Option MGRS -->
+                            <label class="flex items-start p-3 border rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer transition-colors h-full dark:border-gray-600">
+                                <div class="flex items-center h-5">
+                                    <input type="radio" name="zone-grid-choice" value="mgrs" class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 focus:ring-blue-500 dark:bg-gray-600 dark:border-gray-500">
+                                </div>
+                                <div class="ml-3 text-sm">
+                                    <span class="font-medium text-gray-900 dark:text-white">Grille MGRS (1km)</span>
+                                    <p class="text-gray-500 dark:text-gray-400 text-xs mt-1">Grille UTM désignée en carrés de 100 km.</p>
                                 </div>
                             </label>
 
@@ -1585,6 +1604,7 @@
                     else if (type === 'dm') convertFromDM(); 
                     else if (type === 'mercator') convertFromMercator();
                     else if (type === 'utm') convertFromUTM();
+                    else if (type === 'mgrs') convertFromMGRS();
                 }
                 const coordsStr = document.getElementById('decimal-coords').value;
                 if (!coordsStr) throw new Error("Coordonnées non définies.");
@@ -1830,10 +1850,10 @@
                     zonePngBtn.textContent = "Télécharger l'image";
                     zonePngBtn.classList.remove('ring-2', 'ring-yellow-400');
                 }
-                // Désactiver UTM et CFSI si rotation active (incompatibles)
+                // Désactiver UTM, MGRS et CFSI si rotation active (incompatibles)
                 const rotationActive = dev !== 0;
                 document.querySelectorAll('input[name="zone-grid-choice"]').forEach(radio => {
-                    if (radio.value === 'utm' || radio.value === 'cfsi') {
+                    if (radio.value === 'utm' || radio.value === 'mgrs' || radio.value === 'cfsi') {
                         radio.disabled = rotationActive;
                         const label = radio.closest('label');
                         if (label) {
@@ -1910,11 +1930,13 @@
             addClick('convert-from-dm', convertFromDM);
             addClick('convert-from-mercator', convertFromMercator);
             addClick('convert-from-utm', convertFromUTM);
+            addClick('convert-from-mgrs', convertFromMGRS);
             addClick('view-on-maps-decimal', () => viewOnMap('decimal'));
             addClick('view-on-maps-dms', () => viewOnMap('dms'));
             addClick('view-on-maps-dm', () => viewOnMap('dm'));
             addClick('view-on-maps-mercator', () => viewOnMap('mercator'));
             addClick('view-on-maps-utm', () => viewOnMap('utm'));
+            addClick('view-on-maps-mgrs', () => viewOnMap('mgrs'));
 
             // Rotation Slider
             const deviationInput = document.getElementById('deviation');

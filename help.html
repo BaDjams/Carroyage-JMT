@@ -65,7 +65,7 @@
                 </div>
                 <a href="#m2-zone" class="block ml-4 hover:text-blue-500">Définir une zone</a>
                 <a href="#m2-poi" class="block ml-4 hover:text-blue-500">Points d'intérêt (POI)</a>
-                <a href="#m2-grid" class="block ml-4 hover:text-blue-500">Superposition UTM/CADO</a>
+                <a href="#m2-grid" class="block ml-4 hover:text-blue-500">Superposition UTM/MGRS/CADO</a>
 
                 <div class="pt-4 font-bold text-gray-900 dark:text-white border-t dark:border-gray-700">
                     <span class="badge badge-orange">Mode 3</span> Import MBTiles
@@ -176,10 +176,11 @@
         </section>
 
         <section id="m2-grid" class="mb-12">
-            <h3 class="text-xl font-semibold mb-4 text-gray-900 dark:text-white">Quadrillages UTM et CADO</h3>
+            <h3 class="text-xl font-semibold mb-4 text-gray-900 dark:text-white">Quadrillages UTM, MGRS et CADO</h3>
             <p class="mb-4">Pour les images de zone, vous pouvez superposer :</p>
             <ul class="list-disc pl-5 space-y-2 text-sm">
-                <li><strong>Grille UTM :</strong> Le standard international (cases de 1km). Précis et immuable.</li>
+                <li><strong>Grille UTM :</strong> Le standard international (cases de 1km). Précis et immuable. Les lignes portent le numéro de zone et leur valeur en kilomètres (ex : <code>31U 448</code>).</li>
+                <li><strong>Grille MGRS :</strong> Exactement le même quadrillage que l'UTM, mais désigné à la militaire : chaque ligne porte les deux derniers chiffres de sa valeur (ex : <code>48</code>) et chaque carré de 100 km reçoit son désignateur au centre (ex : <code>31U DQ</code>). Une position s'y lit donc <code>31U DQ 48251 11942</code>.</li>
                 <li><strong>Grille CADO :</strong> Une grille alphanumérique qui s'ajuste à votre rectangle (ex: cases de 50m).</li>
             </ul>
         </section>
@@ -195,7 +196,7 @@
                 <ol class="list-decimal pl-5 space-y-2 text-sm">
                     <li>Sélectionnez votre fichier <code>.mbtiles</code>.</li>
                     <li>L'application bascule sur la carte locale stockée.</li>
-                    <li>Vous pouvez toujours ajouter des POI ou superposer des grilles UTM/CADO.</li>
+                    <li>Vous pouvez toujours ajouter des POI ou superposer des grilles UTM/MGRS/CADO.</li>
                     <li>L'export d'image fonctionne même sans réseau.</li>
                 </ol>
             </div>

@@ -238,7 +238,7 @@ em { font-style: italic; }
 <li><a href="#52-systemes-de-carroyage">5.2 Systèmes de carroyage</a><ul>
 <li><a href="#carroyagecadojs-43-kb">carroyageCado.js (~43 KB)</a></li>
 <li><a href="#carroyagecfsijs-14-kb">carroyageCFSI.js (~14 KB)</a></li>
-<li><a href="#carroyageutmjs-19-kb">carroyageUTM.js (~19 KB)</a></li>
+<li><a href="#carroyageutmjs-27-kb">carroyageUTM.js (~27 KB)</a></li>
 </ul>
 </li>
 <li><a href="#53-modules-dexport">5.3 Modules d'export</a><ul>
@@ -278,7 +278,8 @@ em { font-style: italic; }
 <li><a href="#6-systemes-de-carroyage">6. Systèmes de carroyage</a><ul>
 <li><a href="#61-cado-systeme-maison">6.1 CADO (système maison)</a></li>
 <li><a href="#62-utm">6.2 UTM</a></li>
-<li><a href="#63-cfsi-dfci">6.3 CFSI / DFCI</a></li>
+<li><a href="#63-mgrs">6.3 MGRS</a></li>
+<li><a href="#64-cfsi-dfci">6.4 CFSI / DFCI</a></li>
 </ul>
 </li>
 <li><a href="#7-couches-cartographiques-map-layersjs">7. Couches cartographiques (map-layers.js)</a><ul>
@@ -395,7 +396,7 @@ em { font-style: italic; }
 </ol>
 <hr />
 <h2 id="1-vue-densemble">1. Vue d'ensemble</h2>
-<p><strong>Carroyage-JMT</strong> (alias <strong>CADO</strong>) est une application web monopage (PWA) écrite en HTML/CSS/JavaScript pur, sans étape de bundling. Elle permet de générer des carroyages tactiques (grilles de référence) sur fond cartographique selon trois systèmes de coordonnées (CADO, UTM, CFSI/DFCI), de les exporter dans plusieurs formats (KML, KMZ, GeoJSON, GPX, CSV, MBTiles, PNG haute résolution), de prévisualiser en temps réel sur carte Leaflet et de fonctionner hors-ligne grâce à un service worker.</p>
+<p><strong>Carroyage-JMT</strong> (alias <strong>CADO</strong>) est une application web monopage (PWA) écrite en HTML/CSS/JavaScript pur, sans étape de bundling. Elle permet de générer des carroyages tactiques (grilles de référence) sur fond cartographique selon quatre systèmes de coordonnées (CADO, UTM, MGRS, CFSI/DFCI), de les exporter dans plusieurs formats (KML, KMZ, GeoJSON, GPX, CSV, MBTiles, PNG haute résolution), de prévisualiser en temps réel sur carte Leaflet et de fonctionner hors-ligne grâce à un service worker.</p>
 <p><strong>Domaine d'usage</strong> : opérations de terrain (sécurité civile, gendarmerie, drones DJI, recherches en zones étendues).</p>
 <p><strong>URL de production</strong> : https://app.example.com (déploiement Docker derrière nginx-proxy).</p>
 <hr />
@@ -459,27 +460,29 @@ em { font-style: italic; }
 <h2 id="3-architecture-generale">3. Architecture générale</h2>
 <h3 id="31-structure-spa-monolithique">3.1 Structure SPA monolithique</h3>
 <p><code>index.html</code> (~150 KB) contient toute l'UI dans un unique document. Les trois modes opérationnels sont des <code>&lt;div&gt;</code> cachés/affichés via JS :</p>
-<pre class="highlight"><code>#cado-mode-container       → Mode 1 (Carroyage rapide CADO)
+<div class="highlight"><pre><span></span><code>#cado-mode-container       → Mode 1 (Carroyage rapide CADO)
 #zone-mode-container       → Mode 2 (Export de zone)
-#creator-mode-container    → Mode 3 (Créer MBTiles)</code></pre>
+#creator-mode-container    → Mode 3 (Créer MBTiles)
+</code></pre></div>
 <p>Le bouton de bascule porte un attribut <code>data-mode</code> lu par le routeur JS dans <code>index.html</code>.</p>
 <h3 id="32-ordre-de-chargement-des-scripts">3.2 Ordre de chargement des scripts</h3>
 <p>L'ordre dans <code>index.html</code> est important — plusieurs fichiers exposent des variables globales utilisées par les suivants :</p>
-<pre class="highlight"><code>1. version.js          → APP_VERSION
+<div class="highlight"><pre><span></span><code>1. version.js          → APP_VERSION
 2. JSZip / FileSaver   → libs tierces
 3. utilities.js        → fonctions partagées (rotation, conversions)
 4. map-layers.js       → MAP_LAYERS, clés API
 5. icons.js / icons-catalog.js → ICON_LIBRARY, ICON_CATALOG
 6. carroyageCado.js    → générateur CADO + init Leaflet mode 1
 7. carroyageCFSI.js    → CFSI_UTILS
-8. carroyageUTM.js     → WGS84_to_UTM
+8. carroyageUTM.js     → WGS84_to_UTM, WGS84_to_MGRS
 9. zoneDownloader.js   → orchestrateur mode 2
 10. carroyageToMbtiles.js / carroyageToCSV.js → exports
 11. seedManager.js     → encodage seeds
 12. tileSource.js      → abstraction MBTiles/online
 13. mbtilesCreator.js  → mode 3
 14. settingsManager.js → gestion icônes utilisateur
-15. imagetoprint.js    → export PNG haute résolution</code></pre>
+15. imagetoprint.js    → export PNG haute résolution
+</code></pre></div>
 <h3 id="33-etat-global-variables-window">3.3 État global (variables <code>window</code>)</h3>
 <table>
 <thead>
@@ -514,7 +517,7 @@ em { font-style: italic; }
 <td>catalogues statiques</td>
 </tr>
 <tr>
-<td><code>CFSI_UTILS</code>, <code>WGS84_to_UTM</code></td>
+<td><code>CFSI_UTILS</code>, <code>WGS84_to_UTM</code>, <code>WGS84_to_MGRS</code></td>
 <td>namespaces de conversion</td>
 </tr>
 </tbody>
@@ -580,10 +583,10 @@ em { font-style: italic; }
 <hr />
 <h2 id="4-modes-operationnels">4. Modes opérationnels</h2>
 <h3 id="mode-1-carroyage-rapide-cado">Mode 1 — Carroyage rapide (CADO)</h3>
-<p>Génère un quadrillage CADO <strong>centré sur un point unique</strong> (lat/lon en décimal, DMS, UTM ou Mercator). Aperçu temps réel sur carte Leaflet, exports KML/KMZ/GeoJSON/GPX/CSV/PNG/MBTiles.</p>
+<p>Génère un quadrillage CADO <strong>centré sur un point unique</strong> (lat/lon en décimal, DMS, DM, UTM, MGRS ou Mercator). Aperçu temps réel sur carte Leaflet, exports KML/KMZ/GeoJSON/GPX/CSV/PNG/MBTiles.</p>
 <p><strong>Fichier pivot</strong> : <code>carroyageCado.js</code> (~43 KB).</p>
 <h3 id="mode-2-export-de-zone">Mode 2 — Export de zone</h3>
-<p>L'utilisateur dessine un rectangle (Leaflet.draw) ou importe un KML/KMZ existant. Génère plusieurs grilles superposées (UTM + CFSI + CADO, au choix) sur la zone, gère les POI utilisateur.</p>
+<p>L'utilisateur dessine un rectangle (Leaflet.draw) ou importe un KML/KMZ existant. Génère plusieurs grilles superposées (UTM, MGRS, CFSI ou CADO, au choix) sur la zone, gère les POI utilisateur.</p>
 <p><strong>Fichier pivot</strong> : <code>zoneDownloader.js</code>.</p>
 <h3 id="mode-3-creer-mbtiles">Mode 3 — Créer MBTiles</h3>
 <p>Interface dédiée pour générer une base MBTiles (fond de carte tuilé hors-ligne) sur une zone et plage de zoom choisies. Utilise OPFS pour stocker &gt; 100 000 tuiles sans saturer la RAM.</p>
@@ -612,7 +615,8 @@ em { font-style: italic; }
 <p>Toutes les rotations passent par cette fonction. Modifier les axes ou la convention demande beaucoup de précautions : les exports KML, l'aperçu Leaflet et le PNG haute résolution doivent rester cohérents.</p>
 </blockquote>
 <h4 id="versionjs"><code>version.js</code></h4>
-<pre class="highlight"><code class="language-js">const APP_VERSION = '22.12';</code></pre>
+<div class="highlight"><pre><span></span><code><span class="kd">const</span><span class="w"> </span><span class="nx">APP_VERSION</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'22.12'</span><span class="p">;</span>
+</code></pre></div>
 <p><strong>Source unique</strong> de la version. Le <code>CACHE_NAME</code> du Service Worker (<code>cado-cache-vXX</code>) est en revanche <strong>manuellement</strong> synchronisé.</p>
 <h3 id="52-systemes-de-carroyage">5.2 Systèmes de carroyage</h3>
 <h4 id="carroyagecadojs-43-kb"><code>carroyageCado.js</code> (~43 KB)</h4>
@@ -640,12 +644,13 @@ em { font-style: italic; }
 - Lambert II-E : 6 itérations de raffinement de latitude (précision sub-métrique)
 - Décodage : Lambert → carré 100 km (alphabet 13×20) → 20 km → 2 km → 100 m
 - <strong>Rendu adaptatif</strong> selon zoom : pleins codes (&lt; 700 m), 100 m avec coloration (&lt; 3500 m), 2 km au-delà</p>
-<h4 id="carroyageutmjs-19-kb"><code>carroyageUTM.js</code> (~19 KB)</h4>
-<p>Système UTM (Universal Transverse Mercator), mailles 1 km, multi-zones.</p>
+<h4 id="carroyageutmjs-27-kb"><code>carroyageUTM.js</code> (~27 KB)</h4>
+<p>Systèmes UTM (Universal Transverse Mercator) et MGRS, mailles 1 km, multi-zones.</p>
 <p><strong>Exports</strong> :
 - <code>WGS84_to_UTM</code> (IIFE) avec <code>fromLatLon(lat, lon, forceZone)</code>, <code>toLatLon(...)</code>, <code>getUTMZoneLetter(lat)</code>
+- <code>WGS84_to_MGRS</code> (IIFE) avec <code>fromLatLon(lat, lon, digits, spaced)</code>, <code>toLatLon(mgrsStr)</code>, <code>get100kID(...)</code>
 - <code>generateUTMGrid()</code> — export KMZ avec POI
-- <code>calculateGridForZoneStrip(...)</code> — génère lignes par zone avec clipping
+- <code>calculateGridForZoneStrip(..., labelMode)</code> — génère lignes par zone avec clipping ; <code>labelMode</code> vaut <code>'utm'</code> ou <code>'mgrs'</code> et ne change que l'étiquetage (+ <code>squareLabels</code> en MGRS)
 - <code>createUTM_KML()</code> — organise lignes par zone et type (Easting/Northing)</p>
 <p><strong>Algorithmes</strong> :
 - <strong>Clipping multi-zones</strong> : pour chaque zone dans la plage, lignes tronquées via Cohen-Sutherland (<code>clipLineToRect()</code>, <code>clipAxis()</code>)
@@ -654,7 +659,8 @@ em { font-style: italic; }
 <h3 id="53-modules-dexport">5.3 Modules d'export</h3>
 <h4 id="carroyagetocsvjs-75-kb"><code>carroyageToCSV.js</code> (~7.5 KB)</h4>
 <p>Export WKT (compatible Google Earth Pro, QGIS, ArcGIS).</p>
-<pre class="highlight"><code class="language-js">generateGridCSV(filename, useUtm, useCfsi, useCado, userPOIs, optionalCadoData)</code></pre>
+<div class="highlight"><pre><span></span><code><span class="nx">generateGridCSV</span><span class="p">(</span><span class="nx">filename</span><span class="p">,</span><span class="w"> </span><span class="nx">useUtm</span><span class="p">,</span><span class="w"> </span><span class="nx">useCfsi</span><span class="p">,</span><span class="w"> </span><span class="nx">useCado</span><span class="p">,</span><span class="w"> </span><span class="nx">userPOIs</span><span class="p">,</span><span class="w"> </span><span class="nx">optionalCadoData</span><span class="p">)</span>
+</code></pre></div>
 <ul>
 <li>Mode 1 : reçoit <code>optionalCadoData = {config, gridData}</code> directement</li>
 <li>Mode 2 : lit l'UI via <code>getZoneCadoConfigAndBounds()</code></li>
@@ -688,6 +694,12 @@ em { font-style: italic; }
 <li><code>updateCreatorUI()</code> — barre de progression + alertes (seuil <strong>8000 tuiles</strong> RAM, <strong>100 000</strong> avec OPFS)</li>
 <li><code>checkOPFS()</code> — détecte le support du stockage privé navigateur</li>
 <li><code>seedTiles(selectedBbox, selectedZoom)</code> — orchestre via <code>seedManager.js</code></li>
+<li>Case « Inclure le relief 3D hors-ligne (MNT) » : ajoute les tuiles PNG Terrarium/AWS
+  du MNT (passthrough sans recompression) au niveau de zoom 12 dans le MÊME
+  MBTiles que le fond de carte. Ce niveau est alors réservé (zooms 0-12 grisés
+  pour le fond, qui démarre au zoom 13) — une métadonnée <code>mnt_zoom</code> signale la
+  convention aux lecteurs qui la connaissent (ex. CadoTour, source <code>raster-dem</code>
+  en vue 3D, tuiles de fond ignorées à ce niveau en vue 2D).</li>
 </ul>
 <p><strong>Spécifique</strong> : gestion projection EPSG:3395 pour Yandex (correction nécessaire), gestion QuadKey pour Bing.</p>
 <h4 id="seedmanagerjs-86-kb"><code>seedManager.js</code> (~8.6 KB)</h4>
@@ -742,7 +754,8 @@ em { font-style: italic; }
 <h4 id="icons-catalogjs-213-kb-genere"><code>icons-catalog.js</code> (~213 KB, généré)</h4>
 <p>Catalogue professionnel (ADVERSAIRE, JUDICIAIRE, etc.) <strong>généré automatiquement</strong> par <code>build_library.py</code>. Ne pas éditer à la main.</p>
 <p>Format :
-<pre class="highlight"><code class="language-js">ICON_CATALOG = [{ id, label, path: [...], category, url, scale, order }, ...]</code></pre></p>
+<div class="highlight"><pre><span></span><code><span class="nx">ICON_CATALOG</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[{</span><span class="w"> </span><span class="nx">id</span><span class="p">,</span><span class="w"> </span><span class="nx">label</span><span class="p">,</span><span class="w"> </span><span class="nx">path</span><span class="o">:</span><span class="w"> </span><span class="p">[...],</span><span class="w"> </span><span class="nx">category</span><span class="p">,</span><span class="w"> </span><span class="nx">url</span><span class="p">,</span><span class="w"> </span><span class="nx">scale</span><span class="p">,</span><span class="w"> </span><span class="nx">order</span><span class="w"> </span><span class="p">},</span><span class="w"> </span><span class="p">...]</span>
+</code></pre></div></p>
 <h4 id="build_librarypy"><code>build_library.py</code></h4>
 <p>Script Python (Pillow). Workflow :
 1. Parcourt <code>icons/sticker/</code> récursivement
@@ -752,12 +765,13 @@ em { font-style: italic; }
 <p><strong>Exécution</strong> : <code>python build_library.py</code> après ajout/modification d'icônes.</p>
 <h3 id="58-pwa">5.8 PWA</h3>
 <h4 id="manifestjson"><code>manifest.json</code></h4>
-<pre class="highlight"><code class="language-json">{
-  "start_url": "./index.html",
-  "display": "standalone",
-  "theme_color": "#3b82f6",
-  "icons": [192×192, 512×512]
-}</code></pre>
+<div class="highlight"><pre><span></span><code><span class="p">{</span>
+<span class="w">  </span><span class="nt">"start_url"</span><span class="p">:</span><span class="w"> </span><span class="s2">"./index.html"</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">"display"</span><span class="p">:</span><span class="w"> </span><span class="s2">"standalone"</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">"theme_color"</span><span class="p">:</span><span class="w"> </span><span class="s2">"#3b82f6"</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">"icons"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="mi">192</span><span class="err">×</span><span class="mi">192</span><span class="p">,</span><span class="w"> </span><span class="mi">512</span><span class="err">×</span><span class="mi">512</span><span class="p">]</span>
+<span class="p">}</span>
+</code></pre></div>
 <h4 id="swjs-service-worker"><code>sw.js</code> — Service Worker</h4>
 <p>Voir §10 pour la stratégie complète.</p>
 <hr />
@@ -778,7 +792,16 @@ em { font-style: italic; }
 <li><strong>Étiquettes</strong> : easting/northing en kilomètres</li>
 <li><strong>Exceptions</strong> : Norvège (32V), Svalbard (31X, 33X, 35X, 37X)</li>
 </ul>
-<h3 id="63-cfsi-dfci">6.3 CFSI / DFCI</h3>
+<h3 id="63-mgrs">6.3 MGRS</h3>
+<ul>
+<li><strong>Géométrie</strong> : strictement identique à la grille UTM (mailles 1 km, mêmes lignes)</li>
+<li><strong>Désignation</strong> : zone + bande de latitude + carré de 100 km (2 lettres) + easting/northing tronqués, ex. <code>31U DQ 48251 11942</code></li>
+<li><strong>Étiquettes de lignes</strong> : deux derniers chiffres du kilomètre (00 à 99) ; le carré de 100 km lève l'ambiguïté</li>
+<li><strong>Carrés de 100 km</strong> : leur désignateur est écrit au centre de chaque carré visible ; leurs limites sont tracées plus épaisses</li>
+<li><strong>Conversion</strong> : <code>WGS84_to_MGRS.toLatLon()</code> renvoie le <strong>coin sud-ouest</strong> du carré désigné, avec sa taille (<code>precision</code>) — une référence tronquée désigne un carré, pas un point</li>
+<li><strong>Limites</strong> : hors zones polaires (84° N à 80° S) ; le système UPS n'est pas géré</li>
+</ul>
+<h3 id="64-cfsi-dfci">6.4 CFSI / DFCI</h3>
 <ul>
 <li><strong>Maille</strong> : 100 m, nichée dans des carrés 2 km, 20 km, 100 km</li>
 <li><strong>Projection</strong> : Lambert II étendu (NTF Helmert)</li>
@@ -788,15 +811,16 @@ em { font-style: italic; }
 <hr />
 <h2 id="7-couches-cartographiques-map-layersjs">7. Couches cartographiques (<code>map-layers.js</code>)</h2>
 <h3 id="71-structure">7.1 Structure</h3>
-<pre class="highlight"><code class="language-js">{
-  id: "google_hybrid",          // identifiant interne
-  name: "Google Hybrid",        // libellé UI
-  maxZoom: 21,
-  requiresKey: "GOOGLE_MAPS_API_KEY",  // optionnel
-  layers: [                     // empilement de couches
-    { url: "...", type: "xyz" | "quadkey" | "yandex" }
-  ]
-}</code></pre>
+<div class="highlight"><pre><span></span><code><span class="p">{</span>
+<span class="w">  </span><span class="nx">id</span><span class="o">:</span><span class="w"> </span><span class="s2">"google_hybrid"</span><span class="p">,</span><span class="w">          </span><span class="c1">// identifiant interne</span>
+<span class="w">  </span><span class="nx">name</span><span class="o">:</span><span class="w"> </span><span class="s2">"Google Hybrid"</span><span class="p">,</span><span class="w">        </span><span class="c1">// libellé UI</span>
+<span class="w">  </span><span class="nx">maxZoom</span><span class="o">:</span><span class="w"> </span><span class="mf">21</span><span class="p">,</span>
+<span class="w">  </span><span class="nx">requiresKey</span><span class="o">:</span><span class="w"> </span><span class="s2">"GOOGLE_MAPS_API_KEY"</span><span class="p">,</span><span class="w">  </span><span class="c1">// optionnel</span>
+<span class="w">  </span><span class="nx">layers</span><span class="o">:</span><span class="w"> </span><span class="p">[</span><span class="w">                     </span><span class="c1">// empilement de couches</span>
+<span class="w">    </span><span class="p">{</span><span class="w"> </span><span class="nx">url</span><span class="o">:</span><span class="w"> </span><span class="s2">"..."</span><span class="p">,</span><span class="w"> </span><span class="nx">type</span><span class="o">:</span><span class="w"> </span><span class="s2">"xyz"</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="s2">"quadkey"</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="s2">"yandex"</span><span class="w"> </span><span class="p">}</span>
+<span class="w">  </span><span class="p">]</span>
+<span class="p">}</span>
+</code></pre></div>
 <h3 id="72-couches-disponibles">7.2 Couches disponibles</h3>
 <table>
 <thead>
@@ -889,10 +913,11 @@ em { font-style: italic; }
 </ol>
 <h3 id="74-here-maps-differe">7.4 HERE Maps (différé)</h3>
 <p>Tâche en attente : ajout des couches HERE Maps dès qu'une clé sera obtenue sur platform.here.com.</p>
-<pre class="highlight"><code class="language-js">// Ajout futur :
-// var HERE_API_KEY = '';
-// Carto : https://maps.hereapi.com/v3/base/mc/{z}/{x}/{y}/png8?style=explore.day&amp;apiKey=${HERE_API_KEY}
-// Hybrid : https://maps.hereapi.com/v3/base/mc/{z}/{x}/{y}/png8?style=explore.satellite.day&amp;apiKey=${HERE_API_KEY}</code></pre>
+<div class="highlight"><pre><span></span><code><span class="c1">// Ajout futur :</span>
+<span class="c1">// var HERE_API_KEY = '';</span>
+<span class="c1">// Carto : https://maps.hereapi.com/v3/base/mc/{z}/{x}/{y}/png8?style=explore.day&amp;apiKey=${HERE_API_KEY}</span>
+<span class="c1">// Hybrid : https://maps.hereapi.com/v3/base/mc/{z}/{x}/{y}/png8?style=explore.satellite.day&amp;apiKey=${HERE_API_KEY}</span>
+</code></pre></div>
 <hr />
 <h2 id="8-pipelines-dexport">8. Pipelines d'export</h2>
 <p>Toutes les exports passent par le même <code>gridData</code> (lignes + étiquettes) calculé une seule fois, puis dispatché.</p>
@@ -959,9 +984,10 @@ em { font-style: italic; }
 - <code>data:</code>, <code>blob:</code></p>
 <h3 id="103-proxy-cors-yandex">10.3 Proxy CORS Yandex</h3>
 <p>Cas spécial : les tuiles Yandex sont relayées par le SW pour ajouter <code>Access-Control-Allow-Origin: *</code>. Sans ça, <code>canvas.drawImage()</code> les marque comme <strong>tainted</strong> et bloque les exports PNG/MBTiles.</p>
-<pre class="highlight"><code class="language-js">if (url.includes('maps.yandex.net')) {
-  // fetch + ré-emballage avec headers CORS permissifs
-}</code></pre>
+<div class="highlight"><pre><span></span><code><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="nx">url</span><span class="p">.</span><span class="nx">includes</span><span class="p">(</span><span class="s1">'maps.yandex.net'</span><span class="p">))</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="c1">// fetch + ré-emballage avec headers CORS permissifs</span>
+<span class="p">}</span>
+</code></pre></div>
 <h3 id="104-cycle-de-vie">10.4 Cycle de vie</h3>
 <ul>
 <li><code>install</code> : <code>skipWaiting()</code> + <code>cache.addAll(ASSETS_TO_CACHE)</code> (n'échoue pas si un fichier non critique manque)</li>
@@ -980,11 +1006,13 @@ em { font-style: italic; }
 <h2 id="11-configuration-secrets">11. Configuration &amp; secrets</h2>
 <h3 id="111-configprivatejs-gitignored">11.1 <code>config.private.js</code> (gitignored)</h3>
 <p>Fichier <strong>non commité</strong> (cf. <code>.gitignore</code>). Template type :</p>
-<pre class="highlight"><code class="language-js">var IGN_PRIVATE_API_KEY = 'xxx';
-var MAPY_API_KEY = 'xxx';
-var GOOGLE_MAPS_API_KEY = 'xxx';</code></pre>
+<div class="highlight"><pre><span></span><code><span class="kd">var</span><span class="w"> </span><span class="nx">IGN_PRIVATE_API_KEY</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'xxx'</span><span class="p">;</span>
+<span class="kd">var</span><span class="w"> </span><span class="nx">MAPY_API_KEY</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'xxx'</span><span class="p">;</span>
+<span class="kd">var</span><span class="w"> </span><span class="nx">GOOGLE_MAPS_API_KEY</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'xxx'</span><span class="p">;</span>
+</code></pre></div>
 <h3 id="112-chargement-gracieux">11.2 Chargement gracieux</h3>
-<pre class="highlight"><code class="language-html">&lt;script src="config.private.js" onerror="console.warn('config.private.js absent')"&gt;&lt;/script&gt;</code></pre>
+<div class="highlight"><pre><span></span><code><span class="p">&lt;</span><span class="nt">script</span> <span class="na">src</span><span class="o">=</span><span class="s">"config.private.js"</span> <span class="na">onerror</span><span class="o">=</span><span class="s">"console.warn('config.private.js absent')"</span><span class="p">&gt;&lt;/</span><span class="nt">script</span><span class="p">&gt;</span>
+</code></pre></div>
 <p>Si le fichier est absent (ex: clone fraîche), l'app fonctionne en mode dégradé : les couches privées sont masquées, Street View bascule en iframe.</p>
 <h3 id="113-important-historique-purge">11.3 Important — historique purgé</h3>
 <p>Le fichier <code>config.private.example.js</code> a été <strong>purgé de l'historique git</strong> (filter-branch sur 733 commits, force-push sur GitHub et GitLab) car il contenait des clés réelles à un moment donné. Les clés concernées <strong>ont été ou doivent être régénérées</strong> :
@@ -996,35 +1024,38 @@ var GOOGLE_MAPS_API_KEY = 'xxx';</code></pre>
 <hr />
 <h2 id="12-build-deploiement">12. Build &amp; déploiement</h2>
 <h3 id="121-image-docker">12.1 Image Docker</h3>
-<pre class="highlight"><code class="language-dockerfile">FROM nginx:alpine-slim
-COPY . /usr/share/nginx/html</code></pre>
+<div class="highlight"><pre><span></span><code><span class="k">FROM</span><span class="w"> </span><span class="s">nginx:alpine-slim</span>
+<span class="k">COPY</span><span class="w"> </span>.<span class="w"> </span>/usr/share/nginx/html
+</code></pre></div>
 <p>Image ultra-simple : nginx sert les fichiers statiques tels quels.</p>
 <h3 id="122-docker-composeyml">12.2 docker-compose.yml</h3>
-<pre class="highlight"><code class="language-yaml">services:
-  carroyage:
-    image: registry.example.com/org/carroyage-jmt:&lt;COMMIT_SHA&gt;
-    restart: always
+<div class="highlight"><pre><span></span><code><span class="nt">services</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">carroyage</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">image</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">registry.example.com/org/carroyage-jmt:&lt;COMMIT_SHA&gt;</span>
+<span class="w">    </span><span class="nt">restart</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">always</span>
 
-  proxy:
-    image: registry.example.com/infra/nginx-proxy:20260718.3
-    restart: always
-    ports: [443:443]
-    environment:
-      NGINX_SERVER_NAME: app.example.com
-      NGINX_PROXY: http://carroyage:80</code></pre>
+<span class="w">  </span><span class="nt">proxy</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">image</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">registry.example.com/infra/nginx-proxy:20260718.3</span>
+<span class="w">    </span><span class="nt">restart</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">always</span>
+<span class="w">    </span><span class="nt">ports</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">443</span><span class="p p-Indicator">:</span><span class="nv">443</span><span class="p p-Indicator">]</span>
+<span class="w">    </span><span class="nt">environment</span><span class="p">:</span>
+<span class="w">      </span><span class="nt">NGINX_SERVER_NAME</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">app.example.com</span>
+<span class="w">      </span><span class="nt">NGINX_PROXY</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">http://carroyage:80</span>
+</code></pre></div>
 <blockquote>
 <p>Le tag d'image est mis à jour automatiquement par la CI à chaque build sur <code>main</code> (commit <code>[skip ci] Deploy image XXX</code>).</p>
 </blockquote>
 <h3 id="123-lancer-en-local-developpement">12.3 Lancer en local (développement)</h3>
 <p>Pas de build : ouvrir <code>index.html</code> derrière un serveur statique (le Service Worker exige HTTP, pas <code>file://</code>) :</p>
-<pre class="highlight"><code class="language-bash"># Option 1 : Python
-python -m http.server 8080
+<div class="highlight"><pre><span></span><code><span class="c1"># Option 1 : Python</span>
+python<span class="w"> </span>-m<span class="w"> </span>http.server<span class="w"> </span><span class="m">8080</span>
 
-# Option 2 : npx
-npx serve .
+<span class="c1"># Option 2 : npx</span>
+npx<span class="w"> </span>serve<span class="w"> </span>.
 
-# Option 3 : Docker local
-docker build -t carroyage-local . &amp;&amp; docker run -p 8080:80 carroyage-local</code></pre>
+<span class="c1"># Option 3 : Docker local</span>
+docker<span class="w"> </span>build<span class="w"> </span>-t<span class="w"> </span>carroyage-local<span class="w"> </span>.<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>docker<span class="w"> </span>run<span class="w"> </span>-p<span class="w"> </span><span class="m">8080</span>:80<span class="w"> </span>carroyage-local
+</code></pre></div>
 <p>Puis ouvrir http://localhost:8080.</p>
 <blockquote>
 <p>En dev local, mettre les clés dans <code>config.private.js</code> à la racine (déjà gitignored).</p>
@@ -1201,6 +1232,10 @@ docker build -t carroyage-local . &amp;&amp; docker run -p 8080:80 carroyage-loc
 <tr>
 <td><strong>UTM</strong></td>
 <td>Universal Transverse Mercator (projection cartographique)</td>
+</tr>
+<tr>
+<td><strong>MGRS</strong></td>
+<td>Military Grid Reference System (désignation alphanumérique de la grille UTM)</td>
 </tr>
 <tr>
 <td><strong>MBTiles</strong></td>

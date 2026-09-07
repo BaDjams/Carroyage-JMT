@@ -130,6 +130,13 @@ function updateAllFromDecimal(lat, lon) {
     }
     const utm = WGS84_to_UTM.fromLatLon(lat, lon);
     document.getElementById('utm-coords').value = `${utm.zoneNumber} ${utm.zoneLetter} ${utm.easting.toFixed(0)} ${utm.northing.toFixed(0)}`;
+
+    const mgrsField = document.getElementById('mgrs-coords');
+    if (mgrsField && typeof WGS84_to_MGRS !== 'undefined') {
+        // Précision 1 m (5 chiffres par axe). Hors zones polaires uniquement.
+        try { mgrsField.value = WGS84_to_MGRS.fromLatLon(lat, lon, 5); }
+        catch (e) { mgrsField.value = ''; }
+    }
     schedulePreviewUpdate();
 }
 
@@ -232,6 +239,24 @@ function convertFromUTM() {
     }
 }
 
+function convertFromMGRS() {
+    try {
+        const mgrsStr = document.getElementById('mgrs-coords').value.trim();
+        if (!mgrsStr) return showError("Veuillez entrer des coordonnées MGRS.");
+        if (typeof WGS84_to_MGRS === 'undefined') throw new Error("Module MGRS manquant (carroyageUTM.js est-il chargé ?).");
+
+        // Le point retourné est le coin sud-ouest du carré désigné (convention topographique) :
+        // une référence tronquée (ex. 31U DQ 48 11) désigne un carré, pas un point unique.
+        const wgsCoords = WGS84_to_MGRS.toLatLon(mgrsStr);
+
+        document.getElementById('decimal-coords').value = `${wgsCoords.latitude.toFixed(6)}, ${wgsCoords.longitude.toFixed(6)}`;
+        updateAllFromDecimal(wgsCoords.latitude, wgsCoords.longitude);
+        hideError();
+    } catch (err) {
+        showError("Erreur de conversion depuis MGRS: " + err.message);
+    }
+}
+
 function isPlusCodeLibraryAvailable() { return typeof OpenLocationCode === 'function'; }
 
 function viewOnMaps(type) {
@@ -246,6 +271,7 @@ function viewOnMaps(type) {
             if (type === 'dms') convertFromDMS();
             else if (type === 'mercator') convertFromMercator();
             else if (type === 'utm') convertFromUTM();
+            else if (type === 'mgrs') convertFromMGRS();
             
             const coordsStr = document.getElementById('decimal-coords').value;
             if (!coordsStr) throw new Error("La conversion a échoué.");
