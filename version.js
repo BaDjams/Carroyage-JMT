@@ -10,7 +10,9 @@ const CHANGELOG = [
     changes: [
       'MBTiles Creator : nouvel outil « Définir une zone autour d\'un point » dans la barre de dessin — un clic sur la carte remplace le pointage par un carré centré sur la position, en plus du tracé de rectangle habituel',
       'Le champ « Rayon autour du point » (10 000 m par défaut, soit un carré de 20 × 20 km) redimensionne la zone à la volée sans avoir à repointer ; l\'emprise est calculée sur la sphère terrestre, donc un rayon de 10 km reste 10 km quelle que soit la latitude',
-      'La zone sélectionnée affiche désormais ses dimensions réelles (« Dimensions : 20.0 km × 20.0 km ») au-dessus des coordonnées NO/SE, que la zone vienne du rectangle ou du point',
+      'La zone sélectionnée porte désormais ses cotes directement sur les arêtes du rectangle, comme les mesures de forme de CadoTour : une étiquette par côté, posée au milieu de l\'arête et tournée dans son sens. Chaque côté porte sa longueur réelle, les arêtes nord et sud d\'une même zone ne mesurant pas tout à fait la même chose',
+      'Les cotes suivent le rectangle EN DIRECT : pendant le tracé à la souris, et pendant le déplacement ou le redimensionnement en mode retouche — il n\'est plus nécessaire de cliquer sur « Save » pour connaître les dimensions. Les coordonnées NO/SE et le nombre de tuiles se recalculent en même temps',
+      'L\'affichage texte « Dimensions : … » sous la carte disparaît, remplacé par ces cotes',
     ],
   },
   {

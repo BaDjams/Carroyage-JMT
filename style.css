@@ -572,3 +572,18 @@ input[type="radio"].custom-radio:checked + span {
 .changelog-date { font-size: 11px; color: #888; }
 .changelog-list { padding-left: 18px; display: flex; flex-direction: column; gap: 3px; margin: 0; }
 .changelog-list li { font-size: 13px; }
+
+/* Cotes posées sur les arêtes de la zone (MBTiles Creator), reprises à l'identique
+   de CadoTour (.map-measure-label) pour que les deux applications mesurent pareil. */
+.map-measure-label { font: 700 11px "Segoe UI", system-ui, sans-serif; }
+.map-measure-label > div {
+  display: inline-block;
+  background: rgba(255, 255, 255, 0.85);
+  color: #222;
+  padding: 1px 5px;
+  border-radius: 4px;
+  white-space: nowrap;
+  text-align: center;
+  line-height: 1.25;
+  pointer-events: none;
+}
