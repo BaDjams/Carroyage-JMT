@@ -5,6 +5,8 @@
 
 let creatorMap = null;
 let creatorDrawnItems = null;
+let creatorMeasureLayer = null;
+let creatorMeasureHookInstalled = false;
 let currentCreatorBounds = null;
 let currentCreatorCenter = null;
 let activeJobs = [];
@@ -229,6 +231,11 @@ function initCreatorMode() {
     creatorDrawnItems = new L.FeatureGroup();
     creatorMap.addLayer(creatorDrawnItems);
 
+    // Calque SEPARE pour les cotes : creatorDrawnItems est le featureGroup d'edition
+    // de Leaflet Draw, tout ce qu'on y met devient selectionnable et supprimable.
+    creatorMeasureLayer = L.layerGroup().addTo(creatorMap);
+    installCreatorMeasureHook();
+
     // Le bouton standard « marker » devient l'outil de sélection rapide.
     if (L.drawLocal?.draw?.toolbar?.buttons) {
         L.drawLocal.draw.toolbar.buttons.marker = 'Définir une zone autour d’un point';
@@ -271,6 +278,31 @@ function initCreatorMode() {
         currentCreatorCenter = null;
         updateCreatorUI();
     });
+
+    // Retouche EN COURS : Leaflet Draw emet editmove/editresize a chaque deplacement
+    // de poignee, bien avant le clic sur « Save ». Le panneau et les cotes suivent
+    // donc le rectangle en direct plutot qu'a la validation.
+    creatorMap.on(`${L.Draw.Event.EDITMOVE} ${L.Draw.Event.EDITRESIZE}`, (e) => {
+        if (typeof e.layer?.getBounds !== "function") return;
+        currentCreatorBounds = e.layer.getBounds();
+        currentCreatorCenter = currentCreatorBounds.getCenter();
+        updateCreatorUI();
+    });
+    // Sortie du mode edition : « Cancel » restaure la geometrie d'origine sans emettre
+    // EDITED. On relit donc la couche reellement presente, qu'elle ait ete validee ou
+    // annulee, pour que le panneau ne reste pas sur une emprise abandonnee.
+    creatorMap.on(L.Draw.Event.EDITSTOP, () => {
+        const layer = creatorDrawnItems.getLayers()[0];
+        currentCreatorBounds = layer?.getBounds ? layer.getBounds() : null;
+        currentCreatorCenter = currentCreatorBounds ? currentCreatorBounds.getCenter() : null;
+        updateCreatorUI();
+    });
+    // Le trace efface les cotes du rectangle precedent, qui reste affiche jusqu'a la
+    // creation du nouveau : mieux vaut aucune cote qu'une cote qui ment.
+    creatorMap.on(L.Draw.Event.DRAWSTART, () => creatorMeasureLayer?.clearLayers());
+    // Les etiquettes sont ancrees via un decalage en PIXELS : changer de zoom change
+    // la latlng correspondante, il faut les reposer.
+    creatorMap.on("zoomend", () => renderCreatorMeasures(currentCreatorBounds));
 
     const updateZoomDisplay = () => {
         const z = creatorMap.getZoom();
@@ -389,15 +421,84 @@ function getCreatorBoundsAroundPoint(center, radiusMeters) {
     );
 }
 
+// Meme convention d'ecriture que les cotes de CadoTour (_formatMeters de drawing.js) :
+// virgule decimale, bascule en km au-dela de 1 km, et plus de decimale passe 10 km.
+//
+// Le seuil porte sur la valeur ARRONDIE, la ou CadoTour teste la valeur brute : deux
+// cotes de 999,6 m et 1000,2 m s'affichaient sinon « 1000 m » et « 1,0 km » sur le meme
+// rectangle, alors qu'elles mesurent la meme chose a la precision affichee pres.
 function formatCreatorDistance(meters) {
-    return meters >= 1000 ? `${(meters / 1000).toFixed(1)} km` : `${Math.round(meters)} m`;
+    if (Math.round(meters) >= 1000) {
+        return `${(meters / 1000).toFixed(meters >= 10000 ? 0 : 1).replace(".", ",")} km`;
+    }
+    return `${meters < 10 ? meters.toFixed(1).replace(".", ",") : Math.round(meters)} m`;
 }
 
-function getCreatorDimensions(bounds) {
-    const center = bounds.getCenter();
-    const width = L.latLng(center.lat, bounds.getWest()).distanceTo(L.latLng(center.lat, bounds.getEast()));
-    const height = L.latLng(bounds.getSouth(), center.lng).distanceTo(L.latLng(bounds.getNorth(), center.lng));
-    return { width, height };
+// Cotes posees SUR les aretes du rectangle, comme les mesures de forme de CadoTour
+// (cf. _measureLabelDescriptors / .map-measure-label dans drawing.js) : une etiquette
+// par cote, au milieu de l'arete, decalee de 14 px vers l'exterieur et tournee
+// parallelement au trait.
+//
+// Chaque cote porte SA longueur geodesique : les aretes nord et sud d'un rectangle
+// lat/lon n'ont pas la meme longueur (convergence des meridiens), un seul couple
+// largeur x hauteur aurait masque l'ecart.
+function renderCreatorMeasures(bounds) {
+    if (!creatorMeasureLayer) return;
+    creatorMeasureLayer.clearLayers();
+    if (!bounds || !creatorMap) return;
+
+    const corners = [bounds.getNorthWest(), bounds.getNorthEast(),
+                     bounds.getSouthEast(), bounds.getSouthWest()];
+    const toPx = (ll) => creatorMap.latLngToContainerPoint(ll);
+    const centerPx = toPx(bounds.getCenter());
+
+    for (let i = 0; i < corners.length; i++) {
+        const a = corners[i];
+        const b = corners[(i + 1) % corners.length];
+        const pa = toPx(a);
+        const pb = toPx(b);
+        const mid = { x: (pa.x + pb.x) / 2, y: (pa.y + pb.y) / 2 };
+
+        // Texte parallele a l'arete, redresse pour rester lisible (jamais a l'envers).
+        let angle = Math.atan2(pb.y - pa.y, pb.x - pa.x) * 180 / Math.PI;
+        if (angle > 90) angle -= 180;
+        else if (angle < -90) angle += 180;
+
+        // Normale a l'arete, retournee au besoin pour pointer a l'oppose du centre :
+        // la cote se pose dehors, sans recouvrir le fond de carte selectionne.
+        let nx = -(pb.y - pa.y);
+        let ny = pb.x - pa.x;
+        if ((mid.x - centerPx.x) * nx + (mid.y - centerPx.y) * ny < 0) { nx = -nx; ny = -ny; }
+        const norm = Math.hypot(nx, ny) || 1;
+
+        const anchor = creatorMap.containerPointToLatLng(
+            L.point(mid.x + nx / norm * 14, mid.y + ny / norm * 14));
+        const transform = `translate(-50%,-50%) rotate(${angle.toFixed(1)}deg)`;
+        L.marker(anchor, {
+            interactive: false,
+            keyboard: false,
+            icon: L.divIcon({
+                className: "map-measure-label",
+                html: `<div style="transform:${transform}">${formatCreatorDistance(creatorMap.distance(a, b))}</div>`,
+                iconSize: null,
+                iconAnchor: [0, 0],
+            }),
+        }).addTo(creatorMeasureLayer);
+    }
+}
+
+// Cotes pendant le TRACE. Leaflet Draw n'emet aucun evenement tant que le rectangle
+// n'est pas relache : _drawShape, lui, est appele a chaque mousemove pour redimensionner
+// la forme provisoire. On s'y greffe plutot que de reconstruire l'emprise a la main.
+function installCreatorMeasureHook() {
+    if (creatorMeasureHookInstalled || !L.Draw?.Rectangle) return;
+    const original = L.Draw.Rectangle.prototype._drawShape;
+    L.Draw.Rectangle.prototype._drawShape = function (latlng) {
+        original.call(this, latlng);
+        // Le prototype est partage : ne reagir que pour la carte du createur MBTiles.
+        if (this._map === creatorMap && this._shape) renderCreatorMeasures(this._shape.getBounds());
+    };
+    creatorMeasureHookInstalled = true;
 }
 
 function updateCreatorUI() {
@@ -406,11 +507,11 @@ function updateCreatorUI() {
     const warning = document.getElementById('creator-warning');
     const startBtn = document.getElementById('creator-start-btn');
     const coordsDiv = document.getElementById('creator-zone-coords');
-    const dimensionsDiv = document.getElementById('creator-zone-dimensions');
+
+    renderCreatorMeasures(currentCreatorBounds);
 
     if (!currentCreatorBounds) {
         coordsDiv.textContent = "Aucune zone définie";
-        if (dimensionsDiv) dimensionsDiv.textContent = "Dimensions : —";
         infoTiles.textContent = "0";
         startBtn.disabled = true;
         return;
@@ -419,10 +520,6 @@ function updateCreatorUI() {
     const nw = currentCreatorBounds.getNorthWest();
     const se = currentCreatorBounds.getSouthEast();
     coordsDiv.textContent = `NO: ${nw.lat.toFixed(4)}, ${nw.lng.toFixed(4)} | SE: ${se.lat.toFixed(4)}, ${se.lng.toFixed(4)}`;
-    const dimensions = getCreatorDimensions(currentCreatorBounds);
-    if (dimensionsDiv) {
-        dimensionsDiv.textContent = `Dimensions : ${formatCreatorDistance(dimensions.width)} × ${formatCreatorDistance(dimensions.height)}`;
-    }
 
     const zooms = getSelectedZooms();
     let totalTiles = 0;
