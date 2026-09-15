@@ -6,6 +6,7 @@
 let creatorMap = null;
 let creatorDrawnItems = null;
 let currentCreatorBounds = null;
+let currentCreatorCenter = null;
 let activeJobs = [];
 let jobIdCounter = 1;
 let creatorBaseMaps = {};
@@ -228,10 +229,18 @@ function initCreatorMode() {
     creatorDrawnItems = new L.FeatureGroup();
     creatorMap.addLayer(creatorDrawnItems);
 
+    // Le bouton standard « marker » devient l'outil de sélection rapide.
+    if (L.drawLocal?.draw?.toolbar?.buttons) {
+        L.drawLocal.draw.toolbar.buttons.marker = 'Définir une zone autour d’un point';
+    }
+
     const drawControl = new L.Control.Draw({
         draw: {
-            rectangle: { shapeOptions: { color: '#8b5cf6' } }, 
-            polyline: false, polygon: false, circle: false, marker: false, circlemarker: false
+            rectangle: { shapeOptions: { color: '#8b5cf6' } },
+            // Le marqueur Leaflet Draw sert ici d'outil « zone autour d'un point » :
+            // le point posé est remplacé immédiatement par le rectangle de sélection.
+            marker: true,
+            polyline: false, polygon: false, circle: false, circlemarker: false
         },
         edit: { featureGroup: creatorDrawnItems }
     });
@@ -239,16 +248,27 @@ function initCreatorMode() {
 
     creatorMap.on(L.Draw.Event.CREATED, (e) => {
         creatorDrawnItems.clearLayers();
-        creatorDrawnItems.addLayer(e.layer);
-        currentCreatorBounds = e.layer.getBounds();
+        if (e.layerType === 'marker') {
+            currentCreatorCenter = e.layer.getLatLng();
+            currentCreatorBounds = getCreatorBoundsAroundPoint(currentCreatorCenter, getCreatorPointRadius());
+            creatorDrawnItems.addLayer(L.rectangle(currentCreatorBounds, { color: '#8b5cf6' }));
+            // Le rectangle doit rester entièrement lisible juste après le pointage.
+            creatorMap.fitBounds(currentCreatorBounds, { padding: [24, 24], maxZoom: 18 });
+        } else {
+            creatorDrawnItems.addLayer(e.layer);
+            currentCreatorBounds = e.layer.getBounds();
+            currentCreatorCenter = currentCreatorBounds.getCenter();
+        }
         updateCreatorUI();
     });
     creatorMap.on(L.Draw.Event.EDITED, (e) => e.layers.eachLayer(l => {
         currentCreatorBounds = l.getBounds();
+        currentCreatorCenter = currentCreatorBounds.getCenter();
         updateCreatorUI();
     }));
     creatorMap.on(L.Draw.Event.DELETED, () => {
         currentCreatorBounds = null;
+        currentCreatorCenter = null;
         updateCreatorUI();
     });
 
@@ -274,6 +294,14 @@ function initCreatorMode() {
     // La case ne verrouille plus aucun niveau de fond (cf. FORMAT V2 en tête de
     // fichier) : elle ne change que le compte de tuiles à télécharger.
     document.getElementById('creator-include-mnt')?.addEventListener('change', updateCreatorUI);
+    document.getElementById('creator-point-radius')?.addEventListener('input', () => {
+        if (!currentCreatorCenter) return;
+        currentCreatorBounds = getCreatorBoundsAroundPoint(currentCreatorCenter, getCreatorPointRadius());
+        creatorDrawnItems.clearLayers();
+        creatorDrawnItems.addLayer(L.rectangle(currentCreatorBounds, { color: '#8b5cf6' }));
+        creatorMap.fitBounds(currentCreatorBounds, { padding: [24, 24], maxZoom: 18 });
+        updateCreatorUI();
+    });
 }
 
 window.initCreatorMode = initCreatorMode;
@@ -340,15 +368,49 @@ function getSelectedZooms() {
     return zooms.sort((a,b) => a-b);
 }
 
+function getCreatorPointRadius() {
+    const input = document.getElementById('creator-point-radius');
+    const radius = Number(input?.value);
+    // Empêche une emprise vide ou invalide tout en laissant l'utilisateur choisir
+    // librement une taille utile pour son téléchargement hors ligne.
+    return Number.isFinite(radius) && radius > 0 ? radius : 10000;
+}
+
+function getCreatorBoundsAroundPoint(center, radiusMeters) {
+    // Les décalages sont calculés sur la sphère terrestre, et non en degrés fixes :
+    // 10 000 m représentent donc bien 10 km quelle que soit la latitude.
+    const earthRadius = 6371008.8;
+    const latRadians = center.lat * Math.PI / 180;
+    const latitudeOffset = radiusMeters / earthRadius * 180 / Math.PI;
+    const longitudeOffset = radiusMeters / (earthRadius * Math.cos(latRadians)) * 180 / Math.PI;
+    return L.latLngBounds(
+        [center.lat - latitudeOffset, center.lng - longitudeOffset],
+        [center.lat + latitudeOffset, center.lng + longitudeOffset]
+    );
+}
+
+function formatCreatorDistance(meters) {
+    return meters >= 1000 ? `${(meters / 1000).toFixed(1)} km` : `${Math.round(meters)} m`;
+}
+
+function getCreatorDimensions(bounds) {
+    const center = bounds.getCenter();
+    const width = L.latLng(center.lat, bounds.getWest()).distanceTo(L.latLng(center.lat, bounds.getEast()));
+    const height = L.latLng(bounds.getSouth(), center.lng).distanceTo(L.latLng(bounds.getNorth(), center.lng));
+    return { width, height };
+}
+
 function updateCreatorUI() {
     const infoTiles = document.getElementById('creator-total-tiles');
     const infoSize = document.getElementById('creator-total-size');
     const warning = document.getElementById('creator-warning');
     const startBtn = document.getElementById('creator-start-btn');
     const coordsDiv = document.getElementById('creator-zone-coords');
+    const dimensionsDiv = document.getElementById('creator-zone-dimensions');
 
     if (!currentCreatorBounds) {
         coordsDiv.textContent = "Aucune zone définie";
+        if (dimensionsDiv) dimensionsDiv.textContent = "Dimensions : —";
         infoTiles.textContent = "0";
         startBtn.disabled = true;
         return;
@@ -357,6 +419,10 @@ function updateCreatorUI() {
     const nw = currentCreatorBounds.getNorthWest();
     const se = currentCreatorBounds.getSouthEast();
     coordsDiv.textContent = `NO: ${nw.lat.toFixed(4)}, ${nw.lng.toFixed(4)} | SE: ${se.lat.toFixed(4)}, ${se.lng.toFixed(4)}`;
+    const dimensions = getCreatorDimensions(currentCreatorBounds);
+    if (dimensionsDiv) {
+        dimensionsDiv.textContent = `Dimensions : ${formatCreatorDistance(dimensions.width)} × ${formatCreatorDistance(dimensions.height)}`;
+    }
 
     const zooms = getSelectedZooms();
     let totalTiles = 0;
