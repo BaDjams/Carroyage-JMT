@@ -1207,13 +1207,31 @@
             return baseMaps;
         }
 
+        // Les tuiles Leaflet sont des <img> insérées dans le DOM : tant qu'elles arrivent,
+        // le navigateur tient la page pour « en cours de chargement » et l'onglet garde son
+        // indicateur d'activité. Le fond par défaut « Ortho IGN + Routes Google » empile
+        // DEUX couches de tuiles, soit ~70 requêtes pour un seul écran — et sur un
+        // rechargement forcé (Maj+F5), qui contourne le cache HTTP du navigateur, le WMTS
+        // de l'IGN met parfois plus de 15 s pour une seule tuile. D'où une page annoncée
+        // « en chargement » pendant ~30 s alors qu'elle est utilisable depuis le début.
+        //
+        // Poser le fond APRÈS l'événement load sort ces tuiles du calcul : la page est
+        // déclarée chargée tout de suite, les tuiles continuent d'arriver ensuite. Seul
+        // l'habillage attend — la carte elle-même est créée avec le reste de l'interface,
+        // pour que rien de ce qui en dépend n'ait à guetter son apparition.
+        function addBaseLayerWhenLoaded(layer, map) {
+            if (!layer) return;
+            if (document.readyState === 'complete') layer.addTo(map);
+            else window.addEventListener('load', () => layer.addTo(map), { once: true });
+        }
+
         function initializeCadoMap() {
             cadoMap = L.map('cado-interactive-map', { attributionControl: false, maxZoom: 22 }).setView([46.2276, 2.2137], 5);
             window.cadoMap = cadoMap;
             cadoBaseMaps = createBaseLayers();
             const defaultLayer = cadoBaseMaps["Ortho IGN + Routes Google"] || cadoBaseMaps["Google Hybrid"] || (Object.keys(cadoBaseMaps).length > 0 ? cadoBaseMaps[Object.keys(cadoBaseMaps)[0]] : null);
 
-            if(defaultLayer) defaultLayer.addTo(cadoMap);
+            addBaseLayerWhenLoaded(defaultLayer, cadoMap);
             if(Object.keys(cadoBaseMaps).length > 0) L.control.layers(cadoBaseMaps).addTo(cadoMap);
 
             // Initialise le zoom natif à partir du layer par défaut
@@ -1273,7 +1291,7 @@
             zoneMap = L.map('zone-interactive-map', { attributionControl: false, maxZoom: 22 }).setView([46.2276, 2.2137], 5);
             zoneBaseMaps = createBaseLayers();
             const defaultLayer = zoneBaseMaps["Ortho IGN + Routes Google"] || zoneBaseMaps["Google Hybrid"];
-            if(defaultLayer) defaultLayer.addTo(zoneMap);
+            addBaseLayerWhenLoaded(defaultLayer, zoneMap);
             if(Object.keys(zoneBaseMaps).length > 0) L.control.layers(zoneBaseMaps).addTo(zoneMap);
 
             // Initialise le zoom natif à partir du layer par défaut
