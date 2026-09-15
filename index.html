@@ -811,15 +811,27 @@
                             <input type="text" id="creator-address-search" aria-label="Rechercher une ville" class="address-search-input input-field px-3 py-2 border rounded shadow-sm w-full dark:bg-gray-700 dark:text-white" placeholder="Rechercher une ville..." autocomplete="off">
                             <ul id="creator-suggestions" class="hidden absolute top-full z-50 bg-white dark:bg-gray-800 border w-full max-h-48 overflow-y-auto"></ul>
                         </div>
+                        <div class="flex flex-wrap items-center gap-3 mb-3 text-sm text-secondary">
+                            <span>Tracez un rectangle ou utilisez l'outil point pour créer un carré autour d'une position.</span>
+                            <label for="creator-point-radius" class="font-medium whitespace-nowrap">Rayon autour du point</label>
+                            <div class="flex items-center">
+                                <input id="creator-point-radius" type="number" min="1" step="1000" value="10000" inputmode="numeric" class="input-field px-2 py-1 border rounded shadow-sm w-28 dark:bg-gray-700 dark:text-white" aria-describedby="creator-point-radius-help">
+                                <span class="ml-1">m</span>
+                            </div>
+                            <span id="creator-point-radius-help" class="text-xs">soit un carré de 20 × 20 km par défaut</span>
+                        </div>
                         <div id="creator-interactive-map"></div> <!-- CSS géré par style.css -->
                         <div class="flex justify-between items-center mt-2 text-sm text-secondary">
                         <div>
-                            <span>Dessinez un rectangle.</span>
+                            <span>Dessinez un rectangle ou placez un point.</span>
                             <span class="ml-3 font-bold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-gray-700 px-2 py-0.5 rounded border border-blue-100 dark:border-gray-600">
                                 Zoom carte : <span id="creator-current-map-zoom">--</span>
                             </span>
                         </div>
-                        <span id="creator-zone-coords" class="font-mono text-xs">Aucune zone définie</span>
+                        <div class="text-right">
+                            <span id="creator-zone-dimensions" class="block font-semibold text-xs">Dimensions : —</span>
+                            <span id="creator-zone-coords" class="font-mono text-xs">Aucune zone définie</span>
+                        </div>
                     </div>
                     </div>
 
