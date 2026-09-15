@@ -16,6 +16,18 @@ let creatorBaseMaps = {};
 // Limites de sécurité
 const MAX_SAFE_TILES_MEMORY = 8000;   // sans OPFS (in-memory sql-wasm)
 const MAX_SAFE_TILES_OPFS   = 100000; // avec OPFS (stockage disque)
+
+// Navigateurs qui gerent l'OPFS TEL QUE L'UTILISE le telechargement, c'est-a-dire
+// getFileHandle() + createWritable() (cf. checkOPFS et writeTile) :
+//   Firefox 111 (mars 2023) · Chrome 86 · Edge 86 · Safari 26 seulement.
+// Le repli en memoire vive ne vise donc plus Firefox depuis longtemps ; il reste
+// d'actualite sur Safari anterieur a la 26, ou getDirectory() existe depuis la 15.2
+// mais ou createWritable() manquait encore — la sonde va jusqu'a cette etape et echoue.
+const OPFS_BROWSER_LINKS = [
+    ['Firefox 111+', 'https://www.mozilla.org/fr/firefox/new/'],
+    ['Chrome 86+',   'https://www.google.com/chrome/'],
+    ['Edge 86+',     'https://www.microsoft.com/edge/download'],
+];
 const TILE_SIZE_ESTIMATE_KB = 15;     // estimation JPEG q0.85 (~12 Ko/tuile observé)
 
 // Encodage des tuiles — uniquement pour les couches COMPOSITES (multi-couches),
@@ -541,18 +553,38 @@ function updateCreatorUI() {
     const sizeMb = (totalTiles * TILE_SIZE_ESTIMATE_KB) / 1024;
     infoSize.textContent = `~ ${sizeMb.toFixed(1)} Mo`;
 
+    // La couleur est reposee en entier a chaque passage : l'ancienne version faisait
+    // un replace() sur className, donc une fois passee au jaune elle n'y revenait
+    // jamais et affichait le message rouge dans l'habillage jaune.
+    const WARN_BASE = 'mt-2 p-2 text-xs rounded font-bold text-center';
     const maxTiles = (_opfsAvailable === true) ? MAX_SAFE_TILES_OPFS : MAX_SAFE_TILES_MEMORY;
     if (totalTiles > maxTiles) {
-        warning.classList.remove('hidden');
-        warning.textContent = `Attention : ${totalTiles} tuiles dépasse la limite (${maxTiles.toLocaleString()}).`;
+        warning.className = `${WARN_BASE} bg-red-100 text-red-700`;
+        if (_opfsAvailable === true) {
+            warning.textContent = `Attention : ${totalTiles.toLocaleString()} tuiles dépasse la limite `
+                + `(${maxTiles.toLocaleString()}). Réduisez la zone ou les niveaux de zoom.`;
+        } else {
+            // Sans OPFS, les tuiles s'empilent en memoire vive : la limite tombe d'un
+            // facteur 12. Plutot que d'annoncer un plafond sans en donner la cause, on
+            // nomme la technologie manquante et on oriente vers un navigateur qui l'a.
+            const liens = OPFS_BROWSER_LINKS
+                .map(([nom, url]) => `<a href="${url}" target="_blank" rel="noopener" class="underline">${nom}</a>`)
+                .join(' &middot; ');
+            warning.innerHTML = `Ce navigateur ne gère pas l'OPFS (stockage disque temporaire) : les tuiles `
+                + `doivent tenir en mémoire vive, d'où une limite de ${MAX_SAFE_TILES_MEMORY.toLocaleString()} tuiles `
+                + `alors que vous en demandez ${totalTiles.toLocaleString()}.<br>`
+                + `Réduisez la zone ou les niveaux de zoom, ou utilisez un navigateur qui gère l'OPFS — `
+                + `la limite passe alors à ${MAX_SAFE_TILES_OPFS.toLocaleString()} tuiles :<br>`
+                + `${liens} &middot; Safari 26+`;
+        }
         infoTiles.classList.add('text-red-600');
     } else if (totalTiles > MAX_SAFE_TILES_MEMORY && _opfsAvailable === true) {
-        warning.classList.remove('hidden');
-        warning.textContent = `Volume important (${totalTiles.toLocaleString()} tuiles) - OPFS limite la RAM pendant le telechargement, mais l'assemblage SQLite final reste en memoire navigateur.`;
-        warning.className = warning.className.replace('text-red', 'text-yellow').replace('text-yellow-500', 'text-yellow-600');
+        warning.className = `${WARN_BASE} bg-yellow-100 text-yellow-700`;
+        warning.textContent = `Volume important (${totalTiles.toLocaleString()} tuiles) — l'OPFS limite la RAM `
+            + `pendant le téléchargement, mais l'assemblage SQLite final reste en mémoire du navigateur.`;
         infoTiles.classList.remove('text-red-600');
     } else {
-        warning.classList.add('hidden');
+        warning.className = `${WARN_BASE} hidden`;
         infoTiles.classList.remove('text-red-600');
     }
 
