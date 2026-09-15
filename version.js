@@ -1,9 +1,18 @@
 // version.js
 
 // Source unique de vérité pour la version de l'application.
-const APP_VERSION = '23.6';
+const APP_VERSION = '23.7';
 
 const CHANGELOG = [
+  {
+    version: '23.7',
+    date: '2026-09-15',
+    changes: [
+      'MBTiles Creator : nouvel outil « Définir une zone autour d\'un point » dans la barre de dessin — un clic sur la carte remplace le pointage par un carré centré sur la position, en plus du tracé de rectangle habituel',
+      'Le champ « Rayon autour du point » (10 000 m par défaut, soit un carré de 20 × 20 km) redimensionne la zone à la volée sans avoir à repointer ; l\'emprise est calculée sur la sphère terrestre, donc un rayon de 10 km reste 10 km quelle que soit la latitude',
+      'La zone sélectionnée affiche désormais ses dimensions réelles (« Dimensions : 20.0 km × 20.0 km ») au-dessus des coordonnées NO/SE, que la zone vienne du rectangle ou du point',
+    ],
+  },
   {
     version: '23.6',
     date: '2026-09-07',
@@ -11,8 +20,6 @@ const CHANGELOG = [
       'Coordonnées : nouveau champ « Coordonnées MGRS » (options avancées) — conversion dans les deux sens avec tous les autres formats, précision de 1 m à 100 km selon le nombre de chiffres saisis (formats « 31U DQ 48251 11942 » et « 31UDQ4825111942 » acceptés)',
       'Export de zone : nouveau carroyage « Grille MGRS (1km) » — même quadrillage que la grille UTM mais désigné à la militaire (lignes numérotées sur 2 chiffres, désignateur du carré de 100 km au centre), disponible en image, KML/KMZ et MBTiles',
       'Correction UTM : la bande de latitude N (0° à 8° N) était traitée comme l\'hémisphère sud lors de la conversion UTM → WGS84, ce qui décalait de 10 000 km les conversions et les grilles proches de l\'équateur',
-    date: '2026-08-28',
-    changes: [
       'Relief 3D hors-ligne (MNT) : le fichier .mbtiles contient désormais une pyramide d\'altitude COMPLÈTE du niveau 0 au niveau 12, rangée dans une table séparée (`terrain_tiles`) au lieu d\'un seul niveau pris dans les tuiles du fond',
       'Conséquence directe : cocher « Inclure le relief 3D hors-ligne » ne réserve plus AUCUN niveau de zoom. Les niveaux 0 à 12 redeviennent sélectionnables pour le fond de carte, et le zoom 12 peut contenir à la fois du fond et du relief',
       'Conséquence dans CadoTour : la vue 3D garde du relief en dézoomant et sur les tuiles lointaines, qui s\'aplatissaient jusqu\'ici faute de données d\'altitude aux niveaux inférieurs',
