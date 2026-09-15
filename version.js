@@ -1,9 +1,16 @@
 // version.js
 
 // Source unique de vérité pour la version de l'application.
-const APP_VERSION = '23.7';
+const APP_VERSION = '23.8';
 
 const CHANGELOG = [
+  {
+    version: '23.8',
+    date: '2026-09-15',
+    changes: [
+      'Actualisation des limites OPFS : le plafond de 8 000 tuiles du créateur MBTiles ne concerne plus Firefox, qui gère l\'OPFS depuis sa version 111. L\'avertissement nomme désormais la technologie manquante et renvoie vers un navigateur qui la gère',
+    ],
+  },
   {
     version: '23.7',
     date: '2026-09-15',
