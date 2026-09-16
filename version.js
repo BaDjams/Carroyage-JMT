@@ -1,9 +1,16 @@
 // version.js
 
 // Source unique de vérité pour la version de l'application.
-const APP_VERSION = '23.8';
+const APP_VERSION = '23.9';
 
 const CHANGELOG = [
+  {
+    version: '23.9',
+    date: '2026-09-16',
+    changes: [
+      'Conformité OpenStreetMap : l\'attribution des fonds de carte est de nouveau affichée sur les cartes, et l\'en-tête Referer n\'est plus supprimé — son absence faisait bloquer les tuiles OSM par le serveur (erreur « Access blocked ») sur les déploiements derrière un proxy durci',
+    ],
+  },
   {
     version: '23.8',
     date: '2026-09-15',

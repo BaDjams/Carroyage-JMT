@@ -190,16 +190,16 @@ function initCreatorMode() {
             if (layerConfig.layers.length > 1) {
                 const groupLayers = layerConfig.layers.map(l => {
                     const nativeZ = l.maxZoom ?? layerConfig.maxZoom ?? (l.type === 'yandex' ? 18 : 19);
-                    if (l.type === 'yandex') return new L_YandexLayerCreator(l.url, { maxZoom: nativeZ, attribution: layerConfig.name, keepBuffer: 0, updateWhenZooming: false });
-                    return L.tileLayer(l.url, { maxZoom: nativeZ, attribution: layerConfig.name, keepBuffer: 0, updateWhenZooming: false });
+                    if (l.type === 'yandex') return new L_YandexLayerCreator(l.url, { maxZoom: nativeZ, attribution: layerConfig.attribution || layerConfig.name, layerName: layerConfig.name, keepBuffer: 0, updateWhenZooming: false });
+                    return L.tileLayer(l.url, { maxZoom: nativeZ, attribution: layerConfig.attribution || layerConfig.name, layerName: layerConfig.name, keepBuffer: 0, updateWhenZooming: false });
                 });
                 leafletLayer = L.layerGroup(groupLayers);
             } else {
                 const l = layerConfig.layers[0];
                 const nativeZ = l.maxZoom ?? layerConfig.maxZoom ?? (l.type === 'yandex' ? 18 : 19);
-                if (l.type === 'quadkey') leafletLayer = new L_QuadKeyLayer(l.url, { maxZoom: nativeZ, attribution: layerConfig.name });
-                else if (l.type === 'yandex') leafletLayer = new L_YandexLayerCreator(l.url, { maxZoom: nativeZ, attribution: layerConfig.name, keepBuffer: 0, updateWhenZooming: false });
-                else leafletLayer = L.tileLayer(l.url, { maxZoom: nativeZ, attribution: layerConfig.name, keepBuffer: 0, updateWhenZooming: false });
+                if (l.type === 'quadkey') leafletLayer = new L_QuadKeyLayer(l.url, { maxZoom: nativeZ, attribution: layerConfig.attribution || layerConfig.name, layerName: layerConfig.name });
+                else if (l.type === 'yandex') leafletLayer = new L_YandexLayerCreator(l.url, { maxZoom: nativeZ, attribution: layerConfig.attribution || layerConfig.name, layerName: layerConfig.name, keepBuffer: 0, updateWhenZooming: false });
+                else leafletLayer = L.tileLayer(l.url, { maxZoom: nativeZ, attribution: layerConfig.attribution || layerConfig.name, layerName: layerConfig.name, keepBuffer: 0, updateWhenZooming: false });
             }
             if (leafletLayer) creatorBaseMaps[layerConfig.name] = leafletLayer;
         });
