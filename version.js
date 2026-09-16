@@ -1,9 +1,17 @@
 // version.js
 
 // Source unique de vérité pour la version de l'application.
-const APP_VERSION = '23.9';
+const APP_VERSION = '23.10';
 
 const CHANGELOG = [
+  {
+    version: '23.10',
+    date: '2026-09-16',
+    changes: [
+      'Export de zone : l\'outil « Définir une zone autour d\'un point » et son champ de rayon, jusqu\'ici réservés au créateur MBTiles, sont maintenant disponibles ici aussi — un clic pose un carré centré sur la position, redimensionnable à la volée sans repointer',
+      'La zone porte ses cotes sur les quatre arêtes, chacune avec sa longueur réelle, et elles suivent le rectangle en direct : pendant le tracé comme pendant le déplacement ou le redimensionnement, sans attendre le clic sur « Save »',
+    ],
+  },
   {
     version: '23.9',
     date: '2026-09-16',
