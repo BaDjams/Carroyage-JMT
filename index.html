@@ -446,10 +446,10 @@
                     <div class="flex flex-wrap items-center gap-3 mb-2 text-sm text-secondary">
                         <label for="zone-point-radius" class="font-medium whitespace-nowrap">Rayon autour du point</label>
                         <div class="flex items-center">
-                            <input id="zone-point-radius" type="number" min="1" step="1000" value="10000" inputmode="numeric" class="input-field px-2 py-1 border rounded shadow-sm w-28 dark:bg-gray-700 dark:text-white" aria-describedby="zone-point-radius-help">
+                            <input id="zone-point-radius" type="number" min="1" step="50" value="100" inputmode="numeric" class="input-field px-2 py-1 border rounded shadow-sm w-28 dark:bg-gray-700 dark:text-white" aria-describedby="zone-point-radius-help">
                             <span class="ml-1">m</span>
                         </div>
-                        <span id="zone-point-radius-help" class="text-xs">soit un carré de 20 × 20 km par défaut</span>
+                        <span id="zone-point-radius-help" class="text-xs">soit un carré de 200 × 200 m par défaut</span>
                     </div>
                     <div id="zone-map-viewport" class="relative overflow-hidden">
                         <div id="zone-interactive-map"></div>
@@ -1545,7 +1545,7 @@
         function getZonePointRadius() {
             const radius = Number(document.getElementById('zone-point-radius')?.value);
             // Empeche une emprise vide ou invalide, sans brider le choix de l'utilisateur.
-            return Number.isFinite(radius) && radius > 0 ? radius : 10000;
+            return Number.isFinite(radius) && radius > 0 ? radius : 100;
         }
 
         function updateZoneCoordsFromBounds(bounds) {
@@ -1748,15 +1748,16 @@
         }
         
         function setDefaultGridName() {
-            const now = new Date();
-            const dateStr = `${now.getFullYear()}/${String(now.getMonth() + 1).padStart(2, '0')}/${String(now.getDate()).padStart(2, '0')}`;
-            const timeStr = now.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
-            const defaultName = `Carte du ${dateStr} à ${timeStr}`;
+            const defaultName = defaultCartoucheName();
             const gridNameInput = document.getElementById('grid-name-base');
             if (gridNameInput) {
                 gridNameInput.value = defaultName;
                 gridNameInput.dispatchEvent(new Event('input'));
             }
+            // Meme nom par defaut en export de zone : la ligne 1 du cartouche et le nom
+            // de fichier sont desormais les memes des deux cotes.
+            const zoneTitleInput = document.getElementById('zone-title');
+            if (zoneTitleInput) zoneTitleInput.value = defaultName;
         }
         
         function initUI() {

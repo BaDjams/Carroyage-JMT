@@ -289,6 +289,11 @@ async function generateImageToPrint() {
         // 6. DESSIN DE LA GRILLE
         const drawConfig = { ...config, deviation: 0, realDeviation: config.deviation };
         drawConfig.lineWidth = drawConfig.lineWidth * scaleFactor;
+        // Ligne 2 du cartouche : le fond et le zoom reellement employes. actualZoom peut
+        // differer du zoom demande quand le provider plafonne son niveau natif.
+        drawConfig.cartoucheGridKind = 'cado';
+        drawConfig.cartoucheLayerShort = mapConfig?.shortName || mapConfig?.name || '';
+        drawConfig.cartoucheZoom = (actualZoom !== undefined && actualZoom !== null) ? actualZoom : zoomLevel;
 
         // KML Import
         if (typeof loadedCadoKmlFeatures !== 'undefined' && loadedCadoKmlFeatures.length > 0) {
@@ -353,7 +358,7 @@ async function generateImageToPrint() {
             }
         }
 
-        drawCadoElementsOnCanvas(finalCtx, drawConfig, localLatLonToPixels, [a1GeoForDrawLon, a1GeoForDrawLat], addressValue);
+        drawCadoElementsOnCanvas(finalCtx, drawConfig, localLatLonToPixels, [a1GeoForDrawLon, a1GeoForDrawLat]);
         
         // 7. UPSCALING
         const TARGET_EXPORT_HEIGHT = 2160;
@@ -381,7 +386,9 @@ async function generateImageToPrint() {
             : '.png';
 
         updateDynamicGridName();
-        const finalGridName = document.getElementById('grid-name').value;
+        // Le nom compose passe par cartoucheFileName : il part du nom saisi, qui peut
+        // contenir la date par defaut et donc des caracteres interdits.
+        const finalGridName = cartoucheFileName(document.getElementById('grid-name').value);
         const originString = `_origine=${realA1Coords[1].toFixed(6)},${realA1Coords[0].toFixed(6)}`;
         const fileName = `${finalGridName}${originString}${fileExtension}`;
 
