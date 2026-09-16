@@ -1,9 +1,18 @@
 // version.js
 
 // Source unique de vérité pour la version de l'application.
-const APP_VERSION = '23.11';
+const APP_VERSION = '23.12';
 
 const CHANGELOG = [
+  {
+    version: '23.12',
+    date: '2026-09-16',
+    changes: [
+      'Cartouche identique en « Carroyage rapide » et en « Export de zone » : nom de la carte, échelle avec fond et niveau de zoom, point d\'origine, et point de référence s\'il diffère de l\'origine. L\'export de zone en CFSI ou sans carroyage en reçoit un, lui qui n\'en avait aucun',
+      'Une adresse recherchée devient le nom de la carte, repris dans le cartouche et dans le nom du fichier ; un nom saisi à la main n\'est jamais écrasé',
+      'Noms de fichiers alignés sur ceux du carroyage rapide, et caractères interdits (« / » et « : » de la date) désormais remplacés',
+    ],
+  },
   {
     version: '23.11',
     date: '2026-09-16',
