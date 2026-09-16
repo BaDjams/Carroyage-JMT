@@ -376,75 +376,166 @@ function drawReferenceCross(ctx, latLonToPixels, config, cellWidthInPixels) {
     ctx.stroke();
 }
 
-function drawCartouche(ctx, latLonToPixels, config, a1CornerCoords, cellWidthInPixels, address) {
+// ===========================================================================
+// CARTOUCHE : CONTENU COMMUN AUX DEUX MODES
+// ===========================================================================
+// Meme contenu en « Carroyage rapide » et en « Export de zone » :
+//   ligne 1  nom de la carte       « Carte du 2026/09/16 a 08:30 » par defaut
+//   ligne 2  echelle + fond + zoom « 1 carre = 10m, OSM z16 »
+//   ligne 3  point d'origine       « Origine (A1) : 46.22760, 2.21370 »
+//   ligne 4  point de reference    seulement s'il differe de l'origine A1
+// La taille de l'encadre suit le contenu : hauteur par nombre de lignes, largeur
+// par la ligne la plus longue.
+
+// Un nom sans limite etirerait le cartouche jusqu'a l'absurde.
+const CARTOUCHE_NAME_MAX = 60;
+
+function defaultCartoucheName(now = new Date()) {
+    const d = `${now.getFullYear()}/${String(now.getMonth() + 1).padStart(2, "0")}/${String(now.getDate()).padStart(2, "0")}`;
+    const h = now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    return `Carte du ${d} à ${h}`;
+}
+
+function cartoucheName(raw) {
+    const name = String(raw || "").trim() || defaultCartoucheName();
+    return name.length > CARTOUCHE_NAME_MAX
+        ? name.slice(0, CARTOUCHE_NAME_MAX - 1).trimEnd() + "…"
+        : name;
+}
+
+// Le nom par defaut contient une date (« Carte du 2026/09/16 a 08:30 ») : ses « / » et
+// « : » sont interdits dans un nom de fichier. Meme assainissement pour les deux modes.
+function cartoucheFileName(raw) {
+    return cartoucheName(raw)
+        .replace(/[\\\/:*?"<>|]/g, '-')
+        .replace(/\s+/g, ' ')
+        .trim();
+}
+
+// Le nom de la carte est « automatique » tant que l'utilisateur ne l'a pas saisi
+// lui-meme : c'est ce que marque dataset.autoName. Une adresse recherchee remplace
+// alors le nom par defaut, mais jamais un nom choisi a la main.
+function setAutoCartoucheName(inputEl, name) {
+    if (!inputEl) return;
+    inputEl.value = name;
+    // Le listener ci-dessous efface le marqueur sur cet evenement : on le repose apres.
+    inputEl.dispatchEvent(new Event('input'));
+    inputEl.dataset.autoName = '1';
+}
+
+function watchCartoucheNameField(inputEl) {
+    if (!inputEl || inputEl.dataset.autoWatched) return;
+    inputEl.dataset.autoWatched = '1';
+    inputEl.addEventListener('input', () => { delete inputEl.dataset.autoName; });
+}
+
+// Une adresse recherchee devient le nom de la carte. Les libelles Nominatim sont
+// souvent tres longs : cartoucheName les bride comme n'importe quelle saisie.
+function applyAddressAsCartoucheName(inputEl, address) {
+    if (!inputEl || !address) return;
+    if (inputEl.dataset.autoName !== '1') return;
+    setAutoCartoucheName(inputEl, cartoucheName(address));
+}
+
+function cartoucheCoords(lat, lon) {
+    return `${Number(lat).toFixed(5)}, ${Number(lon).toFixed(5)}`;
+}
+
+// L'echelle n'a de sens que pour le carroyage CADO, dont la maille est metrique.
+// Les carroyages UTM/MGRS/CFSI se nomment, et un export sans carroyage n'annonce
+// que son fond. Le fond et le niveau de zoom, eux, sont TOUJOURS indiques.
+function cartoucheScaleLine({ gridKind, scale, layerShort, zoom } = {}) {
+    const fond = [layerShort, (zoom !== null && zoom !== undefined) ? `z${zoom}` : null]
+        .filter(Boolean).join(" ");
+    const tete = (gridKind === "cado" && scale) ? `1 carré = ${scale}m`
+        : gridKind === "utm"  ? "Carroyage UTM"
+        : gridKind === "mgrs" ? "Carroyage MGRS"
+        : gridKind === "cfsi" ? "Carroyage CFSI"
+        : null;
+    return [tete, fond].filter(Boolean).join(", ");
+}
+
+// Renvoie { lines, refIndex } : refIndex repere la ligne du point de reference,
+// seule a recevoir la croix rouge au trace.
+function buildCartoucheLines(opts = {}) {
+    const lines = [cartoucheName(opts.name), cartoucheScaleLine(opts)];
+    if (opts.originLat !== null && opts.originLat !== undefined) {
+        lines.push(`Origine ${opts.originLabel || "(A1)"} : ${cartoucheCoords(opts.originLat, opts.originLon)}`);
+    }
+    let refIndex = -1;
+    if (opts.refLat !== null && opts.refLat !== undefined) {
+        refIndex = lines.length;
+        lines.push(`Pt. Réf : ${cartoucheCoords(opts.refLat, opts.refLon)}`);
+    }
+    return { lines, refIndex };
+}
+
+// Trace l'encadre a partir des lignes deja composees. Renvoie ses dimensions, dont
+// la boussole de l'export de zone a besoin pour se placer dessous.
+function drawCartoucheBox(ctx, lines, x, y, fontSize, refIndex = -1) {
+    const padding = fontSize * 0.5;
+    const lineSpacing = fontSize * 1.3;
+    ctx.font = `${fontSize}px Arial`;
+    const width = Math.max(...lines.map((t) => ctx.measureText(t).width)) + padding * 2;
+    const height = lineSpacing * lines.length + padding * 2;
+
+    ctx.fillStyle = "rgba(255, 255, 255, 0.85)";
+    ctx.fillRect(x, y, width, height);
+    ctx.strokeStyle = "black";
+    ctx.lineWidth = 1;
+    ctx.strokeRect(x, y, width, height);
+
+    ctx.fillStyle = "black";
+    ctx.textAlign = "left";
+    ctx.textBaseline = "middle";
+    let textY = y + padding + lineSpacing / 2;
+    lines.forEach((text, i) => {
+        if (i === refIndex) {
+            const c = fontSize * 0.4;
+            const cx = x + padding + c;
+            ctx.strokeStyle = "#FF0000";
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(cx - c, textY); ctx.lineTo(cx + c, textY);
+            ctx.moveTo(cx, textY - c); ctx.lineTo(cx, textY + c);
+            ctx.stroke();
+            ctx.fillStyle = "black";
+            ctx.fillText(text, cx + c + padding / 2, textY);
+        } else {
+            ctx.fillText(text, x + padding, textY);
+        }
+        textY += lineSpacing;
+    });
+    return { width, height };
+}
+
+function drawCartouche(ctx, latLonToPixels, config, a1CornerCoords, cellWidthInPixels) {
     const [a1Lon, a1Lat] = a1CornerCoords;
     const startColNum = letterToNumber(config.startCol);
-    const topRowNum = (config.letteringDirection === 'ascending') 
-        ? Math.max(config.startRow, config.endRow) + 1 
+    const topRowNum = (config.letteringDirection === 'ascending')
+        ? Math.max(config.startRow, config.endRow) + 1
         : Math.min(config.startRow, config.endRow);
     const anchorGeoPoint = calculateAndRotatePoint(startColNum, topRowNum, config, a1Lat, a1Lon);
     const anchorPixels = latLonToPixels(anchorGeoPoint[1], anchorGeoPoint[0]);
-    
-    const FONT_SIZE_RATIO = 0.15;
-    const FONT_SIZE_PX = Math.max(12, cellWidthInPixels * FONT_SIZE_RATIO);
-    const PADDING_RATIO = 0.5;
-    const padding = FONT_SIZE_PX * PADDING_RATIO;
-    const lineSpacing = FONT_SIZE_PX * 1.3;
-    
-    ctx.font = `${FONT_SIZE_PX}px Arial`;
-    
-    const refText = (config.referencePointChoice === 'center') 
-        ? `Pt. Réf: ${config.latitude.toFixed(5)}, ${config.longitude.toFixed(5)}` 
-        : '';
-    const scaleText = `Échelle: 1 case = ${config.scale}m`;
-    
-    const textsToDraw = [];
 
-    // MODIFICATION : Ajout de l'adresse en première ligne si elle existe
-    if (address && address.length > 0) {
-        textsToDraw.push(address);
-    }
+    const FONT_SIZE_PX = Math.max(12, cellWidthInPixels * 0.15);
+    const padding = FONT_SIZE_PX * 0.5;
 
-    textsToDraw.push(config.gridNameBase);
-    
-    if (refText) textsToDraw.push(refText);
-    textsToDraw.push(scaleText);
-    
-    const maxTextWidth = Math.max(...textsToDraw.map(text => ctx.measureText(text).width));
-    const cartoucheWidth = maxTextWidth + (padding * 2);
-    const cartoucheHeight = (lineSpacing * textsToDraw.length) + (padding * 2);
-    
-    const cartoucheX = anchorPixels.x + padding;
-    const cartoucheY = anchorPixels.y + padding;
-    
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
-    ctx.fillRect(cartoucheX, cartoucheY, cartoucheWidth, cartoucheHeight);
-    ctx.strokeStyle = 'black';
-    ctx.lineWidth = 1;
-    ctx.strokeRect(cartoucheX, cartoucheY, cartoucheWidth, cartoucheHeight);
-    
-    ctx.fillStyle = 'black';
-    ctx.textAlign = 'left';
-    ctx.textBaseline = 'middle';
-    
-    let textY = cartoucheY + padding + (lineSpacing / 2);
-    const refTextPattern = /^Pt\. Réf:/;
-    
-    for (const text of textsToDraw) {
-        if (refTextPattern.test(text)) {
-            const crossSize = FONT_SIZE_PX * 0.4;
-            const crossX = cartoucheX + padding + crossSize;
-            ctx.strokeStyle = '#FF0000'; ctx.lineWidth = 2; ctx.beginPath();
-            ctx.moveTo(crossX - crossSize, textY); ctx.lineTo(crossX + crossSize, textY);
-            ctx.moveTo(crossX, textY - crossSize); ctx.lineTo(crossX, textY + crossSize);
-            ctx.stroke();
-            ctx.fillStyle = 'black';
-            ctx.fillText(text, crossX + crossSize + (padding / 2), textY);
-        } else {
-            ctx.fillText(text, cartoucheX + padding, textY);
-        }
-        textY += lineSpacing;
-    }
+    // Le point de reference ne figure que s'il differe de l'origine A1 : « Milieu du
+    // carroyage » le deplace, « Origine (A1) » le confond avec la ligne precedente.
+    const hasRef = config.referencePointChoice === 'center';
+    const { lines, refIndex } = buildCartoucheLines({
+        name: config.gridNameBase,
+        gridKind: config.cartoucheGridKind || 'cado',
+        scale: config.scale,
+        layerShort: config.cartoucheLayerShort,
+        zoom: config.cartoucheZoom,
+        originLat: a1Lat, originLon: a1Lon, originLabel: '(A1)',
+        refLat: hasRef ? config.latitude : null,
+        refLon: hasRef ? config.longitude : null,
+    });
+
+    drawCartoucheBox(ctx, lines, anchorPixels.x + padding, anchorPixels.y + padding, FONT_SIZE_PX, refIndex);
 }
 
 // utilities.js
@@ -564,7 +655,9 @@ function drawCompass(ctx, latLonToPixels, config, a1CornerCoords, cellWidthInPix
     }
 }
 
-function drawCadoElementsOnCanvas(ctx, config, latLonToPixels, a1CornerCoords, address = "") {
+// `address` a disparu : la ligne 1 du cartouche est desormais le NOM de la carte,
+// uniformise avec l'export de zone.
+function drawCadoElementsOnCanvas(ctx, config, latLonToPixels, a1CornerCoords) {
     const [a1Lon, a1Lat] = a1CornerCoords;
     const startColNum = letterToNumber(config.startCol);
     const endColNum = letterToNumber(config.endCol);
@@ -649,7 +742,7 @@ function drawCadoElementsOnCanvas(ctx, config, latLonToPixels, a1CornerCoords, a
     }
         
     drawSubdivisionKey(ctx, latLonToPixels, config, a1CornerCoords);
-    drawCartouche(ctx, latLonToPixels, config, a1CornerCoords, cellWidthInPixels, address);
+    drawCartouche(ctx, latLonToPixels, config, a1CornerCoords, cellWidthInPixels);
     
     // MODIFICATION : Détection si on est en mode "Image Rotatée" ou "Carte Standard"
     // Si la grille est dessinée droite (deviation=0 dans config), mais qu'il y a une deviation réelle dans l'UI

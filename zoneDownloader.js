@@ -628,6 +628,13 @@ async function generateZonePNG() {
             zoom = selectedMap.maxZoom ? Math.min(rawZoom, selectedMap.maxZoom) : rawZoom;
         }
         
+        // Cartouche et nom de fichier partagent ces deux valeurs.
+        const cartoucheLayerShort = selectedMap?.shortName || mapLayerName || '';
+        const cartoucheGridKind = useCado ? 'cado'
+            : useUtm ? (gridMode === 'mgrs' ? 'mgrs' : 'utm')
+            : useCfsi ? 'cfsi'
+            : null;
+
         const format = document.querySelector('input[name="image-format-zone"]:checked').value;
         const isGeoTiffFormat = (format === 'geotiff' || format === 'geotiff-jpeg' || format === 'geotiff-utm');
         const quality = parseInt(document.getElementById('zone-jpeg-quality').value) / 100;
@@ -683,6 +690,10 @@ async function generateZonePNG() {
             loadingMessage.textContent = "Dessin du carroyage CADO...";
             const { config, a1CornerLat, a1CornerLon } = cadoData;
             config.realDeviation = zoneDeviationDeg;
+            // Ligne 2 du cartouche : le carroyage CADO porte l'echelle, les autres non.
+            config.cartoucheGridKind = 'cado';
+            config.cartoucheLayerShort = cartoucheLayerShort;
+            config.cartoucheZoom = zoom;
             drawCadoElementsOnCanvas(ctx, config, latLonToCanvasPixels, [a1CornerLon, a1CornerLat]);
             config.lineWidth = config.lineWidth / scaleFactor;
         }
@@ -716,14 +727,24 @@ async function generateZonePNG() {
         }
 
         // FINITIONS (CARTOUCHE)
+        // Le carroyage CADO pose deja le sien, ancre sur la grille (drawCadoElementsOnCanvas).
+        // Tous les autres cas — UTM, MGRS, CFSI, ou export sans carroyage — recoivent
+        // desormais le meme cartouche, la ou CFSI et l'export nu n'en avaient aucun.
         if (!useCado) {
             loadingMessage.textContent = "Finalisation de l'image...";
-            const userTitle = document.getElementById("zone-title").value || "Zone";
-            
+            const cartoucheFontSize = Math.max(10 * scaleFactor, Math.min(48 * scaleFactor, finalCanvas.width * 0.007));
+            // Sans carroyage CADO il n'y a pas de coin A1 : l'origine est celle de l'emprise.
+            const cartoucheMetrics = drawZoneCartouche(ctx, {
+                name: document.getElementById("zone-title").value,
+                gridKind: cartoucheGridKind,
+                layerShort: cartoucheLayerShort,
+                zoom: zoom,
+                originLat: finalBoundingBox.north,
+                originLon: finalBoundingBox.west,
+                originLabel: '(coin NO)',
+            }, dynamicMargin, cartoucheFontSize);
+
             if (useUtm) {
-                const cartoucheFontSize = Math.max(10 * scaleFactor, Math.min(48 * scaleFactor, finalCanvas.width * 0.007));
-                const cartoucheTitle = `Export de ${userTitle}_zoom ${zoom}`;
-                const cartoucheMetrics = drawZoneCartouche(ctx, cartoucheTitle, finalBoundingBox, mapLayerName, zoom, dynamicMargin, cartoucheFontSize);
                 drawZoneCompass(ctx, finalCanvas.width, finalCanvas.height, dynamicMargin, cartoucheMetrics, zoneDeviationDeg);
             } else {
                 // Pour CFSI ou Aucun
@@ -763,25 +784,28 @@ async function generateZonePNG() {
             exportCanvas = scaledCanvas;
         }
 
-        const now = new Date();
-        const dateStr = `${String(now.getDate()).padStart(2, '0')}.${String(now.getMonth() + 1).padStart(2, '0')}.${now.getFullYear()}`;
-
-        let gridTypeStr = "Map";
+        // Meme modele de nom qu'en carroyage rapide : nom assaini, echelle, type de
+        // carroyage, deviation, couleur, puis l'origine. Le fond et le zoom s'y ajoutent,
+        // propres a l'export de zone, et repris tels quels de la ligne 2 du cartouche.
+        let gridTypeStr = "";
         if (useCado) gridTypeStr += "_CADO";
         if (useUtm) gridTypeStr += (gridMode === 'mgrs') ? "_MGRS" : "_UTM";
         if (useCfsi) gridTypeStr += "_CFSI";
 
-        let rawTitle = document.getElementById("zone-title").value || "Export";
-        if (!rawTitle.startsWith("Export")) rawTitle = `Export_${rawTitle}`;
-        
-        // Ajout de l'origine A1 si le carroyage CADO est utilisé
-        let originString = "";
-        if (useCado && cadoData) {
-            originString = `_origine=${cadoData.a1CornerLat.toFixed(6)},${cadoData.a1CornerLon.toFixed(6)}`;
-        }
-
+        const baseName = cartoucheFileName(document.getElementById("zone-title").value);
+        const scaleStr = (useCado && cadoData?.config?.scale) ? `_${cadoData.config.scale}m` : '';
+        const colorStr = (useCado || useUtm || useCfsi)
+            ? `_${document.getElementById('utm-grid-color-name').value || ''}`.replace(/_$/, '')
+            : '';
         const deviationStr = zoneDeviationDeg !== 0 ? `_dev${Math.round(zoneDeviationDeg)}deg` : '';
-        const fileName = `${rawTitle}_zoom${zoom}_${gridTypeStr}${deviationStr}_${dateStr}${originString}${fileExtension}`;
+        const layerStr = `_${cartoucheLayerShort}-z${zoom}`.replace(/\s+/g, '-');
+        // L'origine suit celle du cartouche : le coin A1 s'il y a un carroyage CADO,
+        // sinon le coin nord-ouest de l'emprise exportee.
+        const originString = (useCado && cadoData)
+            ? `_origine=${cadoData.a1CornerLat.toFixed(6)},${cadoData.a1CornerLon.toFixed(6)}`
+            : `_origine=${finalBoundingBox.north.toFixed(6)},${finalBoundingBox.west.toFixed(6)}`;
+
+        const fileName = `${baseName}${scaleStr}${gridTypeStr}${deviationStr}${colorStr}${layerStr}${originString}${fileExtension}`;
         
         if (isGeoTiffFormat) {
             // Géoréférencement EPSG:3857. nwPixel = coin haut-gauche du contenu (world pixels
@@ -1505,33 +1529,14 @@ async function zdCreateFinalCanvas(boundingBox, zoom, mapConfig, externalMargin,
     return { finalCanvas: finalC, dynamicMargin: margin, scaleFactor: scale, actualZoom };
 }
 
-function drawZoneCartouche(ctx, title, bbox, layerName, zoom, margin, fontSize) {
-    const PADDING = fontSize;
-    const lineSpacing = fontSize * 1.3;
-    const utmNW = WGS84_to_UTM.fromLatLon(bbox.north, bbox.west);
-    const utmSE = WGS84_to_UTM.fromLatLon(bbox.south, bbox.east);
-    const utmNW_string = `${utmNW.zoneNumber}${utmNW.zoneLetter} ${Math.round(utmNW.easting)} E ${Math.round(utmNW.northing)} N`;
-    const utmSE_string = `${utmSE.zoneNumber}${utmSE.zoneLetter} ${Math.round(utmSE.easting)} E ${Math.round(utmSE.northing)} N`;
-    const texts = [ title, `UTM NO: ${utmNW_string}`, `UTM SE: ${utmSE_string}`, `Fond: ${layerName} (Zoom ${zoom})`];
-    ctx.font = `${fontSize}px Arial`;
-    const cartoucheWidth = Math.max(...texts.map(text => ctx.measureText(text).width)) + (PADDING * 2);
-    const cartoucheHeight = (lineSpacing * texts.length) - (lineSpacing - fontSize) + (PADDING * 2);
-    const cartoucheX = margin + PADDING;
-    const cartoucheY = margin + PADDING;
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
-    ctx.fillRect(cartoucheX, cartoucheY, cartoucheWidth, cartoucheHeight);
-    ctx.strokeStyle = 'black';
-    ctx.lineWidth = 1;
-    ctx.strokeRect(cartoucheX, cartoucheY, cartoucheWidth, cartoucheHeight);
-    ctx.fillStyle = 'black';
-    ctx.textAlign = 'left';
-    ctx.textBaseline = 'top';
-    let textY = cartoucheY + PADDING;
-    for (const text of texts) {
-        ctx.fillText(text, cartoucheX + PADDING, textY);
-        textY += lineSpacing;
-    }
-    return { fontSize, cartoucheHeight };
+// Cartouche de l'export de zone. Meme contenu qu'en carroyage rapide (cf.
+// buildCartoucheLines dans utilities.js) ; seul l'ancrage differe : ici le coin haut
+// gauche de la marge, la-bas le coin du carroyage.
+function drawZoneCartouche(ctx, opts, margin, fontSize) {
+    const { lines, refIndex } = buildCartoucheLines(opts);
+    const box = drawCartoucheBox(ctx, lines, margin + fontSize * 0.5, margin + fontSize * 0.5, fontSize, refIndex);
+    // La boussole se place sous le cartouche : elle a besoin de sa hauteur.
+    return { fontSize, cartoucheHeight: box.height };
 }
 
 function drawZoneCompass(ctx, canvasWidth, canvasHeight, margin, cartoucheMetrics, rotationDeg = 0) {
@@ -1643,6 +1648,7 @@ function setupZoneAddressSearch() {
                     suggestions.forEach(item => {
                         const li = createAddressSuggestionItem(item, () => {
                             input.value = item.label;
+                            applyAddressAsCartoucheName(document.getElementById('zone-title'), item.label);
                             list.classList.add('hidden');
                             window.zoneMap.flyTo([item.lat, item.lon], 15);
                         });
@@ -1658,6 +1664,7 @@ function setupZoneAddressSearch() {
                     d.forEach(f => {
                         const li = createAddressSuggestionItem({ label: f.display_name }, () => {
                             input.value = f.display_name;
+                            applyAddressAsCartoucheName(document.getElementById('zone-title'), f.display_name);
                             list.classList.add('hidden');
                             window.zoneMap.flyTo([parseFloat(f.lat), parseFloat(f.lon)], 15);
                         });

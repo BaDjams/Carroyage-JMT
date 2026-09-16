@@ -9,6 +9,8 @@ if (typeof GOOGLE_MAPS_API_KEY === 'undefined') var GOOGLE_MAPS_API_KEY = '';
 // Export .dem (ASTER GDEM V3) : clé gratuite sur portal.opentopography.org.
 if (typeof OPENTOPOGRAPHY_API_KEY === 'undefined') var OPENTOPOGRAPHY_API_KEY = '';
 
+// « shortName » : nom court pour le cartouche des images exportees, ou la place
+// manque (« 1 carre = 10m, OSM z16 »). Le « name » complet reste celui du selecteur.
 // « attribution » : mention affichee sur la carte (Leaflet accepte du HTML). La
 // politique d'usage des tuiles OSM impose « © les contributeurs OpenStreetMap »
 // visible sur la carte ; son absence est un motif de blocage manuel. Les guillemets
@@ -17,6 +19,7 @@ const MAP_LAYERS = [
     {
         "id": "ign_ign_hybrid",
         "name": "Ortho IGN + Routes IGN",
+        "shortName": "Ortho IGN + IGN",
         "attribution": "&copy; <a href='https://www.ign.fr/' target='_blank' rel='noopener'>IGN</a>",
         "maxZoom": 19,
         "layers": [
@@ -37,6 +40,7 @@ const MAP_LAYERS = [
     {
         "id": "ign_google_hybrid",
         "name": "Ortho IGN + Routes Google",
+        "shortName": "Ortho IGN + Google",
         "attribution": "&copy; <a href='https://www.ign.fr/' target='_blank' rel='noopener'>IGN</a> &mdash; &copy; Google",
         "maxZoom": 19, // CORRECTION : Limité à 19 pour correspondre au service WMTS IGN
         "layers": [
@@ -57,6 +61,7 @@ const MAP_LAYERS = [
         // Pas de décalage de projection car les deux couches viennent du même serveur.
         "id": "yandex_hybrid",
         "name": "Yandex Hybride (FR)",
+        "shortName": "Yandex",
         "attribution": "&copy; Yandex",
         "maxZoom": 18,
         "layers": [
@@ -73,6 +78,7 @@ const MAP_LAYERS = [
     {
         "id": "bing_hybrid",
         "name": "Bing Maps Hybride",
+        "shortName": "Bing",
         "attribution": "&copy; Microsoft",
         "maxZoom": 19,
         "layers": [
@@ -86,6 +92,7 @@ const MAP_LAYERS = [
     {
         "id": "google_hybrid",
         "name": "Google Hybrid",
+        "shortName": "Google",
         "attribution": "&copy; Google",
         "maxZoom": 21,
         "layers": [
@@ -98,6 +105,7 @@ const MAP_LAYERS = [
     {
         "id": "google_hybrid_NOPOI",
         "name": "Google Hybrid sans POI",
+        "shortName": "Google sans POI",
         "attribution": "&copy; Google",
         "maxZoom": 21,
         "layers": [
@@ -110,6 +118,7 @@ const MAP_LAYERS = [
     /*{
         "id": "esri_hybrid",
         "name": "Satellite Esri + Routes Google",
+        "shortName": "Esri + Google",
         "attribution": "&copy; Esri &mdash; &copy; Google",
         "maxZoom": 21,
         "layers": [
@@ -129,6 +138,7 @@ const MAP_LAYERS = [
         // Pyramide composite IGN privée z6-17, puis Plan IGN public z18-19.
         "id": "ign_scan_composite",
         "name": "IGN Cartes (privé - multi-échelles)",
+        "shortName": "IGN Cartes",
         "attribution": "&copy; <a href='https://www.ign.fr/' target='_blank' rel='noopener'>IGN</a>",
         "requiresKey": "IGN_PRIVATE_API_KEY",
         "maxZoom": 18,
@@ -142,6 +152,7 @@ const MAP_LAYERS = [
     {
         "id": "ign_public_hybrid",
         "name": "Plan IGN",
+        "shortName": "Plan IGN",
         "attribution": "&copy; <a href='https://www.ign.fr/' target='_blank' rel='noopener'>IGN</a>",
         "maxZoom": 19,
         "layers": [
@@ -154,6 +165,7 @@ const MAP_LAYERS = [
     {
         "id": "mapy_outdoor",
         "name": "Mapy.CZ Outdoor",
+        "shortName": "Mapy.CZ",
         "attribution": "&copy; <a href='https://mapy.cz/' target='_blank' rel='noopener'>Seznam.cz</a>",
         "requiresKey": "MAPY_API_KEY",
         "maxZoom": 19,
@@ -167,6 +179,7 @@ const MAP_LAYERS = [
     {
         "id": "osm_standard",
         "name": "OpenStreetMap",
+        "shortName": "OSM",
         "attribution": "&copy; les <a href='https://www.openstreetmap.org/copyright' target='_blank' rel='noopener'>contributeurs OpenStreetMap</a>",
         "maxZoom": 19,
         "layers": [
