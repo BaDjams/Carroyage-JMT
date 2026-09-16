@@ -662,3 +662,122 @@ function drawCadoElementsOnCanvas(ctx, config, latLonToPixels, a1CornerCoords, a
     
     drawReferenceCross(ctx, latLonToPixels, config, cellWidthInPixels);
 }
+
+// ===========================================================================
+// COTES DES ZONES RECTANGULAIRES
+// ===========================================================================
+// Partage par le createur MBTiles et l'export de zone : les deux modes dessinent
+// un rectangle d'emprise, et le meme habillage doit les decrire.
+//
+// Convention reprise de CadoTour (_measureLabelDescriptors / .map-measure-label de
+// drawing.js, CSS repris a l'identique) : une etiquette par cote, posee au milieu de
+// l'arete, decalee de 14 px vers l'exterieur et tournee dans le sens du trait.
+
+// Meme ecriture que les cotes de CadoTour (_formatMeters), au seuil pres : ici la
+// bascule m/km porte sur la valeur ARRONDIE. Deux cotes de 999,6 m et 1000,2 m
+// s'affichaient sinon « 1000 m » et « 1,0 km » sur le meme rectangle.
+function formatMapDistance(meters) {
+    if (Math.round(meters) >= 1000) {
+        return `${(meters / 1000).toFixed(meters >= 10000 ? 0 : 1).replace(".", ",")} km`;
+    }
+    return `${meters < 10 ? meters.toFixed(1).replace(".", ",") : Math.round(meters)} m`;
+}
+
+// Carre centre sur un point. Les decalages sont calcules sur la sphere terrestre et
+// non en degres fixes : 10 000 m valent bien 10 km quelle que soit la latitude.
+function boundsAroundPoint(center, radiusMeters) {
+    const earthRadius = 6371008.8;
+    const latRadians = center.lat * Math.PI / 180;
+    const latitudeOffset = radiusMeters / earthRadius * 180 / Math.PI;
+    const longitudeOffset = radiusMeters / (earthRadius * Math.cos(latRadians)) * 180 / Math.PI;
+    return L.latLngBounds(
+        [center.lat - latitudeOffset, center.lng - longitudeOffset],
+        [center.lat + latitudeOffset, center.lng + longitudeOffset]
+    );
+}
+
+// Registre carte Leaflet -> fonction de rendu. Le hook de trace ci-dessous est pose
+// sur le PROTOTYPE de Leaflet Draw, donc partage par toutes les cartes : il lui faut
+// ce registre pour savoir laquelle est concernee, et ne rien faire pour les autres.
+const _edgeMeasureRenderers = new Map();
+let _edgeMeasureHookInstalled = false;
+
+// Cotes pendant le TRACE. Leaflet Draw n'emet aucun evenement tant que le rectangle
+// n'est pas relache ; _drawShape, lui, est appele a chaque mousemove pour redimensionner
+// la forme provisoire. On s'y greffe plutot que de reconstruire l'emprise a la main.
+function _installEdgeMeasureDrawHook() {
+    if (_edgeMeasureHookInstalled || !window.L?.Draw?.Rectangle) return;
+    const original = L.Draw.Rectangle.prototype._drawShape;
+    L.Draw.Rectangle.prototype._drawShape = function (latlng) {
+        original.call(this, latlng);
+        const render = _edgeMeasureRenderers.get(this._map);
+        if (render && this._shape) render(this._shape.getBounds());
+    };
+    _edgeMeasureHookInstalled = true;
+}
+
+// Equipe une carte de ses cotes. Renvoie la fonction de rendu : l'appeler avec une
+// emprise pour (re)poser les etiquettes, avec null pour les effacer.
+function attachEdgeMeasures(map) {
+    // Calque SEPARE : le featureGroup d'edition de Leaflet Draw rendrait ces
+    // etiquettes selectionnables et supprimables.
+    const layer = L.layerGroup().addTo(map);
+    let lastBounds = null;
+
+    const render = (bounds) => {
+        lastBounds = bounds || null;
+        layer.clearLayers();
+        if (!lastBounds) return;
+
+        const corners = [lastBounds.getNorthWest(), lastBounds.getNorthEast(),
+                         lastBounds.getSouthEast(), lastBounds.getSouthWest()];
+        const toPx = (ll) => map.latLngToContainerPoint(ll);
+        const centerPx = toPx(lastBounds.getCenter());
+
+        for (let i = 0; i < corners.length; i++) {
+            const a = corners[i];
+            const b = corners[(i + 1) % corners.length];
+            const pa = toPx(a);
+            const pb = toPx(b);
+            const mid = { x: (pa.x + pb.x) / 2, y: (pa.y + pb.y) / 2 };
+
+            // Texte parallele a l'arete, redresse pour ne jamais s'afficher a l'envers.
+            let angle = Math.atan2(pb.y - pa.y, pb.x - pa.x) * 180 / Math.PI;
+            if (angle > 90) angle -= 180;
+            else if (angle < -90) angle += 180;
+
+            // Normale a l'arete, retournee au besoin pour pointer a l'oppose du centre :
+            // la cote se pose dehors, sans recouvrir le fond de carte.
+            let nx = -(pb.y - pa.y);
+            let ny = pb.x - pa.x;
+            if ((mid.x - centerPx.x) * nx + (mid.y - centerPx.y) * ny < 0) { nx = -nx; ny = -ny; }
+            const norm = Math.hypot(nx, ny) || 1;
+
+            // Chaque cote porte SA longueur geodesique : les aretes nord et sud d'un
+            // rectangle lat/lon ne mesurent pas la meme chose (convergence des meridiens).
+            const anchor = map.containerPointToLatLng(
+                L.point(mid.x + nx / norm * 14, mid.y + ny / norm * 14));
+            const transform = `translate(-50%,-50%) rotate(${angle.toFixed(1)}deg)`;
+            L.marker(anchor, {
+                interactive: false,
+                keyboard: false,
+                icon: L.divIcon({
+                    className: "map-measure-label",
+                    html: `<div style="transform:${transform}">${formatMapDistance(map.distance(a, b))}</div>`,
+                    iconSize: null,
+                    iconAnchor: [0, 0],
+                }),
+            }).addTo(layer);
+        }
+    };
+
+    _edgeMeasureRenderers.set(map, render);
+    _installEdgeMeasureDrawHook();
+    // L'ancrage est calcule via un decalage en PIXELS : changer de zoom change la
+    // latlng correspondante, il faut reposer les etiquettes.
+    map.on("zoomend", () => render(lastBounds));
+    // Le trace efface les cotes du rectangle precedent, qui reste affiche jusqu'a la
+    // creation du nouveau : mieux vaut aucune cote qu'une cote qui ment.
+    map.on(L.Draw.Event.DRAWSTART, () => render(null));
+    return render;
+}
