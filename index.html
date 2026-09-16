@@ -442,7 +442,15 @@
                         <input type="text" id="zone-address-search-input" aria-label="Rechercher une adresse pour centrer la carte" class="address-search-input input-field px-3 py-2 border rounded shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white text-base" placeholder="Rechercher une adresse pour centrer la carte..." autocomplete="off">
                         <ul id="zone-suggestions" class="hidden"></ul>
                     </div>
-                    <p class="text-sm text-secondary mb-2">Utilisez les outils sur la gauche de la carte pour dessiner votre zone rectangulaire, puis zoomez au niveau désiré.</p>
+                    <p class="text-sm text-secondary mb-2">Tracez un rectangle ou utilisez l'outil point pour créer un carré autour d'une position, puis zoomez au niveau désiré.</p>
+                    <div class="flex flex-wrap items-center gap-3 mb-2 text-sm text-secondary">
+                        <label for="zone-point-radius" class="font-medium whitespace-nowrap">Rayon autour du point</label>
+                        <div class="flex items-center">
+                            <input id="zone-point-radius" type="number" min="1" step="1000" value="10000" inputmode="numeric" class="input-field px-2 py-1 border rounded shadow-sm w-28 dark:bg-gray-700 dark:text-white" aria-describedby="zone-point-radius-help">
+                            <span class="ml-1">m</span>
+                        </div>
+                        <span id="zone-point-radius-help" class="text-xs">soit un carré de 20 × 20 km par défaut</span>
+                    </div>
                     <div id="zone-map-viewport" class="relative overflow-hidden">
                         <div id="zone-interactive-map"></div>
                     </div>
@@ -1008,6 +1016,8 @@
         let clickMarker = null;
         let debounceTimeout = null;
         let drawnItems = null;
+        let zonePointCenter = null;        // centre de la zone, pour le redimensionnement au rayon
+        let renderZoneMeasures = null;     // fourni par attachEdgeMeasures (utilities.js)
         let cadoBaseMaps = {};
         let zoneBaseMaps = {};
         let cadoMbtilesLayer = null;
@@ -1337,24 +1347,71 @@
             drawnItems = new L.FeatureGroup();
             zoneMap.addLayer(drawnItems);
             
+            // Cotes sur les aretes, memes que celles du createur MBTiles (cf. utilities.js).
+            renderZoneMeasures = attachEdgeMeasures(zoneMap);
+
+            // Le bouton « marker » sert ici d'outil « zone autour d'un point » : le point
+            // pose est remplace immediatement par le rectangle de selection.
+            if (L.drawLocal?.draw?.toolbar?.buttons) {
+                L.drawLocal.draw.toolbar.buttons.marker = 'Définir une zone autour d\'un point';
+            }
             const drawControl = new L.Control.Draw({
-                draw: { rectangle: { shapeOptions: { color: '#14b8a6' } }, polyline: false, polygon: false, circle: false, marker: false, circlemarker: false },
+                draw: { rectangle: { shapeOptions: { color: '#14b8a6' } }, marker: true,
+                        polyline: false, polygon: false, circle: false, circlemarker: false },
                 edit: { featureGroup: drawnItems }
             });
             zoneMap.addControl(drawControl);
             
             zoneMap.on(L.Draw.Event.CREATED, (e) => {
                 drawnItems.clearLayers();
-                drawnItems.addLayer(e.layer);
+                if (e.layerType === 'marker') {
+                    zonePointCenter = e.layer.getLatLng();
+                    const bounds = boundsAroundPoint(zonePointCenter, getZonePointRadius());
+                    drawnItems.addLayer(L.rectangle(bounds, { color: '#14b8a6' }));
+                    // Le rectangle doit rester entierement lisible juste apres le pointage.
+                    zoneMap.fitBounds(bounds, { padding: [24, 24], maxZoom: 18 });
+                    updateZoneCoordsFromBounds(bounds);
+                } else {
+                    drawnItems.addLayer(e.layer);
+                    zonePointCenter = e.layer.getBounds().getCenter();
+                    updateZoneCoordsFromBounds(e.layer.getBounds());
+                }
+            });
+            zoneMap.on(L.Draw.Event.EDITED, (e) => e.layers.eachLayer((layer) => {
+                zonePointCenter = layer.getBounds().getCenter();
+                updateZoneCoordsFromBounds(layer.getBounds());
+            }));
+            // Retouche EN COURS : Leaflet Draw emet editmove/editresize a chaque deplacement
+            // de poignee, bien avant le clic sur « Save ». Coordonnees, cotes et compte de
+            // tuiles suivent donc le rectangle en direct plutot qu'a la validation.
+            zoneMap.on(`${L.Draw.Event.EDITMOVE} ${L.Draw.Event.EDITRESIZE}`, (e) => {
+                if (typeof e.layer?.getBounds !== 'function') return;
+                zonePointCenter = e.layer.getBounds().getCenter();
                 updateZoneCoordsFromBounds(e.layer.getBounds());
             });
-            zoneMap.on(L.Draw.Event.EDITED, (e) => e.layers.eachLayer((layer) => updateZoneCoordsFromBounds(layer.getBounds())));
+            // Sortie du mode edition : « Cancel » restaure la geometrie d'origine sans
+            // emettre EDITED. On relit la couche reellement presente, validee ou annulee.
+            zoneMap.on(L.Draw.Event.EDITSTOP, () => {
+                const layer = drawnItems.getLayers()[0];
+                if (layer?.getBounds) updateZoneCoordsFromBounds(layer.getBounds());
+            });
             zoneMap.on(L.Draw.Event.DELETED, () => {
                 const nwInput = document.getElementById('zone-nw-coords');
                 const seInput = document.getElementById('zone-se-coords');
                 if(nwInput) nwInput.value = '';
                 if(seInput) seInput.value = '';
+                zonePointCenter = null;
+                renderZoneMeasures?.(null);
                 updateZoneTileCount();
+            });
+            // Le rayon redimensionne la zone a la volee, sans avoir a repointer.
+            document.getElementById('zone-point-radius')?.addEventListener('input', () => {
+                if (!zonePointCenter) return;
+                const bounds = boundsAroundPoint(zonePointCenter, getZonePointRadius());
+                drawnItems.clearLayers();
+                drawnItems.addLayer(L.rectangle(bounds, { color: '#14b8a6' }));
+                zoneMap.fitBounds(bounds, { padding: [24, 24], maxZoom: 18 });
+                updateZoneCoordsFromBounds(bounds);
             });
             zoneMap.on('zoomend', updateZoneInfo);
             zoneMap.on('baselayerchange', function(e) {
@@ -1485,7 +1542,14 @@
             }
         }
 
+        function getZonePointRadius() {
+            const radius = Number(document.getElementById('zone-point-radius')?.value);
+            // Empeche une emprise vide ou invalide, sans brider le choix de l'utilisateur.
+            return Number.isFinite(radius) && radius > 0 ? radius : 10000;
+        }
+
         function updateZoneCoordsFromBounds(bounds) {
+            renderZoneMeasures?.(bounds);
             const nw = bounds.getNorthWest();
             const se = bounds.getSouthEast();
             document.getElementById('zone-nw-coords').value = `${nw.lat.toFixed(6)}, ${nw.lng.toFixed(6)}`;
