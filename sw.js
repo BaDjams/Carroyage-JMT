@@ -1,8 +1,10 @@
 // sw.js - Service Worker PWA
 // ⚠ Mettre à jour CACHE_NAME à chaque déploiement pour invalider le cache existant.
 
-const CACHE_NAME = 'cado-cache-23.10';
-const SW_APP_VERSION = '23.10';
+// Un seul numéro à tenir à jour ici : la page lit le sien dans version.js, et
+// SW_APP_VERSION faisait doublon avec les deux — une occasion de plus de les
+// laisser diverger.
+const CACHE_NAME = 'cado-cache-23.11';
 
 // Liste EXACTE des fichiers à mettre en cache.
 // Si un seul fichier manque, la PWA ne s'installera pas.
@@ -48,6 +50,24 @@ const ASSETS_TO_CACHE = [
   './jszip.min.js',
   './openlocationcode.min.js',
 
+  // Leaflet et ses greffons — servis depuis le dépôt, donc pré-cachables.
+  // Tant qu'ils venaient d'unpkg.com / cdnjs.cloudflare.com, ils échappaient au
+  // pré-cache : l'application se disait hors-ligne mais ne démarrait pas sans
+  // réseau, et restait sur une page blanche dès que le CDN était filtré ou lent.
+  './vendor/leaflet/leaflet.js',
+  './vendor/leaflet/leaflet.css',
+  './vendor/leaflet/leaflet.wms.js',
+  './vendor/leaflet/images/layers.png',
+  './vendor/leaflet/images/layers-2x.png',
+  './vendor/leaflet/images/marker-icon.png',
+  './vendor/leaflet/images/marker-icon-2x.png',
+  './vendor/leaflet/images/marker-shadow.png',
+  './vendor/leaflet-draw/leaflet.draw.js',
+  './vendor/leaflet-draw/leaflet.draw.css',
+  './vendor/leaflet-draw/images/spritesheet.png',
+  './vendor/leaflet-draw/images/spritesheet-2x.png',
+  './vendor/leaflet-draw/images/spritesheet.svg',
+
   // Manifeste
   './manifest.json',
 
@@ -57,8 +77,19 @@ const ASSETS_TO_CACHE = [
 ];
 
 // Installation
+//
+// PAS de skipWaiting() ici. Il faisait prendre la main au nouveau Service Worker
+// immédiatement, y compris sur une page DÉJÀ en train de se charger : celle-ci
+// commençait sur l'ancien cache et finissait sur le nouveau, avec à l'arrivée un
+// mélange possible de deux versions dans un seul onglet — et le numéro affiché
+// restait celui d'avant, puisque index.html et version.js avaient été lus avant
+// la bascule. D'où l'impression d'un « conflit de version ».
+//
+// Le nouveau Service Worker attend donc son tour. Il prend la main soit quand
+// tous les onglets de l'application sont fermés, soit quand l'utilisateur clique
+// « Recharger » dans la notification (message SKIP_WAITING ci-dessous). Dans les
+// deux cas, une page donnée est servie de bout en bout par une seule version.
 self.addEventListener('install', (event) => {
-  self.skipWaiting();
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
       // IMPORTANT : `cache: 'reload'` force chaque requête à IGNORER le cache HTTP
@@ -75,6 +106,14 @@ self.addEventListener('install', (event) => {
   );
 });
 
+// La page demande la bascule immédiate (clic sur « Recharger »). C'est le seul
+// chemin par lequel un Service Worker en attente prend la main sans attendre la
+// fermeture des onglets — et la page se recharge juste après, donc elle repart
+// entièrement sur la nouvelle version.
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'SKIP_WAITING') self.skipWaiting();
+});
+
 // Activation et nettoyage des anciens caches
 self.addEventListener('activate', (event) => {
   event.waitUntil(
@@ -88,13 +127,11 @@ self.addEventListener('activate', (event) => {
         })
       );
     }).then(() => {
+      // claim() sert la toute première installation : sans lui, la page qui vient
+      // d'enregistrer le Service Worker resterait non contrôlée jusqu'au
+      // rechargement suivant. Sur une mise à jour, la page se recharge de toute
+      // façon (évènement controllerchange, côté index.html).
       return self.clients.claim();
-    }).then(() => {
-      return self.clients.matchAll();
-    }).then((clients) => {
-      clients.forEach(client => {
-        client.postMessage({ type: 'VERSION_UPDATE', version: SW_APP_VERSION });
-      });
     })
   );
 });
@@ -141,10 +178,11 @@ self.addEventListener('fetch', (event) => {
       if (response) {
         return response;
       }
-      // Sinon on va le chercher sur le réseau
-      return fetch(event.request).catch(() => {
-          // Gestion hors ligne optionnelle ici
-      });
+      // Sinon on va le chercher sur le réseau. En cas d'échec on renvoie une
+      // erreur réseau en bonne et due forme : rendre `undefined` faisait échouer
+      // respondWith() lui-même, ce que le navigateur signalait par un ERR_FAILED
+      // opaque au lieu de la vraie cause.
+      return fetch(event.request).catch(() => Response.error());
     })
   );
 });

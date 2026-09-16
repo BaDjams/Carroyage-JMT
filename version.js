@@ -1,9 +1,19 @@
 // version.js
 
 // Source unique de vérité pour la version de l'application.
-const APP_VERSION = '23.10';
+const APP_VERSION = '23.11';
 
 const CHANGELOG = [
+  {
+    version: '23.11',
+    date: '2026-09-16',
+    changes: [
+      'Correction du chargement bloqué : Leaflet et ses greffons (leaflet.wms, leaflet.draw) étaient téléchargés depuis unpkg.com et cdnjs.cloudflare.com à chaque ouverture. Ces scripts bloquent l\'affichage : dès que ces domaines étaient filtrés par un proxy, ou simplement lents, la page restait BLANCHE et l\'onglet tournait sans fin. Les bibliothèques sont désormais servies par l\'application elle-même (dossier vendor/), copies conformes de celles du CDN',
+      'Conséquence : l\'application démarre enfin réellement hors-ligne. Ces fichiers échappaient au pré-cache du Service Worker, qui se disait « hors-ligne » sans pouvoir se lancer sans réseau',
+      'Correction du conflit de version : le nouveau Service Worker prenait la main pendant le chargement de la page et effaçait l\'ancien cache au passage. L\'application affichait alors encore le numéro précédent, et il fallait recharger une deuxième fois pour obtenir la nouvelle version. Une page est maintenant servie d\'un bout à l\'autre par une seule version',
+      'La notification de mise à jour fonctionne enfin : elle s\'appuyait sur la bibliothèque flowbite, dont seule la feuille de style était chargée — elle ne s\'affichait donc jamais. Elle propose désormais « Recharger » quand une version est prête, puis « Voir les nouveautés » une fois celle-ci installée',
+    ],
+  },
   {
     version: '23.10',
     date: '2026-09-16',
