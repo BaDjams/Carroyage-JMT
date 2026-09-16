@@ -9,10 +9,15 @@ if (typeof GOOGLE_MAPS_API_KEY === 'undefined') var GOOGLE_MAPS_API_KEY = '';
 // Export .dem (ASTER GDEM V3) : clé gratuite sur portal.opentopography.org.
 if (typeof OPENTOPOGRAPHY_API_KEY === 'undefined') var OPENTOPOGRAPHY_API_KEY = '';
 
+// « attribution » : mention affichee sur la carte (Leaflet accepte du HTML). La
+// politique d'usage des tuiles OSM impose « © les contributeurs OpenStreetMap »
+// visible sur la carte ; son absence est un motif de blocage manuel. Les guillemets
+// internes sont SIMPLES : la valeur est elle-meme une chaine JS entre guillemets doubles.
 const MAP_LAYERS = [
     {
         "id": "ign_ign_hybrid",
         "name": "Ortho IGN + Routes IGN",
+        "attribution": "&copy; <a href='https://www.ign.fr/' target='_blank' rel='noopener'>IGN</a>",
         "maxZoom": 19,
         "layers": [
             {
@@ -32,6 +37,7 @@ const MAP_LAYERS = [
     {
         "id": "ign_google_hybrid",
         "name": "Ortho IGN + Routes Google",
+        "attribution": "&copy; <a href='https://www.ign.fr/' target='_blank' rel='noopener'>IGN</a> &mdash; &copy; Google",
         "maxZoom": 19, // CORRECTION : Limité à 19 pour correspondre au service WMTS IGN
         "layers": [
             // Couche 1: Le fond de carte Ortho-imagerie de l'IGN (souvent en JPEG)
@@ -51,6 +57,7 @@ const MAP_LAYERS = [
         // Pas de décalage de projection car les deux couches viennent du même serveur.
         "id": "yandex_hybrid",
         "name": "Yandex Hybride (FR)",
+        "attribution": "&copy; Yandex",
         "maxZoom": 18,
         "layers": [
             {
@@ -66,6 +73,7 @@ const MAP_LAYERS = [
     {
         "id": "bing_hybrid",
         "name": "Bing Maps Hybride",
+        "attribution": "&copy; Microsoft",
         "maxZoom": 19,
         "layers": [
             {
@@ -78,6 +86,7 @@ const MAP_LAYERS = [
     {
         "id": "google_hybrid",
         "name": "Google Hybrid",
+        "attribution": "&copy; Google",
         "maxZoom": 21,
         "layers": [
             {
@@ -89,6 +98,7 @@ const MAP_LAYERS = [
     {
         "id": "google_hybrid_NOPOI",
         "name": "Google Hybrid sans POI",
+        "attribution": "&copy; Google",
         "maxZoom": 21,
         "layers": [
             {
@@ -100,6 +110,7 @@ const MAP_LAYERS = [
     /*{
         "id": "esri_hybrid",
         "name": "Satellite Esri + Routes Google",
+        "attribution": "&copy; Esri &mdash; &copy; Google",
         "maxZoom": 21,
         "layers": [
             // Couche 1: Le fond de carte satellite Esri (fiable)
@@ -118,6 +129,7 @@ const MAP_LAYERS = [
         // Pyramide composite IGN privée z6-17, puis Plan IGN public z18-19.
         "id": "ign_scan_composite",
         "name": "IGN Cartes (privé - multi-échelles)",
+        "attribution": "&copy; <a href='https://www.ign.fr/' target='_blank' rel='noopener'>IGN</a>",
         "requiresKey": "IGN_PRIVATE_API_KEY",
         "maxZoom": 18,
         "layers": [
@@ -130,6 +142,7 @@ const MAP_LAYERS = [
     {
         "id": "ign_public_hybrid",
         "name": "Plan IGN",
+        "attribution": "&copy; <a href='https://www.ign.fr/' target='_blank' rel='noopener'>IGN</a>",
         "maxZoom": 19,
         "layers": [
             {
@@ -141,6 +154,7 @@ const MAP_LAYERS = [
     {
         "id": "mapy_outdoor",
         "name": "Mapy.CZ Outdoor",
+        "attribution": "&copy; <a href='https://mapy.cz/' target='_blank' rel='noopener'>Seznam.cz</a>",
         "requiresKey": "MAPY_API_KEY",
         "maxZoom": 19,
         "layers": [
@@ -153,6 +167,7 @@ const MAP_LAYERS = [
     {
         "id": "osm_standard",
         "name": "OpenStreetMap",
+        "attribution": "&copy; les <a href='https://www.openstreetmap.org/copyright' target='_blank' rel='noopener'>contributeurs OpenStreetMap</a>",
         "maxZoom": 19,
         "layers": [
             {
