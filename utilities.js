@@ -412,6 +412,31 @@ function cartoucheFileName(raw) {
         .trim();
 }
 
+// Le nom de la carte est « automatique » tant que l'utilisateur ne l'a pas saisi
+// lui-meme : c'est ce que marque dataset.autoName. Une adresse recherchee remplace
+// alors le nom par defaut, mais jamais un nom choisi a la main.
+function setAutoCartoucheName(inputEl, name) {
+    if (!inputEl) return;
+    inputEl.value = name;
+    // Le listener ci-dessous efface le marqueur sur cet evenement : on le repose apres.
+    inputEl.dispatchEvent(new Event('input'));
+    inputEl.dataset.autoName = '1';
+}
+
+function watchCartoucheNameField(inputEl) {
+    if (!inputEl || inputEl.dataset.autoWatched) return;
+    inputEl.dataset.autoWatched = '1';
+    inputEl.addEventListener('input', () => { delete inputEl.dataset.autoName; });
+}
+
+// Une adresse recherchee devient le nom de la carte. Les libelles Nominatim sont
+// souvent tres longs : cartoucheName les bride comme n'importe quelle saisie.
+function applyAddressAsCartoucheName(inputEl, address) {
+    if (!inputEl || !address) return;
+    if (inputEl.dataset.autoName !== '1') return;
+    setAutoCartoucheName(inputEl, cartoucheName(address));
+}
+
 function cartoucheCoords(lat, lon) {
     return `${Number(lat).toFixed(5)}, ${Number(lon).toFixed(5)}`;
 }

@@ -1687,6 +1687,7 @@
             items.forEach(item => {
                 const li = createAddressSuggestionItem(item, () => {
                     searchInput.value = item.label;
+                    applyAddressAsCartoucheName(document.getElementById('grid-name-base'), item.label);
                     suggestionsList.classList.add('hidden');
                     const position = L.latLng(item.lat, item.lon);
                     cadoMap.flyTo(position, 17);
@@ -1749,15 +1750,13 @@
         
         function setDefaultGridName() {
             const defaultName = defaultCartoucheName();
-            const gridNameInput = document.getElementById('grid-name-base');
-            if (gridNameInput) {
-                gridNameInput.value = defaultName;
-                gridNameInput.dispatchEvent(new Event('input'));
-            }
             // Meme nom par defaut en export de zone : la ligne 1 du cartouche et le nom
             // de fichier sont desormais les memes des deux cotes.
-            const zoneTitleInput = document.getElementById('zone-title');
-            if (zoneTitleInput) zoneTitleInput.value = defaultName;
+            for (const id of ['grid-name-base', 'zone-title']) {
+                const el = document.getElementById(id);
+                watchCartoucheNameField(el);
+                setAutoCartoucheName(el, defaultName);
+            }
         }
         
         function initUI() {

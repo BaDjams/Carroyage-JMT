@@ -1648,6 +1648,7 @@ function setupZoneAddressSearch() {
                     suggestions.forEach(item => {
                         const li = createAddressSuggestionItem(item, () => {
                             input.value = item.label;
+                            applyAddressAsCartoucheName(document.getElementById('zone-title'), item.label);
                             list.classList.add('hidden');
                             window.zoneMap.flyTo([item.lat, item.lon], 15);
                         });
@@ -1663,6 +1664,7 @@ function setupZoneAddressSearch() {
                     d.forEach(f => {
                         const li = createAddressSuggestionItem({ label: f.display_name }, () => {
                             input.value = f.display_name;
+                            applyAddressAsCartoucheName(document.getElementById('zone-title'), f.display_name);
                             list.classList.add('hidden');
                             window.zoneMap.flyTo([parseFloat(f.lat), parseFloat(f.lon)], 15);
                         });
