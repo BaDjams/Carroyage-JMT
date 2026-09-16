@@ -21,16 +21,23 @@
 <meta name="theme-color" content="#3b82f6">
 <link href="tailwind.min.css" rel="stylesheet">
 <link href="flowbite.min.css" rel="stylesheet">
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" defer/>
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.css" />
+<!-- Leaflet et ses greffons sont servis depuis CE dépôt (vendor/), plus depuis
+     unpkg.com / cdnjs.cloudflare.com. Ce sont des scripts BLOQUANTS : tant que le
+     navigateur ne les a pas recus, il n'affiche rien du tout. Quand le CDN est
+     filtré par un proxy d'entreprise, ou simplement lent, la page reste blanche et
+     l'onglet tourne indéfiniment — et le Service Worker ne pouvait pas rattraper le
+     coup, ces fichiers etant hors de son pré-cache. Les copies de vendor/ sont
+     octet pour octet celles du CDN (empreintes SRI d'origine vérifiées). -->
+<link rel="stylesheet" href="vendor/leaflet/leaflet.css">
+<link rel="stylesheet" href="vendor/leaflet-draw/leaflet.draw.css">
 <link rel="stylesheet" href="style.css">
 
 <script src="version.js" defer></script>
 <script src="openlocationcode.min.js" defer></script>
 
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-<script src="https://unpkg.com/leaflet.wms@0.2.0/dist/leaflet.wms.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.js" defer></script>
+<script src="vendor/leaflet/leaflet.js"></script>
+<script src="vendor/leaflet/leaflet.wms.js"></script>
+<script src="vendor/leaflet-draw/leaflet.draw.js" defer></script>
 <script src="config.private.js" defer onerror="console.warn('config.private.js absent : layers privés désactivés.')"></script>
 <script src="map-layers.js" defer></script>
 <script src="icons.js" defer></script>
@@ -953,11 +960,12 @@
 
 <div id="toast-update" class="hidden fixed top-5 right-5 flex items-center w-full max-w-xs p-4 space-x-4 text-gray-500 bg-white divide-x divide-gray-200 rounded-lg shadow-lg dark:text-gray-400 dark:divide-gray-700 space-x dark:bg-gray-800 z-50" role="alert">
     <div class="text-sm font-normal">
-        <div class="text-sm font-semibold text-gray-900 dark:text-white">Mise à jour effectuée !</div>
-        <div class="text-sm font-normal">Version <span id="toast-version-number" class="font-semibold"></span> installée.</div>
+        <div id="toast-update-title" class="text-sm font-semibold text-gray-900 dark:text-white">Mise à jour effectuée !</div>
+        <div id="toast-update-body" class="text-sm font-normal"></div>
+        <button id="toast-reload-btn" class="hidden text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded px-2 py-1 mt-2">Recharger</button>
         <button id="toast-changelog-btn" class="text-xs text-blue-600 hover:underline dark:text-blue-400 mt-1 block">Voir les nouveautés →</button>
     </div>
-    <button type="button" class="ms-auto -mx-1.5 -my-1.5 bg-white text-gray-400 hover:text-gray-900 rounded-lg focus:ring-2 focus:ring-gray-300 p-1.5 hover:bg-gray-100 inline-flex items-center justify-center h-8 w-8 dark:text-gray-500 dark:hover:text-white dark:bg-gray-800 dark:hover:bg-gray-700" data-dismiss-target="#toast-update" aria-label="Close">
+    <button type="button" id="toast-close-btn" class="ms-auto -mx-1.5 -my-1.5 bg-white text-gray-400 hover:text-gray-900 rounded-lg focus:ring-2 focus:ring-gray-300 p-1.5 hover:bg-gray-100 inline-flex items-center justify-center h-8 w-8 dark:text-gray-500 dark:hover:text-white dark:bg-gray-800 dark:hover:bg-gray-700" aria-label="Fermer">
         <span class="sr-only">Close</span>
         <svg class="w-3 h-3" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 14 14"><path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m1 1 6 6m0 0 6 6M7 7l6-6M7 7l-6 6"/></svg>
     </button>
@@ -2408,10 +2416,15 @@
             document.getElementById('btn-changelog-close').addEventListener('click', closeChangelog);
             document.getElementById('changelog-backdrop').addEventListener('click', closeChangelog);
             document.getElementById('toast-changelog-btn').addEventListener('click', () => {
-                const toastEl = document.getElementById('toast-update');
-                if (toastEl) toastEl.classList.add('hidden');
+                _hideUpdateToast();
                 _openChangelog();
             });
+            document.getElementById('toast-close-btn').addEventListener('click', _hideUpdateToast);
+        }
+
+        function _hideUpdateToast() {
+            const toastEl = document.getElementById('toast-update');
+            if (toastEl) toastEl.classList.add('hidden');
         }
 
         function _openChangelog() {
@@ -2442,25 +2455,81 @@
             }
         }
 
+        // Une page reste sur SA version du début à la fin. Le Service Worker
+        // nouvellement installé attend dans son coin (plus de skipWaiting dans sw.js) :
+        // on l'annonce, et c'est le clic sur « Recharger » qui le fait entrer en
+        // service, suivi d'un rechargement. Tant que l'utilisateur ne l'a pas demandé,
+        // rien ne change sous ses pieds — ni le cache, ni les fichiers déjà chargés.
         function registerAndHandleUpdates() {
-            if ('serviceWorker' in navigator) {
-                // updateViaCache: 'none' → le navigateur revérifie sw.js sur le réseau
-                // (jamais depuis le cache HTTP) à chaque contrôle de mise à jour.
-                navigator.serviceWorker.register('./sw.js', { updateViaCache: 'none' }).catch(error => console.error('Échec SW:', error));
-                navigator.serviceWorker.addEventListener('message', event => {
-                    if (event.data && event.data.type === 'VERSION_UPDATE') {
-                        showUpdateNotification(event.data.version);
-                        localStorage.setItem('appVersion', event.data.version);
-                    }
-                });
+            if (!('serviceWorker' in navigator)) return;
+
+            // Le numéro retenu au passage précédent. S'il a changé, c'est que le
+            // rechargement qui vient d'avoir lieu a installé une nouvelle version :
+            // on le signale, avec un changelog qui est bien celui de la version
+            // maintenant active.
+            if (typeof APP_VERSION !== 'undefined') {
+                const precedente = localStorage.getItem('appVersion');
+                if (precedente && precedente !== APP_VERSION) showVersionInstalled(APP_VERSION);
+                localStorage.setItem('appVersion', APP_VERSION);
             }
+
+            // updateViaCache: 'none' → le navigateur revérifie sw.js sur le réseau
+            // (jamais depuis le cache HTTP) à chaque contrôle de mise à jour.
+            navigator.serviceWorker.register('./sw.js', { updateViaCache: 'none' })
+                .then(registration => {
+                    const annoncer = worker => {
+                        // Sans contrôleur, c'est la toute première installation :
+                        // il n'y a pas de version précédente à remplacer.
+                        if (worker && navigator.serviceWorker.controller) showUpdateAvailable(worker);
+                    };
+                    annoncer(registration.waiting);
+                    registration.addEventListener('updatefound', () => {
+                        const worker = registration.installing;
+                        if (!worker) return;
+                        worker.addEventListener('statechange', () => {
+                            if (worker.state === 'installed') annoncer(worker);
+                        });
+                    });
+                })
+                .catch(error => console.error('Échec SW:', error));
+
+            // Le nouveau Service Worker a pris la main : on recharge pour repartir
+            // intégralement sur ses fichiers. Le drapeau évite la boucle si plusieurs
+            // bascules s'enchaînent.
+            let rechargementEnCours = false;
+            navigator.serviceWorker.addEventListener('controllerchange', () => {
+                if (rechargementEnCours) return;
+                rechargementEnCours = true;
+                window.location.reload();
+            });
         }
 
-        function showUpdateNotification(newVersion) {
+        // Une mise à jour est prête mais pas encore active.
+        function showUpdateAvailable(worker) {
             const toastElement = document.getElementById('toast-update');
-            const versionSpan = document.getElementById('toast-version-number');
-            if (versionSpan) versionSpan.textContent = `v${newVersion}`;
-            if (toastElement && typeof flowbite !== 'undefined' && flowbite.Toast) new flowbite.Toast(toastElement).show();
+            if (!toastElement) return;
+            document.getElementById('toast-update-title').textContent = 'Nouvelle version disponible';
+            document.getElementById('toast-update-body').textContent = 'Rechargez pour l’installer.';
+            document.getElementById('toast-changelog-btn').classList.add('hidden');
+            const reloadBtn = document.getElementById('toast-reload-btn');
+            reloadBtn.classList.remove('hidden');
+            reloadBtn.onclick = () => {
+                reloadBtn.disabled = true;
+                worker.postMessage({ type: 'SKIP_WAITING' });
+            };
+            toastElement.classList.remove('hidden');
+        }
+
+        // La mise à jour est faite : la page tourne déjà sur la nouvelle version.
+        function showVersionInstalled(newVersion) {
+            const toastElement = document.getElementById('toast-update');
+            if (!toastElement) return;
+            document.getElementById('toast-update-title').textContent = 'Mise à jour effectuée !';
+            document.getElementById('toast-update-body').innerHTML =
+                `Version <span class="font-semibold">v${newVersion}</span> installée.`;
+            document.getElementById('toast-reload-btn').classList.add('hidden');
+            document.getElementById('toast-changelog-btn').classList.remove('hidden');
+            toastElement.classList.remove('hidden');
         }
 
         function showError(message) {
