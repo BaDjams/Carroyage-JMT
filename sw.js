@@ -4,7 +4,7 @@
 // Un seul numéro à tenir à jour ici : la page lit le sien dans version.js, et
 // SW_APP_VERSION faisait doublon avec les deux — une occasion de plus de les
 // laisser diverger.
-const CACHE_NAME = 'cado-cache-23.12';
+const CACHE_NAME = 'cado-cache-23.13';
 
 // Liste EXACTE des fichiers à mettre en cache.
 // Si un seul fichier manque, la PWA ne s'installera pas.
@@ -21,6 +21,7 @@ const ASSETS_TO_CACHE = [
   './carroyageUTM.js',
   './carroyageCado.js',
   './carroyageCFSI.js',
+  './carroyageDFCI.js',
   './carroyageToCSV.js',
   './carroyageToMbtiles.js',
   './imagetoprint.js',

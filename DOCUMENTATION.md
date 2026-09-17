@@ -30,7 +30,7 @@
 
 ## 1. Vue d'ensemble
 
-**Carroyage-JMT** (alias **CADO**) est une application web monopage (PWA) écrite en HTML/CSS/JavaScript pur, sans étape de bundling. Elle permet de générer des carroyages tactiques (grilles de référence) sur fond cartographique selon quatre systèmes de coordonnées (CADO, UTM, MGRS, CFSI/DFCI), de les exporter dans plusieurs formats (KML, KMZ, GeoJSON, GPX, CSV, MBTiles, PNG haute résolution), de prévisualiser en temps réel sur carte Leaflet et de fonctionner hors-ligne grâce à un service worker.
+**Carroyage-JMT** (alias **CADO**) est une application web monopage (PWA) écrite en HTML/CSS/JavaScript pur, sans étape de bundling. Elle permet de générer des carroyages tactiques (grilles de référence) sur fond cartographique selon cinq systèmes de coordonnées (CADO, UTM, MGRS, CFSI, DFCI), de les exporter dans plusieurs formats (KML, KMZ, GeoJSON, GPX, CSV, MBTiles, PNG haute résolution), de prévisualiser en temps réel sur carte Leaflet et de fonctionner hors-ligne grâce à un service worker.
 
 **Domaine d'usage** : opérations de terrain (sécurité civile, gendarmerie, drones DJI, recherches en zones étendues).
 
@@ -84,6 +84,7 @@ L'ordre dans `index.html` est important — plusieurs fichiers exposent des vari
 5. icons.js / icons-catalog.js → ICON_LIBRARY, ICON_CATALOG
 6. carroyageCado.js    → générateur CADO + init Leaflet mode 1
 7. carroyageCFSI.js    → CFSI_UTILS
+7b. carroyageDFCI.js   → DFCI_UTILS, drawDfciGrid (s'appuie sur CFSI_UTILS pour la projection)
 8. carroyageUTM.js     → WGS84_to_UTM, WGS84_to_MGRS
 9. zoneDownloader.js   → orchestrateur mode 2
 10. carroyageToMbtiles.js / carroyageToCSV.js → exports
@@ -104,7 +105,7 @@ L'ordre dans `index.html` est important — plusieurs fichiers exposent des vari
 | `cadoKmlResources`, `kmlResources` | images embarquées dans KMZ importés |
 | `currentIconLibrary` | bibliothèque d'icônes courante (modifiable) |
 | `MAP_LAYERS`, `ICON_LIBRARY`, `ICON_CATALOG` | catalogues statiques |
-| `CFSI_UTILS`, `WGS84_to_UTM`, `WGS84_to_MGRS` | namespaces de conversion |
+| `CFSI_UTILS`, `DFCI_UTILS`, `WGS84_to_UTM`, `WGS84_to_MGRS` | namespaces de conversion |
 
 ### 3.4 Contrats inter-modules via le DOM
 
@@ -134,7 +135,7 @@ Génère un quadrillage CADO **centré sur un point unique** (lat/lon en décima
 
 ### Mode 2 — Export de zone
 
-L'utilisateur dessine un rectangle (Leaflet.draw) ou importe un KML/KMZ existant. Génère plusieurs grilles superposées (UTM, MGRS, CFSI ou CADO, au choix) sur la zone, gère les POI utilisateur.
+L'utilisateur dessine un rectangle (Leaflet.draw) ou importe un KML/KMZ existant. Génère plusieurs grilles superposées (UTM, MGRS, CFSI, DFCI ou CADO, au choix) sur la zone, gère les POI utilisateur.
 
 **Fichier pivot** : `zoneDownloader.js`.
 
@@ -202,7 +203,7 @@ Module le plus important. Génère le quadrillage CADO (cellules à origine A1, 
 
 #### `carroyageCFSI.js` (~14 KB)
 
-Système CFSI/DFCI français (Lambert 93 / NTF, mailles 100 m).
+Système CFSI français (Lambert II étendu / NTF, mailles 100 m). Le DFCI a son propre module, `carroyageDFCI.js`.
 
 **Exports** :
 - `CFSI_UTILS` (IIFE) avec : conversions WGS84 ↔ Lambert II-E, parsing de codes
@@ -213,6 +214,15 @@ Système CFSI/DFCI français (Lambert 93 / NTF, mailles 100 m).
 - Helmert WGS84 → NTF : `DX=168, DY=60, DZ=-320`
 - Lambert II-E : 6 itérations de raffinement de latitude (précision sub-métrique)
 - Décodage : Lambert → carré 100 km (alphabet 13×20) → 20 km → 2 km → 100 m
+
+#### `carroyageDFCI.js`
+
+Carroyage DFCI de la sécurité civile (Lambert II étendu, mailles 2 km et subdivision .1 à .5). Réutilise la projection de `CFSI_UTILS`, qui doit donc être chargé avant l'appel.
+
+**Exports** :
+- `DFCI_UTILS` (IIFE) : `codeFromLambert(x, y)`, `fromLatLon(lat, lon)` (ex. `KD40D7.1`), `buildGrid(bbox, {step, quarters})` — géométrie commune (lignes classées `100k`/`20k`/`2k`/`quarter`, étiquettes), `count2kCells(bbox)`, `pixelsPer2k(bbox, project)`
+- `drawDfciGrid(ctx, bbox, project, style)` — rendu canvas commun à l'image et aux MBTiles ; le niveau de détail (subdivision / 2 km / 20 km) suit la taille à l'écran d'une maille de 2 km
+- `drawDfciGridOnCanvas(ctx, bbox, latLonToPixels, margin, fontSize, lineWidth)` — même signature que la version CFSI
 - **Rendu adaptatif** selon zoom : pleins codes (< 700 m), 100 m avec coloration (< 3500 m), 2 km au-delà
 
 #### `carroyageUTM.js` (~27 KB)
@@ -250,7 +260,7 @@ generateGridCSV(filename, useUtm, useCfsi, useCado, userPOIs, optionalCadoData)
 Génère MBTiles (SQLite + tuiles PNG) pour drones DJI, zoom 17-19.
 
 **Fonctions clés** :
-- `generateMbtilesProcess(filename, useUtm, useCfsi, useCado, bbox, baseZoom, userPOIs, optionalCadoData)`
+- `generateMbtilesProcess(filename, useUtm, useCfsi, useCado, bbox, baseZoom, userPOIs, optionalCadoData, gridMode, useDfci)`
 - `processZoomLevel(...)` — pour chaque niveau de zoom : trace tout sur canvas global puis découpe
 - `sliceAndStore(db, sourceCanvas, zoom, globalNwPx, globalSePx)` — découpe canvas en tuiles 256×256, insertion SQL
 
@@ -258,7 +268,7 @@ Génère MBTiles (SQLite + tuiles PNG) pour drones DJI, zoom 17-19.
 - TMS : Y inversé (`tmsY = (1 << z) - 1 - y`)
 - Limite : `maxCanvasSize = 8192 px` — alerte au-delà
 - Pré-cache des images POI avant la boucle de zoom
-- Fonctions de rendu **digitales** (sans halo) : `drawDigitalUtm()`, `drawDigitalCfsiStrict()`, `drawDigitalCado()`, `drawDigitalKml()`, `drawDigitalPois()`
+- Fonctions de rendu **digitales** (sans halo) : `drawDigitalUtm()`, `drawDigitalCfsiStrict()`, `drawDfciGrid()` (module DFCI, `halo: false`), `drawDigitalCado()`, `drawDigitalKml()`, `drawDigitalPois()`
 
 #### `imagetoprint.js` (~28 KB)
 
@@ -325,7 +335,7 @@ Cache la base SQLite en variable de module `_tsDB`. Met à jour `.mbtiles-status
 
 Orchestrateur Mode 2 + utilitaires de tuiles partagés.
 
-- `handleZoneVectorExport()` — lit la zone, dispatche selon checkboxes (UTM/CFSI/CADO/KML/CSV/MBTILES)
+- `handleZoneVectorExport()` — lit la zone, dispatche selon le choix de grille (UTM/MGRS/CFSI/DFCI/CADO) et le format (KML/KMZ/GeoJSON/GPX/MBTILES/DEM)
 - `generateZonePNG()` — rasterisation PNG
 - POI : `addPointMode()`, `removePoint()`, `getUserPOIs()`
 - KML : `handleZoneKmlFile()`, parsing
@@ -424,12 +434,24 @@ Voir §10 pour la stratégie complète.
 - **Conversion** : `WGS84_to_MGRS.toLatLon()` renvoie le **coin sud-ouest** du carré désigné, avec sa taille (`precision`) — une référence tronquée désigne un carré, pas un point
 - **Limites** : hors zones polaires (84° N à 80° S) ; le système UPS n'est pas géré
 
-### 6.4 CFSI / DFCI
+### 6.4 CFSI
 
 - **Maille** : 100 m, nichée dans des carrés 2 km, 20 km, 100 km
 - **Projection** : Lambert II étendu (NTF Helmert)
 - **Code** : ex. `KH18A2` (carré 100 km + 20 km + 2 km + 100 m)
-- **Usage typique** : sécurité civile, lutte incendies forêt
+- **Usage typique** : forces de l'ordre (libellé de l'interface). Ne pas le confondre avec le DFCI (§ 6.5) : mêmes mailles, mais pas les mêmes alphabets de 100 km
+
+### 6.5 DFCI (sécurité civile)
+
+- **Usage** : référentiel de localisation des SDIS / CODIS, notamment pour les feux de forêt
+- **Projection** : Lambert II étendu (EPSG:27572), origine de la grille X = 0, Y = 1 500 000
+- **Carré de 100 km** : deux lettres (X puis Y) dans `ABCDEFGHKLMN` — I **et** J exclus, ce qui le distingue du CFSI
+- **Carré de 20 km** : deux chiffres pairs (0, 2, 4, 6, 8), X puis Y
+- **Carré de 2 km** : une lettre X dans `ABCDEFGHKL` puis un chiffre Y, ex. `KD42F7`
+- **Subdivision** : `.5` pour le carré central de 1 km ; `.1` à `.4` pour le reste de chaque quart, en sens horaire depuis le nord-ouest (`.1` NO, `.2` NE, `.3` SE, `.4` SO)
+- **Affichage** : subdivision si une maille de 2 km mesure au moins 14 fois la taille de police à l'écran, codes 2 km s'ils tiennent dans leur maille, sinon codes 20 km
+- **KML/KMZ** : dossiers séparés (lignes 100 km / 20 km / 2 km / subdivisions, étiquettes) ; la subdivision est omise au-delà de 2 500 mailles de 2 km
+- **Référence** : définition IGN reprise par ol-ext ; codes vérifiés sur 40 centroïdes du fichier officiel data.gouv.fr « Carroyage DFCI (2 km) »
 
 ---
 
@@ -836,7 +858,8 @@ Pas de Conventional Commits stricts, mais préfixes courants :
 |---|---|
 | **Carroyage** | Quadrillage de référence superposé à une carte |
 | **CADO** | Système de carroyage maison (cellules à origine A1) |
-| **CFSI / DFCI** | Carroyage Français de Sécurité Incendie / Défense de la Forêt Contre l'Incendie |
+| **CFSI** | Carroyage Français de Sécurité Incendie |
+| **DFCI** | Défense de la Forêt Contre l'Incendie — carroyage de la sécurité civile |
 | **UTM** | Universal Transverse Mercator (projection cartographique) |
 | **MGRS** | Military Grid Reference System (désignation alphanumérique de la grille UTM) |
 | **MBTiles** | Format SQLite pour bases de tuiles cartographiques (spec MapBox) |
