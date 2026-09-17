@@ -1,9 +1,18 @@
 // version.js
 
 // Source unique de vérité pour la version de l'application.
-const APP_VERSION = '23.12';
+const APP_VERSION = '23.13';
 
 const CHANGELOG = [
+  {
+    version: '23.13',
+    date: '2026-09-17',
+    changes: [
+      'Export de zone : nouveau carroyage DFCI, le référentiel de la sécurité civile et des CODIS, à côté du CFSI, de l\'UTM, du MGRS et du CADO. Mailles de 100 km, 20 km et 2 km (codes du type « KD42F7 »), conformes au carroyage officiel publié sur data.gouv.fr',
+      'Quand la zone est assez grande à l\'écran, chaque carré de 2 km montre aussi sa subdivision .1 à .5 : quatre quarts numérotés dans le sens horaire depuis le nord-ouest, et le carré central de 1 km en .5. Sur une grande zone, seuls les codes de 20 km restent affichés, pour rester lisibles',
+      'Le DFCI est disponible pour tous les formats de l\'export de zone : image (PNG, JPEG, GeoTIFF), KML/KMZ (lignes et étiquettes rangées par dossier) et MBTiles. Le cartouche et le nom du fichier indiquent « DFCI »',
+    ],
+  },
   {
     version: '23.12',
     date: '2026-09-16',

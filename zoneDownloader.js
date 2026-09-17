@@ -572,6 +572,7 @@ async function generateZonePNG() {
     const gridMode = (gridChoice === 'mgrs') ? 'mgrs' : 'utm';
     const useUtm = (gridChoice === 'utm' || gridChoice === 'mgrs');
     const useCfsi = (gridChoice === 'cfsi');
+    const useDfci = (gridChoice === 'dfci');
     const useCado = (gridChoice === 'cado');
 
     loadingMessage.textContent = "Préparation de l'export de la zone...";
@@ -633,6 +634,7 @@ async function generateZonePNG() {
         const cartoucheGridKind = useCado ? 'cado'
             : useUtm ? (gridMode === 'mgrs' ? 'mgrs' : 'utm')
             : useCfsi ? 'cfsi'
+            : useDfci ? 'dfci'
             : null;
 
         const format = document.querySelector('input[name="image-format-zone"]:checked').value;
@@ -686,6 +688,12 @@ async function generateZonePNG() {
             await drawCfsiGridOnCanvas(ctx, finalBoundingBox, latLonToCanvasPixels, dynamicMargin, cfsiFontSize, baseThickness * scaleFactor);
         }
 
+        if (useDfci) {
+            loadingMessage.textContent = "Dessin du carroyage DFCI...";
+            const dfciFontSize = Math.max(10 * scaleFactor, finalCanvas.width * 0.006);
+            await drawDfciGridOnCanvas(ctx, finalBoundingBox, latLonToCanvasPixels, dynamicMargin, dfciFontSize, baseThickness * scaleFactor);
+        }
+
         if (useCado && cadoData) {
             loadingMessage.textContent = "Dessin du carroyage CADO...";
             const { config, a1CornerLat, a1CornerLon } = cadoData;
@@ -728,7 +736,7 @@ async function generateZonePNG() {
 
         // FINITIONS (CARTOUCHE)
         // Le carroyage CADO pose deja le sien, ancre sur la grille (drawCadoElementsOnCanvas).
-        // Tous les autres cas — UTM, MGRS, CFSI, ou export sans carroyage — recoivent
+        // Tous les autres cas — UTM, MGRS, CFSI, DFCI, ou export sans carroyage — recoivent
         // desormais le meme cartouche, la ou CFSI et l'export nu n'en avaient aucun.
         if (!useCado) {
             loadingMessage.textContent = "Finalisation de l'image...";
@@ -747,7 +755,7 @@ async function generateZonePNG() {
             if (useUtm) {
                 drawZoneCompass(ctx, finalCanvas.width, finalCanvas.height, dynamicMargin, cartoucheMetrics, zoneDeviationDeg);
             } else {
-                // Pour CFSI ou Aucun
+                // Pour CFSI, DFCI ou Aucun
                 const compassRadius = Math.max(10 * scaleFactor, finalCanvas.width * 0.012);
                 const padding = compassRadius * 0.8;
                 const compassCenterX = finalCanvas.width - dynamicMargin - padding - compassRadius;
@@ -791,10 +799,11 @@ async function generateZonePNG() {
         if (useCado) gridTypeStr += "_CADO";
         if (useUtm) gridTypeStr += (gridMode === 'mgrs') ? "_MGRS" : "_UTM";
         if (useCfsi) gridTypeStr += "_CFSI";
+        if (useDfci) gridTypeStr += "_DFCI";
 
         const baseName = cartoucheFileName(document.getElementById("zone-title").value);
         const scaleStr = (useCado && cadoData?.config?.scale) ? `_${cadoData.config.scale}m` : '';
-        const colorStr = (useCado || useUtm || useCfsi)
+        const colorStr = (useCado || useUtm || useCfsi || useDfci)
             ? `_${document.getElementById('utm-grid-color-name').value || ''}`.replace(/_$/, '')
             : '';
         const deviationStr = zoneDeviationDeg !== 0 ? `_dev${Math.round(zoneDeviationDeg)}deg` : '';
@@ -885,6 +894,7 @@ async function handleZoneVectorExport() {
     const gridMode = (gridChoice === 'mgrs') ? 'mgrs' : 'utm';
     const useUtm = (gridChoice === 'utm' || gridChoice === 'mgrs');
     const useCfsi = (gridChoice === 'cfsi');
+    const useDfci = (gridChoice === 'dfci');
     const useCado = (gridChoice === 'cado');
     
     const format = document.querySelector('input[name="zone-file-format"]:checked').value; 
@@ -900,7 +910,7 @@ async function handleZoneVectorExport() {
         }
     }
 
-    if (!useUtm && !useCfsi && !useCado && userPOIs.length === 0 && format !== 'MBTILES' && format !== 'DEM') {
+    if (!useUtm && !useCfsi && !useDfci && !useCado && userPOIs.length === 0 && format !== 'MBTILES' && format !== 'DEM') {
         if (!confirm("Aucune grille sélectionnée. Voulez-vous exporter uniquement les points d'intérêt ?")) {
             return;
         }
@@ -913,7 +923,7 @@ async function handleZoneVectorExport() {
     try {
         // --- CAS SPECIAL : EXPORT DJI MBTILES (RASTER TRANSPARENT) ---
         if (format === 'MBTILES') {
-            await generateZoneMBTiles(filenameBase, useUtm, useCfsi, useCado, gridMode);
+            await generateZoneMBTiles(filenameBase, useUtm, useCfsi, useCado, gridMode, useDfci);
             return; // STOP ICI
         }
 
@@ -937,6 +947,9 @@ async function handleZoneVectorExport() {
         }
         if (useCfsi) {
             kmlFolders += await generateCfsiKmlFolder();
+        }
+        if (useDfci) {
+            kmlFolders += generateDfciKmlFolder();
         }
         if (useCado) {
             kmlFolders += await generateCadoKmlFolder(imagesToZip, format === 'KMZ');
@@ -965,6 +978,8 @@ async function handleZoneVectorExport() {
     <Style id="cfsi2kLine"><LineStyle><color>${kmlColor}</color><width>2</width></LineStyle></Style>
     <Style id="cfsi100mLine"><LineStyle><color>${kmlColorMinor}</color><width>1</width></LineStyle></Style>
     <Style id="cfsiText"><IconStyle><scale>0</scale></IconStyle><LabelStyle><color>${kmlLabelColor}</color><scale>0.9</scale></LabelStyle></Style>
+    <Style id="dfciQuarterLine"><LineStyle><color>${kmlColorMinor}</color><width>1</width></LineStyle></Style>
+    <Style id="dfciQuarterText"><IconStyle><scale>0</scale></IconStyle><LabelStyle><color>${kmlLabelColor}</color><scale>0.7</scale></LabelStyle></Style>
 
     ${kmlFolders}
   </Document>
@@ -1047,7 +1062,7 @@ async function generateZoneDEM(filenameBase) {
 }
 
 // --- NOUVELLE FONCTION : GENERATE ZONE MBTILES (OVERLAY TRANSPARENT) ---
-async function generateZoneMBTiles(filename, useUtm, useCfsi, useCado, gridMode = 'utm') {
+async function generateZoneMBTiles(filename, useUtm, useCfsi, useCado, gridMode = 'utm', useDfci = false) {
     await ensureMbtilesOverlayModule();
     if (typeof window.initSqlJs !== 'function') {
         throw new Error("La librairie SQL.js n'est pas chargée.");
@@ -1089,7 +1104,7 @@ async function generateZoneMBTiles(filename, useUtm, useCfsi, useCado, gridMode 
             east: gridBounds.maxLon + mToLon(2.0 * config.scale, avgLat)
         };
     } else {
-        // Buffer standard pour UTM/CFSI
+        // Buffer standard pour UTM/CFSI/DFCI
         const buffer = 0.005; 
         boundingBox.north += buffer;
         boundingBox.south -= buffer;
@@ -1108,7 +1123,8 @@ async function generateZoneMBTiles(filename, useUtm, useCfsi, useCado, gridMode 
         zoom, 
         window.userPOIs,
         null,
-        gridMode
+        gridMode,
+        useDfci
     );
 
     // 3. Téléchargement
@@ -1267,6 +1283,45 @@ async function generateCfsiKmlFolder() {
     return `<Folder><name>Grille CFSI</name>
         <Folder><name>Lignes</name>${folder100k}${folder20k}${folder2km}${folder100m}</Folder>
         <Folder><name>Labels</name>${folderLabels2km}${folderLabels100m}</Folder>
+    </Folder>`;
+}
+
+// Au-delà de ce nombre de mailles de 2 km (~100 x 100 km), la subdivision .1-.5
+// alourdirait le KML sans être lisible : on s'en tient aux mailles de 2 km.
+const DFCI_KML_MAX_QUARTER_CELLS = 2500;
+
+function generateDfciKmlFolder() {
+    const nwCoordsStr = document.getElementById("zone-nw-coords").value;
+    const seCoordsStr = document.getElementById("zone-se-coords").value;
+    const [north, west] = nwCoordsStr.split(',').map(c => parseFloat(c.trim()));
+    const [south, east] = seCoordsStr.split(',').map(c => parseFloat(c.trim()));
+    const bbox = { north, south, west, east };
+
+    const quarters = DFCI_UTILS.count2kCells(bbox) <= DFCI_KML_MAX_QUARTER_CELLS;
+    const { lines, labels } = DFCI_UTILS.buildGrid(bbox, { step: 2000, quarters });
+
+    const lineStyles = { '100k': '#cfsi100kLine', '20k': '#cfsi20kLine', '2k': '#cfsi2kLine', 'quarter': '#dfciQuarterLine' };
+    const lineKml = rank => lines.filter(l => l.rank === rank).map(l =>
+        `<Placemark><styleUrl>${lineStyles[rank]}</styleUrl><LineString><coordinates>${l.coords.map(c => `${c[0]},${c[1]},0`).join(' ')}</coordinates></LineString></Placemark>`
+    ).join('');
+    const labelKml = (kind, style) => labels.filter(l => l.kind === kind).map(l =>
+        `<Placemark><name>${l.text}</name>${l.code ? `<description>${l.code}${l.text}</description>` : ''}<styleUrl>${style}</styleUrl><Point><coordinates>${l.lon},${l.lat},0</coordinates></Point></Placemark>`
+    ).join('');
+
+    const quarterLines = quarters ? `<Folder><name>Subdivisions .1 à .5</name>${lineKml('quarter')}</Folder>` : '';
+    const quarterLabels = quarters ? `<Folder><name>Labels .1 à .5</name>${labelKml('quarter', '#dfciQuarterText')}</Folder>` : '';
+
+    return `<Folder><name>Grille DFCI</name>
+        <Folder><name>Lignes</name>
+            <Folder><name>Lignes 100km</name>${lineKml('100k')}</Folder>
+            <Folder><name>Lignes 20km</name>${lineKml('20k')}</Folder>
+            <Folder><name>Lignes 2km</name>${lineKml('2k')}</Folder>
+            ${quarterLines}
+        </Folder>
+        <Folder><name>Labels</name>
+            <Folder><name>Labels 2km</name>${labelKml('2k', '#cfsiText')}</Folder>
+            ${quarterLabels}
+        </Folder>
     </Folder>`;
 }
 

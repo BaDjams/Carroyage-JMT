@@ -4,8 +4,9 @@
  * Orchestrateur principal pour la génération de MBTiles (Overlay DJI)
  * Accepte optionalCadoData { config, gridData } pour le Mode 1.
  * gridMode ('utm' ou 'mgrs') choisit la désignation de la grille UTM dessinée.
+ * useDfci ajoute le carroyage DFCI (sécurité civile).
  */
-async function generateMbtilesProcess(filename, useUtm, useCfsi, useCado, bbox, baseZoom, userPOIs, optionalCadoData = null, gridMode = 'utm') {
+async function generateMbtilesProcess(filename, useUtm, useCfsi, useCado, bbox, baseZoom, userPOIs, optionalCadoData = null, gridMode = 'utm', useDfci = false) {
     if (typeof window.initSqlJs !== 'function') throw new Error("SQL.js non chargé.");
 
    
@@ -77,7 +78,7 @@ async function generateMbtilesProcess(filename, useUtm, useCfsi, useCado, bbox, 
 
     // 4. Boucle de génération sur les niveaux de zoom
     for (let z = minZ; z <= maxZ; z++) {
-        await processZoomLevel(db, z, bbox, useUtm, useCfsi, cadoConfig, cadoGridData, userPOIs, maxCanvasSize, poiImgCache, gridMode);
+        await processZoomLevel(db, z, bbox, useUtm, useCfsi, cadoConfig, cadoGridData, userPOIs, maxCanvasSize, poiImgCache, gridMode, useDfci);
     }
 
     // 4. Export
@@ -88,7 +89,7 @@ async function generateMbtilesProcess(filename, useUtm, useCfsi, useCado, bbox, 
 /**
  * Traite un niveau de zoom : Dessin Vectoriel -> Rasterisation -> Tuilage
  */
-async function processZoomLevel(db, zoom, bbox, useUtm, useCfsi, cadoConfig, cadoGridData, userPOIs, maxLimit, poiImgCache = {}, gridMode = 'utm') {
+async function processZoomLevel(db, zoom, bbox, useUtm, useCfsi, cadoConfig, cadoGridData, userPOIs, maxLimit, poiImgCache = {}, gridMode = 'utm', useDfci = false) {
     const nwPx = mbtLatLonToPx(bbox.north, bbox.west, zoom);
     const sePx = mbtLatLonToPx(bbox.south, bbox.east, zoom);
     
@@ -128,6 +129,11 @@ async function processZoomLevel(db, zoom, bbox, useUtm, useCfsi, cadoConfig, cad
     // 2. CFSI
     if (useCfsi) {
         drawDigitalCfsiStrict(ctx, bbox, project, color, zoom);
+    }
+
+    // 2 bis. DFCI : trait net sans halo, comme les autres couches « digital »
+    if (useDfci && typeof drawDfciGrid === 'function') {
+        drawDfciGrid(ctx, bbox, project, { color, lineWidth: 1.5, fontSize: 14, halo: false });
     }
 
     // 3. CADO
