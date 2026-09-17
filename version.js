@@ -1,9 +1,18 @@
 // version.js
 
 // Source unique de vérité pour la version de l'application.
-const APP_VERSION = '23.13';
+const APP_VERSION = '23.14';
 
 const CHANGELOG = [
+  {
+    version: '23.14',
+    date: '2026-09-17',
+    changes: [
+      'Épaisseur du trait adaptative : « Fine », « Moyenne » et « Épaisse » ne sont plus 1, 2 et 3 pixels fixes, mais une proportion de la taille de l\'image livrée. Le trait paraît aussi fin (ou aussi épais) sur une petite image que sur une image de 16 000 pixels',
+      'Référence : norme ISO 128 (0,25 mm, 0,5 mm et 1 mm) sur une image imprimée en A3. Sur une image 4K, cela donne environ 2, 4,5 et 9 px ; un trait ne descend jamais sous 1 px, et chaque niveau reste visiblement plus épais que le précédent',
+      'L\'agrandissement final en 2160 px de haut est désormais compté : il épaississait les traits après coup. Concerne le carroyage rapide et l\'export de zone en image (CADO, UTM, MGRS, CFSI, DFCI)',
+    ],
+  },
   {
     version: '23.13',
     date: '2026-09-17',

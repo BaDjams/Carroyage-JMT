@@ -588,7 +588,7 @@ async function generateZonePNG() {
         const [north, west] = nwCoordsStr.split(',').map(c => parseFloat(c.trim()));
         const [south, east] = seCoordsStr.split(',').map(c => parseFloat(c.trim()));
         
-        const baseThickness = parseInt(document.getElementById('common-grid-thickness').value, 10) || 1;
+        const thicknessLevel = parseInt(document.getElementById('common-grid-thickness').value, 10) || 1;
 
         if(useCado) {
             cadoData = getZoneCadoConfigAndBounds();
@@ -669,8 +669,13 @@ async function generateZonePNG() {
             };
         };
         
+        // Épaisseur rapportée à l'image livrée (cf. gridLineWidthPx), agrandissement final
+        // compris ; toutes les grilles la partagent.
+        const gridLineWidth = gridLineWidthPx(thicknessLevel, finalCanvas.width, finalCanvas.height,
+            exportUpscaleFactor(finalCanvas.height, upscaleEnabled));
+
         if (cadoData) {
-            cadoData.config.lineWidth = cadoData.config.lineWidth * scaleFactor;
+            cadoData.config.lineWidth = gridLineWidth;
         }
 
         // 2. DESSIN DES GRILLES - Z-INDEX 2
@@ -678,20 +683,20 @@ async function generateZonePNG() {
         if (useUtm) {
             loadingMessage.textContent = `Dessin de la grille ${gridMode.toUpperCase()}...`;
             const cartoucheFontSize = Math.max(10 * scaleFactor, Math.min(48 * scaleFactor, finalCanvas.width * 0.007));
-            await drawUtmGridOnCanvas(ctx, finalBoundingBox, latLonToCanvasPixels, dynamicMargin, cartoucheFontSize, baseThickness * scaleFactor, gridMode);
+            await drawUtmGridOnCanvas(ctx, finalBoundingBox, latLonToCanvasPixels, dynamicMargin, cartoucheFontSize, gridLineWidth, gridMode);
         }
 
         if (useCfsi) {
             loadingMessage.textContent = "Dessin du carroyage CFSI...";
             const cfsiFontSize = Math.max(10 * scaleFactor, finalCanvas.width * 0.006);
             // Note : dynamicMargin sera à 0 ici, ce qui est correct pour CFSI (pas de marge externe)
-            await drawCfsiGridOnCanvas(ctx, finalBoundingBox, latLonToCanvasPixels, dynamicMargin, cfsiFontSize, baseThickness * scaleFactor);
+            await drawCfsiGridOnCanvas(ctx, finalBoundingBox, latLonToCanvasPixels, dynamicMargin, cfsiFontSize, gridLineWidth);
         }
 
         if (useDfci) {
             loadingMessage.textContent = "Dessin du carroyage DFCI...";
             const dfciFontSize = Math.max(10 * scaleFactor, finalCanvas.width * 0.006);
-            await drawDfciGridOnCanvas(ctx, finalBoundingBox, latLonToCanvasPixels, dynamicMargin, dfciFontSize, baseThickness * scaleFactor);
+            await drawDfciGridOnCanvas(ctx, finalBoundingBox, latLonToCanvasPixels, dynamicMargin, dfciFontSize, gridLineWidth);
         }
 
         if (useCado && cadoData) {
@@ -703,7 +708,7 @@ async function generateZonePNG() {
             config.cartoucheLayerShort = cartoucheLayerShort;
             config.cartoucheZoom = zoom;
             drawCadoElementsOnCanvas(ctx, config, latLonToCanvasPixels, [a1CornerLon, a1CornerLat]);
-            config.lineWidth = config.lineWidth / scaleFactor;
+            config.lineWidth = thicknessLevel;
         }
 
         // 3. DESSIN DES TRACES (LINESTRING) KML - Z-INDEX 3

@@ -288,7 +288,9 @@ async function generateImageToPrint() {
 
         // 6. DESSIN DE LA GRILLE
         const drawConfig = { ...config, deviation: 0, realDeviation: config.deviation };
-        drawConfig.lineWidth = drawConfig.lineWidth * scaleFactor;
+        // Épaisseur rapportée à l'image livrée (cf. gridLineWidthPx), agrandissement final compris.
+        drawConfig.lineWidth = gridLineWidthPx(config.lineWidth, finalWidth, finalHeight,
+            exportUpscaleFactor(finalHeight, upscaleEnabled));
         // Ligne 2 du cartouche : le fond et le zoom reellement employes. actualZoom peut
         // differer du zoom demande quand le provider plafonne son niveau natif.
         drawConfig.cartoucheGridKind = 'cado';
