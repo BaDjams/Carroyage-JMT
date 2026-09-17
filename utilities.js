@@ -437,6 +437,44 @@ function applyAddressAsCartoucheName(inputEl, address) {
     setAutoCartoucheName(inputEl, cartoucheName(address));
 }
 
+// ÉPAISSEUR DES TRAITS DE CARROYAGE SUR UNE IMAGE EXPORTÉE
+// Un trait se juge rapporté à l'image entière (écran ou feuille), pas en pixels
+// bruts : 3 px sont épais sur 800 px, invisibles sur 10 000 px. On part donc de la
+// norme ISO 128-2 (groupe de traits 0,5 : fin 0,25 mm, moyen 0,5 mm, épais 1 mm,
+// rapport 1:2:4), appliquée à une feuille A3 dont l'image occupe toute la longueur.
+// L'épaisseur est ainsi une fraction fixe du grand côté de l'image exportée
+// (0,06 %, 0,12 %, 0,24 %) : l'image de 3 840 px imprimée en A3 fait 232 dpi, et un
+// trait moyen y mesure 4,6 px.
+// Sur une petite image la norme donnerait moins d'un pixel : un trait plus fin qu'un
+// pixel ne s'amincit pas, il pâlit. On impose donc 1 px au trait fin, puis ×1,5 au
+// moins d'un niveau au suivant pour qu'ils restent distincts (1 / 1,5 / 2,25 px).
+const GRID_LINE_WIDTH_MM = { 1: 0.25, 2: 0.5, 3: 1.0 };
+const GRID_LINE_SHEET_MM = 420; // grand côté d'une feuille A3
+const GRID_LINE_MIN_PX = 1;
+const GRID_LINE_MIN_STEP = 1.5;
+
+// level : 1 (fin), 2 (moyen) ou 3 (épais), valeur des listes « Épaisseur du trait ».
+// width/height : canvas sur lequel on dessine. exportScale : agrandissement appliqué
+// à ce canvas APRÈS le dessin (passage en 2160 px de haut), qui épaissit les traits
+// d'autant ; le calcul porte donc sur l'image réellement livrée.
+// Renvoie l'épaisseur à donner à ctx.lineWidth sur le canvas de dessin.
+function gridLineWidthPx(level, width, height, exportScale = 1) {
+    const lvl = GRID_LINE_WIDTH_MM[level] ? Number(level) : 1;
+    const pxPerMm = Math.max(width, height) * exportScale / GRID_LINE_SHEET_MM;
+    let px = 0;
+    for (let l = 1; l <= lvl; l++) {
+        const floor = (l === 1) ? GRID_LINE_MIN_PX : px * GRID_LINE_MIN_STEP;
+        px = Math.max(floor, GRID_LINE_WIDTH_MM[l] * pxPerMm);
+    }
+    return (Math.round(px * 4) / 4) / exportScale;
+}
+
+// Agrandissement appliqué après dessin quand « upscale » est coché (cf. l'étape
+// TARGET_EXPORT_HEIGHT des exports image).
+function exportUpscaleFactor(height, upscaleEnabled, targetHeight = 2160) {
+    return (upscaleEnabled && height < targetHeight) ? targetHeight / height : 1;
+}
+
 function cartoucheCoords(lat, lon) {
     return `${Number(lat).toFixed(5)}, ${Number(lon).toFixed(5)}`;
 }

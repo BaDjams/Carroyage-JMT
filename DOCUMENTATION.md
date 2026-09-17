@@ -170,6 +170,7 @@ Fonctions transverses :
 - **Géométrie cœur** : `calculateAndRotatePoint(colNumber, rowNumber, config, a1Lat, a1Lon)` — convertit coords cellule → lat/lon avec correction cosinus de latitude et rotation via matrice autour d'un pivot. La correction utilise `config.latitude` (centre) et **non** `a1Lat` pour éviter une asymétrie en bord de zone
 - **Rendu canvas** : `drawLabelWithOutline()`, `drawSubdivisionKey()` — étiquettes avec contour et barre d'échelle
 - **UI** : `downloadFile()`, `showError()`, `hideError()`
+- **Épaisseur des traits** : `gridLineWidthPx(level, width, height, exportScale)` et `exportUpscaleFactor(height, upscaleEnabled)` — cf. § 8.4
 
 > Toutes les rotations passent par cette fonction. Modifier les axes ou la convention demande beaucoup de précautions : les exports KML, l'aperçu Leaflet et le PNG haute résolution doivent rester cohérents.
 
@@ -529,7 +530,21 @@ Format compatible QGIS/Google Earth Pro : une colonne `WKT` + colonnes label/typ
 - Récupère les tuiles dans le BBox cible (online ou MBTiles)
 - Trace la grille par-dessus
 - Ajoute légende (échelle, nord)
-- Adapte la largeur de trait pour upscaling lisible
+- Adapte la largeur de trait à la taille de l'image livrée (ci-dessous)
+
+**Épaisseur des traits** (`gridLineWidthPx`, `utilities.js`) — les listes « Épaisseur du trait » (valeurs 1, 2, 3) désignent un niveau, pas un nombre de pixels :
+
+| Niveau | Norme (ISO 128-2, groupe 0,5, feuille A3) | Part du grand côté | Image 4K (3 840 px) |
+|---|---|---|---|
+| Fine | 0,25 mm | 0,06 % | 2,25 px |
+| Moyenne | 0,5 mm | 0,12 % | 4,5 px |
+| Épaisse | 1 mm | 0,24 % | 9,25 px |
+
+- `px = mm × grand côté de l'image livrée / 420` (A3), arrondi au quart de pixel
+- Planchers : 1 px pour le trait fin (plus fin, un trait pâlit sans s'amincir), puis ×1,5 au moins d'un niveau au suivant — une petite image donne 1 / 1,5 / 2,25 px
+- L'agrandissement final en 2160 px de haut (case « upscale ») est inclus via `exportScale` : l'épaisseur est calculée pour l'image livrée, puis divisée par ce facteur sur le canvas de dessin
+- Réglage centralisé : `GRID_LINE_WIDTH_MM`, `GRID_LINE_SHEET_MM`, `GRID_LINE_MIN_PX`, `GRID_LINE_MIN_STEP`
+- Non concernés : l'aperçu Leaflet (1 / 2 / 3 px écran), les MBTiles (épaisseurs fixes, tuiles vues à l'écran) et le KML (largeur en pixels écran)
 
 ### 8.5 MBTiles (drone DJI)
 
