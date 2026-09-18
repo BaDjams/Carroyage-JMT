@@ -22,31 +22,57 @@
 // exports image. Le KML, les MBTiles et l'aperçu Leaflet n'ont pas de fond à
 // lire et retombent sur une couleur fixe (cf. resolveStaticGridColor).
 
-const ADAPTIVE_COLOR_VALUE = 'adaptive';
-// Les deux encres entre lesquelles la couleur bascule. Un noir très sombre plutôt
-// que pur : il reste lisible sans faire un trou dans l'image.
-const ADAPTIVE_LIGHT = '#FFFFFF';
-const ADAPTIVE_DARK = '#0F0F0F';
-// Couleur employée là où le fond n'est pas lisible (KML, MBTiles, aperçu).
-const ADAPTIVE_FALLBACK = '#FFFFFF';
+// Les paires d'encres proposées dans les palettes. Chacune a une encre claire pour
+// les fonds sombres et une encre sombre pour les fonds clairs.
+//   adaptive        : neutre, contraste maximal (jusqu'à 1:21 entre les deux encres)
+//   adaptive-color  : teintée, pour un carroyage qui se distingue du paysage sans
+//                     être pris pour un élément de la carte. Jaune et violet sont
+//                     les deux teintes les plus étrangères aux verts et aux bruns
+//                     d'une vue aérienne, mais le contraste plafonne plus bas.
+// Le noir n'est pas pur : à 6 % de luminance il reste lisible sans faire un trou.
+const ADAPTIVE_INKS = {
+    'adaptive':       { light: '#FFFFFF', dark: '#0F0F0F' },
+    'adaptive-color': { light: '#FFE800', dark: '#5B1478' }
+};
+const ADAPTIVE_DEFAULT_KEY = 'adaptive';
 // Taille d'une case d'échantillonnage, en part du grand côté de l'image.
 const ADAPTIVE_SAMPLE_RATIO = 0.01;
 const ADAPTIVE_SAMPLE_MIN_PX = 6;
 const ADAPTIVE_SAMPLE_MAX_CELLS = 400;
-// Au-delà de cette luminance (0 à 1), le fond est clair : encre sombre.
-// Le seuil n'est pas 0,5 : le contraste WCAG 2 vaut (L1 + 0,05) / (L2 + 0,05), donc
-// les deux encres se valent quand (L + 0,05)² = (1 + 0,05) × (Ldark + 0,05), soit
-// L ≈ 0,19 pour un noir à 6 % de luminance. Au milieu de l'échelle, un trait sombre
-// contraste déjà mieux qu'un trait clair.
-const ADAPTIVE_LUMINANCE_PIVOT = 0.19;
 
-function isAdaptiveGridColor(value) {
-    return String(value || '').toLowerCase() === ADAPTIVE_COLOR_VALUE;
+// Clé de paire d'encres si la valeur en désigne une, sinon null.
+function adaptiveInkKey(value) {
+    const key = String(value || '').toLowerCase();
+    return ADAPTIVE_INKS[key] ? key : null;
 }
 
-// Couleur utilisable là où la couleur adaptative n'a pas de sens.
-function resolveStaticGridColor(value, fallback = ADAPTIVE_FALLBACK) {
-    return isAdaptiveGridColor(value) ? fallback : value;
+function isAdaptiveGridColor(value) {
+    return adaptiveInkKey(value) !== null;
+}
+
+// Luminance relative (WCAG 2) d'une couleur hexadécimale.
+function relativeLuminance(hex) {
+    const { r, g, b } = hexToRgb(hex);
+    const lin = (c) => { c /= 255; return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); };
+    return 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b);
+}
+
+// Luminance de fond où les deux encres contrastent autant l'une que l'autre.
+// Le seuil n'est pas à 0,5 : le contraste WCAG 2 vaut (L1 + 0,05) / (L2 + 0,05),
+// donc les deux encres se valent quand (L + 0,05)² = (Lclair + 0,05)(Lsombre + 0,05).
+// Pour la paire neutre cela donne 0,19 : dès le milieu de l'échelle des gris, un
+// trait sombre contraste déjà mieux qu'un trait clair.
+function adaptiveLuminancePivot(inks) {
+    return Math.sqrt((relativeLuminance(inks.light) + 0.05) * (relativeLuminance(inks.dark) + 0.05)) - 0.05;
+}
+
+// Couleur utilisable là où la couleur adaptative n'a pas de sens (KML, MBTiles,
+// aperçu) : l'encre claire de la paire, celle qui convient au fond sombre d'une
+// vue aérienne. Le blanc pour la paire neutre, le jaune pour la paire teintée.
+function resolveStaticGridColor(value, fallback) {
+    const key = adaptiveInkKey(value);
+    if (!key) return value;
+    return fallback || ADAPTIVE_INKS[key].light;
 }
 
 // Carte de luminance du fond déjà dessiné. La réduction passe par un drawImage
@@ -123,10 +149,10 @@ function hexToRgb(hex) {
 //   ink.colorAt(x, y)     -> couleur opaque à cet endroit
 //   ink.labelColorsAt(x, y) -> { fill, halo } pour une étiquette
 function createGridInk(ctx, colorValue, alpha = 1) {
-    const adaptive = isAdaptiveGridColor(colorValue);
-    const map = adaptive ? createLuminanceMap(ctx.canvas) : null;
+    const inkKey = adaptiveInkKey(colorValue);
+    const map = inkKey ? createLuminanceMap(ctx.canvas) : null;
 
-    if (!adaptive || !map) {
+    if (!inkKey || !map) {
         const base = resolveStaticGridColor(colorValue);
         const { r, g, b } = hexToRgb(base);
         const stroke = `rgba(${r}, ${g}, ${b}, ${alpha})`;
@@ -140,7 +166,9 @@ function createGridInk(ctx, colorValue, alpha = 1) {
         };
     }
 
-    const colorAt = (x, y) => (luminanceAtPixel(map, x, y) > ADAPTIVE_LUMINANCE_PIVOT) ? ADAPTIVE_DARK : ADAPTIVE_LIGHT;
+    const inks = ADAPTIVE_INKS[inkKey];
+    const pivot = adaptiveLuminancePivot(inks);
+    const colorAt = (x, y) => (luminanceAtPixel(map, x, y) > pivot) ? inks.dark : inks.light;
     const rgbaAt = (x, y, a) => {
         const { r, g, b } = hexToRgb(colorAt(x, y));
         return `rgba(${r}, ${g}, ${b}, ${a})`;
@@ -169,7 +197,7 @@ function createGridInk(ctx, colorValue, alpha = 1) {
 
     return {
         adaptive: true,
-        baseColor: ADAPTIVE_FALLBACK,
+        baseColor: inks.light,
         strokeFor: (points) => strokeWithAlpha(points, alpha),
         strokeWithAlpha: (a, points) => strokeWithAlpha(points, a),
         colorAt,

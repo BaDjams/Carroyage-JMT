@@ -221,7 +221,14 @@ Système CFSI français (Lambert II étendu / NTF, mailles 100 m). Le DFCI a son
 
 #### `adaptiveInk.js`
 
-Couleur adaptative du carroyage : le trait et les étiquettes prennent la couleur qui contraste le mieux avec le fond qu'ils recouvrent. Sélectionnée par la pastille « adaptative » des deux palettes, qui met `adaptive` dans `grid-color` / `utm-grid-color` à la place d'un code hexadécimal.
+Couleur adaptative du carroyage : le trait et les étiquettes prennent la couleur qui contraste le mieux avec le fond qu'ils recouvrent. Deux pastilles la proposent dans chaque palette, qui mettent une clé dans `grid-color` / `utm-grid-color` à la place d'un code hexadécimal :
+
+| Pastille | Valeur | Encre claire (fond sombre) | Encre sombre (fond clair) | Seuil de bascule | Contraste au pire cas |
+|---|---|---|---|---|---|
+| adaptative | `adaptive` | `#FFFFFF` | `#0F0F0F` | 0,190 | 4,4:1 |
+| adaptative teintée | `adaptive-color` | `#FFE800` | `#5B1478` | 0,226 | 3,0:1 |
+
+La paire teintée contraste moins, mais ses deux teintes sont étrangères aux verts et aux bruns d'une vue aérienne. Les paires se règlent dans `ADAPTIVE_INKS` ; en ajouter une suffit à créer une pastille de plus.
 
 **Exports** :
 - `createGridInk(ctx, colorValue, alpha)` → encre commune aux deux cas (couleur fixe ou adaptative) : `strokeFor(points)`, `strokeWithAlpha(alpha, points)`, `colorAt(x, y)`, `labelColorsAt(x, y)`
@@ -230,10 +237,10 @@ Couleur adaptative du carroyage : le trait et les étiquettes prennent la couleu
 **Fonctionnement** :
 - le fond **déjà dessiné** est réduit par `drawImage` vers un petit canvas (une case ≈ 1 % du grand côté, plafond 400 × 400), puis converti en luminance relative et lissé en 3 × 3 — un `getImageData` sur l'image pleine demanderait des centaines de Mo
 - chaque trait reçoit un dégradé le long de son tracé, échantillonné à cette maille : la couleur se fond au lieu de sauter
-- bascule à `ADAPTIVE_LUMINANCE_PIVOT = 0,19`, point d'équi-contraste WCAG 2 entre les deux encres (`#FFFFFF` et `#0F0F0F`), et non 0,5
+- bascule au point d'équi-contraste WCAG 2 de la paire, calculé par `adaptiveLuminancePivot` : `√((Lclair + 0,05)(Lsombre + 0,05)) − 0,05`, et non 0,5 — dès le milieu de l'échelle des gris, un trait sombre contraste déjà mieux qu'un trait clair
 - `createGridInk` doit être appelé **après** le fond et **avant** les grilles
 - canvas « teinté » (tuile sans CORS) : `getImageData` échoue, l'encre retombe sur une couleur fixe avec un avertissement console
-- sans pixels de fond — KML/KMZ, MBTiles, aperçu Leaflet — `resolveStaticGridColor` impose du blanc
+- sans pixels de fond — KML/KMZ, MBTiles, aperçu Leaflet — `resolveStaticGridColor` impose l'encre claire de la paire (blanc ou jaune)
 
 #### `carroyageDFCI.js`
 
