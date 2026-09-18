@@ -475,6 +475,29 @@ function exportUpscaleFactor(height, upscaleEnabled, targetHeight = 2160) {
     return (upscaleEnabled && height < targetHeight) ? targetHeight / height : 1;
 }
 
+// COULEURS DES ÉTIQUETTES DE CARROYAGE
+// L'étiquette prend la couleur des traits, opaque, avec un liseré noir ou blanc :
+// une grille claire choisie pour ressortir sur un fond sombre donne des étiquettes
+// claires, qui ressortent aussi. Le liseré est celui des deux qui offre le meilleur
+// rapport de contraste WCAG 2 avec la couleur du texte.
+function gridLabelColors(hex) {
+    const m = /^#?([0-9a-f]{6})$/i.exec(hex || '');
+    const n = m ? parseInt(m[1], 16) : 0;
+    const lin = c => { c /= 255; return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); };
+    const lum = 0.2126 * lin((n >> 16) & 255) + 0.7152 * lin((n >> 8) & 255) + 0.0722 * lin(n & 255);
+    const contrastWithBlack = (lum + 0.05) / 0.05;
+    const contrastWithWhite = 1.05 / (lum + 0.05);
+    return {
+        fill: m ? `#${m[1]}` : '#000000',
+        halo: contrastWithBlack > contrastWithWhite ? 'rgba(0, 0, 0, 0.85)' : 'rgba(255, 255, 255, 0.85)'
+    };
+}
+
+// Épaisseur du liseré d'une étiquette : le trait est centré sur le contour des
+// lettres, seule sa moitié dépasse ; 25 % de la taille de police laissent un bord
+// visible de 12 %, assez pour détacher le texte d'un fond chargé.
+const GRID_LABEL_HALO_RATIO = 0.25;
+
 function cartoucheCoords(lat, lon) {
     return `${Number(lat).toFixed(5)}, ${Number(lon).toFixed(5)}`;
 }
@@ -482,7 +505,7 @@ function cartoucheCoords(lat, lon) {
 // L'echelle n'a de sens que pour le carroyage CADO, dont la maille est metrique.
 // Les carroyages UTM/MGRS/CFSI/DFCI se nomment, et un export sans carroyage n'annonce
 // que son fond. Le fond et le niveau de zoom, eux, sont TOUJOURS indiques.
-function cartoucheScaleLine({ gridKind, scale, layerShort, zoom } = {}) {
+function cartoucheScaleLine({ gridKind, gridDetail, scale, layerShort, zoom } = {}) {
     const fond = [layerShort, (zoom !== null && zoom !== undefined) ? `z${zoom}` : null]
         .filter(Boolean).join(" ");
     const tete = (gridKind === "cado" && scale) ? `1 carré = ${scale}m`
@@ -491,7 +514,10 @@ function cartoucheScaleLine({ gridKind, scale, layerShort, zoom } = {}) {
         : gridKind === "cfsi" ? "Carroyage CFSI"
         : gridKind === "dfci" ? "Carroyage DFCI"
         : null;
-    return [tete, fond].filter(Boolean).join(", ");
+    // Les carroyages emboites (CFSI, DFCI) annoncent la maille reellement etiquetee,
+    // qui depend de la taille de la zone exportee.
+    const titre = (tete && gridDetail) ? `${tete} ${gridDetail}` : tete;
+    return [titre, fond].filter(Boolean).join(", ");
 }
 
 // Renvoie { lines, refIndex } : refIndex repere la ligne du point de reference,

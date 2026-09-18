@@ -1,9 +1,19 @@
 // version.js
 
 // Source unique de vérité pour la version de l'application.
-const APP_VERSION = '23.14';
+const APP_VERSION = '23.15';
 
 const CHANGELOG = [
+  {
+    version: '23.15',
+    date: '2026-09-17',
+    changes: [
+      'Carroyage CFSI : les cases colorées ne recouvrent plus les traits de la grille, et ne débordent plus les unes sur les autres — elles suivent désormais l\'inclinaison de la grille Lambert au lieu d\'être des rectangles droits',
+      'CFSI et DFCI : les lettres et chiffres prennent la couleur choisie pour les traits, avec un liseré noir ou blanc selon celui qui contraste le mieux. Une grille claire choisie pour ressortir sur un fond sombre donne des étiquettes claires, lisibles elles aussi',
+      'Export de zone en CFSI : l\'ancien cartouche propre au CFSI, resté dessous le cartouche commun et qui indiquait à tort « L93 », est supprimé',
+      'Le cartouche annonce désormais la maille réellement écrite sur l\'image : « Carroyage CFSI 100 m » ou « Carroyage CFSI 2 km », et « Carroyage DFCI 1 km », « 2 km » ou « 20 km » selon la taille de la zone exportée',
+    ],
+  },
   {
     version: '23.14',
     date: '2026-09-17',
