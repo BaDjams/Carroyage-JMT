@@ -10,6 +10,7 @@ const CHANGELOG = [
     changes: [
       'Cartouche du carroyage DFCI : en zoom rapproché, il annonçait « Carroyage DFCI 1 km » alors que le CFSI annonçait 2 km pour un carré portant le même genre de code. C\'était trompeur — un code comme « EG60H9 » désigne bien un carré de 2 km dans les deux systèmes. Le cartouche indique désormais « Carroyage DFCI 2 km + quarts »',
       'Le « 1 km » ne valait que pour le sous-carré central « .5 », seul vrai carré de 1 km sur 1 km. Les quarts « .1 » à « .4 » ne sont pas des carrés de 1 km : chacun est un quart amputé du coin de 500 m que lui prend ce carré central, soit une pièce en L de 0,75 km²',
+      'Grille MGRS : les inscriptions en bordure de l\'image reprennent maintenant la coordonnée complète, « 31U 451 » comme en UTM, au lieu des deux derniers chiffres. Ces deux chiffres ne se lisent qu\'avec le désignateur de carré de 100 km, écrit sur la carte : en bordure, loin de lui, ils étaient inutilisables. Les lignes tracées sur la carte gardent la notation MGRS habituelle',
     ],
   },
   {

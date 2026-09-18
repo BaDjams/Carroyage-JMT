@@ -2041,7 +2041,9 @@ async function drawUtmGridOnCanvas(ctx, boundingBox, latLonToCanvasPixels, margi
             ctx.stroke();
             
             if (firstCanvasPoint && lastCanvasPoint) {
-                const labelText = line.name;
+                // En bordure, la coordonnee complete comme en UTM : les deux chiffres
+                // du MGRS ne se lisent qu'avec le carre de 100 km, ecrit sur la carte.
+                const labelText = line.fullName || line.name;
                 if (line.type === 'easting') {
                     labelsToDraw.push({ type: 'top', anchor: { x: lastCanvasPoint.x, y: drawingBox.y }, text: labelText });
                     labelsToDraw.push({ type: 'bottom', anchor: { x: firstCanvasPoint.x, y: drawingBox.y + drawingBox.height }, text: labelText });

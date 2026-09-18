@@ -861,7 +861,7 @@ em { font-style: italic; }
 <ul>
 <li><strong>Géométrie</strong> : strictement identique à la grille UTM (mailles 1 km, mêmes lignes)</li>
 <li><strong>Désignation</strong> : zone + bande de latitude + carré de 100 km (2 lettres) + easting/northing tronqués, ex. <code>31U DQ 48251 11942</code></li>
-<li><strong>Étiquettes de lignes</strong> : deux derniers chiffres du kilomètre (00 à 99) ; le carré de 100 km lève l'ambiguïté</li>
+<li><strong>Étiquettes de lignes</strong> : deux derniers chiffres du kilomètre (00 à 99) ; le carré de 100 km lève l'ambiguïté — sur la carte. En <strong>bordure</strong> d'un export image, l'inscription reprend la coordonnée complète (« 31U 451 »), comme en UTM : hors de la carte, loin du désignateur de carré de 100 km, deux chiffres ne se lisent pas. Champ <code>fullName</code> des lignes de <code>calculateGridForZoneStrip</code></li>
 <li><strong>Carrés de 100 km</strong> : leur désignateur est écrit au centre de chaque carré visible ; leurs limites sont tracées plus épaisses</li>
 <li><strong>Conversion</strong> : <code>WGS84_to_MGRS.toLatLon()</code> renvoie le <strong>coin sud-ouest</strong> du carré désigné, avec sa taille (<code>precision</code>) — une référence tronquée désigne un carré, pas un point</li>
 <li><strong>Limites</strong> : hors zones polaires (84° N à 80° S) ; le système UPS n'est pas géré</li>

@@ -458,7 +458,7 @@ Voir §10 pour la stratégie complète.
 
 - **Géométrie** : strictement identique à la grille UTM (mailles 1 km, mêmes lignes)
 - **Désignation** : zone + bande de latitude + carré de 100 km (2 lettres) + easting/northing tronqués, ex. `31U DQ 48251 11942`
-- **Étiquettes de lignes** : deux derniers chiffres du kilomètre (00 à 99) ; le carré de 100 km lève l'ambiguïté
+- **Étiquettes de lignes** : deux derniers chiffres du kilomètre (00 à 99) ; le carré de 100 km lève l'ambiguïté — sur la carte. En **bordure** d'un export image, l'inscription reprend la coordonnée complète (« 31U 451 »), comme en UTM : hors de la carte, loin du désignateur de carré de 100 km, deux chiffres ne se lisent pas. Champ `fullName` des lignes de `calculateGridForZoneStrip`
 - **Carrés de 100 km** : leur désignateur est écrit au centre de chaque carré visible ; leurs limites sont tracées plus épaisses
 - **Conversion** : `WGS84_to_MGRS.toLatLon()` renvoie le **coin sud-ouest** du carré désigné, avec sa taille (`precision`) — une référence tronquée désigne un carré, pas un point
 - **Limites** : hors zones polaires (84° N à 80° S) ; le système UPS n'est pas géré
