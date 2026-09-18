@@ -85,6 +85,7 @@ L'ordre dans `index.html` est important — plusieurs fichiers exposent des vari
 6. carroyageCado.js    → générateur CADO + init Leaflet mode 1
 7. carroyageCFSI.js    → CFSI_UTILS
 7b. carroyageDFCI.js   → DFCI_UTILS, drawDfciGrid (s'appuie sur CFSI_UTILS pour la projection)
+7c. adaptiveInk.js     → createGridInk, resolveStaticGridColor (couleur adaptative)
 8. carroyageUTM.js     → WGS84_to_UTM, WGS84_to_MGRS
 9. zoneDownloader.js   → orchestrateur mode 2
 10. carroyageToMbtiles.js / carroyageToCSV.js → exports
@@ -217,6 +218,22 @@ Système CFSI français (Lambert II étendu / NTF, mailles 100 m). Le DFCI a son
 - Helmert WGS84 → NTF : `DX=168, DY=60, DZ=-320`
 - Lambert II-E : 6 itérations de raffinement de latitude (précision sub-métrique)
 - Décodage : Lambert → carré 100 km (alphabet 13×20) → 20 km → 2 km → 100 m
+
+#### `adaptiveInk.js`
+
+Couleur adaptative du carroyage : le trait et les étiquettes prennent la couleur qui contraste le mieux avec le fond qu'ils recouvrent. Sélectionnée par la pastille « adaptative » des deux palettes, qui met `adaptive` dans `grid-color` / `utm-grid-color` à la place d'un code hexadécimal.
+
+**Exports** :
+- `createGridInk(ctx, colorValue, alpha)` → encre commune aux deux cas (couleur fixe ou adaptative) : `strokeFor(points)`, `strokeWithAlpha(alpha, points)`, `colorAt(x, y)`, `labelColorsAt(x, y)`
+- `isAdaptiveGridColor(value)`, `resolveStaticGridColor(value, fallback)` — repli pour les sorties sans fond
+
+**Fonctionnement** :
+- le fond **déjà dessiné** est réduit par `drawImage` vers un petit canvas (une case ≈ 1 % du grand côté, plafond 400 × 400), puis converti en luminance relative et lissé en 3 × 3 — un `getImageData` sur l'image pleine demanderait des centaines de Mo
+- chaque trait reçoit un dégradé le long de son tracé, échantillonné à cette maille : la couleur se fond au lieu de sauter
+- bascule à `ADAPTIVE_LUMINANCE_PIVOT = 0,19`, point d'équi-contraste WCAG 2 entre les deux encres (`#FFFFFF` et `#0F0F0F`), et non 0,5
+- `createGridInk` doit être appelé **après** le fond et **avant** les grilles
+- canvas « teinté » (tuile sans CORS) : `getImageData` échoue, l'encre retombe sur une couleur fixe avec un avertissement console
+- sans pixels de fond — KML/KMZ, MBTiles, aperçu Leaflet — `resolveStaticGridColor` impose du blanc
 
 #### `carroyageDFCI.js`
 

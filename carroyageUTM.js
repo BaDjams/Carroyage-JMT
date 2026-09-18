@@ -262,7 +262,8 @@ async function generateUTMGrid() {
         }
 
         const gridName = document.getElementById('utm-grid-name').value || 'Grille_UTM_1km';
-        const color = document.getElementById('utm-grid-color').value;
+        // KMZ : fichier vectoriel sans fond, donc couleur fixe.
+        const color = resolveStaticGridColor(document.getElementById('utm-grid-color').value);
         const opacity = (100 - parseInt(document.getElementById('utm-transparency').value)) / 100;
 
         const [nwLat, nwLon] = nwCoordStr.split(',').map(c => parseFloat(c.trim()));

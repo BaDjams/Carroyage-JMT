@@ -1,9 +1,18 @@
 // version.js
 
 // Source unique de vérité pour la version de l'application.
-const APP_VERSION = '23.15';
+const APP_VERSION = '23.16';
 
 const CHANGELOG = [
+  {
+    version: '23.16',
+    date: '2026-09-18',
+    changes: [
+      'Nouvelle couleur de carroyage « adaptative », en plus des dix couleurs existantes : le trait et les étiquettes lisent le fond de l\'image et prennent la couleur qui s\'en détache le mieux — clairs sur un bois sombre, sombres sur une place en pierre claire. Une même image reste lisible d\'un bout à l\'autre',
+      'Le passage d\'une couleur à l\'autre se fait en dégradé le long du trait, pour éviter les ruptures nettes. La bascule suit le calcul de contraste de la norme WCAG, et la lecture du fond est moyennée par zones (environ 1 % de la largeur de l\'image) pour qu\'un toit isolé ne fasse pas changer tout un trait',
+      'Disponible en « Carroyage rapide » et en « Export de zone », pour les cinq carroyages (CADO, UTM, MGRS, CFSI, DFCI) et tous les formats image. Le KML, les MBTiles et l\'aperçu sur la carte n\'ont pas de fond à lire : ils utilisent du blanc',
+    ],
+  },
   {
     version: '23.15',
     date: '2026-09-17',

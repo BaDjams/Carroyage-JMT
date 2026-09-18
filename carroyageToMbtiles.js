@@ -53,7 +53,8 @@ async function generateMbtilesProcess(filename, useUtm, useCfsi, useCado, bbox, 
                 
                 // Style forcé Digital
                 cadoConfig.lineWidth = 2;
-                cadoConfig.gridColor = document.getElementById('utm-grid-color') ? document.getElementById('utm-grid-color').value : "#FF0000";
+                // Tuiles transparentes : aucun fond à lire, la couleur adaptative retombe sur du blanc.
+                cadoConfig.gridColor = resolveStaticGridColor(document.getElementById('utm-grid-color') ? document.getElementById('utm-grid-color').value : "#FF0000");
                 
                 if(typeof calculateGridData === 'function') {
                     cadoGridData = calculateGridData(cadoConfig);
@@ -117,7 +118,7 @@ async function processZoomLevel(db, zoom, bbox, useUtm, useCfsi, cadoConfig, cad
 
     // Récupération couleur globale (défaut noir)
     const _colorEl = document.getElementById('utm-grid-color');
-    const color = (cadoConfig && cadoConfig.gridColor) ? cadoConfig.gridColor : (_colorEl ? _colorEl.value : "#000000");
+    const color = resolveStaticGridColor((cadoConfig && cadoConfig.gridColor) ? cadoConfig.gridColor : (_colorEl ? _colorEl.value : "#000000"));
     
     // --- DESSIN DES COUCHES ---
     
@@ -349,8 +350,10 @@ function drawDigitalCfsiStrict(ctx, bbox, project, color, zoom) {
 function drawDigitalCado(ctx, config, gridData, project) {
     const lw = config.lineWidth || 2;
     const fSize = 14;
+    // Tuiles transparentes : aucun fond à lire, la couleur adaptative retombe sur du blanc.
+    const cadoColor = resolveStaticGridColor(config.gridColor);
 
-    ctx.strokeStyle = config.gridColor;
+    ctx.strokeStyle = cadoColor;
     ctx.lineWidth = lw;
     
     // Lignes
@@ -369,7 +372,7 @@ function drawDigitalCado(ctx, config, gridData, project) {
     if(config.includePoints) {
         gridData.points.forEach(pt => {
             const pix = project(pt.coordinates[1], pt.coordinates[0]);
-            drawSimpleText(ctx, pt.name, pix.x, pix.y, config.gridColor, fSize);
+            drawSimpleText(ctx, pt.name, pix.x, pix.y, cadoColor, fSize);
         });
     }
 }
