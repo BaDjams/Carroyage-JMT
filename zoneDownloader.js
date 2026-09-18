@@ -2091,9 +2091,14 @@ async function drawUtmGridOnCanvas(ctx, boundingBox, latLonToCanvasPixels, margi
     ctx.fillRect(0, 0, margin, ctx.canvas.height);
     ctx.fillRect(ctx.canvas.width - margin, 0, margin, ctx.canvas.height);
 
-    ctx.fillStyle = 'black';
+    // Coordonnees de bordure : elles sont posees sur la bande blanche qui entoure
+    // l'image, donc l'encre y choisit son ton sombre — noir, ou violet avec la paire
+    // teintee, ce qui les accorde aux traits de la grille.
     ctx.font = `bold ${cartoucheFontSize * 0.75}px Arial`;
     for (const label of labelsToDraw) {
+        // En couleur fixe, le noir reste de rigueur : une grille blanche donnerait
+        // des coordonnees blanches sur une bande blanche.
+        ctx.fillStyle = ink.adaptive ? ink.colorAt(label.anchor.x, label.anchor.y) : 'black';
         ctx.save();
         ctx.translate(label.anchor.x, label.anchor.y);
         switch(label.type) {

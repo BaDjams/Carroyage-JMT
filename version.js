@@ -11,6 +11,7 @@ const CHANGELOG = [
       'Douzième couleur de carroyage, « adaptative teintée » : même principe que la couleur adaptative, mais en jaune sur les zones sombres et violet sur les zones claires, deux teintes étrangères aux verts et aux bruns d\'une vue aérienne. Le carroyage se distingue ainsi du paysage au lieu de s\'y fondre',
       'Le contraste y plafonne à 3,0 contre 4,4 pour la version en noir et blanc, dans le cas le plus défavorable : à choisir selon que l\'on cherche la lisibilité maximale ou un carroyage bien identifiable',
       'Sans fond à lire (KML, MBTiles, aperçu sur la carte), cette pastille utilise du jaune, là où la version en noir et blanc utilise du blanc',
+      'Les coordonnées écrites en bordure de la grille UTM et MGRS suivent maintenant, elles aussi, la couleur adaptative : elles étaient restées en noir. Posées sur la marge blanche, elles prennent le ton sombre de la paire — noir, ou violet avec la pastille teintée, ce qui les accorde aux traits. Avec une couleur fixe, elles restent en noir, faute de quoi une grille blanche donnerait des coordonnées invisibles',
     ],
   },
   {

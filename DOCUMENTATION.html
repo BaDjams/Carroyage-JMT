@@ -694,6 +694,7 @@ em { font-style: italic; }
 - <code>createGridInk</code> doit être appelé <strong>après</strong> le fond et <strong>avant</strong> les grilles
 - canvas « teinté » (tuile sans CORS) : <code>getImageData</code> échoue, l'encre retombe sur une couleur fixe avec un avertissement console
 - sans pixels de fond — KML/KMZ, MBTiles, aperçu Leaflet — <code>resolveStaticGridColor</code> impose l'encre claire de la paire (blanc ou jaune)</p>
+<p><strong>Ce que l'encre couvre</strong> : traits et étiquettes des cinq carroyages (CADO, UTM/MGRS, CFSI, DFCI), désignateurs MGRS de 100 km, et coordonnées de bordure UTM/MGRS — celles-ci sont posées sur la marge blanche, où l'encre choisit son ton sombre ; en couleur fixe elles restent en noir, sans quoi une grille blanche les rendrait invisibles. Restent en couleurs fixes, car indépendants de la grille : cartouche, boussole, barre d'échelle, croix de référence, quadrants de la clé de subdivision CADO et des cases repères CFSI, tracés KML importés et points d'intérêt.</p>
 <h4 id="carroyagedfcijs"><code>carroyageDFCI.js</code></h4>
 <p>Carroyage DFCI de la sécurité civile (Lambert II étendu, mailles 2 km et subdivision .1 à .5). Réutilise la projection de <code>CFSI_UTILS</code>, qui doit donc être chargé avant l'appel.</p>
 <p><strong>Exports</strong> :
