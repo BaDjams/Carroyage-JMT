@@ -1,9 +1,17 @@
 // version.js
 
 // Source unique de vérité pour la version de l'application.
-const APP_VERSION = '23.17';
+const APP_VERSION = '23.18';
 
 const CHANGELOG = [
+  {
+    version: '23.18',
+    date: '2026-09-18',
+    changes: [
+      'Les coordonnées écrites en bordure de la grille UTM et MGRS suivent maintenant, elles aussi, la couleur adaptative : elles étaient restées en noir, seules étiquettes du carroyage à ne pas tenir compte de la couleur choisie. Posées sur la marge blanche, elles prennent le ton sombre de la paire — noir avec la pastille adaptative, violet avec la teintée, ce qui les accorde aux traits',
+      'Avec une couleur fixe, ces coordonnées restent en noir : les faire suivre la couleur choisie donnait des coordonnées blanches, donc invisibles, sur la marge blanche d\'une grille blanche',
+    ],
+  },
   {
     version: '23.17',
     date: '2026-09-18',
