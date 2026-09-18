@@ -1,9 +1,17 @@
 // version.js
 
 // Source unique de vérité pour la version de l'application.
-const APP_VERSION = '23.18';
+const APP_VERSION = '23.19';
 
 const CHANGELOG = [
+  {
+    version: '23.19',
+    date: '2026-09-18',
+    changes: [
+      'Cartouche du carroyage DFCI : en zoom rapproché, il annonçait « Carroyage DFCI 1 km » alors que le CFSI annonçait 2 km pour un carré portant le même genre de code. C\'était trompeur — un code comme « EG60H9 » désigne bien un carré de 2 km dans les deux systèmes. Le cartouche indique désormais « Carroyage DFCI 2 km + quarts »',
+      'Le « 1 km » ne valait que pour le sous-carré central « .5 », seul vrai carré de 1 km sur 1 km. Les quarts « .1 » à « .4 » ne sont pas des carrés de 1 km : chacun est un quart amputé du coin de 500 m que lui prend ce carré central, soit une pièce en L de 0,75 km²',
+    ],
+  },
   {
     version: '23.18',
     date: '2026-09-18',
