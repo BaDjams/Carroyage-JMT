@@ -146,10 +146,9 @@ async function drawCfsiGridOnCanvas(ctx, bbox, latLonToPixels, margin, fontSize,
     const color = colorEl ? colorEl.value : '#000000';
     const trEl = document.getElementById('utm-transparency');
     const transparency = trEl ? (100 - parseInt(trEl.value)) / 100 : 0.5;
-    const r = parseInt(color.slice(1, 3), 16), g = parseInt(color.slice(3, 5), 16), b = parseInt(color.slice(5, 7), 16);
-    // Pré-calcul des deux styles de couleur pour éviter la reconstruction de chaîne à chaque itération
-    const strokeStyle2k    = `rgba(${r}, ${g}, ${b}, ${transparency})`;
-    const strokeStyleSmall = `rgba(${r}, ${g}, ${b}, ${transparency / 2.5})`;
+    // Encre du carroyage : couleur choisie, ou couleur adaptative lue sur le fond.
+    // Le fond est dessiné, les grilles pas encore : c'est le moment de l'échantillonner.
+    const ink = createGridInk(ctx, color, transparency);
 
     const nw = CFSI_UTILS.wgs84ToL2E(bbox.north, bbox.west);
     const se = CFSI_UTILS.wgs84ToL2E(bbox.south, bbox.east);
@@ -213,7 +212,6 @@ async function drawCfsiGridOnCanvas(ctx, bbox, latLonToPixels, margin, fontSize,
         const is2k = (Math.abs(x % 2000) < 1);
         if (!is2k && !isSmallArea) continue;
         
-        ctx.strokeStyle = is2k ? strokeStyle2k : strokeStyleSmall;
         ctx.lineWidth = is2k ? lineWidth * 2 : lineWidth * 1.0;
 
         const ll1x = CFSI_UTILS.l2EToWgs84(x, lMinY);
@@ -222,6 +220,7 @@ async function drawCfsiGridOnCanvas(ctx, bbox, latLonToPixels, margin, fontSize,
         const p2 = latLonToPixels(ll2x.lat, ll2x.lon);
         
         if (p1 && p2) {
+             ctx.strokeStyle = ink.strokeWithAlpha(is2k ? transparency : transparency / 2.5, [p1, p2]);
              ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); ctx.stroke(); ctx.beginPath();
         }
     }
@@ -229,7 +228,6 @@ async function drawCfsiGridOnCanvas(ctx, bbox, latLonToPixels, margin, fontSize,
         const is2k = (Math.abs(y % 2000) < 1);
         if (!is2k && !isSmallArea) continue;
 
-        ctx.strokeStyle = is2k ? strokeStyle2k : strokeStyleSmall;
         ctx.lineWidth = is2k ? lineWidth * 2 : lineWidth * 1.0;
 
         const ll1y = CFSI_UTILS.l2EToWgs84(lMinX, y);
@@ -238,6 +236,7 @@ async function drawCfsiGridOnCanvas(ctx, bbox, latLonToPixels, margin, fontSize,
         const p2 = latLonToPixels(ll2y.lat, ll2y.lon);
 
         if (p1 && p2) {
+            ctx.strokeStyle = ink.strokeWithAlpha(is2k ? transparency : transparency / 2.5, [p1, p2]);
             ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); ctx.stroke(); ctx.beginPath();
         }
     }
@@ -246,8 +245,8 @@ async function drawCfsiGridOnCanvas(ctx, bbox, latLonToPixels, margin, fontSize,
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     const safeFontSize = fontSize || 12;
-    // Texte de la couleur des traits, liseré noir ou blanc selon le contraste.
-    const labelColors = gridLabelColors(color);
+    // Texte de la couleur des traits (ou du fond qu'il recouvre), liseré contrasté.
+    const labelColorsAt = (x, y) => ink.labelColorsAt(x, y);
 
     if (isSmallArea) {
         const labelFont = safeFontSize * 0.6;
@@ -268,7 +267,7 @@ async function drawCfsiGridOnCanvas(ctx, bbox, latLonToPixels, margin, fontSize,
                 ctx.font = `bold ${labelFont}px Arial`;
                 const textToDraw = (isAnchor(comps) || isVeryClose) ? `${comps.full2k} ${comps.c100m}` : comps.c100m;
 
-                drawTextWithOutline(ctx, textToDraw, p.x, p.y, labelFont * GRID_LABEL_HALO_RATIO, labelColors);
+                drawTextWithOutline(ctx, textToDraw, p.x, p.y, labelFont * GRID_LABEL_HALO_RATIO, labelColorsAt(p.x, p.y));
             }
         }
     } else {
@@ -286,7 +285,7 @@ async function drawCfsiGridOnCanvas(ctx, bbox, latLonToPixels, margin, fontSize,
                     const ll = CFSI_UTILS.l2EToWgs84(centerX, centerY);
                     const p = latLonToPixels(ll.lat, ll.lon);
                     if (p && !isNaN(p.x)) {
-                        drawTextWithOutline(ctx, comps.full2k, p.x, p.y, safeFontSize * 1.5 * GRID_LABEL_HALO_RATIO, labelColors);
+                        drawTextWithOutline(ctx, comps.full2k, p.x, p.y, safeFontSize * 1.5 * GRID_LABEL_HALO_RATIO, labelColorsAt(p.x, p.y));
                     }
                 }
             }

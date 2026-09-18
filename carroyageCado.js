@@ -30,7 +30,8 @@ function updateCadoGridPreview() {
         const config = getGridConfiguration(parts[0], parts[1]);
         const gridData = calculateGridData(config);
         const layers = [];
-        const color = config.gridColor;
+        // Aperçu Leaflet : pas de pixels de fond à lire, la couleur adaptative retombe sur du blanc.
+        const color = resolveStaticGridColor(config.gridColor);
         const weight = parseInt(document.getElementById('line-thickness')?.value || '1');
         const opacity = config.colorOpacity;
 
@@ -693,8 +694,10 @@ function generateKML(config, gridData) {
     const isKmz = config.outputFormat === 'KMZ';
     const iconScale = isKmz ? config.iconSize : 0;
     const labelScale = isKmz ? 0 : config.labelSize;
-    const labelColor = rgbToKmlColor(config.gridColor, 1);
-    const lineColor = rgbToKmlColor(config.gridColor, config.colorOpacity);
+    // KML : fichier vectoriel sans fond, donc couleur fixe.
+    const kmlColorBase = resolveStaticGridColor(config.gridColor);
+    const labelColor = rgbToKmlColor(kmlColorBase, 1);
+    const lineColor = rgbToKmlColor(kmlColorBase, config.colorOpacity);
 
     // Utilisation d'un tableau de parties pour éviter les concaténations répétées
     const p = [];
@@ -807,14 +810,14 @@ async function generateKMZ(config, gridData, kmlContent, mimeType) {
         canvas.setAttribute("height", 64);
         const ctx = canvas.getContext("2d");
         ctx.font = "bold 24px Arial";
-        ctx.fillStyle = config.gridColor;
+        ctx.fillStyle = resolveStaticGridColor(config.gridColor);
         ctx.textAlign = "center";
         ctx.textBaseline =  "middle";
 
         for (const point of gridData.points) {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             ctx.fillText(point.name, 32, 32);
-            if (config.gridColor.toUpperCase() === "#FFFFFF") {
+            if (resolveStaticGridColor(config.gridColor).toUpperCase() === "#FFFFFF") {
                 ctx.strokeText(point.name, 32, 32);
             }
             iconsFolder.file(`${point.name}.png`, canvas.toDataURL("image/png").split(',')[1], { base64: true });

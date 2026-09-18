@@ -287,10 +287,13 @@ function hideError() {
 // =======================================================================
 
 function drawLabelWithOutline(ctx, text, x, y, config) {
+    // Avec une encre (config.ink), l'étiquette prend la couleur de l'endroit qu'elle
+    // recouvre et son liseré opposé ; sinon on garde le liseré choisi par nom de couleur.
+    const inkColors = config.ink ? config.ink.labelColorsAt(x, y) : null;
     const darkColorsForWhiteOutline = ['black', 'red', 'blue', 'green', 'violet', 'brown'];
     const outlineColor = darkColorsForWhiteOutline.includes(config.colorName) ? 'white' : 'black';
     
-    ctx.strokeStyle = outlineColor;
+    ctx.strokeStyle = inkColors ? inkColors.halo : outlineColor;
     
     // CORRECTION : L'épaisseur de l'outline dépend de l'épaisseur du trait de grille.
     // On s'assure d'un minimum de 3px pour la lisibilité, mais on augmente si la grille est épaisse (upscaling).
@@ -298,7 +301,7 @@ function drawLabelWithOutline(ctx, text, x, y, config) {
     ctx.lineWidth = Math.max(3, baseLineWidth * 2.5);
     
     ctx.strokeText(text, x, y);
-    ctx.fillStyle = config.gridColor;
+    ctx.fillStyle = inkColors ? inkColors.fill : config.gridColor;
     ctx.fillText(text, x, y);
 }
 
@@ -734,7 +737,10 @@ function drawCadoElementsOnCanvas(ctx, config, latLonToPixels, a1CornerCoords) {
 
     if (colsToDraw.length === 0 || rowsToDraw.length === 0) return;
 
-    ctx.strokeStyle = config.gridColor;
+    // Encre du carroyage : couleur choisie, ou couleur adaptative lue sur le fond
+    // déjà dessiné. Les étiquettes la reprennent via config.ink.
+    const ink = createGridInk(ctx, config.gridColor, 1);
+    config.ink = ink;
     ctx.lineWidth = config.lineWidth || 1;
     
     const colsForLines = [...colsToDraw, getNextIndex(colsToDraw[colsToDraw.length - 1])];
@@ -745,6 +751,7 @@ function drawCadoElementsOnCanvas(ctx, config, latLonToPixels, a1CornerCoords) {
         const endPoint = calculateAndRotatePoint(colNum, rowsForLines[rowsForLines.length - 1], config, a1Lat, a1Lon);
         const startPixels = latLonToPixels(startPoint[1], startPoint[0]);
         const endPixels = latLonToPixels(endPoint[1], endPoint[0]);
+        ctx.strokeStyle = ink.strokeFor([startPixels, endPixels]);
         ctx.beginPath(); ctx.moveTo(startPixels.x, startPixels.y); ctx.lineTo(endPixels.x, endPixels.y); ctx.stroke();
     });
 
@@ -753,6 +760,7 @@ function drawCadoElementsOnCanvas(ctx, config, latLonToPixels, a1CornerCoords) {
         const endPoint = calculateAndRotatePoint(colsForLines[colsForLines.length - 1], rowNum, config, a1Lat, a1Lon);
         const startPixels = latLonToPixels(startPoint[1], startPoint[0]);
         const endPixels = latLonToPixels(endPoint[1], endPoint[0]);
+        ctx.strokeStyle = ink.strokeFor([startPixels, endPixels]);
         ctx.beginPath(); ctx.moveTo(startPixels.x, startPixels.y); ctx.lineTo(endPixels.x, endPixels.y); ctx.stroke();
     });
     

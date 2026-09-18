@@ -967,7 +967,8 @@ async function handleZoneVectorExport() {
         }
 
         // 2. CONSTRUCTION KML GLOBAL
-        const colorHex = document.getElementById('utm-grid-color').value || "#000000";
+        // KML : fichier vectoriel sans fond, donc couleur fixe.
+        const colorHex = resolveStaticGridColor(document.getElementById('utm-grid-color').value) || "#000000";
         const opacityVal = (100 - parseInt(document.getElementById('utm-transparency').value || 30)) / 100;
         const kmlColor = rgbToKmlColor(colorHex, opacityVal);
         const kmlLabelColor = rgbToKmlColor(colorHex, 1.0);
@@ -1353,9 +1354,9 @@ async function generateCadoKmlFolder(imagesToZip, isKmz) {
 
         for (const point of gridData.points) {
             ctx.clearRect(0, 0, 64, 64);
-            ctx.fillStyle = config.gridColor;
+            ctx.fillStyle = resolveStaticGridColor(config.gridColor);
             ctx.fillText(point.name, 32, 32);
-            if(config.gridColor.toUpperCase() === "#FFFFFF") ctx.strokeText(point.name, 32, 32);
+            if(resolveStaticGridColor(config.gridColor).toUpperCase() === "#FFFFFF") ctx.strokeText(point.name, 32, 32);
             
             const iconName = `cado_${point.name}.png`;
             if (isKmz) {
@@ -2001,9 +2002,8 @@ async function drawUtmGridOnCanvas(ctx, boundingBox, latLonToCanvasPixels, margi
     const isMgrs = (gridMode === 'mgrs');
     const color = document.getElementById('utm-grid-color').value;
     const opacity = (100 - parseInt(document.getElementById('utm-transparency').value)) / 100;
-    const r = parseInt(color.slice(1, 3), 16), g = parseInt(color.slice(3, 5), 16), b = parseInt(color.slice(5, 7), 16);
-    const gridLineColor = `rgba(${r}, ${g}, ${b}, ${opacity})`;
-    const gridLineColorSolid = `rgb(${r}, ${g}, ${b})`;
+    // Encre : couleur choisie, ou couleur adaptative lue sur le fond déjà dessiné.
+    const ink = createGridInk(ctx, color, opacity);
     const nwLat = boundingBox.north, nwLon = boundingBox.west, seLat = boundingBox.south, seLon = boundingBox.east;
     const drawingBox = { x: margin, y: margin, width: ctx.canvas.width - margin * 2, height: ctx.canvas.height - margin * 2 };
     const startZone = WGS84_to_UTM.fromLatLon(nwLat, nwLon).zoneNumber;
@@ -2029,15 +2029,15 @@ async function drawUtmGridOnCanvas(ctx, boundingBox, latLonToCanvasPixels, margi
             // qui délimitent le domaine de validité des désignateurs à deux lettres.
             if (isMgrs && line.major100k) ctx.lineWidth = lineWidth * 3;
             else ctx.lineWidth = line.major ? lineWidth * 2 : lineWidth;
-            ctx.strokeStyle = gridLineColor;
+            const linePixels = line.coordinates.map(c => latLonToCanvasPixels(c[1], c[0]));
+            ctx.strokeStyle = ink.strokeFor(linePixels);
             ctx.beginPath();
             let firstCanvasPoint = null, lastCanvasPoint = null;
-            for (let i = 0; i < line.coordinates.length; i++) {
-                const p = latLonToCanvasPixels(line.coordinates[i][1], line.coordinates[i][0]);
-                if (i === 0) { ctx.moveTo(p.x, p.y); firstCanvasPoint = p; } 
+            linePixels.forEach((p, i) => {
+                if (i === 0) { ctx.moveTo(p.x, p.y); firstCanvasPoint = p; }
                 else { ctx.lineTo(p.x, p.y); }
                 lastCanvasPoint = p;
-            }
+            });
             ctx.stroke();
             
             if (firstCanvasPoint && lastCanvasPoint) {
@@ -2074,9 +2074,10 @@ async function drawUtmGridOnCanvas(ctx, boundingBox, latLonToCanvasPixels, margi
         ctx.lineJoin = 'round';
         for (const sq of squareLabelsToDraw) {
             const p = latLonToCanvasPixels(sq.lat, sq.lon);
-            ctx.strokeStyle = 'rgba(0, 0, 0, 0.75)';
+            const labelColors = ink.labelColorsAt(p.x, p.y);
+            ctx.strokeStyle = labelColors.halo;
             ctx.strokeText(sq.name, p.x, p.y);
-            ctx.fillStyle = gridLineColorSolid;
+            ctx.fillStyle = labelColors.fill;
             ctx.fillText(sq.name, p.x, p.y);
         }
         ctx.textAlign = 'start';

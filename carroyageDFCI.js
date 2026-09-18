@@ -194,8 +194,8 @@ function drawDfciGrid(ctx, bbox, project, style) {
     const lw = style.lineWidth || 1;
     const hex = style.color || '#000000';
     const alpha = (style.alpha === undefined) ? 1 : style.alpha;
-    const r = parseInt(hex.slice(1, 3), 16), g = parseInt(hex.slice(3, 5), 16), b = parseInt(hex.slice(5, 7), 16);
-    const rgba = (a) => `rgba(${r}, ${g}, ${b}, ${a})`;
+    // Encre : couleur choisie, ou couleur adaptative lue sur le fond déjà dessiné.
+    const ink = createGridInk(ctx, hex, alpha);
 
     ctx.save();
     ctx.font = `bold ${fontSize}px Arial`;
@@ -215,23 +215,23 @@ function drawDfciGrid(ctx, bbox, project, style) {
     const widths = { '100k': lw * 3, '20k': lw * 2.2, '2k': lw * 1.4, 'quarter': lw * 0.8 };
     const alphas = { '100k': alpha, '20k': alpha, '2k': alpha, 'quarter': alpha * 0.6 };
     ['quarter', '2k', '20k', '100k'].forEach(rank => {
-        ctx.strokeStyle = rgba(alphas[rank]);
         ctx.lineWidth = widths[rank];
         ctx.setLineDash(rank === 'quarter' ? [lw * 6, lw * 4] : []);
-        ctx.beginPath();
+        // Une passe par trait : le dégradé de la couleur adaptative suit chaque tracé.
+        // En couleur fixe, l'encre rend la même valeur pour tous.
         lines.filter(l => l.rank === rank).forEach(l => {
-            l.coords.forEach((c, i) => {
-                const p = project(c[1], c[0]);
-                if (i === 0) ctx.moveTo(p.x, p.y); else ctx.lineTo(p.x, p.y);
-            });
+            const pts = l.coords.map(c => project(c[1], c[0]));
+            ctx.strokeStyle = ink.strokeWithAlpha(alphas[rank], pts);
+            ctx.beginPath();
+            pts.forEach((p, i) => { if (i === 0) ctx.moveTo(p.x, p.y); else ctx.lineTo(p.x, p.y); });
+            ctx.stroke();
         });
-        ctx.stroke();
     });
     ctx.setLineDash([]);
 
-    // Texte de la couleur des traits ; avec halo, liseré noir ou blanc selon le contraste.
-    const labelColors = gridLabelColors(hex);
+    // Texte de la couleur des traits (ou du fond qu'il recouvre) ; liseré contrasté.
     const drawLabel = (text, x, y, size) => {
+        const labelColors = ink.labelColorsAt(x, y);
         ctx.font = `bold ${size}px Arial`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
