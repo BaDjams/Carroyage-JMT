@@ -172,6 +172,41 @@ async function drawCfsiGridOnCanvas(ctx, bbox, latLonToPixels, margin, fontSize,
     const lMinY = Math.floor(se.y / 100) * 100;
     const lMaxY = Math.ceil(nw.y / 100) * 100;
 
+    // Quadrilatère Lambert -> pixels. La grille Lambert est légèrement tournée par
+    // rapport à la carte : un fillRect droit débordait sur les carrés voisins.
+    const fillLambertRect = (x0, y0, x1, y1) => {
+        ctx.beginPath();
+        [[x0, y0], [x1, y0], [x1, y1], [x0, y1]].forEach(([lx, ly], i) => {
+            const ll = CFSI_UTILS.l2EToWgs84(lx, ly);
+            const p = latLonToPixels(ll.lat, ll.lon);
+            if (i === 0) ctx.moveTo(p.x, p.y); else ctx.lineTo(p.x, p.y);
+        });
+        ctx.closePath();
+        ctx.fill();
+    };
+
+    // 0. QUADRANTS COLORÉS DES CASES REPÈRES — peints AVANT les traits, qui restent visibles
+    const anchorIndices = [0, 9, 19];
+    const quadrants = [
+        { c: 'rgba(255,0,0,0.3)',   dx: 0,  dy: 50 }, // NO
+        { c: 'rgba(0,255,0,0.3)',   dx: 50, dy: 50 }, // NE
+        { c: 'rgba(255,255,0,0.3)', dx: 0,  dy: 0 },  // SO
+        { c: 'rgba(0,0,255,0.3)',   dx: 50, dy: 0 }   // SE
+    ];
+    const isAnchor = (comps) => anchorIndices.includes(comps.idxX) && anchorIndices.includes(comps.idxY);
+    if (isSmallArea) {
+        for (let x = lMinX; x <= lMaxX; x += 100) {
+            for (let y = lMinY; y <= lMaxY; y += 100) {
+                const comps = CFSI_UTILS.getComponentsFromLambert(x + 50, y + 50);
+                if (!comps || !isAnchor(comps)) continue;
+                quadrants.forEach(q => {
+                    ctx.fillStyle = q.c;
+                    fillLambertRect(x + q.dx, y + q.dy, x + q.dx + 50, y + q.dy + 50);
+                });
+            }
+        }
+    }
+
     // 1. DESSIN DES LIGNES
     ctx.beginPath();
     for (let x = lMinX; x <= lMaxX; x += 100) {
@@ -211,9 +246,11 @@ async function drawCfsiGridOnCanvas(ctx, bbox, latLonToPixels, margin, fontSize,
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     const safeFontSize = fontSize || 12;
+    // Texte de la couleur des traits, liseré noir ou blanc selon le contraste.
+    const labelColors = gridLabelColors(color);
 
     if (isSmallArea) {
-        const anchorIndices = [0, 9, 19]; 
+        const labelFont = safeFontSize * 0.6;
         for (let x = lMinX; x <= lMaxX; x += 100) {
             for (let y = lMinY; y <= lMaxY; y += 100) {
                 const centerX = x + 50;
@@ -227,35 +264,11 @@ async function drawCfsiGridOnCanvas(ctx, bbox, latLonToPixels, margin, fontSize,
 
                 if (!p || isNaN(p.x) || isNaN(p.y)) continue;
 
-                const isAncre = anchorIndices.includes(comps.idxX) && anchorIndices.includes(comps.idxY);
-                
-                // Dessin des quadrants colorés (uniquement sur les ancres pour garder le repère visuel)
-                if (isAncre) {
-                    const quadrants = [
-                        { c: 'rgba(255,0,0,0.3)', dx: 0, dy: 50 },
-                        { c: 'rgba(0,255,0,0.3)', dx: 50, dy: 50 },
-                        { c: 'rgba(255,255,0,0.3)', dx: 0, dy: 0 },
-                        { c: 'rgba(0,0,255,0.3)', dx: 50, dy: 0 }
-                    ];
-                    quadrants.forEach(q => {
-                        const c1 = CFSI_UTILS.l2EToWgs84(x + q.dx, y + q.dy);
-                        const c2 = CFSI_UTILS.l2EToWgs84(x + q.dx + 50, y + q.dy + 50);
-                        const pix1 = latLonToPixels(c1.lat, c1.lon);
-                        const pix2 = latLonToPixels(c2.lat, c2.lon);
-                        if(pix1 && pix2) {
-                            ctx.fillStyle = q.c;
-                            ctx.fillRect(pix1.x, pix1.y, pix2.x - pix1.x, pix2.y - pix1.y);
-                        }
-                    });
-                }
+                // Nom complet sur les cases repères, ou partout en zoom très proche
+                ctx.font = `bold ${labelFont}px Arial`;
+                const textToDraw = (isAnchor(comps) || isVeryClose) ? `${comps.full2k} ${comps.c100m}` : comps.c100m;
 
-                // MODIFICATION ICI : Choix du texte à afficher
-                // Si c'est une ancre OU si on est très proche -> Nom complet
-                let textToDraw = "";
-                ctx.font = `bold ${safeFontSize * 0.6}px Arial`;
-                textToDraw = (isAncre || isVeryClose) ? `${comps.full2k} ${comps.c100m}` : comps.c100m;
-
-                drawTextWithOutline(ctx, textToDraw, p.x, p.y, safeFontSize * 0.05);
+                drawTextWithOutline(ctx, textToDraw, p.x, p.y, labelFont * GRID_LABEL_HALO_RATIO, labelColors);
             }
         }
     } else {
@@ -273,62 +286,26 @@ async function drawCfsiGridOnCanvas(ctx, bbox, latLonToPixels, margin, fontSize,
                     const ll = CFSI_UTILS.l2EToWgs84(centerX, centerY);
                     const p = latLonToPixels(ll.lat, ll.lon);
                     if (p && !isNaN(p.x)) {
-                        drawTextWithOutline(ctx, comps.full2k, p.x, p.y, safeFontSize * 0.1);
+                        drawTextWithOutline(ctx, comps.full2k, p.x, p.y, safeFontSize * 1.5 * GRID_LABEL_HALO_RATIO, labelColors);
                     }
                 }
             }
         }
     }
     ctx.restore();
-    
-    const zoneTitleEl = document.getElementById("zone-title");
-    const userTitle = zoneTitleEl ? zoneTitleEl.value : "Zone CFSI";
-    const centerLat = (bbox.north + bbox.south) / 2;
-    const centerLon = (bbox.west + bbox.east) / 2;
-    
-    // Mise à jour du texte de précision dans le cartouche
-    let scaleLabel;
-    if (isVeryClose) scaleLabel = "Précision: 100 m (Zoom Max)";
-    else if (isSmallArea) scaleLabel = "Précision: 100 m";
-    else scaleLabel = "Précision: 2 km";
-
-    drawCfsiCartouche(ctx, userTitle, scaleLabel, centerLat, centerLon, margin, safeFontSize);
+    // Le cartouche est celui, commun, de l'export de zone (drawZoneCartouche) :
+    // l'ancien cartouche propre au CFSI se dessinait dessous, au même endroit.
+    // Il en reprend la maille etiquetee, rendue ici.
+    return isSmallArea ? "100 m" : "2 km";
 }
 
-function drawCfsiCartouche(ctx, title, scaleText, lat, lon, margin, fontSize) {
-    if(!ctx) return;
-    const cartFontSize = fontSize * 0.8;
-    const padding = cartFontSize;
-    const lineSpacing = cartFontSize * 1.4;
-    const texts = [
-        `Carte: ${title}`,
-        `Système: CFSI (L93)`,
-        scaleText,
-        `Centre: ${lat ? lat.toFixed(5) : ''}, ${lon ? lon.toFixed(5) : ''}`
-    ];
-    ctx.font = `bold ${cartFontSize}px Arial`;
-    let maxWidth = 0;
-    texts.forEach(t => maxWidth = Math.max(maxWidth, ctx.measureText(t).width));
-    const boxWidth = maxWidth + (padding * 2);
-    const boxHeight = (texts.length * lineSpacing) + padding;
-    const x = margin + padding;
-    const y = margin + padding;
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
-    ctx.fillRect(x, y, boxWidth, boxHeight);
-    ctx.strokeStyle = 'black';
-    ctx.strokeRect(x, y, boxWidth, boxHeight);
-    ctx.fillStyle = 'black';
-    ctx.textAlign = 'left';
-    ctx.textBaseline = 'top';
-    texts.forEach((txt, i) => ctx.fillText(txt, x + padding, y + padding/2 + (i * lineSpacing)));
-}
-
-function drawTextWithOutline(ctx, text, x, y, outlineWidth) {
+// colors : { fill, halo } (cf. gridLabelColors) ; texte noir liseré blanc par défaut.
+function drawTextWithOutline(ctx, text, x, y, outlineWidth, colors) {
     if(!text) return;
-    ctx.strokeStyle = "rgba(255, 255, 255, 0.8)";
-    ctx.lineWidth = Math.max(2, outlineWidth); 
+    ctx.strokeStyle = colors ? colors.halo : "rgba(255, 255, 255, 0.8)";
+    ctx.lineWidth = Math.max(2, outlineWidth);
     ctx.lineJoin = "round";
     ctx.strokeText(text, x, y);
-    ctx.fillStyle = "rgba(0, 0, 0, 1)";
+    ctx.fillStyle = colors ? colors.fill : "rgba(0, 0, 0, 1)";
     ctx.fillText(text, x, y);
 }

@@ -170,6 +170,8 @@ Fonctions transverses :
 - **Géométrie cœur** : `calculateAndRotatePoint(colNumber, rowNumber, config, a1Lat, a1Lon)` — convertit coords cellule → lat/lon avec correction cosinus de latitude et rotation via matrice autour d'un pivot. La correction utilise `config.latitude` (centre) et **non** `a1Lat` pour éviter une asymétrie en bord de zone
 - **Rendu canvas** : `drawLabelWithOutline()`, `drawSubdivisionKey()` — étiquettes avec contour et barre d'échelle
 - **UI** : `downloadFile()`, `showError()`, `hideError()`
+- **Ligne 2 du cartouche** : `cartoucheScaleLine({ gridKind, gridDetail, scale, layerShort, zoom })` — `gridDetail` porte la maille étiquetée des carroyages emboîtés, d'où « Carroyage CFSI 100 m »
+- **Couleur des étiquettes de carroyage** : `gridLabelColors(hex)` → `{ fill, halo }` — texte de la couleur des traits, liseré noir ou blanc choisi par rapport de contraste WCAG 2 ; épaisseur du liseré `GRID_LABEL_HALO_RATIO` (25 % de la police). Utilisé par le CFSI et le DFCI
 - **Épaisseur des traits** : `gridLineWidthPx(level, width, height, exportScale)` et `exportUpscaleFactor(height, upscaleEnabled)` — cf. § 8.4
 
 > Toutes les rotations passent par cette fonction. Modifier les axes ou la convention demande beaucoup de précautions : les exports KML, l'aperçu Leaflet et le PNG haute résolution doivent rester cohérents.
@@ -208,8 +210,8 @@ Système CFSI français (Lambert II étendu / NTF, mailles 100 m). Le DFCI a son
 
 **Exports** :
 - `CFSI_UTILS` (IIFE) avec : conversions WGS84 ↔ Lambert II-E, parsing de codes
-- `drawCfsiGridOnCanvas(ctx, bbox, latLonToPixels, margin, fontSize, lineWidth)` — rasterise grille + étiquettes
-- `drawCfsiCartouche()` — cartouche titre/précision
+- `drawCfsiGridOnCanvas(ctx, bbox, latLonToPixels, margin, fontSize, lineWidth)` — rasterise, dans l'ordre, les quadrants colorés des cases repères (polygones Lambert, sous les traits), les traits, puis les étiquettes. Le cartouche est le cartouche commun de l'export de zone, auquel la fonction rend la maille étiquetée (`"100 m"` ou `"2 km"`) pour sa ligne 2
+- `drawTextWithOutline(ctx, text, x, y, outlineWidth, colors)` — étiquette avec liseré ; `colors` vient de `gridLabelColors`
 
 **Algorithmes** :
 - Helmert WGS84 → NTF : `DX=168, DY=60, DZ=-320`
@@ -223,7 +225,7 @@ Carroyage DFCI de la sécurité civile (Lambert II étendu, mailles 2 km et subd
 **Exports** :
 - `DFCI_UTILS` (IIFE) : `codeFromLambert(x, y)`, `fromLatLon(lat, lon)` (ex. `KD40D7.1`), `buildGrid(bbox, {step, quarters})` — géométrie commune (lignes classées `100k`/`20k`/`2k`/`quarter`, étiquettes), `count2kCells(bbox)`, `pixelsPer2k(bbox, project)`
 - `drawDfciGrid(ctx, bbox, project, style)` — rendu canvas commun à l'image et aux MBTiles ; le niveau de détail (subdivision / 2 km / 20 km) suit la taille à l'écran d'une maille de 2 km
-- `drawDfciGridOnCanvas(ctx, bbox, latLonToPixels, margin, fontSize, lineWidth)` — même signature que la version CFSI
+- `drawDfciGridOnCanvas(ctx, bbox, latLonToPixels, margin, fontSize, lineWidth)` — même signature que la version CFSI ; rend comme elle la maille étiquetée (`"1 km"`, `"2 km"` ou `"20 km"`)
 - **Rendu adaptatif** selon zoom : pleins codes (< 700 m), 100 m avec coloration (< 3500 m), 2 km au-delà
 
 #### `carroyageUTM.js` (~27 KB)

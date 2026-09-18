@@ -229,19 +229,19 @@ function drawDfciGrid(ctx, bbox, project, style) {
     });
     ctx.setLineDash([]);
 
+    // Texte de la couleur des traits ; avec halo, liseré noir ou blanc selon le contraste.
+    const labelColors = gridLabelColors(hex);
     const drawLabel = (text, x, y, size) => {
         ctx.font = `bold ${size}px Arial`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         if (style.halo) {
-            ctx.strokeStyle = 'rgba(255, 255, 255, 0.85)';
-            ctx.lineWidth = Math.max(2, size * 0.2);
+            ctx.strokeStyle = labelColors.halo;
+            ctx.lineWidth = Math.max(2, size * GRID_LABEL_HALO_RATIO);
             ctx.lineJoin = 'round';
             ctx.strokeText(text, x, y);
-            ctx.fillStyle = 'rgba(0, 0, 0, 1)';
-        } else {
-            ctx.fillStyle = hex;
         }
+        ctx.fillStyle = labelColors.fill;
         ctx.fillText(text, x, y);
     };
 
@@ -268,13 +268,15 @@ function drawDfciGrid(ctx, bbox, project, style) {
     });
 
     ctx.restore();
+    // Maille reellement etiquetee, reprise par le cartouche.
+    return quarters ? "1 km" : (show2kLabels ? "2 km" : "20 km");
 }
 
 // Export image : même signature que drawCfsiGridOnCanvas.
 async function drawDfciGridOnCanvas(ctx, bbox, latLonToPixels, margin, fontSize, lineWidth) {
     const colorEl = document.getElementById('utm-grid-color');
     const trEl = document.getElementById('utm-transparency');
-    drawDfciGrid(ctx, bbox, latLonToPixels, {
+    return drawDfciGrid(ctx, bbox, latLonToPixels, {
         color: colorEl ? colorEl.value : '#000000',
         alpha: trEl ? (100 - parseInt(trEl.value, 10)) / 100 : 0.7,
         lineWidth,

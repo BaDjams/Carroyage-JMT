@@ -636,6 +636,8 @@ async function generateZonePNG() {
             : useCfsi ? 'cfsi'
             : useDfci ? 'dfci'
             : null;
+        // Maille etiquetee par les carroyages emboites (CFSI, DFCI), connue une fois la grille dessinee.
+        let cartoucheGridDetail = null;
 
         const format = document.querySelector('input[name="image-format-zone"]:checked').value;
         const isGeoTiffFormat = (format === 'geotiff' || format === 'geotiff-jpeg' || format === 'geotiff-utm');
@@ -690,13 +692,13 @@ async function generateZonePNG() {
             loadingMessage.textContent = "Dessin du carroyage CFSI...";
             const cfsiFontSize = Math.max(10 * scaleFactor, finalCanvas.width * 0.006);
             // Note : dynamicMargin sera à 0 ici, ce qui est correct pour CFSI (pas de marge externe)
-            await drawCfsiGridOnCanvas(ctx, finalBoundingBox, latLonToCanvasPixels, dynamicMargin, cfsiFontSize, gridLineWidth);
+            cartoucheGridDetail = await drawCfsiGridOnCanvas(ctx, finalBoundingBox, latLonToCanvasPixels, dynamicMargin, cfsiFontSize, gridLineWidth);
         }
 
         if (useDfci) {
             loadingMessage.textContent = "Dessin du carroyage DFCI...";
             const dfciFontSize = Math.max(10 * scaleFactor, finalCanvas.width * 0.006);
-            await drawDfciGridOnCanvas(ctx, finalBoundingBox, latLonToCanvasPixels, dynamicMargin, dfciFontSize, gridLineWidth);
+            cartoucheGridDetail = await drawDfciGridOnCanvas(ctx, finalBoundingBox, latLonToCanvasPixels, dynamicMargin, dfciFontSize, gridLineWidth);
         }
 
         if (useCado && cadoData) {
@@ -750,6 +752,7 @@ async function generateZonePNG() {
             const cartoucheMetrics = drawZoneCartouche(ctx, {
                 name: document.getElementById("zone-title").value,
                 gridKind: cartoucheGridKind,
+                gridDetail: cartoucheGridDetail,
                 layerShort: cartoucheLayerShort,
                 zoom: zoom,
                 originLat: finalBoundingBox.north,
