@@ -10,7 +10,9 @@ const CHANGELOG = [
     changes: [
       'Cartouche du carroyage DFCI : en zoom rapproché, il annonçait « Carroyage DFCI 1 km » alors que le CFSI annonçait 2 km pour un carré portant le même genre de code. C\'était trompeur — un code comme « EG60H9 » désigne bien un carré de 2 km dans les deux systèmes. Le cartouche indique désormais « Carroyage DFCI 2 km + quarts »',
       'Le « 1 km » ne valait que pour le sous-carré central « .5 », seul vrai carré de 1 km sur 1 km. Les quarts « .1 » à « .4 » ne sont pas des carrés de 1 km : chacun est un quart amputé du coin de 500 m que lui prend ce carré central, soit une pièce en L de 0,75 km²',
-      'Grille MGRS : les inscriptions en bordure de l\'image reprennent maintenant la coordonnée complète, « 31U 451 » comme en UTM, au lieu des deux derniers chiffres. Ces deux chiffres ne se lisent qu\'avec le désignateur de carré de 100 km, écrit sur la carte : en bordure, loin de lui, ils étaient inutilisables. Les lignes tracées sur la carte gardent la notation MGRS habituelle',
+      'Grille MGRS : les inscriptions en bordure de l\'image donnent maintenant la référence du système, « 31T BN 80 » — zone, bande, carré de 100 km, puis le kilomètre dans ce carré, comme dans une référence complète « 31T BN 80546 27571 ». Elles ne portaient que deux chiffres, illisibles loin du nom du carré ; les passer en coordonnées UTM (« 31T 280 ») n\'était pas la bonne notation non plus. Les lignes tracées sur la carte gardent, elles, les deux chiffres de la notation MGRS',
+      'Le carré de 100 km est lu au bout de chaque ligne, là où l\'inscription se pose : une ligne assez longue traverse deux carrés, qui ne portent pas les mêmes lettres. La marge blanche s\'élargit en MGRS pour loger ces inscriptions plus longues',
+      'Le rappel du nom de carré, « 31T BN » écrit sur la carte, se place désormais au centre du carré délimité par les lignes de force, et non au centre de sa seule portion visible. Quand ce centre sort de l\'image, il revient au centre de la portion visible, faute de quoi la carte porterait des lignes de force sans nom',
     ],
   },
   {

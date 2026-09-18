@@ -655,7 +655,10 @@ async function generateZonePNG() {
         loadingMessage.textContent = "Téléchargement et assemblage des fonds de carte...";
         
         // CORRECTION : Seuls les modes UTM/MGRS nécessitent une marge blanche externe pour les labels
-        const needsExternalMargin = useUtm;
+        // Marge blanche des inscriptions de bordure. En MGRS elles sont plus longues
+        // (« 31T BN 80 » contre « 31T 280 ») : la bande s'elargit d'autant, sans quoi
+        // elles depasseraient de l'image.
+        const needsExternalMargin = useUtm ? (gridMode === 'mgrs' ? 1.45 : 1) : 0;
         
         // 1. Fond de Carte (Tuiles) - Z-INDEX 1
         const { finalCanvas, dynamicMargin, scaleFactor, actualZoom } = await zdCreateFinalCanvas(finalBoundingBox, zoom, selectedMap, needsExternalMargin, upscaleEnabled, zoneDeviationDeg);
@@ -1459,7 +1462,9 @@ async function zdCreateFinalCanvas(boundingBox, zoom, mapConfig, externalMargin,
 
     let margin = 0;
     if (externalMargin) {
-        margin = Math.ceil(Math.max(10 * scale, Math.min(48 * scale, finalW * 0.007)) * 4);
+        // externalMargin vaut 1 par defaut, ou un facteur d'elargissement.
+        const marginFactor = (typeof externalMargin === 'number' && externalMargin > 0) ? externalMargin : 1;
+        margin = Math.ceil(Math.max(10 * scale, Math.min(48 * scale, finalW * 0.007)) * 4 * marginFactor);
     }
 
     const tempC = document.createElement('canvas');
@@ -2041,15 +2046,27 @@ async function drawUtmGridOnCanvas(ctx, boundingBox, latLonToCanvasPixels, margi
             ctx.stroke();
             
             if (firstCanvasPoint && lastCanvasPoint) {
-                // En bordure, la coordonnee complete comme en UTM : les deux chiffres
-                // du MGRS ne se lisent qu'avec le carre de 100 km, ecrit sur la carte.
-                const labelText = line.fullName || line.name;
+                // Chaque bordure porte la reference complete du systeme choisi :
+                //   UTM  « 31T 280 »       zone, bande et kilometre
+                //   MGRS « 31T BN 80 »     zone, bande, carre de 100 km et kilometre
+                //                          dans ce carre, comme « 31T BN 80546 27571 »
+                // Le carre de 100 km est lu au bout de la ligne ou l'inscription se pose :
+                // une ligne assez longue traverse deux carres, qui ne portent pas les
+                // memes lettres.
+                const firstCoord = line.coordinates[0];
+                const lastCoord = line.coordinates[line.coordinates.length - 1];
+                const labelAt = (coord) => {
+                    if (!isMgrs) return line.fullName || line.name;
+                    const designator = (typeof mgrsSquareDesignatorAt === 'function')
+                        ? mgrsSquareDesignatorAt(coord[1], coord[0]) : null;
+                    return designator ? `${designator} ${line.name}` : (line.fullName || line.name);
+                };
                 if (line.type === 'easting') {
-                    labelsToDraw.push({ type: 'top', anchor: { x: lastCanvasPoint.x, y: drawingBox.y }, text: labelText });
-                    labelsToDraw.push({ type: 'bottom', anchor: { x: firstCanvasPoint.x, y: drawingBox.y + drawingBox.height }, text: labelText });
+                    labelsToDraw.push({ type: 'top', anchor: { x: lastCanvasPoint.x, y: drawingBox.y }, text: labelAt(lastCoord) });
+                    labelsToDraw.push({ type: 'bottom', anchor: { x: firstCanvasPoint.x, y: drawingBox.y + drawingBox.height }, text: labelAt(firstCoord) });
                 } else {
-                    labelsToDraw.push({ type: 'left', anchor: { x: drawingBox.x, y: firstCanvasPoint.y }, text: labelText });
-                    labelsToDraw.push({ type: 'right', anchor: { x: drawingBox.x + drawingBox.width, y: lastCanvasPoint.y }, text: labelText });
+                    labelsToDraw.push({ type: 'left', anchor: { x: drawingBox.x, y: firstCanvasPoint.y }, text: labelAt(firstCoord) });
+                    labelsToDraw.push({ type: 'right', anchor: { x: drawingBox.x + drawingBox.width, y: lastCanvasPoint.y }, text: labelAt(lastCoord) });
                 }
             }
         }
