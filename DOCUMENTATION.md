@@ -242,6 +242,8 @@ La paire teintée contraste moins, mais ses deux teintes sont étrangères aux v
 - canvas « teinté » (tuile sans CORS) : `getImageData` échoue, l'encre retombe sur une couleur fixe avec un avertissement console
 - sans pixels de fond — KML/KMZ, MBTiles, aperçu Leaflet — `resolveStaticGridColor` impose l'encre claire de la paire (blanc ou jaune)
 
+**Ce que l'encre couvre** : traits et étiquettes des cinq carroyages (CADO, UTM/MGRS, CFSI, DFCI), désignateurs MGRS de 100 km, et coordonnées de bordure UTM/MGRS — celles-ci sont posées sur la marge blanche, où l'encre choisit son ton sombre ; en couleur fixe elles restent en noir, sans quoi une grille blanche les rendrait invisibles. Restent en couleurs fixes, car indépendants de la grille : cartouche, boussole, barre d'échelle, croix de référence, quadrants de la clé de subdivision CADO et des cases repères CFSI, tracés KML importés et points d'intérêt.
+
 #### `carroyageDFCI.js`
 
 Carroyage DFCI de la sécurité civile (Lambert II étendu, mailles 2 km et subdivision .1 à .5). Réutilise la projection de `CFSI_UTILS`, qui doit donc être chargé avant l'appel.
