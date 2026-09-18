@@ -251,7 +251,7 @@ Carroyage DFCI de la sécurité civile (Lambert II étendu, mailles 2 km et subd
 **Exports** :
 - `DFCI_UTILS` (IIFE) : `codeFromLambert(x, y)`, `fromLatLon(lat, lon)` (ex. `KD40D7.1`), `buildGrid(bbox, {step, quarters})` — géométrie commune (lignes classées `100k`/`20k`/`2k`/`quarter`, étiquettes), `count2kCells(bbox)`, `pixelsPer2k(bbox, project)`
 - `drawDfciGrid(ctx, bbox, project, style)` — rendu canvas commun à l'image et aux MBTiles ; le niveau de détail (subdivision / 2 km / 20 km) suit la taille à l'écran d'une maille de 2 km
-- `drawDfciGridOnCanvas(ctx, bbox, latLonToPixels, margin, fontSize, lineWidth)` — même signature que la version CFSI ; rend comme elle la maille étiquetée (`"1 km"`, `"2 km"` ou `"20 km"`)
+- `drawDfciGridOnCanvas(ctx, bbox, latLonToPixels, margin, fontSize, lineWidth)` — même signature que la version CFSI ; rend comme elle la maille étiquetée (`"2 km + quarts"`, `"2 km"` ou `"20 km"`)
 - **Rendu adaptatif** selon zoom : pleins codes (< 700 m), 100 m avec coloration (< 3500 m), 2 km au-delà
 
 #### `carroyageUTM.js` (~27 KB)
@@ -458,7 +458,7 @@ Voir §10 pour la stratégie complète.
 
 - **Géométrie** : strictement identique à la grille UTM (mailles 1 km, mêmes lignes)
 - **Désignation** : zone + bande de latitude + carré de 100 km (2 lettres) + easting/northing tronqués, ex. `31U DQ 48251 11942`
-- **Étiquettes de lignes** : deux derniers chiffres du kilomètre (00 à 99) ; le carré de 100 km lève l'ambiguïté
+- **Étiquettes de lignes** : deux derniers chiffres du kilomètre (00 à 99) ; le carré de 100 km lève l'ambiguïté — sur la carte. En **bordure** d'un export image, l'inscription reprend la coordonnée complète (« 31U 451 »), comme en UTM : hors de la carte, loin du désignateur de carré de 100 km, deux chiffres ne se lisent pas. Champ `fullName` des lignes de `calculateGridForZoneStrip`
 - **Carrés de 100 km** : leur désignateur est écrit au centre de chaque carré visible ; leurs limites sont tracées plus épaisses
 - **Conversion** : `WGS84_to_MGRS.toLatLon()` renvoie le **coin sud-ouest** du carré désigné, avec sa taille (`precision`) — une référence tronquée désigne un carré, pas un point
 - **Limites** : hors zones polaires (84° N à 80° S) ; le système UPS n'est pas géré
@@ -477,7 +477,7 @@ Voir §10 pour la stratégie complète.
 - **Carré de 100 km** : deux lettres (X puis Y) dans `ABCDEFGHKLMN` — I **et** J exclus, ce qui le distingue du CFSI
 - **Carré de 20 km** : deux chiffres pairs (0, 2, 4, 6, 8), X puis Y
 - **Carré de 2 km** : une lettre X dans `ABCDEFGHKL` puis un chiffre Y, ex. `KD42F7`
-- **Subdivision** : `.5` pour le carré central de 1 km ; `.1` à `.4` pour le reste de chaque quart, en sens horaire depuis le nord-ouest (`.1` NO, `.2` NE, `.3` SE, `.4` SO)
+- **Subdivision** : `.5` pour le carré central de 1 km × 1 km ; `.1` à `.4` pour le reste de chaque quart, en sens horaire depuis le nord-ouest (`.1` NO, `.2` NE, `.3` SE, `.4` SO). Un quart est donc un carré de 1 km amputé du coin de 500 m que lui prend le carré central : une pièce en L de 0,75 km², et non un carré de 1 km. La maille **nommée** reste celle de 2 km, que la subdivision découpe
 - **Affichage** : subdivision si une maille de 2 km mesure au moins 14 fois la taille de police à l'écran, codes 2 km s'ils tiennent dans leur maille, sinon codes 20 km
 - **KML/KMZ** : dossiers séparés (lignes 100 km / 20 km / 2 km / subdivisions, étiquettes) ; la subdivision est omise au-delà de 2 500 mailles de 2 km
 - **Référence** : définition IGN reprise par ol-ext ; codes vérifiés sur 40 centroïdes du fichier officiel data.gouv.fr « Carroyage DFCI (2 km) »

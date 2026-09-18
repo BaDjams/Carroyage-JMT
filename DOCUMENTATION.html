@@ -700,7 +700,7 @@ em { font-style: italic; }
 <p><strong>Exports</strong> :
 - <code>DFCI_UTILS</code> (IIFE) : <code>codeFromLambert(x, y)</code>, <code>fromLatLon(lat, lon)</code> (ex. <code>KD40D7.1</code>), <code>buildGrid(bbox, {step, quarters})</code> — géométrie commune (lignes classées <code>100k</code>/<code>20k</code>/<code>2k</code>/<code>quarter</code>, étiquettes), <code>count2kCells(bbox)</code>, <code>pixelsPer2k(bbox, project)</code>
 - <code>drawDfciGrid(ctx, bbox, project, style)</code> — rendu canvas commun à l'image et aux MBTiles ; le niveau de détail (subdivision / 2 km / 20 km) suit la taille à l'écran d'une maille de 2 km
-- <code>drawDfciGridOnCanvas(ctx, bbox, latLonToPixels, margin, fontSize, lineWidth)</code> — même signature que la version CFSI ; rend comme elle la maille étiquetée (<code>"1 km"</code>, <code>"2 km"</code> ou <code>"20 km"</code>)
+- <code>drawDfciGridOnCanvas(ctx, bbox, latLonToPixels, margin, fontSize, lineWidth)</code> — même signature que la version CFSI ; rend comme elle la maille étiquetée (<code>"2 km + quarts"</code>, <code>"2 km"</code> ou <code>"20 km"</code>)
 - <strong>Rendu adaptatif</strong> selon zoom : pleins codes (&lt; 700 m), 100 m avec coloration (&lt; 3500 m), 2 km au-delà</p>
 <h4 id="carroyageutmjs-27-kb"><code>carroyageUTM.js</code> (~27 KB)</h4>
 <p>Systèmes UTM (Universal Transverse Mercator) et MGRS, mailles 1 km, multi-zones.</p>
@@ -861,7 +861,7 @@ em { font-style: italic; }
 <ul>
 <li><strong>Géométrie</strong> : strictement identique à la grille UTM (mailles 1 km, mêmes lignes)</li>
 <li><strong>Désignation</strong> : zone + bande de latitude + carré de 100 km (2 lettres) + easting/northing tronqués, ex. <code>31U DQ 48251 11942</code></li>
-<li><strong>Étiquettes de lignes</strong> : deux derniers chiffres du kilomètre (00 à 99) ; le carré de 100 km lève l'ambiguïté</li>
+<li><strong>Étiquettes de lignes</strong> : deux derniers chiffres du kilomètre (00 à 99) ; le carré de 100 km lève l'ambiguïté — sur la carte. En <strong>bordure</strong> d'un export image, l'inscription reprend la coordonnée complète (« 31U 451 »), comme en UTM : hors de la carte, loin du désignateur de carré de 100 km, deux chiffres ne se lisent pas. Champ <code>fullName</code> des lignes de <code>calculateGridForZoneStrip</code></li>
 <li><strong>Carrés de 100 km</strong> : leur désignateur est écrit au centre de chaque carré visible ; leurs limites sont tracées plus épaisses</li>
 <li><strong>Conversion</strong> : <code>WGS84_to_MGRS.toLatLon()</code> renvoie le <strong>coin sud-ouest</strong> du carré désigné, avec sa taille (<code>precision</code>) — une référence tronquée désigne un carré, pas un point</li>
 <li><strong>Limites</strong> : hors zones polaires (84° N à 80° S) ; le système UPS n'est pas géré</li>
@@ -880,7 +880,7 @@ em { font-style: italic; }
 <li><strong>Carré de 100 km</strong> : deux lettres (X puis Y) dans <code>ABCDEFGHKLMN</code> — I <strong>et</strong> J exclus, ce qui le distingue du CFSI</li>
 <li><strong>Carré de 20 km</strong> : deux chiffres pairs (0, 2, 4, 6, 8), X puis Y</li>
 <li><strong>Carré de 2 km</strong> : une lettre X dans <code>ABCDEFGHKL</code> puis un chiffre Y, ex. <code>KD42F7</code></li>
-<li><strong>Subdivision</strong> : <code>.5</code> pour le carré central de 1 km ; <code>.1</code> à <code>.4</code> pour le reste de chaque quart, en sens horaire depuis le nord-ouest (<code>.1</code> NO, <code>.2</code> NE, <code>.3</code> SE, <code>.4</code> SO)</li>
+<li><strong>Subdivision</strong> : <code>.5</code> pour le carré central de 1 km × 1 km ; <code>.1</code> à <code>.4</code> pour le reste de chaque quart, en sens horaire depuis le nord-ouest (<code>.1</code> NO, <code>.2</code> NE, <code>.3</code> SE, <code>.4</code> SO). Un quart est donc un carré de 1 km amputé du coin de 500 m que lui prend le carré central : une pièce en L de 0,75 km², et non un carré de 1 km. La maille <strong>nommée</strong> reste celle de 2 km, que la subdivision découpe</li>
 <li><strong>Affichage</strong> : subdivision si une maille de 2 km mesure au moins 14 fois la taille de police à l'écran, codes 2 km s'ils tiennent dans leur maille, sinon codes 20 km</li>
 <li><strong>KML/KMZ</strong> : dossiers séparés (lignes 100 km / 20 km / 2 km / subdivisions, étiquettes) ; la subdivision est omise au-delà de 2 500 mailles de 2 km</li>
 <li><strong>Référence</strong> : définition IGN reprise par ol-ext ; codes vérifiés sur 40 centroïdes du fichier officiel data.gouv.fr « Carroyage DFCI (2 km) »</li>

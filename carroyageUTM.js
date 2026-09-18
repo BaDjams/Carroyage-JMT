@@ -447,6 +447,10 @@ function calculateGridForZoneStrip(nwLat, nwLon, seLat, seLon, zoneToUse, labelM
              // CORRECTION ICI : Ajout de la lettre après le numéro de zone (ex: 30T 722)
              eastingLines.push({ 
                  name: isMgrs ? formatMgrsLineLabel(km) : `${zoneToUse}${zoneLetter} ${km}`, 
+                 // Coordonnee complete, quel que soit le mode : les inscriptions de
+                 // bordure la reprennent, les deux chiffres du MGRS n'ayant pas de sens
+                 // hors de la carte, loin du designateur de carre de 100 km.
+                 fullName: `${zoneToUse}${zoneLetter} ${km}`,
                  coordinates: clipped, 
                  zone: `${zoneToUse}${zoneLetter}`,
                  type: 'easting',
@@ -479,6 +483,7 @@ function calculateGridForZoneStrip(nwLat, nwLon, seLat, seLon, zoneToUse, labelM
             // CORRECTION ICI : Ajout du numéro de zone avant la lettre (ex: 30T 4941)
             northingLines.push({ 
                 name: isMgrs ? formatMgrsLineLabel(km) : `${zoneToUse}${zoneLetterForN} ${km}`, 
+                fullName: `${zoneToUse}${zoneLetterForN} ${km}`,
                 coordinates: clipped, 
                 zone: `${zoneToUse}${zoneLetterForN}`,
                 type: 'northing',

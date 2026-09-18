@@ -268,8 +268,11 @@ function drawDfciGrid(ctx, bbox, project, style) {
     });
 
     ctx.restore();
-    // Maille reellement etiquetee, reprise par le cartouche.
-    return quarters ? "1 km" : (show2kLabels ? "2 km" : "20 km");
+    // Maille reellement etiquetee, reprise par le cartouche. La subdivision ne
+    // change pas la maille nommee : EG60H9 designe un carre de 2 km, et .1 a .5 le
+    // decoupent. Seul le .5 central mesure 1 km de cote ; .1 a .4 sont des quarts
+    // de 1 km ampute chacun du coin de 500 m que leur prend ce carre central.
+    return quarters ? "2 km + quarts" : (show2kLabels ? "2 km" : "20 km");
 }
 
 // Export image : même signature que drawCfsiGridOnCanvas.
