@@ -458,8 +458,8 @@ Voir §10 pour la stratégie complète.
 
 - **Géométrie** : strictement identique à la grille UTM (mailles 1 km, mêmes lignes)
 - **Désignation** : zone + bande de latitude + carré de 100 km (2 lettres) + easting/northing tronqués, ex. `31U DQ 48251 11942`
-- **Étiquettes de lignes** : deux derniers chiffres du kilomètre (00 à 99) ; le carré de 100 km lève l'ambiguïté — sur la carte. En **bordure** d'un export image, l'inscription reprend la coordonnée complète (« 31U 451 »), comme en UTM : hors de la carte, loin du désignateur de carré de 100 km, deux chiffres ne se lisent pas. Champ `fullName` des lignes de `calculateGridForZoneStrip`
-- **Carrés de 100 km** : leur désignateur est écrit au centre de chaque carré visible ; leurs limites sont tracées plus épaisses
+- **Étiquettes de lignes** : deux derniers chiffres du kilomètre (00 à 99) ; le carré de 100 km lève l'ambiguïté — sur la carte. En **bordure** d'un export image, l'inscription donne la référence MGRS complète du niveau kilométrique : `31T BN 80`, soit zone, bande, carré de 100 km et kilomètre dans ce carré (le `80` de `31T BN 80546 27571`). Le carré est lu au bout de la ligne, là où l'inscription se pose, car une ligne assez longue traverse deux carrés. Helper `mgrsSquareDesignatorAt(lat, lon)` ; en UTM la bordure emploie le champ `fullName` des lignes (`31T 280`). La marge blanche est élargie de 45 % en MGRS pour loger ces inscriptions
+- **Carrés de 100 km** : leurs limites sont tracées plus épaisses, et leur désignateur est écrit **au centre du carré**, entre ces lignes de force. Si ce centre sort de l'emprise exportée, il se replie sur le centre de la portion visible — sinon un carré entrevu porterait des lignes de force sans nom
 - **Conversion** : `WGS84_to_MGRS.toLatLon()` renvoie le **coin sud-ouest** du carré désigné, avec sa taille (`precision`) — une référence tronquée désigne un carré, pas un point
 - **Limites** : hors zones polaires (84° N à 80° S) ; le système UPS n'est pas géré
 

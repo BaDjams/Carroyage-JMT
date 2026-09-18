@@ -406,6 +406,18 @@ function formatMgrsLineLabel(km) {
     return String(((km % 100) + 100) % 100).padStart(2, '0');
 }
 
+// Designateur MGRS d'un point : zone, bande de latitude et carre de 100 km,
+// ex. « 31T BN ». C'est le prefixe que porte toute reference MGRS complete
+// (« 31T BN 80546 27571 »), donc aussi les inscriptions de bordure.
+function mgrsSquareDesignatorAt(lat, lon) {
+    if (typeof WGS84_to_MGRS === 'undefined' || typeof WGS84_to_UTM === 'undefined') return null;
+    const band = WGS84_to_UTM.getUTMZoneLetter(lat);
+    if (!band) return null;
+    const utm = WGS84_to_UTM.fromLatLon(lat, lon);
+    if (!utm || isNaN(utm.easting) || isNaN(utm.northing)) return null;
+    return `${String(utm.zoneNumber).padStart(2, '0')}${band} ${WGS84_to_MGRS.get100kID(utm.easting, utm.northing, utm.zoneNumber)}`;
+}
+
 /**
  * Calcule les lignes de grille 1 km d'une bande de zone UTM.
  * @param {string} labelMode 'utm' (étiquettes « 31U 448 ») ou 'mgrs' (étiquettes « 48 »
@@ -503,11 +515,24 @@ function calculateGridForZoneStrip(nwLat, nwLon, seLat, seLon, zoneToUse, labelM
         if (hemisphereLetter) {
             for (let e0 = Math.floor(minEasting / 100000) * 100000; e0 < maxEasting; e0 += 100000) {
                 for (let n0 = Math.floor(minNorthing / 100000) * 100000; n0 < maxNorthing; n0 += 100000) {
-                    const centerE = (Math.max(e0, minEasting) + Math.min(e0 + 100000, maxEasting)) / 2;
-                    const centerN = (Math.max(n0, minNorthing) + Math.min(n0 + 100000, maxNorthing)) / 2;
-                    const p = WGS84_to_UTM.toLatLon(centerE, centerN, zoneToUse, hemisphereLetter);
-                    if (isNaN(p.latitude) || isNaN(p.longitude)) continue;
-                    if (p.latitude > nwLat || p.latitude < seLat || p.longitude < nwLon || p.longitude > seLon) continue;
+                    // Le designateur se pose au centre du carre lui-meme, entre les
+                    // quatre lignes de force qui le delimitent. Si ce centre tombe hors
+                    // de l'image — carre vu de biais, ou seulement en partie — on se
+                    // rabat sur le centre de la portion visible, faute de quoi la carte
+                    // porterait des lignes de force sans nom.
+                    const squareE = e0 + 50000, squareN = n0 + 50000;
+                    const visibleE = (Math.max(e0, minEasting) + Math.min(e0 + 100000, maxEasting)) / 2;
+                    const visibleN = (Math.max(n0, minNorthing) + Math.min(n0 + 100000, maxNorthing)) / 2;
+                    const inView = (pt) => pt && !isNaN(pt.latitude) && !isNaN(pt.longitude)
+                        && pt.latitude <= nwLat && pt.latitude >= seLat && pt.longitude >= nwLon && pt.longitude <= seLon;
+
+                    const atSquareCenter = WGS84_to_UTM.toLatLon(squareE, squareN, zoneToUse, hemisphereLetter);
+                    let centerE = squareE, centerN = squareN, p = atSquareCenter;
+                    if (!inView(atSquareCenter)) {
+                        centerE = visibleE; centerN = visibleN;
+                        p = WGS84_to_UTM.toLatLon(centerE, centerN, zoneToUse, hemisphereLetter);
+                    }
+                    if (!inView(p)) continue;
                     const band = WGS84_to_UTM.getUTMZoneLetter(p.latitude);
                     if (!band) continue;
                     squareLabels.push({
