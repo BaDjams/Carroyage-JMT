@@ -1,9 +1,18 @@
 // version.js
 
 // Source unique de vérité pour la version de l'application.
-const APP_VERSION = '23.16';
+const APP_VERSION = '23.17';
 
 const CHANGELOG = [
+  {
+    version: '23.17',
+    date: '2026-09-18',
+    changes: [
+      'Douzième couleur de carroyage, « adaptative teintée » : même principe que la couleur adaptative, mais en jaune sur les zones sombres et violet sur les zones claires, deux teintes étrangères aux verts et aux bruns d\'une vue aérienne. Le carroyage se distingue ainsi du paysage au lieu de s\'y fondre',
+      'Le contraste y plafonne à 3,0 contre 4,4 pour la version en noir et blanc, dans le cas le plus défavorable : à choisir selon que l\'on cherche la lisibilité maximale ou un carroyage bien identifiable',
+      'Sans fond à lire (KML, MBTiles, aperçu sur la carte), cette pastille utilise du jaune, là où la version en noir et blanc utilise du blanc',
+    ],
+  },
   {
     version: '23.16',
     date: '2026-09-18',
