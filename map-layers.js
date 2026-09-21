@@ -21,6 +21,11 @@ if (typeof OPENTOPOGRAPHY_API_KEY === 'undefined') var OPENTOPOGRAPHY_API_KEY = 
 if (typeof IBOATING_WMTS_URL === 'undefined') var IBOATING_WMTS_URL = '';
 if (typeof IBOATING_WMTS_MAXZOOM === 'undefined') var IBOATING_WMTS_MAXZOOM = 17;
 
+// Bascule du fond « Eaux intérieures » : le WMTS i-Boating local quand le poste en
+// dispose, sinon un flux libre de droits (OpenStreetMap + amers OpenSeaMap). La
+// couche est ainsi toujours proposée, licence ou pas. Cf. DOCUMENTATION.md §7.5.
+const INLAND_LICENSED = !!IBOATING_WMTS_URL;
+
 // « shortName » : nom court pour le cartouche des images exportees, ou la place
 // manque (« 1 carre = 10m, OSM z16 »). Le « name » complet reste celui du selecteur.
 // « attribution » : mention affichee sur la carte (Leaflet accepte du HTML). La
@@ -189,23 +194,41 @@ const MAP_LAYERS = [
         ]
     },
     {
-        // Service WMTS i-Boating lancé sur le poste (cartes marines, lacs, rivières).
-        // Le gabarit complet vient de config.private.js : Leaflet y substitue {z}, {x}
-        // et {y}, ce qui couvre aussi bien une URL RESTful (…/{z}/{x}/{y}.png) qu'une
-        // URL KVP (…&TileMatrix={z}&TileCol={x}&TileRow={y}), comme celles de l'IGN.
+        // Fond des eaux intérieures, en deux états selon le poste :
+        //  - avec licence : le WMTS i-Boating lancé en local (cartes marines, lacs,
+        //    rivières). Leaflet substitue {z}, {x} et {y} dans le gabarit de
+        //    config.private.js, ce qui couvre une URL RESTful (…/{z}/{x}/{y}.png)
+        //    comme une URL KVP (…&TileMatrix={z}&TileCol={x}&TileRow={y}) ;
+        //  - sans licence : OpenStreetMap surmonté des amers OpenSeaMap, libres de
+        //    droits, donc exportables et rediffusables sans restriction.
         // Service local à l'arrêt ou cellules non téléchargées = tuiles vides.
-        "id": "iboating_inland",
-        "name": "i-Boating Eaux intérieures (privé)",
-        "shortName": "i-Boating",
-        "attribution": "&copy; i-Boating &mdash; usage privé interne",
-        "requiresKey": "IBOATING_WMTS_URL",
-        "maxZoom": IBOATING_WMTS_MAXZOOM,
-        "layers": [
-            {
-                "url": IBOATING_WMTS_URL,
-                "type": "xyz"
-            }
-        ]
+        "id": "inland_waters",
+        "name": INLAND_LICENSED ? "Eaux intérieures (i-Boating, privé)" : "Eaux intérieures (libre)",
+        "shortName": INLAND_LICENSED ? "i-Boating" : "OSM + OpenSeaMap",
+        "attribution": INLAND_LICENSED
+            ? "&copy; i-Boating &mdash; usage privé interne"
+            : "&copy; les <a href='https://www.openstreetmap.org/copyright' target='_blank' rel='noopener'>contributeurs OpenStreetMap</a> &mdash; amers <a href='https://www.openseamap.org/' target='_blank' rel='noopener'>OpenSeaMap</a> (CC-BY-SA)",
+        "maxZoom": INLAND_LICENSED ? IBOATING_WMTS_MAXZOOM : 19,
+        "layers": INLAND_LICENSED
+            ? [
+                {
+                    "url": IBOATING_WMTS_URL,
+                    "type": "xyz"
+                }
+            ]
+            : [
+                {
+                    "url": "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+                    "type": "xyz",
+                    "maxZoom": 19
+                },
+                {
+                    // Amers, écluses et balisage ; fond transparent, tuiles jusqu'à z18.
+                    "url": "https://tiles.openseamap.org/seamark/{z}/{x}/{y}.png",
+                    "type": "xyz",
+                    "maxZoom": 18
+                }
+            ]
     },
     {
         "id": "osm_standard",
