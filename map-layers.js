@@ -9,7 +9,9 @@ if (typeof GOOGLE_MAPS_API_KEY === 'undefined') var GOOGLE_MAPS_API_KEY = '';
 // Export .dem (ASTER GDEM V3) : clé gratuite sur portal.opentopography.org.
 if (typeof OPENTOPOGRAPHY_API_KEY === 'undefined') var OPENTOPOGRAPHY_API_KEY = '';
 
-// Fond i-Boating (eaux intérieures, lacs, rivières) : adresse du WMTS i-Boating
+// Fond i-Boating (eaux intérieures, lacs, rivières) — même motif que IGN_PRIVATE_API_KEY :
+// un accès réservé au poste qui en dispose, déclaré dans config.private.js, jamais ici.
+// Adresse du WMTS i-Boating
 // exécuté EN LOCAL sur le poste (http://127.0.0.1:…). Aucune tuile, aucune donnée
 // i-Boating n'est embarquée ici — seul le gabarit d'URL, laissé à config.private.js,
 // active la couche, qui reste donc invisible pour un poste sans service local sous

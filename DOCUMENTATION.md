@@ -385,7 +385,7 @@ Gestion bibliothèque d'icônes utilisateur (modal #settings-modal).
 
 Catalogue statique. Voir §7 pour la structure détaillée.
 
-**Pattern de clés privées** :
+**Pattern de clés privées** — il porte aussi bien une clé d'accès réservée (IGN) que l'adresse d'un service local sous licence (i-Boating) :
 1. `config.private.js` (gitignored) déclare `var IGN_PRIVATE_API_KEY`, `var MAPY_API_KEY`, `var GOOGLE_MAPS_API_KEY`, `var IBOATING_WMTS_URL`
 2. `map-layers.js` a des **fallbacks** `if (typeof X === 'undefined') var X = '';`
 3. Les couches avec `"requiresKey": "VAR_NAME"` sont **filtrées** dans `createBaseLayers()` si la variable est vide
@@ -535,7 +535,9 @@ Tâche en attente : ajout des couches HERE Maps dès qu'une clé sera obtenue su
 
 ### 7.5 i-Boating — eaux intérieures (privé, service local)
 
-Couche `iboating_inland`. Le WMTS i-Boating (Windows/macOS) tourne **sur le poste** : l'application i-Boating télécharge au préalable les cellules couvrant la zone utile, puis le service expose un point d'entrée WMTS en local. L'application n'embarque **aucune tuile ni donnée i-Boating** : elle interroge ce service comme elle interroge l'IGN ou Google. Seul le gabarit d'URL, laissé à `config.private.js`, active la couche — sans ce fichier, elle n'apparaît pas dans le sélecteur de fonds.
+Couche `iboating_inland`. **Même motif que la clé IGN privée** (`IGN_PRIVATE_API_KEY`, couche `ign_scan_composite`) : un accès réservé au poste qui en dispose — clé pour l'IGN, licence de service local pour i-Boating —, déclaré dans `config.private.js` et jamais dans le dépôt, la couche restant masquée partout ailleurs.
+
+Le WMTS i-Boating (Windows/macOS) tourne **sur le poste** : l'application i-Boating télécharge au préalable les cellules couvrant la zone utile, puis le service expose un point d'entrée WMTS en local. L'application n'embarque **aucune tuile ni donnée i-Boating** : elle interroge ce service comme elle interroge l'IGN ou Google. Seul le gabarit d'URL, laissé à `config.private.js`, active la couche — sans ce fichier, elle n'apparaît pas dans le sélecteur de fonds.
 
 ```js
 // config.private.js

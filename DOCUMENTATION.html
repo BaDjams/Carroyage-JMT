@@ -807,7 +807,7 @@ em { font-style: italic; }
 <h3 id="56-couches-cartographiques">5.6 Couches cartographiques</h3>
 <h4 id="map-layersjs"><code>map-layers.js</code></h4>
 <p>Catalogue statique. Voir §7 pour la structure détaillée.</p>
-<p><strong>Pattern de clés privées</strong> :
+<p><strong>Pattern de clés privées</strong> — il porte aussi bien une clé d'accès réservée (IGN) que l'adresse d'un service local sous licence (i-Boating) :
 1. <code>config.private.js</code> (gitignored) déclare <code>var IGN_PRIVATE_API_KEY</code>, <code>var MAPY_API_KEY</code>, <code>var GOOGLE_MAPS_API_KEY</code>, <code>var IBOATING_WMTS_URL</code>
 2. <code>map-layers.js</code> a des <strong>fallbacks</strong> <code>if (typeof X === 'undefined') var X = '';</code>
 3. Les couches avec <code>"requiresKey": "VAR_NAME"</code> sont <strong>filtrées</strong> dans <code>createBaseLayers()</code> si la variable est vide</p>
@@ -1004,7 +1004,8 @@ em { font-style: italic; }
 <span class="c1">// Hybrid : https://maps.hereapi.com/v3/base/mc/{z}/{x}/{y}/png8?style=explore.satellite.day&amp;apiKey=${HERE_API_KEY}</span>
 </code></pre></div>
 <h3 id="75-i-boating-eaux-interieures-prive-service-local">7.5 i-Boating — eaux intérieures (privé, service local)</h3>
-<p>Couche <code>iboating_inland</code>. Le WMTS i-Boating (Windows/macOS) tourne <strong>sur le poste</strong> : l'application i-Boating télécharge au préalable les cellules couvrant la zone utile, puis le service expose un point d'entrée WMTS en local. L'application n'embarque <strong>aucune tuile ni donnée i-Boating</strong> : elle interroge ce service comme elle interroge l'IGN ou Google. Seul le gabarit d'URL, laissé à <code>config.private.js</code>, active la couche — sans ce fichier, elle n'apparaît pas dans le sélecteur de fonds.</p>
+<p>Couche <code>iboating_inland</code>. <strong>Même motif que la clé IGN privée</strong> (<code>IGN_PRIVATE_API_KEY</code>, couche <code>ign_scan_composite</code>) : un accès réservé au poste qui en dispose — clé pour l'IGN, licence de service local pour i-Boating —, déclaré dans <code>config.private.js</code> et jamais dans le dépôt, la couche restant masquée partout ailleurs.</p>
+<p>Le WMTS i-Boating (Windows/macOS) tourne <strong>sur le poste</strong> : l'application i-Boating télécharge au préalable les cellules couvrant la zone utile, puis le service expose un point d'entrée WMTS en local. L'application n'embarque <strong>aucune tuile ni donnée i-Boating</strong> : elle interroge ce service comme elle interroge l'IGN ou Google. Seul le gabarit d'URL, laissé à <code>config.private.js</code>, active la couche — sans ce fichier, elle n'apparaît pas dans le sélecteur de fonds.</p>
 <div class="highlight"><pre><span></span><code><span class="c1">// config.private.js</span>
 <span class="kd">var</span><span class="w"> </span><span class="nx">IBOATING_WMTS_URL</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">&#39;http://127.0.0.1:8080/wmts/.../{z}/{x}/{y}.png&#39;</span><span class="p">;</span>
 <span class="kd">var</span><span class="w"> </span><span class="nx">IBOATING_WMTS_MAXZOOM</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">17</span><span class="p">;</span><span class="w">   </span><span class="c1">// facultatif, 17 par défaut</span>
