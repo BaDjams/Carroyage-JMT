@@ -1,9 +1,18 @@
 // version.js
 
 // Source unique de vérité pour la version de l'application.
-const APP_VERSION = '23.20';
+const APP_VERSION = '23.21';
 
 const CHANGELOG = [
+  {
+    version: '23.21',
+    date: '2026-09-21',
+    changes: [
+      'Grille MGRS : les inscriptions en bordure donnent enfin la référence du système, « 31T BN 80 » — zone, bande, carré de 100 km, puis le kilomètre dans ce carré, comme dans une référence complète « 31T BN 80546 27571 ». La version précédente y avait mis la coordonnée UTM, « 31T 280 », qui n\'est pas la notation du MGRS. Les lignes tracées sur la carte gardent, elles, les deux chiffres de la notation MGRS',
+      'Le carré de 100 km est lu au bout de chaque ligne, là où l\'inscription se pose : une ligne assez longue traverse deux carrés, qui ne portent pas les mêmes lettres. La marge blanche s\'élargit en MGRS pour loger ces inscriptions plus longues',
+      'Le rappel du nom de carré, « 31T BN » écrit sur la carte, se place désormais au centre du carré délimité par les lignes de force, et non au centre de sa seule portion visible. Quand ce centre sort de l\'image, il revient au centre de la portion visible, faute de quoi la carte porterait des lignes de force sans nom',
+    ],
+  },
   {
     version: '23.20',
     date: '2026-09-21',
