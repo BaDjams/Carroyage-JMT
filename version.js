@@ -1,9 +1,18 @@
 // version.js
 
 // Source unique de vérité pour la version de l'application.
-const APP_VERSION = '23.21';
+const APP_VERSION = '23.22';
 
 const CHANGELOG = [
+  {
+    version: '23.22',
+    date: '2026-09-21',
+    changes: [
+      'Le fond « Eaux intérieures » est désormais proposé à tout le monde : sur un poste sans licence i-Boating, il bascule tout seul sur un flux libre de droits — OpenStreetMap surmonté des amers OpenSeaMap, qui portent les écluses, le balisage et les ouvrages. Jusqu\'ici, la couche disparaissait purement et simplement du sélecteur',
+      'Le nom affiché dit lequel des deux on regarde, « Eaux intérieures (i-Boating, privé) » ou « Eaux intérieures (libre) », et le cartouche des images exportées reprend la source correspondante. Les images tirées du flux libre sont rediffusables, celles tirées d\'i-Boating restent internes',
+      'La bascule se joue au chargement de la page, sur la présence de l\'adresse du service local dans config.private.js : un service i-Boating arrêté en cours de session donne des tuiles vides, il faut recharger pour repasser au flux libre',
+    ],
+  },
   {
     version: '23.21',
     date: '2026-09-21',
