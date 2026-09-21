@@ -295,6 +295,7 @@ em { font-style: italic; }
 <li><a href="#sans-licence-flux-libre-de-droits">Sans licence — flux libre de droits</a></li>
 </ul>
 </li>
+<li><a href="#76-cartes-marines-shom">7.6 Cartes marines SHOM</a></li>
 </ul>
 </li>
 <li><a href="#8-pipelines-dexport">8. Pipelines d'export</a><ul>
@@ -812,7 +813,7 @@ em { font-style: italic; }
 <h4 id="map-layersjs"><code>map-layers.js</code></h4>
 <p>Catalogue statique. Voir §7 pour la structure détaillée.</p>
 <p><strong>Pattern de clés privées</strong> — il porte aussi bien une clé d'accès réservée (IGN) que l'adresse d'un service local sous licence (i-Boating) :
-1. <code>config.private.js</code> (gitignored) déclare <code>var IGN_PRIVATE_API_KEY</code>, <code>var MAPY_API_KEY</code>, <code>var GOOGLE_MAPS_API_KEY</code>, <code>var IBOATING_WMTS_URL</code>
+1. <code>config.private.js</code> (gitignored) déclare <code>var IGN_PRIVATE_API_KEY</code>, <code>var MAPY_API_KEY</code>, <code>var GOOGLE_MAPS_API_KEY</code>, <code>var IBOATING_WMTS_URL</code>, <code>var SHOM_API_KEY</code>
 2. <code>map-layers.js</code> a des <strong>fallbacks</strong> <code>if (typeof X === 'undefined') var X = '';</code>
 3. Les couches avec <code>"requiresKey": "VAR_NAME"</code> sont <strong>filtrées</strong> dans <code>createBaseLayers()</code> si la variable est vide</p>
 <blockquote>
@@ -981,9 +982,23 @@ em { font-style: italic; }
 <tr>
 <td><code>inland_waters</code></td>
 <td>Eaux intérieures (i-Boating privé, sinon libre)</td>
-<td>WMTS i-Boating local, sinon OSM + OpenSeaMap</td>
+<td>WMTS i-Boating local, sinon Plan IGN + OpenSeaMap</td>
 <td>17 (réglable) ou 19</td>
 <td><code>IBOATING_WMTS_URL</code> (facultative)</td>
+</tr>
+<tr>
+<td><code>shom_raster</code></td>
+<td>Cartes marines SHOM (privé)</td>
+<td>services.data.shom.fr (abonnement)</td>
+<td>18</td>
+<td><code>SHOM_API_KEY</code></td>
+</tr>
+<tr>
+<td><code>shom_inspire</code></td>
+<td>SHOM INSPIRE (libre)</td>
+<td>services.data.shom.fr/INSPIRE</td>
+<td>18</td>
+<td><code>SHOM_INSPIRE_LAYER</code></td>
 </tr>
 <tr>
 <td><code>osm_standard</code></td>
@@ -1047,7 +1062,7 @@ em { font-style: italic; }
 </ul>
 <p>Relever la forme exacte, le <code>TileMatrixSet</code> et la plage de zooms dans le <code>GetCapabilities</code> du service local. Si la carte sort inversée verticalement, le service numérote ses lignes en TMS : écrire <code>{-y}</code> au lieu de <code>{y}</code>, Leaflet le gère nativement.</p>
 <h4 id="sans-licence-flux-libre-de-droits">Sans licence — flux libre de droits</h4>
-<p>Aucune configuration : la couche sert OpenStreetMap surmonté des <strong>amers OpenSeaMap</strong> (écluses, balisage, ouvrages), empilement à deux couches comme <code>ign_ign_hybrid</code>. Les images et MBTiles qui en sortent sont rediffusables, à condition de conserver les mentions affichées : contributeurs OpenStreetMap (ODbL) et OpenSeaMap (CC-BY-SA). C'est aussi ce que voit un poste dont le service i-Boating est simplement arrêté au démarrage de l'application — la bascule se joue sur la présence de la variable, pas sur la santé du service.</p>
+<p>Aucune configuration : la couche sert le <strong>Plan IGN v2</strong> surmonté des <strong>amers OpenSeaMap</strong> (écluses, balisage, ouvrages), empilement à deux couches comme <code>ign_ign_hybrid</code>. Le Plan IGN rend canaux, écluses et cours d'eau bien plus lisiblement que l'OSM standard, au prix d'une emprise limitée à la France : ailleurs, les tuiles reviennent vides. Les images et MBTiles qui en sortent sont rediffusables en conservant les mentions affichées — IGN et OpenSeaMap (CC-BY-SA). C'est aussi ce que voit un poste dont le service i-Boating est simplement arrêté au démarrage de l'application : la bascule se joue sur la présence de la variable, pas sur la santé du service.</p>
 <p><strong>Limites connues</strong></p>
 <table>
 <thead>
@@ -1063,11 +1078,11 @@ em { font-style: italic; }
 </tr>
 <tr>
 <td>CORS (OpenSeaMap)</td>
-<td>Même mécanisme : si le serveur d'amers ne répond pas en CORS, l'export échoue alors que l'affichage fonctionne. À vérifier au premier export ; le repli tient de toute façon avec le seul fond OSM, déjà utilisé par la couche <code>osm_standard</code>.</td>
+<td>Même mécanisme : si le serveur d'amers ne répond pas en CORS, l'export échoue alors que l'affichage fonctionne. À vérifier au premier export ; le fond Plan IGN, lui, est déjà éprouvé par les couches <code>ign_public_hybrid</code> et <code>ign_ign_hybrid</code>.</td>
 </tr>
 <tr>
 <td>Couverture</td>
-<td>i-Boating : hors des cellules téléchargées, tuiles vides. OpenSeaMap : amers jusqu'à z18, agrandis au-delà.</td>
+<td>i-Boating : hors des cellules téléchargées, tuiles vides. Plan IGN : France seulement. OpenSeaMap : amers jusqu'à z18, agrandis au-delà.</td>
 </tr>
 <tr>
 <td>Contenu mixte</td>
@@ -1081,6 +1096,50 @@ em { font-style: italic; }
 </table>
 <p><strong>Conditions d'emploi</strong></p>
 <p>La licence du WMTS i-Boating couvre un <strong>usage privé interne</strong>, exclut les sites et applications publics, et exclut la rediffusion du contenu cartographique — y compris depuis un cache ou via un proxy. L'état « privé » de la couche est donc réservé aux postes disposant de leur propre licence, et les images ou MBTiles qui en sont tirés restent internes ; l'état « libre » n'a aucune de ces restrictions. Pour un emploi diffusé à partir de cartes officielles, les IENC des autorités fluviales — <a href="https://www.eurisportal.eu/enc">EuRIS</a> pour treize pays européens, VNF pour la France, ELWIS pour l'Allemagne — se téléchargent librement et se convertissent en MBTiles, que <code>tileSource.js</code> lit directement.</p>
+<h3 id="76-cartes-marines-shom">7.6 Cartes marines SHOM</h3>
+<p>Deux services distincts, sur le même hôte <code>services.data.shom.fr</code>, en Web Mercator uniquement :</p>
+<table>
+<thead>
+<tr>
+<th>Couche</th>
+<th>Service</th>
+<th>Accès</th>
+<th>Contenu</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>shom_raster</code></td>
+<td><code>https://services.data.shom.fr/&lt;clé&gt;/wmts</code></td>
+<td>abonnement ou convention</td>
+<td>cartes marines scannées (<code>RASTER_MARINE</code>)</td>
+</tr>
+<tr>
+<td><code>shom_inspire</code></td>
+<td><code>https://services.data.shom.fr/INSPIRE/wmts</code></td>
+<td>libre, sans clé</td>
+<td>couches thématiques INSPIRE (bathymétrie, trait de côte…)</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Même motif que la clé IGN privée</strong> : la clé vit dans <code>config.private.js</code>, jamais dans le dépôt, et la couche reste masquée sans elle. Pour un service de l'État, l'accès aux cartes scannées se demande au SHOM ; le service INSPIRE, lui, ne sert pas ces cartes — seulement les données thématiques.</p>
+<div class="highlight"><pre><span></span><code><span class="c1">// config.private.js</span>
+<span class="kd">var</span><span class="w"> </span><span class="nx">SHOM_API_KEY</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">&#39;xxx&#39;</span><span class="p">;</span><span class="w">                              </span><span class="c1">// service sous abonnement</span>
+<span class="kd">var</span><span class="w"> </span><span class="nx">SHOM_RASTER_LAYER</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">&#39;RASTER_MARINE_3857_WMTS&#39;</span><span class="p">;</span><span class="w">     </span><span class="c1">// facultatif, valeur par défaut</span>
+<span class="kd">var</span><span class="w"> </span><span class="nx">SHOM_INSPIRE_LAYER</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">&#39;TCHR_3857_WMTS&#39;</span><span class="p">;</span><span class="w">             </span><span class="c1">// couche INSPIRE voulue</span>
+</code></pre></div>
+<p><strong>Relever les identifiants de couches</strong></p>
+<p>Ils ne se devinent pas et changent d'un service à l'autre. <code>tools/shom_layers.py</code> les imprime depuis le <code>GetCapabilities</code>, avec leur <code>TileMatrixSet</code> et leur plage de zooms :</p>
+<div class="highlight"><pre><span></span><code>python3<span class="w"> </span>tools/shom_layers.py<span class="w">                      </span><span class="c1"># service INSPIRE, libre</span>
+python3<span class="w"> </span>tools/shom_layers.py<span class="w"> </span>--cle<span class="w"> </span>MA_CLE<span class="w">         </span><span class="c1"># service sous abonnement</span>
+python3<span class="w"> </span>tools/shom_layers.py<span class="w"> </span>--filtre<span class="w"> </span>raster<span class="w">      </span><span class="c1"># ne garde que ces couches</span>
+python3<span class="w"> </span>tools/shom_layers.py<span class="w"> </span>--fichier<span class="w"> </span>capa.xml<span class="w">   </span><span class="c1"># parse un GetCapabilities déjà téléchargé</span>
+</code></pre></div>
+<p>C'est pourquoi <code>SHOM_INSPIRE_LAYER</code> est <strong>vide par défaut</strong> : une couche absente du sélecteur vaut mieux qu'une couche qui ne renverrait que des tuiles vides. <code>SHOM_RASTER_LAYER</code> porte, lui, une valeur par défaut à confirmer au premier branchement.</p>
+<p><strong>Conditions d'emploi</strong></p>
+<p>Les contenus diffusés par le SHOM sont protégés : la consultation par ces services est prévue, l'extraction massive et la rediffusion ne le sont pas. Un export MBTiles d'une zone entière relève de l'extraction — à cadrer avec le SHOM, comme pour i-Boating (§7.5). La mention « © SHOM » s'affiche sur la carte et part dans le cartouche des images exportées.</p>
+<p><strong>Portée</strong></p>
+<p>Le SHOM couvre la mer, les estuaires et les approches, pas les canaux ni les rivières intérieures : ces couches complètent le fond « Eaux intérieures » (§7.5), elles ne le remplacent pas.</p>
 <hr />
 <h2 id="8-pipelines-dexport">8. Pipelines d'export</h2>
 <p>Toutes les exports passent par le même <code>gridData</code> (lignes + étiquettes) calculé une seule fois, puis dispatché.</p>
@@ -1215,6 +1274,12 @@ em { font-style: italic; }
 <span class="c1">// Couche masquée si absente. Usage privé interne — cf. §7.5.</span>
 <span class="kd">var</span><span class="w"> </span><span class="nx">IBOATING_WMTS_URL</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">&#39;http://127.0.0.1:8080/wmts/.../{z}/{x}/{y}.png&#39;</span><span class="p">;</span>
 <span class="kd">var</span><span class="w"> </span><span class="nx">IBOATING_WMTS_MAXZOOM</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">17</span><span class="p">;</span>
+
+<span class="c1">// Cartes marines SHOM : clé d&#39;abonnement ou de convention, et identifiants de</span>
+<span class="c1">// couches relevés avec tools/shom_layers.py — cf. §7.6.</span>
+<span class="kd">var</span><span class="w"> </span><span class="nx">SHOM_API_KEY</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">&#39;xxx&#39;</span><span class="p">;</span>
+<span class="kd">var</span><span class="w"> </span><span class="nx">SHOM_RASTER_LAYER</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">&#39;RASTER_MARINE_3857_WMTS&#39;</span><span class="p">;</span>
+<span class="kd">var</span><span class="w"> </span><span class="nx">SHOM_INSPIRE_LAYER</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">&#39;TCHR_3857_WMTS&#39;</span><span class="p">;</span>
 </code></pre></div>
 <h3 id="112-chargement-gracieux">11.2 Chargement gracieux</h3>
 <div class="highlight"><pre><span></span><code><span class="p">&lt;</span><span class="nt">script</span> <span class="na">src</span><span class="o">=</span><span class="s">&quot;config.private.js&quot;</span> <span class="na">onerror</span><span class="o">=</span><span class="s">&quot;console.warn(&#39;config.private.js absent&#39;)&quot;</span><span class="p">&gt;&lt;/</span><span class="nt">script</span><span class="p">&gt;</span>
