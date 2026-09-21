@@ -386,7 +386,7 @@ Gestion bibliothèque d'icônes utilisateur (modal #settings-modal).
 Catalogue statique. Voir §7 pour la structure détaillée.
 
 **Pattern de clés privées** :
-1. `config.private.js` (gitignored) déclare `var IGN_PRIVATE_API_KEY`, `var MAPY_API_KEY`, `var GOOGLE_MAPS_API_KEY`
+1. `config.private.js` (gitignored) déclare `var IGN_PRIVATE_API_KEY`, `var MAPY_API_KEY`, `var GOOGLE_MAPS_API_KEY`, `var IBOATING_WMTS_URL`
 2. `map-layers.js` a des **fallbacks** `if (typeof X === 'undefined') var X = '';`
 3. Les couches avec `"requiresKey": "VAR_NAME"` sont **filtrées** dans `createBaseLayers()` si la variable est vide
 
@@ -513,6 +513,7 @@ Voir §10 pour la stratégie complète.
 | `ign_scan_composite` | IGN Cartes (privé) | data.geopf.fr/private | 18 | `IGN_PRIVATE_API_KEY` |
 | `ign_public_hybrid` | Plan IGN | data.geopf.fr | 19 | non |
 | `mapy_outdoor` | Mapy.CZ Outdoor | api.mapy.com | 19 | `MAPY_API_KEY` |
+| `iboating_inland` | i-Boating Eaux intérieures (privé) | WMTS i-Boating local | 17 (réglable) | `IBOATING_WMTS_URL` |
 | `osm_standard` | OpenStreetMap | tile.openstreetmap.org | 19 | non |
 
 ### 7.3 Ajout d'une couche
@@ -531,6 +532,36 @@ Tâche en attente : ajout des couches HERE Maps dès qu'une clé sera obtenue su
 // Carto : https://maps.hereapi.com/v3/base/mc/{z}/{x}/{y}/png8?style=explore.day&apiKey=${HERE_API_KEY}
 // Hybrid : https://maps.hereapi.com/v3/base/mc/{z}/{x}/{y}/png8?style=explore.satellite.day&apiKey=${HERE_API_KEY}
 ```
+
+### 7.5 i-Boating — eaux intérieures (privé, service local)
+
+Couche `iboating_inland`. Le WMTS i-Boating (Windows/macOS) tourne **sur le poste** : l'application i-Boating télécharge au préalable les cellules couvrant la zone utile, puis le service expose un point d'entrée WMTS en local. L'application n'embarque **aucune tuile ni donnée i-Boating** : elle interroge ce service comme elle interroge l'IGN ou Google. Seul le gabarit d'URL, laissé à `config.private.js`, active la couche — sans ce fichier, elle n'apparaît pas dans le sélecteur de fonds.
+
+```js
+// config.private.js
+var IBOATING_WMTS_URL = 'http://127.0.0.1:8080/wmts/.../{z}/{x}/{y}.png';
+var IBOATING_WMTS_MAXZOOM = 17;   // facultatif, 17 par défaut
+```
+
+Le gabarit accepte les deux formes d'URL que sert un WMTS :
+
+- **RESTful** : `.../{TileMatrix}/{TileCol}/{TileRow}.png` → `.../{z}/{x}/{y}.png`
+- **KVP** (comme l'IGN) : `...&TileMatrix={z}&TileCol={x}&TileRow={y}`
+
+Relever la forme exacte, le `TileMatrixSet` et la plage de zooms dans le `GetCapabilities` du service local. Si la carte sort inversée verticalement, le service numérote ses lignes en TMS : écrire `{-y}` au lieu de `{y}`, Leaflet le gère nativement.
+
+**Limites connues**
+
+| Point | Conséquence |
+|---|---|
+| CORS | Les exports (PNG, MBTiles, GeoTIFF) lisent les tuiles en `crossOrigin="Anonymous"`. Si le service local ne renvoie pas `Access-Control-Allow-Origin`, le fond s'affiche mais le canvas devient *tainted* et l'export échoue. Aucun relais n'est ajouté dans `sw.js` (contrairement aux tuiles Yandex, cf. §10.3) : la licence i-Boating exclut la rediffusion par cache ou par proxy. |
+| Couverture | Hors des cellules téléchargées dans l'application i-Boating, les tuiles reviennent vides. |
+| Contenu mixte | `http://127.0.0.1` est traité comme origine sûre par les navigateurs : une page servie en HTTPS peut l'appeler. Le même service en `http://` sur une autre machine du réseau serait bloqué. |
+| Service arrêté | Tuiles manquantes sans message d'erreur : la couche dépend d'un service lancé à la main sur le poste. |
+
+**Conditions d'emploi**
+
+La licence du WMTS i-Boating couvre un **usage privé interne**, exclut les sites et applications publics, et exclut la rediffusion du contenu cartographique — y compris depuis un cache ou via un proxy. Cette couche est donc réservée aux postes disposant de leur propre licence, et les images ou MBTiles qui en sont tirés restent internes. Pour un emploi diffusé (postes multiples, remise d'images à des tiers), demander une autorisation écrite à l'éditeur, ou partir des cartes officielles des eaux intérieures — IENC des autorités fluviales : [EuRIS](https://www.eurisportal.eu/enc) pour treize pays européens, VNF pour la France, ELWIS pour l'Allemagne — libres de rediffusion et convertibles en MBTiles (`tileSource.js` les lit directement).
 
 ---
 
@@ -665,6 +696,11 @@ Fichier **non commité** (cf. `.gitignore`). Template type :
 var IGN_PRIVATE_API_KEY = 'xxx';
 var MAPY_API_KEY = 'xxx';
 var GOOGLE_MAPS_API_KEY = 'xxx';
+
+// Fond i-Boating : adresse du WMTS i-Boating lancé en local sur le poste.
+// Couche masquée si absente. Usage privé interne — cf. §7.5.
+var IBOATING_WMTS_URL = 'http://127.0.0.1:8080/wmts/.../{z}/{x}/{y}.png';
+var IBOATING_WMTS_MAXZOOM = 17;
 ```
 
 ### 11.2 Chargement gracieux

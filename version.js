@@ -1,9 +1,18 @@
 // version.js
 
 // Source unique de vérité pour la version de l'application.
-const APP_VERSION = '23.19';
+const APP_VERSION = '23.20';
 
 const CHANGELOG = [
+  {
+    version: '23.20',
+    date: '2026-09-21',
+    changes: [
+      'Nouveau fond de carte « i-Boating Eaux intérieures », réservé à un usage privé : il affiche les cartes fluviales et lacustres servies par le WMTS i-Boating lancé sur le poste, pour les zones dont les cellules ont été téléchargées au préalable dans l\'application i-Boating. La couche n\'apparaît dans le sélecteur que si son adresse locale figure dans config.private.js — sans ce fichier, rien ne change',
+      'Aucune tuile ni donnée i-Boating n\'est embarquée dans l\'application : elle interroge le service local du poste, comme elle interroge l\'IGN ou Google. La licence de ce service couvre un usage privé interne et exclut la rediffusion du contenu, cache et proxy compris : les images et MBTiles tirés de ce fond restent donc internes',
+      'Si le service local ne renvoie pas les en-têtes CORS, le fond s\'affiche mais les exports image, MBTiles et GeoTIFF échouent. Aucun relais n\'a été ajouté pour contourner ce point, la rediffusion par proxy étant exclue par cette même licence. Les cartes officielles des eaux intérieures (IENC : EuRIS, VNF, ELWIS) restent l\'option sans restriction, converties en MBTiles',
+    ],
+  },
   {
     version: '23.19',
     date: '2026-09-18',

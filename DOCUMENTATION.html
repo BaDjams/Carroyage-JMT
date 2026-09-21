@@ -290,6 +290,7 @@ em { font-style: italic; }
 <li><a href="#72-couches-disponibles">7.2 Couches disponibles</a></li>
 <li><a href="#73-ajout-dune-couche">7.3 Ajout d'une couche</a></li>
 <li><a href="#74-here-maps-differe">7.4 HERE Maps (différé)</a></li>
+<li><a href="#75-i-boating-eaux-interieures-prive-service-local">7.5 i-Boating — eaux intérieures (privé, service local)</a></li>
 </ul>
 </li>
 <li><a href="#8-pipelines-dexport">8. Pipelines d'export</a><ul>
@@ -807,7 +808,7 @@ em { font-style: italic; }
 <h4 id="map-layersjs"><code>map-layers.js</code></h4>
 <p>Catalogue statique. Voir §7 pour la structure détaillée.</p>
 <p><strong>Pattern de clés privées</strong> :
-1. <code>config.private.js</code> (gitignored) déclare <code>var IGN_PRIVATE_API_KEY</code>, <code>var MAPY_API_KEY</code>, <code>var GOOGLE_MAPS_API_KEY</code>
+1. <code>config.private.js</code> (gitignored) déclare <code>var IGN_PRIVATE_API_KEY</code>, <code>var MAPY_API_KEY</code>, <code>var GOOGLE_MAPS_API_KEY</code>, <code>var IBOATING_WMTS_URL</code>
 2. <code>map-layers.js</code> a des <strong>fallbacks</strong> <code>if (typeof X === 'undefined') var X = '';</code>
 3. Les couches avec <code>"requiresKey": "VAR_NAME"</code> sont <strong>filtrées</strong> dans <code>createBaseLayers()</code> si la variable est vide</p>
 <blockquote>
@@ -974,6 +975,13 @@ em { font-style: italic; }
 <td><code>MAPY_API_KEY</code></td>
 </tr>
 <tr>
+<td><code>iboating_inland</code></td>
+<td>i-Boating Eaux intérieures (privé)</td>
+<td>WMTS i-Boating local</td>
+<td>17 (réglable)</td>
+<td><code>IBOATING_WMTS_URL</code></td>
+</tr>
+<tr>
 <td><code>osm_standard</code></td>
 <td>OpenStreetMap</td>
 <td>tile.openstreetmap.org</td>
@@ -995,6 +1003,47 @@ em { font-style: italic; }
 <span class="c1">// Carto : https://maps.hereapi.com/v3/base/mc/{z}/{x}/{y}/png8?style=explore.day&amp;apiKey=${HERE_API_KEY}</span>
 <span class="c1">// Hybrid : https://maps.hereapi.com/v3/base/mc/{z}/{x}/{y}/png8?style=explore.satellite.day&amp;apiKey=${HERE_API_KEY}</span>
 </code></pre></div>
+<h3 id="75-i-boating-eaux-interieures-prive-service-local">7.5 i-Boating — eaux intérieures (privé, service local)</h3>
+<p>Couche <code>iboating_inland</code>. Le WMTS i-Boating (Windows/macOS) tourne <strong>sur le poste</strong> : l'application i-Boating télécharge au préalable les cellules couvrant la zone utile, puis le service expose un point d'entrée WMTS en local. L'application n'embarque <strong>aucune tuile ni donnée i-Boating</strong> : elle interroge ce service comme elle interroge l'IGN ou Google. Seul le gabarit d'URL, laissé à <code>config.private.js</code>, active la couche — sans ce fichier, elle n'apparaît pas dans le sélecteur de fonds.</p>
+<div class="highlight"><pre><span></span><code><span class="c1">// config.private.js</span>
+<span class="kd">var</span><span class="w"> </span><span class="nx">IBOATING_WMTS_URL</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">&#39;http://127.0.0.1:8080/wmts/.../{z}/{x}/{y}.png&#39;</span><span class="p">;</span>
+<span class="kd">var</span><span class="w"> </span><span class="nx">IBOATING_WMTS_MAXZOOM</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">17</span><span class="p">;</span><span class="w">   </span><span class="c1">// facultatif, 17 par défaut</span>
+</code></pre></div>
+<p>Le gabarit accepte les deux formes d'URL que sert un WMTS :</p>
+<ul>
+<li><strong>RESTful</strong> : <code>.../{TileMatrix}/{TileCol}/{TileRow}.png</code> → <code>.../{z}/{x}/{y}.png</code></li>
+<li><strong>KVP</strong> (comme l'IGN) : <code>...&amp;TileMatrix={z}&amp;TileCol={x}&amp;TileRow={y}</code></li>
+</ul>
+<p>Relever la forme exacte, le <code>TileMatrixSet</code> et la plage de zooms dans le <code>GetCapabilities</code> du service local. Si la carte sort inversée verticalement, le service numérote ses lignes en TMS : écrire <code>{-y}</code> au lieu de <code>{y}</code>, Leaflet le gère nativement.</p>
+<p><strong>Limites connues</strong></p>
+<table>
+<thead>
+<tr>
+<th>Point</th>
+<th>Conséquence</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>CORS</td>
+<td>Les exports (PNG, MBTiles, GeoTIFF) lisent les tuiles en <code>crossOrigin="Anonymous"</code>. Si le service local ne renvoie pas <code>Access-Control-Allow-Origin</code>, le fond s'affiche mais le canvas devient <em>tainted</em> et l'export échoue. Aucun relais n'est ajouté dans <code>sw.js</code> (contrairement aux tuiles Yandex, cf. §10.3) : la licence i-Boating exclut la rediffusion par cache ou par proxy.</td>
+</tr>
+<tr>
+<td>Couverture</td>
+<td>Hors des cellules téléchargées dans l'application i-Boating, les tuiles reviennent vides.</td>
+</tr>
+<tr>
+<td>Contenu mixte</td>
+<td><code>http://127.0.0.1</code> est traité comme origine sûre par les navigateurs : une page servie en HTTPS peut l'appeler. Le même service en <code>http://</code> sur une autre machine du réseau serait bloqué.</td>
+</tr>
+<tr>
+<td>Service arrêté</td>
+<td>Tuiles manquantes sans message d'erreur : la couche dépend d'un service lancé à la main sur le poste.</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Conditions d'emploi</strong></p>
+<p>La licence du WMTS i-Boating couvre un <strong>usage privé interne</strong>, exclut les sites et applications publics, et exclut la rediffusion du contenu cartographique — y compris depuis un cache ou via un proxy. Cette couche est donc réservée aux postes disposant de leur propre licence, et les images ou MBTiles qui en sont tirés restent internes. Pour un emploi diffusé (postes multiples, remise d'images à des tiers), demander une autorisation écrite à l'éditeur, ou partir des cartes officielles des eaux intérieures — IENC des autorités fluviales : <a href="https://www.eurisportal.eu/enc">EuRIS</a> pour treize pays européens, VNF pour la France, ELWIS pour l'Allemagne — libres de rediffusion et convertibles en MBTiles (<code>tileSource.js</code> les lit directement).</p>
 <hr />
 <h2 id="8-pipelines-dexport">8. Pipelines d'export</h2>
 <p>Toutes les exports passent par le même <code>gridData</code> (lignes + étiquettes) calculé une seule fois, puis dispatché.</p>
@@ -1124,6 +1173,11 @@ em { font-style: italic; }
 <div class="highlight"><pre><span></span><code><span class="kd">var</span><span class="w"> </span><span class="nx">IGN_PRIVATE_API_KEY</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">&#39;xxx&#39;</span><span class="p">;</span>
 <span class="kd">var</span><span class="w"> </span><span class="nx">MAPY_API_KEY</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">&#39;xxx&#39;</span><span class="p">;</span>
 <span class="kd">var</span><span class="w"> </span><span class="nx">GOOGLE_MAPS_API_KEY</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">&#39;xxx&#39;</span><span class="p">;</span>
+
+<span class="c1">// Fond i-Boating : adresse du WMTS i-Boating lancé en local sur le poste.</span>
+<span class="c1">// Couche masquée si absente. Usage privé interne — cf. §7.5.</span>
+<span class="kd">var</span><span class="w"> </span><span class="nx">IBOATING_WMTS_URL</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">&#39;http://127.0.0.1:8080/wmts/.../{z}/{x}/{y}.png&#39;</span><span class="p">;</span>
+<span class="kd">var</span><span class="w"> </span><span class="nx">IBOATING_WMTS_MAXZOOM</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">17</span><span class="p">;</span>
 </code></pre></div>
 <h3 id="112-chargement-gracieux">11.2 Chargement gracieux</h3>
 <div class="highlight"><pre><span></span><code><span class="p">&lt;</span><span class="nt">script</span> <span class="na">src</span><span class="o">=</span><span class="s">&quot;config.private.js&quot;</span> <span class="na">onerror</span><span class="o">=</span><span class="s">&quot;console.warn(&#39;config.private.js absent&#39;)&quot;</span><span class="p">&gt;&lt;/</span><span class="nt">script</span><span class="p">&gt;</span>
