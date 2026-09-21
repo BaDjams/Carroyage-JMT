@@ -9,6 +9,18 @@ if (typeof GOOGLE_MAPS_API_KEY === 'undefined') var GOOGLE_MAPS_API_KEY = '';
 // Export .dem (ASTER GDEM V3) : clé gratuite sur portal.opentopography.org.
 if (typeof OPENTOPOGRAPHY_API_KEY === 'undefined') var OPENTOPOGRAPHY_API_KEY = '';
 
+// Fond i-Boating (eaux intérieures, lacs, rivières) — même motif que IGN_PRIVATE_API_KEY :
+// un accès réservé au poste qui en dispose, déclaré dans config.private.js, jamais ici.
+// Adresse du WMTS i-Boating
+// exécuté EN LOCAL sur le poste (http://127.0.0.1:…). Aucune tuile, aucune donnée
+// i-Boating n'est embarquée ici — seul le gabarit d'URL, laissé à config.private.js,
+// active la couche, qui reste donc invisible pour un poste sans service local sous
+// licence. Cette licence couvre un usage privé interne et exclut la rediffusion du
+// contenu, y compris depuis un cache ou via un proxy : c'est pourquoi aucun relais
+// CORS n'est prévu côté service worker pour cette couche. Cf. DOCUMENTATION.md §7.5.
+if (typeof IBOATING_WMTS_URL === 'undefined') var IBOATING_WMTS_URL = '';
+if (typeof IBOATING_WMTS_MAXZOOM === 'undefined') var IBOATING_WMTS_MAXZOOM = 17;
+
 // « shortName » : nom court pour le cartouche des images exportees, ou la place
 // manque (« 1 carre = 10m, OSM z16 »). Le « name » complet reste celui du selecteur.
 // « attribution » : mention affichee sur la carte (Leaflet accepte du HTML). La
@@ -172,6 +184,25 @@ const MAP_LAYERS = [
         "layers": [
             {
                 "url": `https://api.mapy.com/v1/maptiles/outdoor/256/{z}/{x}/{y}?apikey=${MAPY_API_KEY}&lang=fr`,
+                "type": "xyz"
+            }
+        ]
+    },
+    {
+        // Service WMTS i-Boating lancé sur le poste (cartes marines, lacs, rivières).
+        // Le gabarit complet vient de config.private.js : Leaflet y substitue {z}, {x}
+        // et {y}, ce qui couvre aussi bien une URL RESTful (…/{z}/{x}/{y}.png) qu'une
+        // URL KVP (…&TileMatrix={z}&TileCol={x}&TileRow={y}), comme celles de l'IGN.
+        // Service local à l'arrêt ou cellules non téléchargées = tuiles vides.
+        "id": "iboating_inland",
+        "name": "i-Boating Eaux intérieures (privé)",
+        "shortName": "i-Boating",
+        "attribution": "&copy; i-Boating &mdash; usage privé interne",
+        "requiresKey": "IBOATING_WMTS_URL",
+        "maxZoom": IBOATING_WMTS_MAXZOOM,
+        "layers": [
+            {
+                "url": IBOATING_WMTS_URL,
                 "type": "xyz"
             }
         ]
