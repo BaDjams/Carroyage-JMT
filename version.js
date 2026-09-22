@@ -1,9 +1,18 @@
 // version.js
 
 // Source unique de vérité pour la version de l'application.
-const APP_VERSION = '23.23';
+const APP_VERSION = '23.24';
 
 const CHANGELOG = [
+  {
+    version: '23.24',
+    date: '2026-09-22',
+    changes: [
+      'Nouveau fond « Lignes de profondeur (EMODnet) » : les isobathes de l\'infrastructure bathymétrique européenne, posées sur OpenStreetMap. Libres de droits, donc exportables et rediffusables, là où les cartes du SHOM et d\'i-Boating restent internes. Couverture : mers européennes',
+      'L\'application sait désormais consommer un service WMS, et plus seulement des tuiles pré-calculées. Un WMS réclame l\'emprise de chaque tuile plutôt qu\'un simple numéro : le calcul est fait en un seul endroit, partagé par l\'affichage et par les trois chemins d\'export, qui refaisaient chacun le leur. Sans cela, la couche se serait affichée sans jamais s\'exporter',
+      'Correction d\'une annonce erronée de la version précédente : le flux libre du SHOM n\'a jamais promis de lignes de profondeur — celles-ci relèvent des produits sous abonnement. L\'outil de relevé des couches, désormais tools/ogc_layers.py, interroge aussi bien un WMTS qu\'un WMS et dit ce qu\'un service offre réellement',
+    ],
+  },
   {
     version: '23.23',
     date: '2026-09-21',

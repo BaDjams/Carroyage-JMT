@@ -597,14 +597,7 @@ async function createFinalCanvasWithLayers(boundingBox, zoom, mapConfig, onProgr
             } else {
                 for (let x = nwTile.x; x <= seTile.x; x++) {
                     for (let y = nwTile.y; y <= seTile.y; y++) {
-                        let tileUrl;
-                        if (layer.type === 'quadkey') {
-                            const q = coordsToQuadKey(x, y, actualZoom);
-                            const subdomain = (x + y) % 4;
-                            tileUrl = layer.url.replace('{q}', q).replace('{s}', subdomain);
-                        } else {
-                            tileUrl = layer.url.replace('{z}', actualZoom).replace('{x}', x).replace('{y}', y);
-                        }
+                        const tileUrl = tileUrlFor(layer, actualZoom, x, y);
                         const safeUrl = tileUrl + (tileUrl.includes('?') ? '&' : '?') + cacheBust;
                         tileJobs.push({ safeUrl, x, y });
                     }

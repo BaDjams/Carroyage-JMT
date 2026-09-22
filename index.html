@@ -1247,6 +1247,13 @@
                         if (layerData.maxZoom !== undefined) opts.maxNativeZoom = layerData.maxZoom;
                         if (layerData.type === 'quadkey') return new L_QuadKeyLayer(layerData.url, opts);
                         if (layerData.type === 'yandex')  return new L_YandexLayer(layerData.url, opts);
+                        // WMS : Leaflet compose lui-meme le GetMap a partir du CRS de la carte.
+                        // L'export, lui, passe par tileUrlFor() (map-layers.js) — meme emprise.
+                        if (layerData.type === 'wms') return L.tileLayer.wms(layerData.url, { ...opts,
+                            layers: layerData.layers, styles: layerData.styles || '',
+                            format: layerData.format || 'image/png',
+                            transparent: layerData.transparent !== false,
+                            version: layerData.version || '1.3.0' });
 
                         return L.tileLayer(layerData.url, opts);
                     };
