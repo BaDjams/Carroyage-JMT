@@ -1,9 +1,18 @@
 // version.js
 
 // Source unique de vérité pour la version de l'application.
-const APP_VERSION = '23.22';
+const APP_VERSION = '23.23';
 
 const CHANGELOG = [
+  {
+    version: '23.23',
+    date: '2026-09-21',
+    changes: [
+      'Le fond « Eaux intérieures (libre) » s\'appuie désormais sur le Plan IGN plutôt que sur OpenStreetMap : canaux, écluses et cours d\'eau y sont nettement mieux dessinés, les amers OpenSeaMap restant par-dessus. Contrepartie assumée : le Plan IGN couvre la France, hors de quoi le fond revient vide',
+      'Deux nouvelles couches pour les cartes marines du SHOM : « Cartes marines SHOM (privé) », qui demande une clé d\'abonnement ou de convention, et « SHOM INSPIRE (libre) », sans clé, pour les données thématiques que le SHOM ouvre — bathymétrie, trait de côte. Comme pour l\'IGN, la clé vit dans config.private.js et la couche reste masquée sans elle',
+      'Les identifiants de couches du SHOM ne se devinent pas : tools/shom_layers.py les relève sur le service et donne la ligne à coller dans config.private.js. Le SHOM couvre la mer et les estuaires, pas les canaux : ces couches complètent le fond des eaux intérieures, elles ne le remplacent pas',
+    ],
+  },
   {
     version: '23.22',
     date: '2026-09-21',

@@ -26,6 +26,21 @@ if (typeof IBOATING_WMTS_MAXZOOM === 'undefined') var IBOATING_WMTS_MAXZOOM = 17
 // couche est ainsi toujours proposée, licence ou pas. Cf. DOCUMENTATION.md §7.5.
 const INLAND_LICENSED = !!IBOATING_WMTS_URL;
 
+// Cartes marines SHOM — même motif que IGN_PRIVATE_API_KEY : les cartes scannées
+// (RASTER_MARINE) sont sous abonnement ou convention, la clé vit dans
+// config.private.js. Le WMTS libre du SHOM ne sert que les couches thématiques
+// INSPIRE (bathymétrie, trait de côte…) : leur identifiant se relève sur le
+// GetCapabilities du service (tools/shom_layers.py), d'où une variable plutôt
+// qu'un identifiant figé qui donnerait des tuiles vides. Cf. DOCUMENTATION.md §7.6.
+if (typeof SHOM_API_KEY === 'undefined') var SHOM_API_KEY = '';
+if (typeof SHOM_RASTER_LAYER === 'undefined') var SHOM_RASTER_LAYER = 'RASTER_MARINE_3857_WMTS';
+if (typeof SHOM_INSPIRE_LAYER === 'undefined') var SHOM_INSPIRE_LAYER = '';
+
+// Gabarit KVP commun aux deux services SHOM (Web Mercator uniquement).
+const SHOM_WMTS = (base, layer) => `${base}?SERVICE=WMTS&VERSION=1.0.0&REQUEST=GetTile`
+    + `&LAYER=${layer}&STYLE=normal&TILEMATRIXSET=3857&FORMAT=image/png`
+    + `&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}`;
+
 // « shortName » : nom court pour le cartouche des images exportees, ou la place
 // manque (« 1 carre = 10m, OSM z16 »). Le « name » complet reste celui du selecteur.
 // « attribution » : mention affichee sur la carte (Leaflet accepte du HTML). La
@@ -204,10 +219,10 @@ const MAP_LAYERS = [
         // Service local à l'arrêt ou cellules non téléchargées = tuiles vides.
         "id": "inland_waters",
         "name": INLAND_LICENSED ? "Eaux intérieures (i-Boating, privé)" : "Eaux intérieures (libre)",
-        "shortName": INLAND_LICENSED ? "i-Boating" : "OSM + OpenSeaMap",
+        "shortName": INLAND_LICENSED ? "i-Boating" : "Plan IGN + OpenSeaMap",
         "attribution": INLAND_LICENSED
             ? "&copy; i-Boating &mdash; usage privé interne"
-            : "&copy; les <a href='https://www.openstreetmap.org/copyright' target='_blank' rel='noopener'>contributeurs OpenStreetMap</a> &mdash; amers <a href='https://www.openseamap.org/' target='_blank' rel='noopener'>OpenSeaMap</a> (CC-BY-SA)",
+            : "&copy; <a href='https://www.ign.fr/' target='_blank' rel='noopener'>IGN</a> &mdash; amers <a href='https://www.openseamap.org/' target='_blank' rel='noopener'>OpenSeaMap</a> (CC-BY-SA)",
         "maxZoom": INLAND_LICENSED ? IBOATING_WMTS_MAXZOOM : 19,
         "layers": INLAND_LICENSED
             ? [
@@ -218,7 +233,9 @@ const MAP_LAYERS = [
             ]
             : [
                 {
-                    "url": "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+                    // Plan IGN v2 : canaux, écluses et cours d'eau bien mieux rendus
+                    // que l'OSM standard — mais emprise France, tuiles vides ailleurs.
+                    "url": "https://data.geopf.fr/wmts?Layer=GEOGRAPHICALGRIDSYSTEMS.PLANIGNV2&Style=normal&TileMatrixSet=PM&SERVICE=WMTS&REQUEST=GetTile&Version=1.0.0&FORMAT=image/png&TileMatrix={z}&TileCol={x}&TileRow={y}",
                     "type": "xyz",
                     "maxZoom": 19
                 },
@@ -229,6 +246,43 @@ const MAP_LAYERS = [
                     "maxZoom": 18
                 }
             ]
+    },
+    {
+        // Cartes marines scannées du SHOM. Sous abonnement ou convention : la couche
+        // reste masquée tant que SHOM_API_KEY est absente de config.private.js.
+        // L'identifiant de couche est à confirmer sur le GetCapabilities du service
+        // (tools/shom_layers.py) ; SHOM_RASTER_LAYER permet de le corriger sans
+        // toucher au code.
+        "id": "shom_raster",
+        "name": "Cartes marines SHOM (privé)",
+        "shortName": "SHOM",
+        "attribution": "&copy; <a href='https://data.shom.fr/' target='_blank' rel='noopener'>SHOM</a>",
+        "requiresKey": "SHOM_API_KEY",
+        "maxZoom": 18,
+        "layers": [
+            {
+                "url": SHOM_WMTS(`https://services.data.shom.fr/${SHOM_API_KEY}/wmts`, SHOM_RASTER_LAYER),
+                "type": "xyz"
+            }
+        ]
+    },
+    {
+        // Couches thématiques INSPIRE du SHOM : libres d'accès, sans clé. Leur
+        // identifiant varie selon la donnée voulue (bathymétrie, trait de côte…),
+        // d'où SHOM_INSPIRE_LAYER, vide par défaut : mieux vaut une couche absente
+        // qu'une couche qui ne renverrait que des tuiles vides.
+        "id": "shom_inspire",
+        "name": "SHOM INSPIRE (libre)",
+        "shortName": "SHOM INSPIRE",
+        "attribution": "&copy; <a href='https://data.shom.fr/' target='_blank' rel='noopener'>SHOM</a>",
+        "requiresKey": "SHOM_INSPIRE_LAYER",
+        "maxZoom": 18,
+        "layers": [
+            {
+                "url": SHOM_WMTS('https://services.data.shom.fr/INSPIRE/wmts', SHOM_INSPIRE_LAYER),
+                "type": "xyz"
+            }
+        ]
     },
     {
         "id": "osm_standard",
