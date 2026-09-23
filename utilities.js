@@ -257,6 +257,159 @@ async function ensureMbtilesCreatorModule() {
     }
 }
 
+// Module des isobathes (isobathes.js), chargé au premier export qui les demande.
+async function ensureIsobathModule() {
+    if (typeof window.isobathTile !== 'function') {
+        await loadScriptOnce('isobathes.js');
+    }
+    if (typeof window.isobathTile !== 'function') {
+        throw new Error("Module des lignes de profondeur manquant (isobathes.js).");
+    }
+}
+
+// --- Option « Ajouter les lignes de profondeur aquatiques » ------------------
+// Proposée dans les trois modes, avec le même bloc : la case propre au mode,
+// puis l'équidistance et le zéro hydrographique, partagés entre les modes et
+// retenus d'une visite à l'autre (simple confort : tout marche sans stockage).
+
+const ISOBATH_OPTION_PREFIXES = [];
+const ISOBATH_STORAGE_KEY = 'isobathOptions';
+
+function _isobathStored() {
+    try { return JSON.parse(localStorage.getItem(ISOBATH_STORAGE_KEY) || '{}') || {}; } catch { return {}; }
+}
+
+function _isobathStore(values) {
+    try { localStorage.setItem(ISOBATH_STORAGE_KEY, JSON.stringify(values)); } catch { /* navigation privée */ }
+}
+
+// Lit le zéro hydrographique saisi : null si vide, un nombre de mètres (positif,
+// compté sous le zéro NGF) s'il est valable, NaN sinon. La virgule décimale est
+// acceptée, le signe indifférent : le zéro hydrographique est toujours sous le
+// zéro NGF.
+function parseChartDatum(text) {
+    const t = String(text ?? '').trim().replace(',', '.');
+    if (!t) return null;
+    const v = Math.abs(Number(t));
+    return Number.isFinite(v) && v > 0 && v <= 15 ? v : NaN;
+}
+
+function renderIsobathOptions(slotId, prefix) {
+    const slot = document.getElementById(slotId);
+    if (!slot) return;
+    slot.innerHTML = `
+        <div class="flex items-start gap-2">
+            <input type="checkbox" id="${prefix}-iso" class="mt-1">
+            <label for="${prefix}-iso" class="text-sm text-gray-700 dark:text-gray-300">
+                <span class="font-bold">Ajouter les lignes de profondeur aquatiques</span> —
+                isobathes calculées pour la zone à partir de l'altimétrie IGN (RGE ALTI® au pas
+                de 1 m, qui intègre le lidar bathymétrique Litto3D® près des côtes). Connexion requise.
+            </label>
+        </div>
+        <div id="${prefix}-iso-options" class="hidden mt-2 ml-6 space-y-2 text-sm text-gray-700 dark:text-gray-300">
+            <div class="flex flex-wrap items-center gap-2">
+                <label for="${prefix}-iso-step">Équidistance la plus fine :</label>
+                <select id="${prefix}-iso-step" class="input-field px-2 py-1 border rounded dark:bg-gray-700 dark:text-white">
+                    <option value="1">1 m</option>
+                    <option value="2.5">2,5 m</option>
+                    <option value="5">5 m</option>
+                    <option value="10">10 m</option>
+                </select>
+                <span class="text-xs text-gray-500">élargie d'office aux petites échelles, pour rester lisible</span>
+            </div>
+            <div class="flex flex-wrap items-center gap-2">
+                <label for="${prefix}-iso-zh">Zéro hydrographique local :</label>
+                <input id="${prefix}-iso-zh" type="text" inputmode="decimal" placeholder="ex. 4,5"
+                    class="input-field w-24 px-2 py-1 border rounded dark:bg-gray-700 dark:text-white">
+                <span>m sous le zéro NGF-IGN69 (facultatif)</span>
+            </div>
+            <p id="${prefix}-iso-ref" class="text-xs font-bold"></p>
+            <p id="${prefix}-iso-report" class="text-xs hidden"></p>
+            <p class="text-xs text-gray-500">
+                L'écart entre le zéro NGF et le zéro hydrographique des cartes marines est donné, port
+                par port, par les Références Altimétriques Maritimes (RAM) du SHOM. Il dépasse plusieurs
+                mètres en Manche et en Atlantique.
+                Couverture : le lidar bathymétrique ne s'étend qu'à quelques kilomètres des côtes
+                françaises (métropole et outre-mer). Au large, hors de la France et sur les lacs, dont
+                le MNT ne porte que la surface, aucune ligne n'est tracée.
+            </p>
+        </div>`;
+
+    const box = document.getElementById(`${prefix}-iso`);
+    const options = document.getElementById(`${prefix}-iso-options`);
+    const step = document.getElementById(`${prefix}-iso-step`);
+    const zh = document.getElementById(`${prefix}-iso-zh`);
+    const stored = _isobathStored();
+    if (stored.step && step.querySelector(`option[value="${stored.step}"]`)) step.value = stored.step;
+    if (typeof stored.zh === 'string') zh.value = stored.zh;
+    ISOBATH_OPTION_PREFIXES.push(prefix);
+
+    box.addEventListener('change', () => options.classList.toggle('hidden', !box.checked));
+    // Mêmes valeurs dans les trois modes : la zone de travail est souvent la même.
+    const share = () => {
+        _isobathStore({ step: step.value, zh: zh.value });
+        for (const p of ISOBATH_OPTION_PREFIXES) {
+            if (p === prefix) continue;
+            const s = document.getElementById(`${p}-iso-step`), z = document.getElementById(`${p}-iso-zh`);
+            if (s) s.value = step.value;
+            if (z) z.value = zh.value;
+            _isobathShowReference(p);
+        }
+        _isobathShowReference(prefix);
+    };
+    step.addEventListener('change', share);
+    zh.addEventListener('input', share);
+    _isobathShowReference(prefix);
+}
+
+// Rappelle sous le champ à quel zéro les profondeurs seront comptées.
+function _isobathShowReference(prefix) {
+    const zh = document.getElementById(`${prefix}-iso-zh`);
+    const out = document.getElementById(`${prefix}-iso-ref`);
+    if (!zh || !out) return;
+    const v = parseChartDatum(zh.value);
+    out.classList.remove('text-red-600', 'text-amber-700', 'text-green-700');
+    if (v === null) {
+        out.textContent = "Profondeurs comptées sous le zéro NGF (niveau moyen approché), pas sous le zéro des cartes marines.";
+        out.classList.add('text-amber-700');
+    } else if (Number.isNaN(v)) {
+        out.textContent = "Valeur non comprise : saisir un nombre de mètres, par exemple 4,5.";
+        out.classList.add('text-red-600');
+    } else {
+        out.textContent = `Profondeurs comptées sous le zéro hydrographique, pris à ${String(v).replace('.', ',')} m sous le zéro NGF.`;
+        out.classList.add('text-green-700');
+    }
+}
+
+// Bilan du dernier export, sous les options du mode : sources jointes, volume
+// lu, ou raison de l'absence de lignes. Un échec complet passe aussi par la
+// zone d'erreur, puisque l'utilisateur a demandé des lignes qu'il n'a pas.
+function showIsobathReport(prefix, summary) {
+    const out = document.getElementById(`${prefix}-iso-report`);
+    if (!summary) return;
+    const failed = summary.status === 'failed';
+    if (out) {
+        out.textContent = summary.report || '';
+        out.classList.remove('hidden', 'text-red-600', 'text-amber-700', 'text-gray-600');
+        out.classList.add(failed ? 'text-red-600' : (summary.lines ? 'text-gray-600' : 'text-amber-700'));
+    }
+    if (failed) showError(`Image produite sans lignes de profondeur. ${summary.report || ''}`);
+}
+
+// Réglages de l'export, ou null si la case n'est pas cochée. Lève une erreur si
+// le zéro hydrographique saisi est illisible : mieux vaut ne rien exporter que
+// des profondeurs rapportées au mauvais zéro.
+function readIsobathOptions(prefix) {
+    const box = document.getElementById(`${prefix}-iso`);
+    if (!box || !box.checked) return null;
+    const step = Number(document.getElementById(`${prefix}-iso-step`)?.value) || 1;
+    const zh = parseChartDatum(document.getElementById(`${prefix}-iso-zh`)?.value);
+    if (Number.isNaN(zh)) {
+        throw new Error("Lignes de profondeur : le zéro hydrographique saisi n'est pas un nombre de mètres valable (ex. 4,5). Corrigez-le ou videz le champ.");
+    }
+    return { finestStep: step, chartDatumBelowNgf: zh };
+}
+
 async function mapWithConcurrency(items, concurrency, mapper) {
     const results = new Array(items.length);
     let nextIndex = 0;
@@ -536,6 +689,8 @@ function buildCartoucheLines(opts = {}) {
         refIndex = lines.length;
         lines.push(`Pt. Réf : ${cartoucheCoords(opts.refLat, opts.refLon)}`);
     }
+    // Lignes de profondeur : leur zéro doit se lire sur la carte elle-même.
+    if (opts.isobathes) lines.push(opts.isobathes);
     return { lines, refIndex };
 }
 
@@ -602,6 +757,7 @@ function drawCartouche(ctx, latLonToPixels, config, a1CornerCoords, cellWidthInP
         originLat: a1Lat, originLon: a1Lon, originLabel: '(A1)',
         refLat: hasRef ? config.latitude : null,
         refLon: hasRef ? config.longitude : null,
+        isobathes: config.cartoucheIsobathes || null,
     });
 
     drawCartoucheBox(ctx, lines, anchorPixels.x + padding, anchorPixels.y + padding, FONT_SIZE_PX, refIndex);

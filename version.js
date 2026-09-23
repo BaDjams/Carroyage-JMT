@@ -1,14 +1,24 @@
 // version.js
 
 // Source unique de vérité pour la version de l'application.
-const APP_VERSION = '23.26';
+const APP_VERSION = '23.27';
 
 const CHANGELOG = [
+  {
+    version: '23.27',
+    date: '2026-09-24',
+    changes: [
+      'Nouvelle case « Ajouter les lignes de profondeur aquatiques » dans les trois modes — Carroyage rapide et Export de zone pour l\'image, Créer MBTiles pour les tuiles. L\'application va chercher elle-même, pour la zone voulue, les altitudes du RGE ALTI de l\'IGN, qui intègre le lidar bathymétrique Litto3D le long des côtes, et trace des isobathes au mètre : une ligne sur cinq épaissie et cotée, le zéro en trait fort. L\'équidistance s\'élargit d\'elle-même aux petites échelles pour rester lisible',
+      'Référence : sans autre indication, les profondeurs sont comptées sous le zéro NGF, proche du niveau moyen de la mer, et non sous le zéro des cartes marines, plusieurs mètres plus bas en Manche et en Atlantique. Un champ facultatif reçoit l\'écart local du zéro hydrographique (Références Altimétriques Maritimes du SHOM) pour s\'y ramener. Le cartouche des images et les métadonnées du MBTiles disent toujours quel zéro a servi',
+      'Couverture : la bande côtière levée au lidar, en métropole et outre-mer, en général jusqu\'à 10 à 20 m de fond. Au large, sur les lacs, dont le relief ne porte que la surface de l\'eau, et hors de France, aucune ligne n\'est tracée et le bilan de l\'export le dit. Connexion requise au moment de l\'export ; l\'outil hors ligne tools/bathy_mbtiles.py reste là pour les autres sources (levés au sondeur, HOMONIM, cartes S-57)',
+      'Correction : depuis la version 23.26, le numéro de version et la liste des nouveautés ne s\'affichaient plus. Une apostrophe mal écrite dans cette liste empêchait son chargement ; le reste de l\'application n\'était pas touché',
+    ],
+  },
   {
     version: '23.26',
     date: '2026-09-24',
     changes: [
-      'Carroyage rapide : nouvelle option « Niveau de zoom de la carte » dans les options avancées du carroyage. En « Automatique », rien ne change ; un zoom choisi est appliqué tel quel, ce qui permet de refaire une image identique à une précédente en reprenant le zoom inscrit dans son cartouche. Un rappel s'affiche sous le bouton « Générer l'image » tant qu'un zoom est forcé',
+      'Carroyage rapide : nouvelle option « Niveau de zoom de la carte » dans les options avancées du carroyage. En « Automatique », rien ne change ; un zoom choisi est appliqué tel quel, ce qui permet de refaire une image identique à une précédente en reprenant le zoom inscrit dans son cartouche. Un rappel s\'affiche sous le bouton « Générer l\'image » tant qu\'un zoom est forcé',
       'Un zoom forcé que le fond ne fournit pas, absent du MBTiles chargé ou trop élevé pour la taille du carroyage est refusé avec un message qui dit quoi choisir, plutôt que remplacé en silence par un autre',
     ],
   },

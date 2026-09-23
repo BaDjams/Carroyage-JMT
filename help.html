@@ -79,6 +79,9 @@
                 <a href="#m4-logic" class="block ml-4 hover:text-blue-500">Principe des Tuiles</a>
                 <a href="#m4-jobs" class="block ml-4 hover:text-blue-500">Gestionnaire de tâches</a>
 
+                <div class="pt-4 font-bold text-gray-900 dark:text-white border-t dark:border-gray-700">🌊 Tous les modes</div>
+                <a href="#isobathes" class="block ml-4 hover:text-blue-500">Lignes de profondeur</a>
+
                 <div class="pt-4 font-bold text-gray-900 dark:text-white border-t dark:border-gray-700">⚙️ Configuration</div>
                 <a href="#config-icons" class="block ml-4 hover:text-blue-500">Icônes personnalisées</a>
                 <a href="#config-upscale" class="block ml-4 hover:text-blue-500">Qualité & Upscaling</a>
@@ -235,6 +238,38 @@
                 <li><strong>Contrôle :</strong> Vous pouvez mettre en pause un téléchargement si votre connexion faiblit, ou l'annuler.</li>
                 <li><strong>Limites :</strong> L'application vous avertit si vous dépassez 10 000 tuiles (risque de saturation de la mémoire du navigateur).</li>
             </ul>
+        </section>
+
+        <hr class="border-gray-200 dark:border-gray-700 my-10">
+
+        <!-- LIGNES DE PROFONDEUR -->
+        <section id="isobathes" class="mb-12">
+            <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-6">🌊 Lignes de profondeur aquatiques</h2>
+            <p class="mb-4">
+                Cochez <strong>« Ajouter les lignes de profondeur aquatiques »</strong> : dans la carte
+                « Générer l'image » du Carroyage rapide ou de l'Export de zone, ou sous la case du relief 3D
+                du Créateur MBTiles. L'application va chercher elle-même, pour la zone voulue, les altitudes
+                de l'IGN (RGE ALTI®, au pas de 1 m, qui intègre le lidar bathymétrique Litto3D® le long des
+                côtes) et trace les isobathes sur l'image, ou dans chaque tuile à partir du zoom 11.
+                Une connexion internet est nécessaire au moment de l'export.
+            </p>
+            <ul class="list-disc pl-5 space-y-2 text-sm mb-4">
+                <li><strong>Équidistance</strong> : 1 m par défaut (2,5, 5 ou 10 m au choix). Elle s'élargit d'elle-même
+                    aux petites échelles pour rester lisible : en MBTiles, 1 m aux zooms 16 et plus, 2,5 m au 15,
+                    5 m au 14, 10 m au 13. Une ligne sur cinq, plus épaisse, porte sa cote ; le zéro est en trait fort.</li>
+                <li><strong>Zéro des profondeurs</strong> : sans autre indication, les profondeurs sont comptées sous le
+                    zéro NGF, proche du niveau moyen de la mer, <strong>et non sous le zéro des cartes marines</strong>.
+                    En Manche et en Atlantique, l'écart dépasse plusieurs mètres : à marée basse, une zone cotée 2 m
+                    peut être à sec. Pour compter depuis le zéro hydrographique, saisissez de combien il se trouve sous
+                    le zéro NGF au port le plus proche (Références Altimétriques Maritimes du SHOM).</li>
+                <li><strong>Couverture</strong> : la bande côtière levée au lidar, en métropole et outre-mer, en général
+                    jusqu'à 10 à 20 m de fond, davantage en eau très claire. Au large, sur les lacs (le relief
+                    n'y porte que la surface de l'eau) et hors de France, aucune ligne n'est tracée — l'export le signale.</li>
+                <li><strong>Où le lire</strong> : sur une image, le cartouche rappelle le zéro employé ; un MBTiles l'inscrit
+                    dans ses métadonnées. Le bilan affiché après l'export dit quelles données ont été lues.</li>
+            </ul>
+            <p class="text-sm italic">Les fonds bougent (bancs de sable, chenaux) et le levé lidar date de plusieurs années :
+                ces lignes aident au repérage, elles ne remplacent pas les cartes marines pour la navigation.</p>
         </section>
 
         <hr class="border-gray-200 dark:border-gray-700 my-10">

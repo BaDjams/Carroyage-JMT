@@ -432,6 +432,8 @@
                                     <span class="ms-3 text-sm font-medium text-gray-900 dark:text-gray-300">Upscaling HD (4K)</span>
                                 </label>
                             </div>
+                            <!-- Lignes de profondeur (isobathes) : bloc rempli par renderIsobathOptions (utilities.js) -->
+                            <div id="cado-iso-slot" class="w-full text-left"></div>
                             <button id="generate-image-button" class="btn-main btn-image w-full sm:w-auto">Générer l'image</button>
                             <p id="cado-forced-zoom-note" class="hidden text-xs font-medium text-yellow-600 text-center">Zoom forcé : <span id="cado-forced-zoom-value"></span> (options avancées du carroyage)</p>
                         </div>
@@ -819,6 +821,8 @@
                                 <span class="ms-3 text-sm font-medium text-gray-900 dark:text-gray-300">Upscaling HD (4K)</span>
                             </label>
                         </div>
+                        <!-- Lignes de profondeur (isobathes) : bloc rempli par renderIsobathOptions (utilities.js) -->
+                        <div id="zone-iso-slot" class="w-full text-left"></div>
                         <p class="text-xs text-secondary italic text-center">L'image inclura les grilles sélectionnées dans le Panel 5.</p>
                         <div class="flex items-center gap-2 w-full">
                             <label for="zone-layer-select" class="text-sm text-content whitespace-nowrap">Fond de carte :</label>
@@ -955,6 +959,10 @@
                                 disponibles ci-dessous, y compris le 12 et les niveaux inférieurs.
                             </label>
                         </div>
+
+                        <!-- Lignes de profondeur (isobathes), tracées sur les tuiles du fond aux zooms 11 et plus :
+                             bloc rempli par renderIsobathOptions (utilities.js) -->
+                        <div id="creator-iso-slot" class="mt-4"></div>
 
                         <div class="mt-6 text-center">
                             <button id="creator-start-btn" class="btn-main btn-grid w-full md:w-1/2" disabled>
@@ -1904,6 +1912,11 @@
         // SETUP EVENT LISTENERS (CORRIGÉ ET SÉCURISÉ)
         // =============================================================================
         function setupEventListeners() {
+            // Option « lignes de profondeur » des trois modes (cf. utilities.js).
+            renderIsobathOptions('cado-iso-slot', 'cado');
+            renderIsobathOptions('zone-iso-slot', 'zone');
+            renderIsobathOptions('creator-iso-slot', 'creator');
+
             document.getElementById('mode-selector').addEventListener('click', (e) => {
                 if (e.target.matches('.mode-btn')) toggleMode(e.target.getAttribute('data-mode')).catch(err => alert(err.message));
             });

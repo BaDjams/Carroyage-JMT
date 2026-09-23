@@ -580,6 +580,10 @@ async function generateZonePNG() {
     hideError();
 
     try {
+        // Lignes de profondeur : lues d'abord, pour qu'un zéro hydrographique mal
+        // saisi arrête l'export avant tout téléchargement.
+        const isobaths = readIsobathOptions('zone');
+        if (isobaths) await ensureIsobathModule();
         let cadoData = null;
         let finalBoundingBox;
 
@@ -661,7 +665,11 @@ async function generateZonePNG() {
         const needsExternalMargin = useUtm ? (gridMode === 'mgrs' ? 1.45 : 1) : 0;
         
         // 1. Fond de Carte (Tuiles) - Z-INDEX 1
-        const { finalCanvas, dynamicMargin, scaleFactor, actualZoom } = await zdCreateFinalCanvas(finalBoundingBox, zoom, selectedMap, needsExternalMargin, upscaleEnabled, zoneDeviationDeg);
+        const { finalCanvas, dynamicMargin, scaleFactor, actualZoom, isoSummary } = await zdCreateFinalCanvas(
+            finalBoundingBox, zoom, selectedMap, needsExternalMargin, upscaleEnabled, zoneDeviationDeg, isobaths, (f) => {
+                loadingMessage.textContent = `Lignes de profondeur : altitudes IGN (${Math.round(f * 100)} %)...`;
+            });
+        showIsobathReport('zone', isoSummary);
         const ctx = finalCanvas.getContext('2d');
 
         const nwPixel = zdLatLonToWorldPixels(finalBoundingBox.north, finalBoundingBox.west, actualZoom);
@@ -712,6 +720,7 @@ async function generateZonePNG() {
             config.cartoucheGridKind = 'cado';
             config.cartoucheLayerShort = cartoucheLayerShort;
             config.cartoucheZoom = zoom;
+            config.cartoucheIsobathes = isoSummary?.cartouche || null;
             drawCadoElementsOnCanvas(ctx, config, latLonToCanvasPixels, [a1CornerLon, a1CornerLat]);
             config.lineWidth = thicknessLevel;
         }
@@ -761,6 +770,7 @@ async function generateZonePNG() {
                 originLat: finalBoundingBox.north,
                 originLon: finalBoundingBox.west,
                 originLabel: '(coin NO)',
+                isobathes: isoSummary?.cartouche || null,
             }, dynamicMargin, cartoucheFontSize);
 
             if (useUtm) {
@@ -1416,7 +1426,7 @@ async function generatePoiKmlFolder(pois, imagesToZip, isKmz) {
 // FONCTIONS CANEVAS / HELPERS
 // =============================================================================
 
-async function zdCreateFinalCanvas(boundingBox, zoom, mapConfig, externalMargin, upscaleEnabled = true, rotationAngleDeg = 0) {
+async function zdCreateFinalCanvas(boundingBox, zoom, mapConfig, externalMargin, upscaleEnabled = true, rotationAngleDeg = 0, isobaths = null, onIsoProgress = null) {
     const actualZoom = (typeof tileSourceIsActive === 'function' && tileSourceIsActive())
         ? tileSourceGetBestZoom(zoom)
         : (mapConfig && mapConfig.maxZoom ? Math.min(zoom, mapConfig.maxZoom) : zoom);
@@ -1582,6 +1592,22 @@ async function zdCreateFinalCanvas(boundingBox, zoom, mapConfig, externalMargin,
         }
     }
 
+    // Lignes de profondeur : tracées à la résolution finale, dans le repère du
+    // fond (tourné avec lui s'il est dévié), sur l'emprise réellement téléchargée.
+    // Elles se calent sur les tuiles telles qu'elles sont collées, au pixel entier
+    // inférieur : le pixel (0, 0) du canevas natif est le pixel monde ci-dessous,
+    // pas dlNwPx, dont il diffère de moins d'un pixel. Le zéro suit ainsi le trait
+    // de côte de l'image.
+    let isoSummary = null;
+    const drawIso = async (w, h) => {
+        const tileOrigin = {
+            x: nwTile.x * ZD_TILE_SIZE - Math.floor(nwTile.x * ZD_TILE_SIZE - dlNwPx.x),
+            y: nwTile.y * ZD_TILE_SIZE - Math.floor(nwTile.y * ZD_TILE_SIZE - dlNwPx.y),
+        };
+        const view = isobathViewFromWorldPixels(tileOrigin, actualZoom, (w / tempC.width + h / tempC.height) / 2, w, h);
+        isoSummary = await drawIsobathsForImage(ctx, view, isobaths, onIsoProgress);
+    };
+
     if (rotationAngleDeg !== 0) {
         const dlFinalW = Math.round(dlNatW * scale);
         const dlFinalH = Math.round(dlNatH * scale);
@@ -1589,12 +1615,22 @@ async function zdCreateFinalCanvas(boundingBox, zoom, mapConfig, externalMargin,
         ctx.translate(finalC.width / 2, finalC.height / 2);
         ctx.rotate(-rotationAngleDeg * Math.PI / 180);
         ctx.drawImage(tempC, -dlFinalW / 2, -dlFinalH / 2, dlFinalW, dlFinalH);
+        if (isobaths) {
+            ctx.translate(-dlFinalW / 2, -dlFinalH / 2);
+            await drawIso(dlFinalW, dlFinalH);
+        }
         ctx.restore();
     } else {
         ctx.drawImage(tempC, margin, margin, finalW, finalH);
+        if (isobaths) {
+            ctx.save();
+            ctx.translate(margin, margin);
+            await drawIso(finalW, finalH);
+            ctx.restore();
+        }
     }
 
-    return { finalCanvas: finalC, dynamicMargin: margin, scaleFactor: scale, actualZoom };
+    return { finalCanvas: finalC, dynamicMargin: margin, scaleFactor: scale, actualZoom, isoSummary };
 }
 
 // Cartouche de l'export de zone. Meme contenu qu'en carroyage rapide (cf.
