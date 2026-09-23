@@ -612,6 +612,20 @@ python3 tools/ogc_layers.py                      # service INSPIRE, libre
 python3 tools/ogc_layers.py --cle MA_CLE         # service sous abonnement
 python3 tools/ogc_layers.py --filtre raster      # ne garde que ces couches
 python3 tools/ogc_layers.py --fichier capa.xml   # parse un GetCapabilities déjà téléchargé
+python3 tools/ogc_layers.py --url <service>      # n'importe quel WMTS ou WMS
+python3 tools/ogc_layers.py --version 1.1.1      # force la version du service
+python3 tools/ogc_layers.py --brut reponse.xml   # enregistre la réponse telle quelle
+```
+
+**Quand le service ne répond pas ce qu'on attend**
+
+L'outil ne se contente pas de parser : il classe ce qu'il a reçu, car une page HTML bien formée et une exception OGC se parsent l'une comme l'autre sans erreur. Selon le cas, il annonce une exception du service avec son message, une réponse qui n'est pas un `GetCapabilities` (portail d'authentification, proxy d'entreprise, URL inexacte), un corps vide, ou du contenu non XML — et il imprime à chaque fois le statut HTTP, le type MIME et le début du corps. Il décompresse au passage les réponses gzip non annoncées et retire un éventuel BOM, deux causes classiques d'un « illisible » sur du XML pourtant valide. En WMS, une version refusée déclenche un second essai en 1.1.1.
+
+```
+Reponse illisible : exception OGC — Layer not defined
+  Statut  : 400   Type : text/xml   Taille : 157 octets
+  Debut   : <?xml version="1.0"?><ServiceExceptionReport>…
+  Cause probable : le service a rejete la requete : lire le message ci-dessus.
 ```
 
 C'est pourquoi `SHOM_INSPIRE_LAYER` est **vide par défaut** : une couche absente du sélecteur vaut mieux qu'une couche qui ne renverrait que des tuiles vides. `SHOM_RASTER_LAYER` porte, lui, une valeur par défaut à confirmer au premier branchement.
