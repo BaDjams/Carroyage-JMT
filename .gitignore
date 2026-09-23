@@ -1,2 +1,5 @@
 # Clés et secrets — ne jamais commiter
 config.private.js
+
+# Python : caches de compilation (tools/)
+__pycache__/

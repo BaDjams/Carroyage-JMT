@@ -297,6 +297,7 @@ em { font-style: italic; }
 </li>
 <li><a href="#76-cartes-marines-shom">7.6 Cartes marines SHOM</a></li>
 <li><a href="#77-lignes-de-profondeur-emodnet-et-le-type-wms">7.7 Lignes de profondeur EMODnet, et le type wms</a></li>
+<li><a href="#78-bathymetrie-fine-hors-ligne-toolsbathy_mbtilespy">7.8 Bathymétrie fine hors ligne : tools/bathy_mbtiles.py</a></li>
 </ul>
 </li>
 <li><a href="#8-pipelines-dexport">8. Pipelines d'export</a><ul>
@@ -1153,7 +1154,7 @@ python3<span class="w"> </span>tools/ogc_layers.py<span class="w"> </span>--fich
 <p><strong>Portée</strong></p>
 <p>Le SHOM couvre la mer, les estuaires et les approches, pas les canaux ni les rivières intérieures : ces couches complètent le fond « Eaux intérieures » (§7.5), elles ne le remplacent pas.</p>
 <h3 id="77-lignes-de-profondeur-emodnet-et-le-type-wms">7.7 Lignes de profondeur EMODnet, et le type <code>wms</code></h3>
-<p>Couche <code>emodnet_bathy</code> : fond OpenStreetMap surmonté des <strong>isobathes EMODnet</strong>, l'infrastructure bathymétrique européenne. Services OGC libres d'accès, donc exportables et rediffusables — contrairement au SHOM et à i-Boating. Couverture : mers européennes.</p>
+<p>Couche <code>emodnet_bathy</code> : fond OpenStreetMap surmonté des <strong>isobathes EMODnet</strong>, l'infrastructure bathymétrique européenne. Ces isobathes sont espacées de 50 m : pour des isobathes métriques, voir l'outil hors ligne du §7.8. Services OGC libres d'accès, donc exportables et rediffusables — contrairement au SHOM et à i-Boating. Couverture : mers européennes.</p>
 <p>Les isobathes ne sont pas servies en tuiles pré-calculées mais en <strong>WMS</strong>, d'où un quatrième type de couche.</p>
 <div class="highlight"><pre><span></span><code><span class="p">{</span><span class="w"> </span><span class="nx">url</span><span class="o">:</span><span class="w"> </span><span class="s2">&quot;https://ows.emodnet-bathymetry.eu/wms&quot;</span><span class="p">,</span><span class="w"> </span><span class="nx">type</span><span class="o">:</span><span class="w"> </span><span class="s2">&quot;wms&quot;</span><span class="p">,</span>
 <span class="w">  </span><span class="nx">layers</span><span class="o">:</span><span class="w"> </span><span class="s2">&quot;emodnet:contours&quot;</span><span class="p">,</span><span class="w"> </span><span class="nx">transparent</span><span class="o">:</span><span class="w"> </span><span class="kc">true</span><span class="w"> </span><span class="p">}</span>
@@ -1192,6 +1193,254 @@ python3<span class="w"> </span>tools/ogc_layers.py<span class="w"> </span>--fich
 <p>L'identifiant <code>emodnet:contours</code> est surchargeable par <code>EMODNET_CONTOURS_LAYER</code>, et le service par <code>EMODNET_WMS</code>. S'il ne convenait pas, la couche dégrade proprement : le fond OSM reste, seules les isobathes manquent. Relever les identifiants réels :</p>
 <div class="highlight"><pre><span></span><code>python3<span class="w"> </span>tools/ogc_layers.py<span class="w"> </span>--url<span class="w"> </span>https://ows.emodnet-bathymetry.eu/wms<span class="w"> </span>--filtre<span class="w"> </span>contour
 </code></pre></div>
+<h3 id="78-bathymetrie-fine-hors-ligne-toolsbathy_mbtilespy">7.8 Bathymétrie fine hors ligne : <code>tools/bathy_mbtiles.py</code></h3>
+<p>Les isobathes EMODnet (§7.7) sont espacées de 50 m : trop lâche pour une embarcation ou un plongeur. Aucune source unique ne donne des isobathes métriques partout ; elles existent par morceaux — Litto3D au mètre sur la bande côtière, HOMONIM au large, levés au sondeur dans les ports — chacune dans son format et sa référence verticale. <code>tools/bathy_mbtiles.py</code> les assemble en <strong>une seule carte d'isobathes</strong>, écrite en MBTiles : lisible par l'application (mode MBTiles), par les drones DJI et par QGIS.</p>
+<p><strong>Principe</strong></p>
+<ol>
+<li><strong>Préparation</strong>, une fois par source et mise en cache : lecture quel que soit le format, conversion dans la référence verticale de la carte, maillage des sondes éparses, rangement dans un GeoTIFF tuilé avec aperçus.</li>
+<li><strong>Composition</strong> de chaque tuile en Web Mercator : la source la plus fine l'emporte là où elle a des données, les autres comblent autour.</li>
+<li><strong>Tracé honnête</strong> : une isobathe n'est tracée qu'au pas que sa source sait porter — pas d'isobathe métrique inventée dans une grille de 100 m.</li>
+</ol>
+<p><strong>Sources et formats</strong></p>
+<table>
+<thead>
+<tr>
+<th>Source</th>
+<th>Couverture</th>
+<th>Résolution</th>
+<th>Format</th>
+<th>Système</th>
+<th>Référence verticale</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Litto3D (SHOM/IGN, licence ouverte)</td>
+<td>bande côtière terre-mer, jusqu'à -10 m au moins</td>
+<td>1 m et 5 m</td>
+<td>ESRI ASCII, dalles de 1 km²</td>
+<td>Lambert-93 en métropole, sans <code>.prj</code></td>
+<td>IGN69 en métropole</td>
+</tr>
+<tr>
+<td>MNT HOMONIM (SHOM, licence ouverte)</td>
+<td>façades maritimes</td>
+<td>~100 m, ~20 m sur certains secteurs</td>
+<td>ESRI ASCII, BAG, grille Surfer</td>
+<td>WGS84</td>
+<td>NM ou ZH, selon le fichier</td>
+</tr>
+<tr>
+<td>EMODnet DTM</td>
+<td>mers européennes</td>
+<td>~115 m</td>
+<td>NetCDF, ESRI ASCII</td>
+<td>WGS84</td>
+<td>à lire dans sa fiche de métadonnées</td>
+</tr>
+<tr>
+<td>GEBCO</td>
+<td>monde</td>
+<td>~450 m</td>
+<td>NetCDF, GeoTIFF</td>
+<td>WGS84</td>
+<td>niveau moyen</td>
+</tr>
+<tr>
+<td>swissBATHY3D (swisstopo)</td>
+<td>lacs suisses, dont le Léman</td>
+<td>grille fine</td>
+<td>GeoTIFF</td>
+<td>LV95 (EPSG:2056)</td>
+<td>altitude du fond</td>
+</tr>
+<tr>
+<td>Levés de sondes</td>
+<td>ports, chenaux, lacs</td>
+<td>selon le levé</td>
+<td>texte x y z</td>
+<td>à déclarer</td>
+<td>à déclarer</td>
+</tr>
+<tr>
+<td>Cartes S-57 (ENC, IENC)</td>
+<td>selon la carte</td>
+<td>sondes et isobathes</td>
+<td><code>.000</code></td>
+<td>WGS84</td>
+<td>ZH (marine), niveau local (fluvial)</td>
+</tr>
+</tbody>
+</table>
+<p>Tous les rasters passent par GDAL, embarqué dans <code>rasterio</code> : ESRI ASCII, GeoTIFF, NetCDF (la variable <code>elevation</code> est choisie seule, <code>variable = "..."</code> sinon), BAG, grilles Surfer. Deux formats demandent davantage, et l'outil les prend en charge lui-même :</p>
+<ul>
+<li><strong>Semis de sondes</strong> : lecture tolérante (séparateur <code>;</code>, tabulation, espaces ou virgule détecté par essai, virgule décimale admise, en-têtes ignorés), puis <strong>maillage par triangulation</strong> : l'interpolation est linéaire dans chaque triangle, et un triangle dont une arête dépasse <code>arete_max</code> est écarté — on n'invente rien entre deux levés distants.</li>
+<li><strong>Cartes S-57</strong> : les sondes (<code>SOUNDG</code>) et les isobathes cartographiées (<code>DEPCNT</code>, cote <code>VALDCO</code>) entrent comme points dans la même triangulation, ce que font les hydrographes pour contraindre une surface entre des sondes éparses. Les ENC du SHOM sont chiffrées (S-63) : inutilisables ici.</li>
+</ul>
+<p><strong>Eaux intérieures.</strong> Pour les rivières et canaux français, il n'existe pas de bathymétrie publique comparable : VNF publie le mouillage — le tirant d'eau admis par section —, pas un relevé du fond. Restent les lacs (swissBATHY3D pour le Léman), les cartes fluviales IENC qui portent des sondes, et surtout les levés au sondeur des équipes elles-mêmes, que l'outil lit directement en XYZ. Pour un lac, la profondeur se compte depuis le plan d'eau : <code>surface = 372.0</code> retranche cette cote aux altitudes du fond.</p>
+<p><strong>Référence verticale</strong></p>
+<p>Chaque source a son zéro, la carte a le sien (<code>reference</code>, ZH par défaut — celui des cartes marines, où les profondeurs sont les plus faibles qu'on rencontrera). Chaque valeur est ramenée à la carte par :</p>
+<div class="highlight"><pre><span></span><code>altitude carte = altitude source (ou - profondeur) - surface (lacs) + decalage + correction
+</code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Référence</th>
+<th>Où la rencontrer</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>ZH, zéro hydrographique</td>
+<td>cartes marines, ENC, MNT HOMONIM « ZH »</td>
+</tr>
+<tr>
+<td>NM, niveau moyen</td>
+<td>MNT HOMONIM « NM », GEBCO</td>
+</tr>
+<tr>
+<td>IGN69</td>
+<td>Litto3D et altitudes terrestres en métropole</td>
+</tr>
+<tr>
+<td>LN02</td>
+<td>swissBATHY3D</td>
+</tr>
+<tr>
+<td>plan d'eau</td>
+<td>lacs, par <code>surface</code></td>
+</tr>
+</tbody>
+</table>
+<p>Entre IGN69 ou le niveau moyen et le ZH, l'écart atteint <strong>plusieurs mètres en zone de marée</strong> — bien plus que le pas des isobathes. La valeur de <code>decalage</code> se relève pour le port le plus proche dans les Références Altimétriques Maritimes (RAM) du SHOM ; quand l'écart varie trop sur la zone, <code>correction</code> pointe une grille de décalages, ajoutée pixel à pixel (là où elle manque, la valeur devient absente plutôt que fausse). L'outil <strong>avertit</strong> pour toute source dont la référence diffère de celle de la carte sans décalage ni grille, ou n'est pas déclarée.</p>
+<p><strong>Pas des isobathes</strong></p>
+<ul>
+<li><strong>Par zoom</strong> — <code>intervalle</code> au zoom de détail, puis de plus en plus large en dézoomant. Pour <code>intervalle = 1</code> et un détail à z16 : z10 100 m · z11 50 · z12 20 · z13 10 · z14 5 · z15 2 · z16 et au-delà 1 m.</li>
+<li><strong>Par source</strong> — pas minimal d'environ un cinquième de la résolution, jamais moins d'un mètre : 1 m pour Litto3D, 20 m pour une grille de 100 m, 100 m pour GEBCO. Un niveau n'est tracé que là où la source qui couvre le pixel sait le porter ; <code>pas_min</code> force une autre valeur.</li>
+<li><strong>Maîtresses</strong> — 5 m pour un pas de 1 m, 10 m pour 2 ou 2,5 m… : épaissies et cotées à la française (« 2,5 »), sur un halo qui interrompt le trait, espacées et jamais en débord de tuile. Le zéro de la carte a un trait sombre et pas de cote.</li>
+<li><strong>Généralisation</strong> — sous le zoom de détail, une boucle fermée de moins de 16 px (un écueil de quelques mètres) n'est qu'un point illisible et disparaît ; au zoom de détail elle reste, car une tête de roche est ce qu'un bateau doit voir.</li>
+<li><strong>Précision du tracé</strong> — une isobathe tombe à 1/8 de pixel de sa place, soit une dizaine de centimètres au sol à z17 en Bretagne. Deux défauts de Pillow y sont neutralisés : il tronque les coordonnées et décentre les traits de largeur paire.</li>
+</ul>
+<p><strong>Configuration</strong></p>
+<p>Fichier TOML (ou JSON). Exemple commenté complet : <code>tools/exemples/bathy.toml</code>.</p>
+<div class="highlight"><pre><span></span><code><span class="n">sortie</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;bathy_zone.mbtiles&quot;</span>
+<span class="n">reference</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;ZH&quot;</span>
+<span class="n">intervalle</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span>
+<span class="n">emprise</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="mf">-4.80</span><span class="p">,</span><span class="w"> </span><span class="mf">48.25</span><span class="p">,</span><span class="w"> </span><span class="mf">-4.30</span><span class="p">,</span><span class="w"> </span><span class="mf">48.45</span><span class="p">]</span>
+
+<span class="k">[rendu]</span>
+<span class="n">fond</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;plan-ign&quot;</span><span class="w">            </span><span class="c1"># « aucun » : tuiles transparentes (drone, QGIS)</span>
+
+<span class="k">[[source]]</span>
+<span class="n">nom</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;Litto3D&quot;</span>
+<span class="n">fichiers</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;litto3d/**/*.asc&quot;</span>
+<span class="n">crs</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;EPSG:2154&quot;</span>
+<span class="n">reference</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;IGN69&quot;</span>
+<span class="n">decalage</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">0.0</span><span class="w">               </span><span class="c1"># IGN69 -&gt; ZH, a relever dans les RAM du SHOM</span>
+
+<span class="k">[[source]]</span>
+<span class="n">nom</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;Leve du port&quot;</span>
+<span class="n">fichiers</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;leves/*.xyz&quot;</span>
+<span class="n">type</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;sondes&quot;</span>
+<span class="n">crs</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;EPSG:4326&quot;</span>
+<span class="n">valeurs</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;profondeur&quot;</span>
+<span class="n">reference</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;ZH&quot;</span>
+</code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Clé</th>
+<th>Rôle</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>sortie</code>, <code>nom</code></td>
+<td>fichier produit, nom affiché</td>
+</tr>
+<tr>
+<td><code>reference</code></td>
+<td>zéro des profondeurs de la carte</td>
+</tr>
+<tr>
+<td><code>intervalle</code></td>
+<td>pas au zoom de détail : 0,5 · 1 · 2 · 2,5 · 5 · 10…</td>
+</tr>
+<tr>
+<td><code>zoom_min</code>, <code>zoom_max</code>, <code>zoom_detail</code></td>
+<td>zooms produits ; défauts déduits de la source la plus fine</td>
+</tr>
+<tr>
+<td><code>emprise</code></td>
+<td><code>[lon_min, lat_min, lon_max, lat_max]</code> — conseillée dès qu'une source couvre une façade</td>
+</tr>
+<tr>
+<td><code>surzoom</code></td>
+<td>limite les sources grossières à N zooms au-delà de leur résolution ; par défaut chaque source va jusqu'au zoom maximal, sans trou au large</td>
+</tr>
+<tr>
+<td><code>processus</code>, <code>max_tuiles</code>, <code>travail</code></td>
+<td>parallélisme, garde-fou de volume, dossier de cache</td>
+</tr>
+<tr>
+<td><code>[rendu]</code> <code>fond</code></td>
+<td><code>aucun</code>, <code>plan-ign</code>, <code>ortho-ign</code>, ou un gabarit <code>{z}/{x}/{y}</code></td>
+</tr>
+<tr>
+<td><code>[rendu]</code> <code>teintes</code>, <code>etiquettes</code></td>
+<td>bandes teintées (m), cotes des maîtresses</td>
+</tr>
+<tr>
+<td><code>[[source]]</code> <code>fichiers</code></td>
+<td>motif, <code>**</code> récursif accepté</td>
+</tr>
+<tr>
+<td><code>type</code></td>
+<td><code>grille</code> (défaut), <code>sondes</code>, <code>s57</code></td>
+</tr>
+<tr>
+<td><code>crs</code></td>
+<td>système imposé aux fichiers qui ne le portent pas</td>
+</tr>
+<tr>
+<td><code>valeurs</code></td>
+<td><code>altitude</code> (défaut) ou <code>profondeur</code></td>
+</tr>
+<tr>
+<td><code>reference</code>, <code>decalage</code>, <code>correction</code>, <code>surface</code></td>
+<td>conversion verticale, cf. ci-dessus</td>
+</tr>
+<tr>
+<td><code>pas_min</code>, <code>priorite</code>, <code>attribution</code></td>
+<td>pas minimal, ordre de superposition, mention</td>
+</tr>
+<tr>
+<td><code>variable</code>, <code>nodata</code></td>
+<td>NetCDF à plusieurs variables, valeur absente non déclarée</td>
+</tr>
+<tr>
+<td><code>colonnes</code>, <code>separateur</code>, <code>resolution</code>, <code>arete_max</code></td>
+<td>semis de sondes et S-57</td>
+</tr>
+</tbody>
+</table>
+<p>Une clé inconnue est une erreur, pour qu'une faute de frappe (<code>decallage</code>) ne passe pas en silence.</p>
+<p><strong>Utilisation</strong></p>
+<div class="highlight"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span>-r<span class="w"> </span>tools/requirements-bathy.txt
+python3<span class="w"> </span>tools/bathy_mbtiles.py<span class="w"> </span>bathy.toml<span class="w"> </span>--inventaire<span class="w">   </span><span class="c1"># sources, pas, zooms, volumes : rien n&#39;est produit</span>
+python3<span class="w"> </span>tools/bathy_mbtiles.py<span class="w"> </span>bathy.toml<span class="w">                </span><span class="c1"># produit le MBTiles</span>
+python3<span class="w"> </span>tools/bathy_mbtiles.py<span class="w"> </span>bathy.toml<span class="w"> </span>--zoom-max<span class="w"> </span><span class="m">16</span><span class="w"> </span>--processus<span class="w"> </span><span class="m">4</span><span class="w"> </span>--emprise<span class="w"> </span>-4.8,48.25,-4.3,48.45
+</code></pre></div>
+<p>La préparation est gardée dans <code>&lt;sortie&gt;.travail/</code> et réutilisée tant que ni les fichiers ni les options de la source ne changent : on peut retoucher le rendu sans relire les sources. Le recensement s'interrompt dès que <code>max_tuiles</code> est dépassé, sans énumérer les zooms suivants.</p>
+<p><strong>Dans l'application</strong></p>
+<p>Le MBTiles se charge comme tout MBTiles (Carroyage rapide, Export de zone) : les exports carroyés se font par-dessus. Ses métadonnées reprennent celles de <code>carroyageToMbtiles.js</code> — <code>type = baselayer</code>, <code>version = 1.0</code>, <code>scheme = tms</code> — car les drones DJI refusent le type <code>overlay</code>. Avec <code>fond = "aucun"</code> les tuiles sont transparentes et la terre reste vide dans l'application : pour une carte autonome, cuire <code>plan-ign</code> ou <code>ortho-ign</code> dessous. La référence, le pas et la liste des sources sont inscrits dans les métadonnées (<code>bathy_reference</code>, <code>bathy_intervalle</code>, <code>bathy_sources</code>).</p>
+<p><strong>Limites connues</strong></p>
+<ul>
+<li><strong>Raccords entre sources</strong> : pas de fondu. Si deux sources divergent au raccord — dates de levé, références mal ajustées —, les isobathes s'y resserrent en une marche.</li>
+<li><strong>S-57</strong> : la lecture passe par GDAL ; faute de pouvoir écrire un vrai <code>.000</code> depuis Python, elle est testée sur une GeoPackage aux mêmes classes d'objets.</li>
+<li><strong>Réseau</strong> : aucun, sauf pour cuire un fond.</li>
+</ul>
+<p><strong>Tests</strong> : <code>python3 tools/test_bathy_mbtiles.py</code> — jeux synthétiques fidèles aux formats réels (ESRI ASCII Lambert-93 sans <code>.prj</code>, NetCDF, semis à virgule décimale, S-57), sans réseau.</p>
 <hr />
 <h2 id="8-pipelines-dexport">8. Pipelines d'export</h2>
 <p>Toutes les exports passent par le même <code>gridData</code> (lignes + étiquettes) calculé une seule fois, puis dispatché.</p>
@@ -1500,7 +1749,7 @@ docker<span class="w"> </span>build<span class="w"> </span>-t<span class="w"> </
 <h3 id="155-evolutions-souhaitables">15.5 Évolutions souhaitables</h3>
 <ul>
 <li><strong>Découper <code>index.html</code></strong> : actuellement monolithique. Une approche template (HTML imports natifs ou simple concat de fragments) faciliterait la maintenance</li>
-<li><strong>Tests</strong> : aucun test automatisé actuellement. Un harnais Playwright sur les exports core (KML, MBTiles) renforcerait la régression</li>
+<li><strong>Tests</strong> : seul l'outil bathymétrique en a (<code>tools/test_bathy_mbtiles.py</code>) ; l'application elle-même n'a pas de test automatisé. Un harnais Playwright sur les exports core (KML, MBTiles) renforcerait la régression</li>
 <li><strong>Migration Tailwind JIT</strong> : permettrait les classes arbitraires (<code>z-[xxxx]</code>)</li>
 <li><strong>Modules ES natifs</strong> : remplacer les globales <code>window.xxx</code> par <code>import/export</code> quand on quittera la compatibilité totale (PWA installée)</li>
 </ul>

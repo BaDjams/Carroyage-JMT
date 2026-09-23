@@ -1,0 +1,105 @@
+# Bathymetrie fine -> MBTiles : configuration d'exemple de tools/bathy_mbtiles.py.
+#
+#   python3 tools/bathy_mbtiles.py bathy.toml --inventaire   # verifier sources, pas et volumes
+#   python3 tools/bathy_mbtiles.py bathy.toml                # produire le MBTiles
+#
+# Copier ce fichier a cote des donnees, adapter les chemins (relatifs a ce fichier)
+# et SUPPRIMER les sources dont on ne dispose pas : une source sans fichier est une
+# erreur. Documentation complete : DOCUMENTATION.md §7.8.
+
+sortie = "bathy_zone.mbtiles"
+nom = "Bathymetrie de la zone"   # nom affiche par l'application
+
+# Zero des profondeurs de la carte produite. ZH (zero hydrographique) est celui des
+# cartes marines : les profondeurs y sont les plus faibles qu'on rencontrera.
+reference = "ZH"
+
+intervalle = 1          # pas des isobathes au zoom de detail : 0,5 1 2 2,5 5 10...
+# zoom_min = 10         # defaut : zoom_max - 7
+# zoom_max = 17         # defaut : deduit de la source la plus fine (1 m -> 17)
+# zoom_detail = 16      # zoom a partir duquel le pas est « intervalle » ; defaut : zoom_max - 1
+# surzoom = 2           # limiterait les sources grossieres a 2 zooms au-dela de leur resolution
+# processus = 4         # defaut : nombre de coeurs - 1
+
+# Emprise utile, en degres [lon_min, lat_min, lon_max, lat_max]. Fortement conseillee
+# des qu'une source couvre une facade entiere : sans elle, GEBCO ou HOMONIM seraient
+# rendus sur toute leur couverture jusqu'au zoom maximal.
+emprise = [-4.80, 48.25, -4.30, 48.45]
+# max_tuiles = 250000   # garde-fou sur le volume
+
+[rendu]
+# « aucun » : tuiles transparentes, a superposer (drone DJI, QGIS).
+# « plan-ign » ou « ortho-ign » : fond IGN cuit sous les isobathes, pour une carte
+# autonome dans l'application (mode MBTiles), ou la terre serait sinon vide.
+# Ou tout gabarit d'URL : "https://.../{z}/{x}/{y}.png".
+fond = "plan-ign"
+teintes = [2, 5, 10, 20]   # bandes teintees, en metres de profondeur ; [] pour aucune
+etiquettes = true          # cotes sur les isobathes maitresses
+
+# ---------------------------------------------------------------------------
+# Sources : de la plus grossiere a la plus fine. Par defaut la plus fine gagne ;
+# a resolution comparable, la derniere declaree l'emporte. « priorite » force l'ordre.
+#
+# Reference verticale : chaque source a la sienne. « decalage » est la valeur, en
+# metres, a AJOUTER a ses altitudes pour les exprimer dans la reference de la carte.
+# Entre IGN69 ou le niveau moyen et le ZH, l'ecart atteint plusieurs metres en zone
+# de maree : le relever pour le port le plus proche dans les References Altimetriques
+# Maritimes (RAM) du SHOM, ou fournir une grille de correction variable (« correction »).
+# ---------------------------------------------------------------------------
+
+# Fond mondial, pour boucher les trous au large : GEBCO, ~450 m, NetCDF.
+[[source]]
+nom = "GEBCO"
+fichiers = "gebco/*.nc"
+reference = "NM"             # niveau moyen de la mer
+decalage = 0.0               # A RENSEIGNER : NM -> ZH (RAM du SHOM)
+attribution = "GEBCO"
+
+# Facade du SHOM : MNT HOMONIM, ~100 m (et ~20 m sur certains secteurs cotiers).
+# Le nom du fichier dit sa reference : _NM_ (niveau moyen) ou _ZH_ ; « ZNEG » = altitudes
+# negatives sous le zero, soit le cas par defaut valeurs = "altitude".
+[[source]]
+nom = "MNT HOMONIM"
+fichiers = "homonim/MNT_*_HOMONIM_WGS84_ZH_ZNEG.asc"
+crs = "EPSG:4326"            # l'ESRI ASCII ne porte pas son systeme
+reference = "ZH"
+attribution = "MNT HOMONIM (c) SHOM"
+
+# Litto3D : lidar terre-mer au metre, dalles de 1 km2, jusqu'a -10 m au moins.
+[[source]]
+nom = "Litto3D"
+fichiers = "litto3d/**/*.asc"
+crs = "EPSG:2154"            # Lambert-93 en metropole ; les dalles n'ont pas de .prj
+reference = "IGN69"
+decalage = 0.0               # A RENSEIGNER : IGN69 -> ZH (RAM du SHOM)
+attribution = "Litto3D (c) SHOM/IGN"
+
+# Leve de sondes au format texte : x y z, separateur et virgule decimale detectes.
+[[source]]
+nom = "Leve du port"
+fichiers = "leves/port_*.xyz"
+type = "sondes"
+crs = "EPSG:4326"            # un semis ne porte pas son systeme : a declarer
+valeurs = "profondeur"       # sondes positives vers le bas
+reference = "ZH"
+# colonnes = [0, 1, 2]       # colonnes x, y, z
+# resolution = 1             # maille (m) ; defaut : espacement median des sondes
+# arete_max = 30             # pas d'interpolation au-dela (m) ; defaut : automatique
+priorite = 10                # plus recent que Litto3D dans le port : il doit l'emporter
+
+# Carte electronique S-57 : sondes (SOUNDG) et isobathes (DEPCNT) triangulees.
+# ENC marine : profondeurs au ZH. IENC fluviale : niveau de reference de la voie d'eau.
+# Les ENC du SHOM sont chiffrees (S-63) et inutilisables ici.
+# [[source]]
+# nom = "IENC"
+# fichiers = "ienc/*.000"
+# type = "s57"
+# reference = "niveau de reference local"
+
+# Lac : fond en altitude (swissBATHY3D, Leman et lacs suisses, LV95), profondeur
+# comptee depuis le plan d'eau. Relever la cote du jour : le niveau du Leman varie.
+# [[source]]
+# nom = "Leman"
+# fichiers = "swissbathy3d/*.tif"
+# surface = 372.0
+# attribution = "swissBATHY3D (c) swisstopo"
