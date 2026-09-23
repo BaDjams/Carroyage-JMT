@@ -17,9 +17,12 @@ dans config.private.js.
 Aucune dependance : bibliotheque standard uniquement.
 """
 import argparse
+import gzip
 import sys
+import urllib.error
 import urllib.request
 import xml.etree.ElementTree as ET
+import zlib
 
 SHOM_INSPIRE = 'https://services.data.shom.fr/INSPIRE/wmts'
 SHOM_ABONNE = 'https://services.data.shom.fr/{cle}/wmts'
@@ -30,15 +33,91 @@ NS = {
 }
 
 
-def telecharge(url: str, service: str) -> bytes:
+def _decompresse(corps: bytes, encodage: str) -> bytes:
+    """Certains serveurs compressent sans l\'annoncer, ou l\'annoncent sans le faire."""
+    if corps[:2] == b'\x1f\x8b' or 'gzip' in encodage:
+        try:
+            return gzip.decompress(corps)
+        except OSError:
+            return corps
+    if 'deflate' in encodage:
+        for wbits in (zlib.MAX_WBITS, -zlib.MAX_WBITS):
+            try:
+                return zlib.decompress(corps, wbits)
+            except zlib.error:
+                continue
+    return corps
+
+
+def telecharge(url: str, service: str, version: str):
+    """Renvoie (corps, statut, type_mime, url_demandee). Ne leve pas sur 4xx/5xx :
+    un service OGC renvoie souvent son ServiceException avec un code d\'erreur, et
+    ce corps-la est precisement ce qu\'il faut montrer."""
     sep = '&' if '?' in url else '?'
-    req = urllib.request.Request(
-        f'{url}{sep}SERVICE={service.upper()}&VERSION={"1.0.0" if service == "wmts" else "1.3.0"}'
-        '&REQUEST=GetCapabilities',
-        headers={'User-Agent': 'Carroyage-JMT/ogc_layers'},
-    )
-    with urllib.request.urlopen(req, timeout=60) as r:
-        return r.read()
+    complete = f'{url}{sep}SERVICE={service.upper()}&VERSION={version}&REQUEST=GetCapabilities'
+    req = urllib.request.Request(complete, headers={
+        'User-Agent': 'Carroyage-JMT/ogc_layers',
+        'Accept': 'application/xml, text/xml, */*',
+    })
+    try:
+        with urllib.request.urlopen(req, timeout=60) as r:
+            corps = _decompresse(r.read(), (r.headers.get('Content-Encoding') or '').lower())
+            return corps, r.status, r.headers.get('Content-Type', ''), complete
+    except urllib.error.HTTPError as e:
+        corps = _decompresse(e.read(), (e.headers.get('Content-Encoding') or '').lower())
+        return corps, e.code, e.headers.get('Content-Type', ''), complete
+
+
+def nettoie(corps: bytes) -> bytes:
+    """Retire le BOM et les blancs de tete : un XML parfaitement valide precede
+    d\'un BOM fait echouer le parseur sur « line 1, column 0 »."""
+    return corps.lstrip(b'\xef\xbb\xbf').lstrip()
+
+
+def classe(racine):
+    """Un GetCapabilities, une exception OGC, ou autre chose ? Une page HTML bien
+    formee et une exception OGC se parsent tres bien comme du XML : sans ce tri,
+    l\'outil annoncait « aucune couche trouvee » au lieu de dire ce qui cloche."""
+    tag = racine.tag.split('}')[-1].lower()
+    if tag in ('capabilities', 'wms_capabilities', 'wmt_ms_capabilities'):
+        return 'capabilities', ''
+    if 'exception' in tag:
+        messages = [(e.text or '').strip() for e in racine.iter()
+                    if 'exception' in e.tag.split('}')[-1].lower() and (e.text or '').strip()]
+        return 'exception', ' / '.join(messages) or 'sans message'
+    return 'autre', f'racine <{tag}>'
+
+
+def diagnostic(corps: bytes, statut, mime: str, url: str, erreur) -> None:
+    """Dit ce qui est REELLEMENT arrive : sans le corps de la reponse, un
+    « reponse illisible » n\'apprend rien a personne."""
+    texte = nettoie(corps).decode('utf-8', errors='replace')
+    debut = texte[:300].replace('\n', ' ').strip()
+    tete = texte[:400].lower()
+
+    print(f'Reponse illisible : {erreur}', file=sys.stderr)
+    print(f'  URL     : {url}', file=sys.stderr)
+    print(f'  Statut  : {statut}   Type : {mime or "non declare"}   Taille : {len(corps)} octets', file=sys.stderr)
+    print(f'  Debut   : {debut or "(corps vide)"}', file=sys.stderr)
+
+    if isinstance(erreur, str) and erreur.startswith('exception OGC'):
+        cause = 'le service a rejete la requete : lire le message ci-dessus.'
+    elif isinstance(erreur, str) and erreur.startswith("ce n'est pas"):
+        cause = ("la reponse est du XML valide, mais pas un GetCapabilities : "
+                 "portail d'authentification, proxy d'entreprise, ou URL de service inexacte.")
+    elif not corps:
+        cause = 'le service a renvoye un corps vide.'
+    elif corps[:2] == b'\x1f\x8b':
+        cause = 'contenu encore compresse (gzip) : le serveur compresse sans l\'annoncer.'
+    elif 'serviceexception' in tete or 'exceptionreport' in tete:
+        cause = 'le service a repondu une exception OGC : lire le message ci-dessus.'
+    elif '<html' in tete or '<!doctype html' in tete:
+        cause = ('une page HTML, pas du XML : portail d\'authentification ou proxy '
+                 'd\'entreprise, erreur du serveur, ou URL de service inexacte.')
+    else:
+        cause = 'contenu non XML.'
+    print(f'  Cause probable : {cause}', file=sys.stderr)
+    print('  Pour inspecter la reponse entiere : rejouer avec --brut reponse.xml', file=sys.stderr)
 
 
 def couches_wmts(racine):
@@ -84,6 +163,8 @@ def main() -> int:
     ap.add_argument('--cle', help="cle d'abonnement SHOM ; sans elle, le service INSPIRE libre")
     ap.add_argument('--filtre', help='ne montre que les couches dont le nom contient ce texte')
     ap.add_argument('--fichier', help='parse un GetCapabilities deja telecharge au lieu du reseau')
+    ap.add_argument('--version', help="version du service ; 1.0.0 en WMTS, 1.3.0 en WMS")
+    ap.add_argument('--brut', help='enregistre la reponse brute dans ce fichier, pour inspection')
     args = ap.parse_args()
 
     if args.url:
@@ -94,20 +175,60 @@ def main() -> int:
         url = SHOM_INSPIRE
     service = args.service or ('wms' if '/wms' in url.lower() else 'wmts')
 
-    try:
-        brut = open(args.fichier, 'rb').read() if args.fichier else telecharge(url, service)
-    except OSError as e:
-        print(f'Service injoignable ({e}).', file=sys.stderr)
-        print('Verifier la cle, le reseau, ou telecharger le GetCapabilities a la main :', file=sys.stderr)
-        sep = '&' if '?' in url else '?'
-        print(f'  {url}{sep}SERVICE={service.upper()}&REQUEST=GetCapabilities', file=sys.stderr)
-        return 1
+    versions = [args.version] if args.version else (
+        ['1.0.0'] if service == 'wmts' else ['1.3.0', '1.1.1'])
 
-    try:
-        racine = ET.fromstring(brut)
-    except ET.ParseError as e:
-        print(f'Reponse illisible ({e}) — cle refusee ou page d\'erreur renvoyee ?', file=sys.stderr)
-        return 1
+    if args.fichier:
+        try:
+            brut, statut, mime, demandee = open(args.fichier, 'rb').read(), 'fichier', '', args.fichier
+        except OSError as e:
+            print(f'Fichier illisible ({e}).', file=sys.stderr)
+            return 1
+        try:
+            racine = ET.fromstring(nettoie(brut))
+        except ET.ParseError as e:
+            diagnostic(brut, statut, mime, demandee, e)
+            return 1
+        genre, message = classe(racine)
+        if genre != 'capabilities':
+            diagnostic(brut, statut, mime, demandee,
+                       f'exception OGC — {message}' if genre == 'exception'
+                       else f"ce n'est pas un GetCapabilities ({message})")
+            return 1
+    else:
+        racine, brut, derniere = None, b'', None
+        # Un service qui refuse une version repond une exception : on retente avec
+        # la version precedente avant de declarer forfait.
+        for v in versions:
+            try:
+                brut, statut, mime, demandee = telecharge(url, service, v)
+            except OSError as e:
+                print(f'Service injoignable ({e}).', file=sys.stderr)
+                print('Verifier la cle, le reseau, ou telecharger le GetCapabilities a la main :', file=sys.stderr)
+                sep = '&' if '?' in url else '?'
+                print(f'  {url}{sep}SERVICE={service.upper()}&REQUEST=GetCapabilities', file=sys.stderr)
+                return 1
+            if args.brut:
+                open(args.brut, 'wb').write(brut)
+                print(f'Reponse brute enregistree dans {args.brut} ({len(brut)} octets).')
+            try:
+                candidate = ET.fromstring(nettoie(brut))
+            except ET.ParseError as e:
+                derniere = (brut, statut, mime, demandee, e)
+            else:
+                genre, message = classe(candidate)
+                if genre == 'capabilities':
+                    racine = candidate
+                    break
+                derniere = (brut, statut, mime, demandee,
+                            f'exception OGC — {message}' if genre == 'exception'
+                            else f"ce n'est pas un GetCapabilities ({message})")
+            if v != versions[-1]:
+                print(f'Version {v} sans reponse exploitable, nouvel essai en '
+                      f'{versions[versions.index(v) + 1]}...', file=sys.stderr)
+        if racine is None:
+            diagnostic(*derniere)
+            return 1
 
     # Le contenu prime sur l'option : un GetCapabilities WMS reste lisible meme
     # si le service a ete devine WMTS (cas d'un --fichier, par exemple).

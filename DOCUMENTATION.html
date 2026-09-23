@@ -1146,6 +1146,16 @@ em { font-style: italic; }
 python3<span class="w"> </span>tools/ogc_layers.py<span class="w"> </span>--cle<span class="w"> </span>MA_CLE<span class="w">         </span><span class="c1"># service sous abonnement</span>
 python3<span class="w"> </span>tools/ogc_layers.py<span class="w"> </span>--filtre<span class="w"> </span>raster<span class="w">      </span><span class="c1"># ne garde que ces couches</span>
 python3<span class="w"> </span>tools/ogc_layers.py<span class="w"> </span>--fichier<span class="w"> </span>capa.xml<span class="w">   </span><span class="c1"># parse un GetCapabilities déjà téléchargé</span>
+python3<span class="w"> </span>tools/ogc_layers.py<span class="w"> </span>--url<span class="w"> </span>&lt;service&gt;<span class="w">      </span><span class="c1"># n&#39;importe quel WMTS ou WMS</span>
+python3<span class="w"> </span>tools/ogc_layers.py<span class="w"> </span>--version<span class="w"> </span><span class="m">1</span>.1.1<span class="w">      </span><span class="c1"># force la version du service</span>
+python3<span class="w"> </span>tools/ogc_layers.py<span class="w"> </span>--brut<span class="w"> </span>reponse.xml<span class="w">   </span><span class="c1"># enregistre la réponse telle quelle</span>
+</code></pre></div>
+<p><strong>Quand le service ne répond pas ce qu'on attend</strong></p>
+<p>L'outil ne se contente pas de parser : il classe ce qu'il a reçu, car une page HTML bien formée et une exception OGC se parsent l'une comme l'autre sans erreur. Selon le cas, il annonce une exception du service avec son message, une réponse qui n'est pas un <code>GetCapabilities</code> (portail d'authentification, proxy d'entreprise, URL inexacte), un corps vide, ou du contenu non XML — et il imprime à chaque fois le statut HTTP, le type MIME et le début du corps. Il décompresse au passage les réponses gzip non annoncées et retire un éventuel BOM, deux causes classiques d'un « illisible » sur du XML pourtant valide. En WMS, une version refusée déclenche un second essai en 1.1.1.</p>
+<div class="highlight"><pre><span></span><code>Reponse illisible : exception OGC — Layer not defined
+  Statut  : 400   Type : text/xml   Taille : 157 octets
+  Debut   : &lt;?xml version=&quot;1.0&quot;?&gt;&lt;ServiceExceptionReport&gt;…
+  Cause probable : le service a rejete la requete : lire le message ci-dessus.
 </code></pre></div>
 <p>C'est pourquoi <code>SHOM_INSPIRE_LAYER</code> est <strong>vide par défaut</strong> : une couche absente du sélecteur vaut mieux qu'une couche qui ne renverrait que des tuiles vides. <code>SHOM_RASTER_LAYER</code> porte, lui, une valeur par défaut à confirmer au premier branchement.</p>
 <p><strong>Conditions d'emploi</strong></p>
