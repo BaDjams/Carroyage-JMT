@@ -1,0 +1,12 @@
+# Dependances de tools/bathy_mbtiles.py (bathymetrie fine -> MBTiles).
+#   pip install -r tools/requirements-bathy.txt
+# Roues disponibles pour Windows, macOS et Linux : GDAL est embarque dans rasterio,
+# rien a compiler.
+numpy>=1.24
+rasterio>=1.3          # GDAL : ESRI ASCII (Litto3D, HOMONIM), GeoTIFF, NetCDF (GEBCO, EMODnet), BAG, grilles Surfer
+contourpy>=1.1         # isobathes (le moteur de matplotlib, sans matplotlib)
+scipy>=1.10            # maillage des sondes eparses par triangulation
+Pillow>=10.1           # dessin ; police vectorielle integree pour les cotes
+pyogrio>=0.7           # cartes S-57 / IENC (sondes et isobathes)
+shapely>=2.0           # geometries des cartes S-57
+tomli>=2.0; python_version < "3.11"   # lecture TOML avant Python 3.11
