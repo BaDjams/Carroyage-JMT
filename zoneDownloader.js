@@ -1427,14 +1427,16 @@ async function zdCreateFinalCanvas(boundingBox, zoom, mapConfig, externalMargin,
     const natW = Math.abs(sePx.x - nwPx.x);
     const natH = Math.abs(sePx.y - nwPx.y);
 
+    // Upscale en un seul agrandissement : plus grand côté à 3840 px et hauteur à
+    // 2160 px au moins. Sans ce second critère, une zone très en largeur finissait
+    // sous 2160 px et l'image entière, grille comprise, était ré-étirée à la fin.
     const TARGET = 3840; // 4K
+    const TARGET_HEIGHT = 2160;
     let scale = 1;
     if (upscaleEnabled) {
         const maxDim = Math.max(natW, natH);
-        if (maxDim < TARGET) {
-            scale = TARGET / maxDim;
-            scale = Math.min(scale, 16);
-        }
+        scale = Math.max(1, TARGET / maxDim, TARGET_HEIGHT / natH);
+        scale = Math.min(scale, 16);
     }
 
     console.log(`[ZONE] Native: ${Math.round(natW)}x${Math.round(natH)} | Zoom: ${zoom} | Scale: ${scale} | Rotation: ${rotationAngleDeg}°`);
@@ -1494,9 +1496,11 @@ async function zdCreateFinalCanvas(boundingBox, zoom, mapConfig, externalMargin,
                     await new Promise(resolve => {
                         const img = new Image();
                         img.onload = () => {
+                            // Taille native : positions entières, tuiles jointives, aucun
+                            // rééchantillonnage (un 257 px étirait et floutait chaque tuile).
                             const destX = Math.floor((x * ZD_TILE_SIZE) - dlNwPx.x);
                             const destY = Math.floor((y * ZD_TILE_SIZE) - dlNwPx.y);
-                            tempCtx.drawImage(img, destX, destY, ZD_TILE_SIZE + 1, ZD_TILE_SIZE + 1);
+                            tempCtx.drawImage(img, destX, destY);
                             URL.revokeObjectURL(blobUrl);
                             resolve();
                         };
@@ -1568,9 +1572,10 @@ async function zdCreateFinalCanvas(boundingBox, zoom, mapConfig, externalMargin,
                     i.src = job.safeUrl;
                 }))).forEach(res => {
                     if (res.ok) {
+                        // Taille native, comme en MBTiles : aucun rééchantillonnage.
                         const destX = Math.floor((res.x * ZD_TILE_SIZE) - dlNwPx.x);
                         const destY = Math.floor((res.y * ZD_TILE_SIZE) - dlNwPx.y);
-                        tempCtx.drawImage(res.i, destX, destY, ZD_TILE_SIZE + 1, ZD_TILE_SIZE + 1);
+                        tempCtx.drawImage(res.i, destX, destY);
                     }
                 });
             }
