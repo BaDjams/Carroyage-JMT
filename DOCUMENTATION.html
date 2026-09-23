@@ -296,6 +296,7 @@ em { font-style: italic; }
 </ul>
 </li>
 <li><a href="#76-cartes-marines-shom">7.6 Cartes marines SHOM</a></li>
+<li><a href="#77-lignes-de-profondeur-emodnet-et-le-type-wms">7.7 Lignes de profondeur EMODnet, et le type wms</a></li>
 </ul>
 </li>
 <li><a href="#8-pipelines-dexport">8. Pipelines d'export</a><ul>
@@ -900,7 +901,8 @@ em { font-style: italic; }
 <span class="w">  </span><span class="nx">maxZoom</span><span class="o">:</span><span class="w"> </span><span class="mf">21</span><span class="p">,</span>
 <span class="w">  </span><span class="nx">requiresKey</span><span class="o">:</span><span class="w"> </span><span class="s2">&quot;GOOGLE_MAPS_API_KEY&quot;</span><span class="p">,</span><span class="w">  </span><span class="c1">// optionnel</span>
 <span class="w">  </span><span class="nx">layers</span><span class="o">:</span><span class="w"> </span><span class="p">[</span><span class="w">                     </span><span class="c1">// empilement de couches</span>
-<span class="w">    </span><span class="p">{</span><span class="w"> </span><span class="nx">url</span><span class="o">:</span><span class="w"> </span><span class="s2">&quot;...&quot;</span><span class="p">,</span><span class="w"> </span><span class="nx">type</span><span class="o">:</span><span class="w"> </span><span class="s2">&quot;xyz&quot;</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="s2">&quot;quadkey&quot;</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="s2">&quot;yandex&quot;</span><span class="w"> </span><span class="p">}</span>
+<span class="w">    </span><span class="p">{</span><span class="w"> </span><span class="nx">url</span><span class="o">:</span><span class="w"> </span><span class="s2">&quot;...&quot;</span><span class="p">,</span><span class="w"> </span><span class="nx">type</span><span class="o">:</span><span class="w"> </span><span class="s2">&quot;xyz&quot;</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="s2">&quot;quadkey&quot;</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="s2">&quot;yandex&quot;</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="s2">&quot;wms&quot;</span><span class="w"> </span><span class="p">}</span>
+<span class="w">    </span><span class="c1">// wms : + layers (obligatoire), styles, format, transparent, version</span>
 <span class="w">  </span><span class="p">]</span>
 <span class="p">}</span>
 </code></pre></div>
@@ -999,6 +1001,13 @@ em { font-style: italic; }
 <td>services.data.shom.fr/INSPIRE</td>
 <td>18</td>
 <td><code>SHOM_INSPIRE_LAYER</code></td>
+</tr>
+<tr>
+<td><code>emodnet_bathy</code></td>
+<td>Lignes de profondeur (EMODnet)</td>
+<td>OSM + WMS EMODnet</td>
+<td>19</td>
+<td>non</td>
 </tr>
 <tr>
 <td><code>osm_standard</code></td>
@@ -1118,28 +1127,71 @@ em { font-style: italic; }
 <td><code>shom_inspire</code></td>
 <td><code>https://services.data.shom.fr/INSPIRE/wmts</code></td>
 <td>libre, sans clé</td>
-<td>couches thématiques INSPIRE (bathymétrie, trait de côte…)</td>
+<td>couches thématiques INSPIRE — liste réelle à relever, cf. ci-dessous</td>
 </tr>
 </tbody>
 </table>
 <p><strong>Même motif que la clé IGN privée</strong> : la clé vit dans <code>config.private.js</code>, jamais dans le dépôt, et la couche reste masquée sans elle. Pour un service de l'État, l'accès aux cartes scannées se demande au SHOM ; le service INSPIRE, lui, ne sert pas ces cartes — seulement les données thématiques.</p>
+<blockquote>
+<p><strong>Ne pas attendre d'isobathes du service libre.</strong> Le contenu exact du flux INSPIRE se relève avec <code>tools/ogc_layers.py</code> et n'a rien d'acquis : les lignes de profondeur relèvent selon toute vraisemblance des produits sous abonnement. Pour des isobathes libres de droits, voir la couche EMODnet en §7.7.</p>
+</blockquote>
 <div class="highlight"><pre><span></span><code><span class="c1">// config.private.js</span>
 <span class="kd">var</span><span class="w"> </span><span class="nx">SHOM_API_KEY</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">&#39;xxx&#39;</span><span class="p">;</span><span class="w">                              </span><span class="c1">// service sous abonnement</span>
 <span class="kd">var</span><span class="w"> </span><span class="nx">SHOM_RASTER_LAYER</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">&#39;RASTER_MARINE_3857_WMTS&#39;</span><span class="p">;</span><span class="w">     </span><span class="c1">// facultatif, valeur par défaut</span>
 <span class="kd">var</span><span class="w"> </span><span class="nx">SHOM_INSPIRE_LAYER</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">&#39;TCHR_3857_WMTS&#39;</span><span class="p">;</span><span class="w">             </span><span class="c1">// couche INSPIRE voulue</span>
 </code></pre></div>
 <p><strong>Relever les identifiants de couches</strong></p>
-<p>Ils ne se devinent pas et changent d'un service à l'autre. <code>tools/shom_layers.py</code> les imprime depuis le <code>GetCapabilities</code>, avec leur <code>TileMatrixSet</code> et leur plage de zooms :</p>
-<div class="highlight"><pre><span></span><code>python3<span class="w"> </span>tools/shom_layers.py<span class="w">                      </span><span class="c1"># service INSPIRE, libre</span>
-python3<span class="w"> </span>tools/shom_layers.py<span class="w"> </span>--cle<span class="w"> </span>MA_CLE<span class="w">         </span><span class="c1"># service sous abonnement</span>
-python3<span class="w"> </span>tools/shom_layers.py<span class="w"> </span>--filtre<span class="w"> </span>raster<span class="w">      </span><span class="c1"># ne garde que ces couches</span>
-python3<span class="w"> </span>tools/shom_layers.py<span class="w"> </span>--fichier<span class="w"> </span>capa.xml<span class="w">   </span><span class="c1"># parse un GetCapabilities déjà téléchargé</span>
+<p>Ils ne se devinent pas et changent d'un service à l'autre. <code>tools/ogc_layers.py</code> les imprime depuis le <code>GetCapabilities</code>, avec leur <code>TileMatrixSet</code> et leur plage de zooms :</p>
+<div class="highlight"><pre><span></span><code>python3<span class="w"> </span>tools/ogc_layers.py<span class="w">                      </span><span class="c1"># service INSPIRE, libre</span>
+python3<span class="w"> </span>tools/ogc_layers.py<span class="w"> </span>--cle<span class="w"> </span>MA_CLE<span class="w">         </span><span class="c1"># service sous abonnement</span>
+python3<span class="w"> </span>tools/ogc_layers.py<span class="w"> </span>--filtre<span class="w"> </span>raster<span class="w">      </span><span class="c1"># ne garde que ces couches</span>
+python3<span class="w"> </span>tools/ogc_layers.py<span class="w"> </span>--fichier<span class="w"> </span>capa.xml<span class="w">   </span><span class="c1"># parse un GetCapabilities déjà téléchargé</span>
 </code></pre></div>
 <p>C'est pourquoi <code>SHOM_INSPIRE_LAYER</code> est <strong>vide par défaut</strong> : une couche absente du sélecteur vaut mieux qu'une couche qui ne renverrait que des tuiles vides. <code>SHOM_RASTER_LAYER</code> porte, lui, une valeur par défaut à confirmer au premier branchement.</p>
 <p><strong>Conditions d'emploi</strong></p>
 <p>Les contenus diffusés par le SHOM sont protégés : la consultation par ces services est prévue, l'extraction massive et la rediffusion ne le sont pas. Un export MBTiles d'une zone entière relève de l'extraction — à cadrer avec le SHOM, comme pour i-Boating (§7.5). La mention « © SHOM » s'affiche sur la carte et part dans le cartouche des images exportées.</p>
 <p><strong>Portée</strong></p>
 <p>Le SHOM couvre la mer, les estuaires et les approches, pas les canaux ni les rivières intérieures : ces couches complètent le fond « Eaux intérieures » (§7.5), elles ne le remplacent pas.</p>
+<h3 id="77-lignes-de-profondeur-emodnet-et-le-type-wms">7.7 Lignes de profondeur EMODnet, et le type <code>wms</code></h3>
+<p>Couche <code>emodnet_bathy</code> : fond OpenStreetMap surmonté des <strong>isobathes EMODnet</strong>, l'infrastructure bathymétrique européenne. Services OGC libres d'accès, donc exportables et rediffusables — contrairement au SHOM et à i-Boating. Couverture : mers européennes.</p>
+<p>Les isobathes ne sont pas servies en tuiles pré-calculées mais en <strong>WMS</strong>, d'où un quatrième type de couche.</p>
+<div class="highlight"><pre><span></span><code><span class="p">{</span><span class="w"> </span><span class="nx">url</span><span class="o">:</span><span class="w"> </span><span class="s2">&quot;https://ows.emodnet-bathymetry.eu/wms&quot;</span><span class="p">,</span><span class="w"> </span><span class="nx">type</span><span class="o">:</span><span class="w"> </span><span class="s2">&quot;wms&quot;</span><span class="p">,</span>
+<span class="w">  </span><span class="nx">layers</span><span class="o">:</span><span class="w"> </span><span class="s2">&quot;emodnet:contours&quot;</span><span class="p">,</span><span class="w"> </span><span class="nx">transparent</span><span class="o">:</span><span class="w"> </span><span class="kc">true</span><span class="w"> </span><span class="p">}</span>
+</code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Champ</th>
+<th>Rôle</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>layers</code></td>
+<td>identifiant de couche du service (obligatoire)</td>
+</tr>
+<tr>
+<td><code>transparent</code></td>
+<td><code>true</code> par défaut — une surcouche ne doit pas masquer le fond</td>
+</tr>
+<tr>
+<td><code>format</code></td>
+<td><code>image/png</code> par défaut</td>
+</tr>
+<tr>
+<td><code>styles</code></td>
+<td>vide par défaut</td>
+</tr>
+<tr>
+<td><code>version</code></td>
+<td><code>1.3.0</code> par défaut ; les versions 1.1.x disent <code>SRS</code> là où 1.3.0 dit <code>CRS</code>, <code>wmsTileUrl()</code> s'en charge</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Un WMS ne se substitue pas comme un gabarit XYZ</strong> : chaque tuile réclame l'emprise qu'elle couvre. C'est <code>tileUrlFor(layer, z, x, y)</code> dans <code>map-layers.js</code> qui la calcule (<code>tileBBox3857</code>) et compose le <code>GetMap</code>. Cette fonction est le <strong>point de passage unique</strong> de l'affichage et des <strong>trois</strong> chemins d'export (image, zone, MBTiles), qui refaisaient chacun la substitution <code>{z}/{x}/{y}</code> de leur côté : une couche WMS y serait sortie avec ses accolades intactes, donc affichable mais pas exportable. Le cas Yandex reste à part, sa reprojection EPSG:3395 demandant 1 à 2 tuiles source par tuile rendue.</p>
+<p>L'identifiant <code>emodnet:contours</code> est surchargeable par <code>EMODNET_CONTOURS_LAYER</code>, et le service par <code>EMODNET_WMS</code>. S'il ne convenait pas, la couche dégrade proprement : le fond OSM reste, seules les isobathes manquent. Relever les identifiants réels :</p>
+<div class="highlight"><pre><span></span><code>python3<span class="w"> </span>tools/ogc_layers.py<span class="w"> </span>--url<span class="w"> </span>https://ows.emodnet-bathymetry.eu/wms<span class="w"> </span>--filtre<span class="w"> </span>contour
+</code></pre></div>
 <hr />
 <h2 id="8-pipelines-dexport">8. Pipelines d'export</h2>
 <p>Toutes les exports passent par le même <code>gridData</code> (lignes + étiquettes) calculé une seule fois, puis dispatché.</p>
@@ -1276,10 +1328,14 @@ python3<span class="w"> </span>tools/shom_layers.py<span class="w"> </span>--fic
 <span class="kd">var</span><span class="w"> </span><span class="nx">IBOATING_WMTS_MAXZOOM</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">17</span><span class="p">;</span>
 
 <span class="c1">// Cartes marines SHOM : clé d&#39;abonnement ou de convention, et identifiants de</span>
-<span class="c1">// couches relevés avec tools/shom_layers.py — cf. §7.6.</span>
+<span class="c1">// couches relevés avec tools/ogc_layers.py — cf. §7.6.</span>
 <span class="kd">var</span><span class="w"> </span><span class="nx">SHOM_API_KEY</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">&#39;xxx&#39;</span><span class="p">;</span>
 <span class="kd">var</span><span class="w"> </span><span class="nx">SHOM_RASTER_LAYER</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">&#39;RASTER_MARINE_3857_WMTS&#39;</span><span class="p">;</span>
 <span class="kd">var</span><span class="w"> </span><span class="nx">SHOM_INSPIRE_LAYER</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">&#39;TCHR_3857_WMTS&#39;</span><span class="p">;</span>
+
+<span class="c1">// Surcharges facultatives pour EMODnet (§7.7) : valeurs par defaut sinon.</span>
+<span class="kd">var</span><span class="w"> </span><span class="nx">EMODNET_WMS</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">&#39;https://ows.emodnet-bathymetry.eu/wms&#39;</span><span class="p">;</span>
+<span class="kd">var</span><span class="w"> </span><span class="nx">EMODNET_CONTOURS_LAYER</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">&#39;emodnet:contours&#39;</span><span class="p">;</span>
 </code></pre></div>
 <h3 id="112-chargement-gracieux">11.2 Chargement gracieux</h3>
 <div class="highlight"><pre><span></span><code><span class="p">&lt;</span><span class="nt">script</span> <span class="na">src</span><span class="o">=</span><span class="s">&quot;config.private.js&quot;</span> <span class="na">onerror</span><span class="o">=</span><span class="s">&quot;console.warn(&#39;config.private.js absent&#39;)&quot;</span><span class="p">&gt;&lt;/</span><span class="nt">script</span><span class="p">&gt;</span>

@@ -190,6 +190,7 @@ function initCreatorMode() {
                 const groupLayers = layerConfig.layers.map(l => {
                     const nativeZ = l.maxZoom ?? layerConfig.maxZoom ?? (l.type === 'yandex' ? 18 : 19);
                     if (l.type === 'yandex') return new L_YandexLayerCreator(l.url, { maxZoom: nativeZ, attribution: layerConfig.attribution || layerConfig.name, layerName: layerConfig.name, keepBuffer: 0, updateWhenZooming: false });
+                    if (l.type === 'wms') return L.tileLayer.wms(l.url, { maxZoom: nativeZ, layers: l.layers, styles: l.styles || '', format: l.format || 'image/png', transparent: l.transparent !== false, version: l.version || '1.3.0', attribution: layerConfig.attribution || layerConfig.name, layerName: layerConfig.name, keepBuffer: 0, updateWhenZooming: false });
                     return L.tileLayer(l.url, { maxZoom: nativeZ, attribution: layerConfig.attribution || layerConfig.name, layerName: layerConfig.name, keepBuffer: 0, updateWhenZooming: false });
                 });
                 leafletLayer = L.layerGroup(groupLayers);
@@ -198,6 +199,7 @@ function initCreatorMode() {
                 const nativeZ = l.maxZoom ?? layerConfig.maxZoom ?? (l.type === 'yandex' ? 18 : 19);
                 if (l.type === 'quadkey') leafletLayer = new L_QuadKeyLayer(l.url, { maxZoom: nativeZ, attribution: layerConfig.attribution || layerConfig.name, layerName: layerConfig.name });
                 else if (l.type === 'yandex') leafletLayer = new L_YandexLayerCreator(l.url, { maxZoom: nativeZ, attribution: layerConfig.attribution || layerConfig.name, layerName: layerConfig.name, keepBuffer: 0, updateWhenZooming: false });
+                else if (l.type === 'wms') leafletLayer = L.tileLayer.wms(l.url, { maxZoom: nativeZ, layers: l.layers, styles: l.styles || '', format: l.format || 'image/png', transparent: l.transparent !== false, version: l.version || '1.3.0', attribution: layerConfig.attribution || layerConfig.name, layerName: layerConfig.name, keepBuffer: 0, updateWhenZooming: false });
                 else leafletLayer = L.tileLayer(l.url, { maxZoom: nativeZ, attribution: layerConfig.attribution || layerConfig.name, layerName: layerConfig.name, keepBuffer: 0, updateWhenZooming: false });
             }
             if (leafletLayer) creatorBaseMaps[layerConfig.name] = leafletLayer;
@@ -714,11 +716,7 @@ class MbtilesJob {
     // de 1-2 URLs + un découpage en bandes — cf. _yandexBands ci-dessous, pas
     // d'une simple URL unique).
     _layerUrl(layer, tile) {
-        if (layer.type === 'quadkey') {
-            const q = coordsToQuadKey(tile.x, tile.y, tile.z);
-            return layer.url.replace('{q}', q).replace('{s}', (tile.x + tile.y) % 4);
-        }
-        return layer.url.replace('{z}', tile.z).replace('{x}', tile.x).replace('{y}', tile.y);
+        return tileUrlFor(layer, tile.z, tile.x, tile.y);
     }
 
     // Bandes source EPSG:3395 nécessaires pour reprojeter EXACTEMENT une tuile

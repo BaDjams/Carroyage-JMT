@@ -1556,13 +1556,7 @@ async function zdCreateFinalCanvas(boundingBox, zoom, mapConfig, externalMargin,
             } else {
                 for (let x = nwTile.x; x <= seTile.x; x++) {
                     for (let y = nwTile.y; y <= seTile.y; y++) {
-                        let url;
-                        if (layer.type === 'quadkey') {
-                            const q = zdCoordsToQuadKey(x, y, actualZoom);
-                            url = layer.url.replace('{q}', q).replace('{s}', (x + y) % 4);
-                        } else {
-                            url = layer.url.replace('{z}', actualZoom).replace('{x}', x).replace('{y}', y);
-                        }
+                        const url = tileUrlFor(layer, actualZoom, x, y);
                         const safeUrl = url + (url.includes('?') ? '&' : '?') + cacheBust;
                         tileJobs.push({ safeUrl, x, y });
                     }

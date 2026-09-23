@@ -30,7 +30,7 @@ const INLAND_LICENSED = !!IBOATING_WMTS_URL;
 // (RASTER_MARINE) sont sous abonnement ou convention, la clé vit dans
 // config.private.js. Le WMTS libre du SHOM ne sert que les couches thématiques
 // INSPIRE (bathymétrie, trait de côte…) : leur identifiant se relève sur le
-// GetCapabilities du service (tools/shom_layers.py), d'où une variable plutôt
+// GetCapabilities du service (tools/ogc_layers.py), d'où une variable plutôt
 // qu'un identifiant figé qui donnerait des tuiles vides. Cf. DOCUMENTATION.md §7.6.
 if (typeof SHOM_API_KEY === 'undefined') var SHOM_API_KEY = '';
 if (typeof SHOM_RASTER_LAYER === 'undefined') var SHOM_RASTER_LAYER = 'RASTER_MARINE_3857_WMTS';
@@ -40,6 +40,68 @@ if (typeof SHOM_INSPIRE_LAYER === 'undefined') var SHOM_INSPIRE_LAYER = '';
 const SHOM_WMTS = (base, layer) => `${base}?SERVICE=WMTS&VERSION=1.0.0&REQUEST=GetTile`
     + `&LAYER=${layer}&STYLE=normal&TILEMATRIXSET=3857&FORMAT=image/png`
     + `&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}`;
+
+// Bathymétrie EMODnet : infrastructure européenne, services OGC libres d'accès.
+// Les isobathes sont servies en WMS, pas en tuiles pré-calculées, d'où le type
+// « wms » ci-dessous. L'identifiant de couche se relève sur le GetCapabilities
+// (tools/ogc_layers.py) : il est donc surchargeable sans toucher au code.
+if (typeof EMODNET_WMS === 'undefined') var EMODNET_WMS = 'https://ows.emodnet-bathymetry.eu/wms';
+if (typeof EMODNET_CONTOURS_LAYER === 'undefined') var EMODNET_CONTOURS_LAYER = 'emodnet:contours';
+
+// Demi-circonférence terrestre en EPSG:3857, borne du monde tuilé.
+const WEB_MERCATOR_R = 20037508.342789244;
+
+// Emprise d'une tuile XYZ en EPSG:3857, dans l'ordre attendu par un BBOX WMS.
+function tileBBox3857(z, x, y) {
+    const cote = 2 * WEB_MERCATOR_R / Math.pow(2, z);
+    const ouest = -WEB_MERCATOR_R + x * cote;
+    const nord = WEB_MERCATOR_R - y * cote;
+    return [ouest, nord - cote, ouest + cote, nord];
+}
+
+// URL GetMap d'une tuile pour une couche WMS. La tuile vaut 256×256 px, comme
+// partout ailleurs dans l'application, et son emprise se calcule en 3857.
+function wmsTileUrl(layer, z, x, y) {
+    const version = layer.version || '1.3.0';
+    const p = new URLSearchParams({
+        SERVICE: 'WMS',
+        REQUEST: 'GetMap',
+        VERSION: version,
+        LAYERS: layer.layers,
+        STYLES: layer.styles || '',
+        FORMAT: layer.format || 'image/png',
+        TRANSPARENT: layer.transparent === false ? 'FALSE' : 'TRUE',
+        WIDTH: 256,
+        HEIGHT: 256,
+        BBOX: tileBBox3857(z, x, y).join(','),
+    });
+    // WMS 1.3.0 dit CRS, les versions 1.1.x disent SRS.
+    p.set(version.startsWith('1.3') ? 'CRS' : 'SRS', 'EPSG:3857');
+    return layer.url + (layer.url.includes('?') ? '&' : '?') + p.toString();
+}
+
+// URL de la tuile (z, x, y) pour une couche du catalogue. Une seule définition
+// partagée par l'affichage Leaflet et par les TROIS chemins d'export (image,
+// zone, MBTiles), qui refaisaient chacun la même substitution de leur côté :
+// une couche WMS y serait sortie avec ses {z}/{x}/{y} non substitués, donc
+// affichable mais pas exportable. « yandex » n'est pas traité ici : sa
+// reprojection EPSG:3395 demande 1 à 2 tuiles source par tuile rendue, pas une
+// URL unique (cf. _yandexBands dans mbtilesCreator.js).
+function tileUrlFor(layer, z, x, y) {
+    if (layer.type === 'quadkey') {
+        let quadKey = '';
+        for (let i = z; i > 0; i--) {
+            const mask = 1 << (i - 1);
+            let digit = 0;
+            if ((y & mask) !== 0) digit += 2;
+            if ((x & mask) !== 0) digit += 1;
+            quadKey += digit.toString();
+        }
+        return layer.url.replace('{q}', quadKey).replace('{s}', (x + y) % 4);
+    }
+    if (layer.type === 'wms') return wmsTileUrl(layer, z, x, y);
+    return layer.url.replace('{z}', z).replace('{x}', x).replace('{y}', y);
+}
 
 // « shortName » : nom court pour le cartouche des images exportees, ou la place
 // manque (« 1 carre = 10m, OSM z16 »). Le « name » complet reste celui du selecteur.
@@ -251,7 +313,7 @@ const MAP_LAYERS = [
         // Cartes marines scannées du SHOM. Sous abonnement ou convention : la couche
         // reste masquée tant que SHOM_API_KEY est absente de config.private.js.
         // L'identifiant de couche est à confirmer sur le GetCapabilities du service
-        // (tools/shom_layers.py) ; SHOM_RASTER_LAYER permet de le corriger sans
+        // (tools/ogc_layers.py) ; SHOM_RASTER_LAYER permet de le corriger sans
         // toucher au code.
         "id": "shom_raster",
         "name": "Cartes marines SHOM (privé)",
@@ -285,6 +347,30 @@ const MAP_LAYERS = [
         ]
     },
     {
+        // Lignes de profondeur EMODnet sur fond OpenStreetMap. Les isobathes
+        // arrivent en WMS transparent : si l'identifiant de couche ne convient
+        // pas au service, il reste le fond OSM plutôt qu'une carte blanche.
+        // Couverture : mers européennes.
+        "id": "emodnet_bathy",
+        "name": "Lignes de profondeur (EMODnet)",
+        "shortName": "EMODnet",
+        "attribution": "&copy; les <a href='https://www.openstreetmap.org/copyright' target='_blank' rel='noopener'>contributeurs OpenStreetMap</a> &mdash; bathym&eacute;trie <a href='https://emodnet.ec.europa.eu/en/bathymetry' target='_blank' rel='noopener'>EMODnet</a>",
+        "maxZoom": 19,
+        "layers": [
+            {
+                "url": "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+                "type": "xyz",
+                "maxZoom": 19
+            },
+            {
+                "url": EMODNET_WMS,
+                "type": "wms",
+                "layers": EMODNET_CONTOURS_LAYER,
+                "transparent": true
+            }
+        ]
+    },
+    {
         "id": "osm_standard",
         "name": "OpenStreetMap",
         "shortName": "OSM",
@@ -298,3 +384,7 @@ const MAP_LAYERS = [
         ]
     }
 ];
+
+// Les modules d'export (imagetoprint.js, zoneDownloader.js, mbtilesCreator.js)
+// sont des scripts classiques : ils consomment ces helpers en global.
+Object.assign(window, { tileUrlFor, wmsTileUrl, tileBBox3857 });

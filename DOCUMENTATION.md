@@ -495,7 +495,8 @@ Voir §10 pour la stratégie complète.
   maxZoom: 21,
   requiresKey: "GOOGLE_MAPS_API_KEY",  // optionnel
   layers: [                     // empilement de couches
-    { url: "...", type: "xyz" | "quadkey" | "yandex" }
+    { url: "...", type: "xyz" | "quadkey" | "yandex" | "wms" }
+    // wms : + layers (obligatoire), styles, format, transparent, version
   ]
 }
 ```
@@ -516,6 +517,7 @@ Voir §10 pour la stratégie complète.
 | `inland_waters` | Eaux intérieures (i-Boating privé, sinon libre) | WMTS i-Boating local, sinon Plan IGN + OpenSeaMap | 17 (réglable) ou 19 | `IBOATING_WMTS_URL` (facultative) |
 | `shom_raster` | Cartes marines SHOM (privé) | services.data.shom.fr (abonnement) | 18 | `SHOM_API_KEY` |
 | `shom_inspire` | SHOM INSPIRE (libre) | services.data.shom.fr/INSPIRE | 18 | `SHOM_INSPIRE_LAYER` |
+| `emodnet_bathy` | Lignes de profondeur (EMODnet) | OSM + WMS EMODnet | 19 | non |
 | `osm_standard` | OpenStreetMap | tile.openstreetmap.org | 19 | non |
 
 ### 7.3 Ajout d'une couche
@@ -588,9 +590,11 @@ Deux services distincts, sur le même hôte `services.data.shom.fr`, en Web Merc
 | Couche | Service | Accès | Contenu |
 |---|---|---|---|
 | `shom_raster` | `https://services.data.shom.fr/<clé>/wmts` | abonnement ou convention | cartes marines scannées (`RASTER_MARINE`) |
-| `shom_inspire` | `https://services.data.shom.fr/INSPIRE/wmts` | libre, sans clé | couches thématiques INSPIRE (bathymétrie, trait de côte…) |
+| `shom_inspire` | `https://services.data.shom.fr/INSPIRE/wmts` | libre, sans clé | couches thématiques INSPIRE — liste réelle à relever, cf. ci-dessous |
 
 **Même motif que la clé IGN privée** : la clé vit dans `config.private.js`, jamais dans le dépôt, et la couche reste masquée sans elle. Pour un service de l'État, l'accès aux cartes scannées se demande au SHOM ; le service INSPIRE, lui, ne sert pas ces cartes — seulement les données thématiques.
+
+> **Ne pas attendre d'isobathes du service libre.** Le contenu exact du flux INSPIRE se relève avec `tools/ogc_layers.py` et n'a rien d'acquis : les lignes de profondeur relèvent selon toute vraisemblance des produits sous abonnement. Pour des isobathes libres de droits, voir la couche EMODnet en §7.7.
 
 ```js
 // config.private.js
@@ -601,13 +605,13 @@ var SHOM_INSPIRE_LAYER = 'TCHR_3857_WMTS';             // couche INSPIRE voulue
 
 **Relever les identifiants de couches**
 
-Ils ne se devinent pas et changent d'un service à l'autre. `tools/shom_layers.py` les imprime depuis le `GetCapabilities`, avec leur `TileMatrixSet` et leur plage de zooms :
+Ils ne se devinent pas et changent d'un service à l'autre. `tools/ogc_layers.py` les imprime depuis le `GetCapabilities`, avec leur `TileMatrixSet` et leur plage de zooms :
 
 ```bash
-python3 tools/shom_layers.py                      # service INSPIRE, libre
-python3 tools/shom_layers.py --cle MA_CLE         # service sous abonnement
-python3 tools/shom_layers.py --filtre raster      # ne garde que ces couches
-python3 tools/shom_layers.py --fichier capa.xml   # parse un GetCapabilities déjà téléchargé
+python3 tools/ogc_layers.py                      # service INSPIRE, libre
+python3 tools/ogc_layers.py --cle MA_CLE         # service sous abonnement
+python3 tools/ogc_layers.py --filtre raster      # ne garde que ces couches
+python3 tools/ogc_layers.py --fichier capa.xml   # parse un GetCapabilities déjà téléchargé
 ```
 
 C'est pourquoi `SHOM_INSPIRE_LAYER` est **vide par défaut** : une couche absente du sélecteur vaut mieux qu'une couche qui ne renverrait que des tuiles vides. `SHOM_RASTER_LAYER` porte, lui, une valeur par défaut à confirmer au premier branchement.
@@ -619,6 +623,33 @@ Les contenus diffusés par le SHOM sont protégés : la consultation par ces ser
 **Portée**
 
 Le SHOM couvre la mer, les estuaires et les approches, pas les canaux ni les rivières intérieures : ces couches complètent le fond « Eaux intérieures » (§7.5), elles ne le remplacent pas.
+
+### 7.7 Lignes de profondeur EMODnet, et le type `wms`
+
+Couche `emodnet_bathy` : fond OpenStreetMap surmonté des **isobathes EMODnet**, l'infrastructure bathymétrique européenne. Services OGC libres d'accès, donc exportables et rediffusables — contrairement au SHOM et à i-Boating. Couverture : mers européennes.
+
+Les isobathes ne sont pas servies en tuiles pré-calculées mais en **WMS**, d'où un quatrième type de couche.
+
+```js
+{ url: "https://ows.emodnet-bathymetry.eu/wms", type: "wms",
+  layers: "emodnet:contours", transparent: true }
+```
+
+| Champ | Rôle |
+|---|---|
+| `layers` | identifiant de couche du service (obligatoire) |
+| `transparent` | `true` par défaut — une surcouche ne doit pas masquer le fond |
+| `format` | `image/png` par défaut |
+| `styles` | vide par défaut |
+| `version` | `1.3.0` par défaut ; les versions 1.1.x disent `SRS` là où 1.3.0 dit `CRS`, `wmsTileUrl()` s'en charge |
+
+**Un WMS ne se substitue pas comme un gabarit XYZ** : chaque tuile réclame l'emprise qu'elle couvre. C'est `tileUrlFor(layer, z, x, y)` dans `map-layers.js` qui la calcule (`tileBBox3857`) et compose le `GetMap`. Cette fonction est le **point de passage unique** de l'affichage et des **trois** chemins d'export (image, zone, MBTiles), qui refaisaient chacun la substitution `{z}/{x}/{y}` de leur côté : une couche WMS y serait sortie avec ses accolades intactes, donc affichable mais pas exportable. Le cas Yandex reste à part, sa reprojection EPSG:3395 demandant 1 à 2 tuiles source par tuile rendue.
+
+L'identifiant `emodnet:contours` est surchargeable par `EMODNET_CONTOURS_LAYER`, et le service par `EMODNET_WMS`. S'il ne convenait pas, la couche dégrade proprement : le fond OSM reste, seules les isobathes manquent. Relever les identifiants réels :
+
+```bash
+python3 tools/ogc_layers.py --url https://ows.emodnet-bathymetry.eu/wms --filtre contour
+```
 
 ---
 
@@ -760,10 +791,14 @@ var IBOATING_WMTS_URL = 'http://127.0.0.1:8080/wmts/.../{z}/{x}/{y}.png';
 var IBOATING_WMTS_MAXZOOM = 17;
 
 // Cartes marines SHOM : clé d'abonnement ou de convention, et identifiants de
-// couches relevés avec tools/shom_layers.py — cf. §7.6.
+// couches relevés avec tools/ogc_layers.py — cf. §7.6.
 var SHOM_API_KEY = 'xxx';
 var SHOM_RASTER_LAYER = 'RASTER_MARINE_3857_WMTS';
 var SHOM_INSPIRE_LAYER = 'TCHR_3857_WMTS';
+
+// Surcharges facultatives pour EMODnet (§7.7) : valeurs par defaut sinon.
+var EMODNET_WMS = 'https://ows.emodnet-bathymetry.eu/wms';
+var EMODNET_CONTOURS_LAYER = 'emodnet:contours';
 ```
 
 ### 11.2 Chargement gracieux
