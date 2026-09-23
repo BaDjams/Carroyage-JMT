@@ -1,9 +1,18 @@
 // version.js
 
 // Source unique de vérité pour la version de l'application.
-const APP_VERSION = '23.24';
+const APP_VERSION = '23.25';
 
 const CHANGELOG = [
+  {
+    version: '23.25',
+    date: '2026-09-23',
+    changes: [
+      'Images plus nettes, en carroyage rapide comme en export de zone : les tuiles sont désormais collées pixel pour pixel, comme le fait MOBAC. Jusqu\'ici, chaque tuile était légèrement étirée ou décalée d\'une fraction de pixel au montage, ce qui recalculait tous les pixels et donnait un léger flou, en PNG comme en JPEG',
+      'Avec « upscale » coché, l\'image n\'est plus agrandie qu\'une fois au lieu de deux, et la grille et ses étiquettes sont tracées directement à la taille finale au lieu d\'être agrandies après coup',
+      'Carroyage rapide sur un MBTiles qui ne contient pas le niveau de zoom demandé : la carte, la grille et le géoréférencement GeoTIFF sont maintenant calés sur le zoom réellement utilisé',
+    ],
+  },
   {
     version: '23.24',
     date: '2026-09-22',

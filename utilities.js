@@ -472,8 +472,9 @@ function gridLineWidthPx(level, width, height, exportScale = 1) {
     return (Math.round(px * 4) / 4) / exportScale;
 }
 
-// Agrandissement appliqué après dessin quand « upscale » est coché (cf. l'étape
-// TARGET_EXPORT_HEIGHT des exports image).
+// Agrandissement « upscale » vers 2160 px de haut. L'export de zone l'applique après
+// dessin (étape TARGET_EXPORT_HEIGHT), en dernier recours ; le carroyage rapide l'applique
+// dès le dessin de la carte.
 function exportUpscaleFactor(height, upscaleEnabled, targetHeight = 2160) {
     return (upscaleEnabled && height < targetHeight) ? targetHeight / height : 1;
 }

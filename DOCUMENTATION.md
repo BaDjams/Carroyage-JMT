@@ -819,6 +819,8 @@ Format compatible QGIS/Google Earth Pro : une colonne `WKT` + colonnes label/typ
 ### 8.4 PNG haute résolution
 
 - Récupère les tuiles dans le BBox cible (online ou MBTiles)
+- **Netteté** : les tuiles sont collées à leur taille native (256 px) et à des positions entières, sans aucun rééchantillonnage — comme MOBAC. Sans upscale ni déviation, les pixels livrés sont ceux des tuiles. En carroyage rapide, le pivot est décalé de moins d'un demi-pixel pour que la carte tombe sur un pixel entier ; grille, KML et géoréférencement partent de ce même pivot
+- **Upscale** : un seul agrandissement. En carroyage rapide, la carte native est dessinée directement à l'échelle finale (2160 px de haut) et la grille à la résolution finale ; en export de zone, l'échelle vise 3840 px sur le grand côté et 2160 px de haut au moins
 - Trace la grille par-dessus
 - Ajoute légende (échelle, nord)
 - Adapte la largeur de trait à la taille de l'image livrée (ci-dessous)
@@ -833,7 +835,7 @@ Format compatible QGIS/Google Earth Pro : une colonne `WKT` + colonnes label/typ
 
 - `px = mm × grand côté de l'image livrée / 420` (A3), arrondi au quart de pixel
 - Planchers : 1 px pour le trait fin (plus fin, un trait pâlit sans s'amincir), puis ×1,5 au moins d'un niveau au suivant — une petite image donne 1 / 1,5 / 2,25 px
-- L'agrandissement final en 2160 px de haut (case « upscale ») est inclus via `exportScale` : l'épaisseur est calculée pour l'image livrée, puis divisée par ce facteur sur le canvas de dessin
+- L'agrandissement final en 2160 px de haut (case « upscale ») est inclus via `exportScale` : l'épaisseur est calculée pour l'image livrée, puis divisée par ce facteur sur le canvas de dessin. Le carroyage rapide dessine directement à la taille livrée (`exportScale` = 1) ; en export de zone, cet agrandissement final ne sert plus qu'en dernier recours (échelle plafonnée à ×16)
 - Réglage centralisé : `GRID_LINE_WIDTH_MM`, `GRID_LINE_SHEET_MM`, `GRID_LINE_MIN_PX`, `GRID_LINE_MIN_STEP`
 - Non concernés : l'aperçu Leaflet (1 / 2 / 3 px écran), les MBTiles (épaisseurs fixes, tuiles vues à l'écran) et le KML (largeur en pixels écran)
 

@@ -185,40 +185,50 @@ async function generateImageToPrint() {
 
         // 3. TÉLÉCHARGEMENT
         loadingMessage.textContent = `Téléchargement de la zone étendue (0%)...`;
-        const { finalCanvas: worldCanvas, scaleFactor, actualZoom } = await createFinalCanvasWithLayers(downloadBoundingBox, zoomLevel, mapConfig, (progress) => {
-            loadingMessage.textContent = `Téléchargement des tuiles (${progress.toFixed(0)}%)...`;},
-            upscaleEnabled
+        const { canvas: worldCanvas, originX: worldOriginX, originY: worldOriginY, actualZoom } = await createFinalCanvasWithLayers(downloadBoundingBox, zoomLevel, mapConfig, (progress) => {
+            loadingMessage.textContent = `Téléchargement des tuiles (${progress.toFixed(0)}%)...`;}
         );
 
         loadingMessage.textContent = "Assemblage et découpe finale...";
 
         // 4. DIMENSIONS FINALES & MARGES
-        const metersPerPixel = (Math.cos(refLat * Math.PI / 180) * 2 * Math.PI * 6378137) / (256 * Math.pow(2, actualZoom));
-        const pixelsPerMeter = (1 / metersPerPixel) * scaleFactor;
-        
-        const scalePx = config.scale * pixelsPerMeter;
-        const marginLarge = scalePx * 1;
-        const marginSmall = scalePx * 0.3;
+        // Marges en nombre de cases : grande (1) du côté des étiquettes, petite (0,3) ailleurs.
+        const marginLargeCells = 1;
+        const marginSmallCells = 0.3;
 
-        let marginLeft = marginLarge;
-        let marginRight = marginSmall;
-        let marginTop, marginBottom;
+        let marginLeftCells = marginLargeCells;
+        let marginRightCells = marginSmallCells;
+        let marginTopCells, marginBottomCells;
 
         if (config.letteringDirection === 'ascending') {
-            marginTop = marginSmall;
-            marginBottom = marginLarge;
+            marginTopCells = marginSmallCells;
+            marginBottomCells = marginLargeCells;
         } else {
-            marginTop = marginLarge;
-            marginBottom = marginSmall;
+            marginTopCells = marginLargeCells;
+            marginBottomCells = marginSmallCells;
         }
 
         // Double entrée : labels des deux côtés → agrandir aussi marginRight et le côté opposé
         if (config.doubleEntry) {
-            marginRight = marginLarge;
-            if (config.letteringDirection === 'ascending') marginTop = marginLarge;
-            else marginBottom = marginLarge;
+            marginRightCells = marginLargeCells;
+            if (config.letteringDirection === 'ascending') marginTopCells = marginLargeCells;
+            else marginBottomCells = marginLargeCells;
         }
-        
+
+        // Upscale : un seul agrandissement, choisi pour que l'image livrée atteigne
+        // 2160 px de haut. La carte native y est dessinée directement (étape 5), la
+        // grille et les textes à la résolution finale : rien n'est ré-étiré après coup.
+        const metersPerPixel = (Math.cos(refLat * Math.PI / 180) * 2 * Math.PI * 6378137) / (256 * Math.pow(2, actualZoom));
+        const nativeHeight = (rowsCount + marginTopCells + marginBottomCells) * config.scale / metersPerPixel;
+        const scaleFactor = exportUpscaleFactor(nativeHeight, upscaleEnabled);
+        const pixelsPerMeter = (1 / metersPerPixel) * scaleFactor;
+
+        const scalePx = config.scale * pixelsPerMeter;
+        const marginLeft = marginLeftCells * scalePx;
+        const marginRight = marginRightCells * scalePx;
+        const marginTop = marginTopCells * scalePx;
+        const marginBottom = marginBottomCells * scalePx;
+
         // Calcul dimensions grille en pixels
         const gridWidthPx = colsCount * scalePx;
         const gridHeightPx = rowsCount * scalePx;
@@ -274,23 +284,40 @@ async function generateImageToPrint() {
             }
         }
         
-        const worldOriginPx = itpLatLonToWorldPixels(downloadBoundingBox.north, downloadBoundingBox.west, zoomLevel);
-        const pivotWorldGlobalPx = itpLatLonToWorldPixels(pivotGeoLat, pivotGeoLon, zoomLevel);
-        const pivotOnWorldCanvasX = (pivotWorldGlobalPx.x - worldOriginPx.x) * scaleFactor;
-        const pivotOnWorldCanvasY = (pivotWorldGlobalPx.y - worldOriginPx.y) * scaleFactor;
+        // Pivot dans la carte native, au zoom réellement assemblé : un MBTiles sans le
+        // niveau demandé en fournit un autre (cf. tileSourceGetBestZoom).
+        const pivotWorldGlobalPx = itpLatLonToWorldPixels(pivotGeoLat, pivotGeoLon, actualZoom);
+        const pivotOnWorldCanvasX = pivotWorldGlobalPx.x - worldOriginX;
+        const pivotOnWorldCanvasY = pivotWorldGlobalPx.y - worldOriginY;
 
         // --- PROJECTION CARTE ---
-        finalCtx.save();
-        finalCtx.translate(pivotFinalX, pivotFinalY);
-        finalCtx.rotate(-config.deviation * Math.PI / 180);
-        finalCtx.drawImage(worldCanvas, -pivotOnWorldCanvasX, -pivotOnWorldCanvasY);
-        finalCtx.restore();
+        const deviationRad = Number(config.deviation) * Math.PI / 180;
+        if (deviationRad === 0 && scaleFactor === 1) {
+            // Copie pixel pour pixel, comme MOBAC : le pivot est décalé de moins d'un
+            // demi-pixel pour que la carte tombe sur une position entière. Grille, KML et
+            // géoréférencement partent de ce pivot et restent calés sur la carte.
+            const mapX = Math.round(pivotFinalX - pivotOnWorldCanvasX);
+            const mapY = Math.round(pivotFinalY - pivotOnWorldCanvasY);
+            pivotFinalX = mapX + pivotOnWorldCanvasX;
+            pivotFinalY = mapY + pivotOnWorldCanvasY;
+            finalCtx.drawImage(worldCanvas, mapX, mapY);
+        } else {
+            // Rotation et/ou agrandissement : un seul rééchantillonnage, depuis la carte native.
+            finalCtx.save();
+            finalCtx.imageSmoothingEnabled = true;
+            finalCtx.imageSmoothingQuality = 'high';
+            finalCtx.translate(pivotFinalX, pivotFinalY);
+            finalCtx.rotate(-deviationRad);
+            finalCtx.scale(scaleFactor, scaleFactor);
+            finalCtx.drawImage(worldCanvas, -pivotOnWorldCanvasX, -pivotOnWorldCanvasY);
+            finalCtx.restore();
+        }
 
         // 6. DESSIN DE LA GRILLE
         const drawConfig = { ...config, deviation: 0, realDeviation: config.deviation };
-        // Épaisseur rapportée à l'image livrée (cf. gridLineWidthPx), agrandissement final compris.
-        drawConfig.lineWidth = gridLineWidthPx(config.lineWidth, finalWidth, finalHeight,
-            exportUpscaleFactor(finalHeight, upscaleEnabled));
+        // Épaisseur rapportée à l'image livrée (cf. gridLineWidthPx) : celle-ci n'est plus
+        // agrandie après dessin.
+        drawConfig.lineWidth = gridLineWidthPx(config.lineWidth, finalWidth, finalHeight);
         // Ligne 2 du cartouche : le fond et le zoom reellement employes. actualZoom peut
         // differer du zoom demande quand le provider plafonne son niveau natif.
         drawConfig.cartoucheGridKind = 'cado';
@@ -315,7 +342,15 @@ async function generateImageToPrint() {
             const backupRes = window.kmlResources;
             window.kmlResources = cadoKmlResources;
             if (typeof drawZoneKmlFeatures === 'function') {
-                drawZoneKmlFeatures(finalCtx, zoomLevel, loadedCadoKmlFeatures, localLatLonToPixelsRotated);
+                // Icônes et libellés KML ont des tailles fixes en pixels : dessinés à
+                // l'échelle de l'upscale, ils gardent leur taille par rapport à la carte.
+                finalCtx.save();
+                finalCtx.scale(scaleFactor, scaleFactor);
+                drawZoneKmlFeatures(finalCtx, actualZoom, loadedCadoKmlFeatures, (lat, lon) => {
+                    const p = localLatLonToPixelsRotated(lat, lon);
+                    return { x: p.x / scaleFactor, y: p.y / scaleFactor };
+                });
+                finalCtx.restore();
             }
             window.kmlResources = backupRes;
         }
@@ -362,25 +397,7 @@ async function generateImageToPrint() {
 
         drawCadoElementsOnCanvas(finalCtx, drawConfig, localLatLonToPixels, [a1GeoForDrawLon, a1GeoForDrawLat]);
         
-        // 7. UPSCALING
-        const TARGET_EXPORT_HEIGHT = 2160;
-        let exportCanvas = finalCanvas;
-        if (upscaleEnabled && finalCanvas.height < TARGET_EXPORT_HEIGHT) {
-            const exportScale = TARGET_EXPORT_HEIGHT / finalCanvas.height;
-            const exportWidth = Math.round(finalCanvas.width * exportScale);
-            const scaledCanvas = document.createElement('canvas');
-            scaledCanvas.width = exportWidth;
-            scaledCanvas.height = TARGET_EXPORT_HEIGHT;
-            const scaledCtx = scaledCanvas.getContext('2d');
-            scaledCtx.fillStyle = 'white';
-            scaledCtx.fillRect(0, 0, scaledCanvas.width, scaledCanvas.height);
-            scaledCtx.imageSmoothingEnabled = true;
-            scaledCtx.imageSmoothingQuality = 'high';
-            scaledCtx.drawImage(finalCanvas, 0, 0, scaledCanvas.width, scaledCanvas.height);
-            exportCanvas = scaledCanvas;
-        }
-        
-        // 8. EXPORT
+        // 7. EXPORT (l'upscale a déjà été appliqué au dessin, cf. étape 4)
         const quality = parseInt(document.getElementById('cado-jpeg-quality').value) / 100;
         const mimeType = format === 'jpeg' ? 'image/jpeg' : 'image/png';
         const fileExtension = format === 'jpeg' ? '.jpg'
@@ -397,32 +414,29 @@ async function generateImageToPrint() {
         if (format === 'geotiff' || format === 'geotiff-jpeg') {
             // Géoréférencement EPSG:3857 (nord-haut, valable car déviation = 0).
             // Le coin haut-gauche du canvas final correspond au world-pixel Web
-            // Mercator (zoomLevel) : pivot - (position du pivot)/scaleFactor.
-            // exportCanvas peut être ré-étiré (upscale 4K) → on corrige par sX/sY.
+            // Mercator (actualZoom) : pivot - (position du pivot)/scaleFactor.
             const canvasNwWorldPxX = pivotWorldGlobalPx.x - pivotFinalX / scaleFactor;
             const canvasNwWorldPxY = pivotWorldGlobalPx.y - pivotFinalY / scaleFactor;
-            const anchor = geoAnchorFromWorldPixels(canvasNwWorldPxX, canvasNwWorldPxY, zoomLevel);
-            const sX = exportCanvas.width / finalCanvas.width;
-            const sY = exportCanvas.height / finalCanvas.height;
+            const anchor = geoAnchorFromWorldPixels(canvasNwWorldPxX, canvasNwWorldPxY, actualZoom);
             const geoOpts = {
                 originX: anchor.originX,
                 originY: anchor.originY,
-                pixelScaleX: anchor.metersPerPixel / (scaleFactor * sX),
-                pixelScaleY: anchor.metersPerPixel / (scaleFactor * sY),
+                pixelScaleX: anchor.metersPerPixel / scaleFactor,
+                pixelScaleY: anchor.metersPerPixel / scaleFactor,
                 epsg: 3857,
             };
             if (format === 'geotiff-jpeg') {
                 geoOpts.quality = quality;
-                const blob = await canvasToGeoTIFFJpeg(exportCanvas, geoOpts);
+                const blob = await canvasToGeoTIFFJpeg(finalCanvas, geoOpts);
                 if (blob) { downloadFile(blob, fileName); }
                 else { showError("Erreur lors de la création du GeoTIFF JPEG."); }
             } else {
-                const blob = canvasToGeoTIFF(exportCanvas, geoOpts);
+                const blob = canvasToGeoTIFF(finalCanvas, geoOpts);
                 if (blob) { downloadFile(blob, fileName); }
                 else { showError("Erreur lors de la création du fichier GeoTIFF."); }
             }
         } else {
-            exportCanvas.toBlob((blob) => {
+            finalCanvas.toBlob((blob) => {
                 if (blob) { downloadFile(blob, fileName); }
                 else { showError("Erreur lors de la création du fichier image."); }
             }, mimeType, quality);
@@ -490,38 +504,26 @@ function calculateOptimalZoom(boundingBox, mapConfig) {
     return Math.min(Math.floor(zoomApproximation), maxLayerZoom);
 }
 
-async function createFinalCanvasWithLayers(boundingBox, zoom, mapConfig, onProgress, upscaleEnabled = true) {
+// Assemble les tuiles à leur résolution native, sans aucun rééchantillonnage.
+// L'origine du canvas est calée sur un pixel entier du monde : chaque tuile y tombe
+// à une position entière, et un point de world pixel P se trouve exactement en
+// P - origine. L'agrandissement éventuel est fait une seule fois, par l'appelant.
+async function createFinalCanvasWithLayers(boundingBox, zoom, mapConfig, onProgress) {
     const actualZoom = (typeof tileSourceIsActive === 'function' && tileSourceIsActive())
         ? tileSourceGetBestZoom(zoom)
         : zoom;
 
     const nwPixel = itpLatLonToWorldPixels(boundingBox.north, boundingBox.west, actualZoom);
     const sePixel = itpLatLonToWorldPixels(boundingBox.south, boundingBox.east, actualZoom);
-    
-    const naturalWidth = Math.abs(sePixel.x - nwPixel.x);
-    const naturalHeight = Math.abs(sePixel.y - nwPixel.y);
 
-    const TARGET_HEIGHT = 2160;
-    let scaleFactor = 1;
-
-    if (upscaleEnabled && naturalHeight < TARGET_HEIGHT) {
-        scaleFactor = TARGET_HEIGHT / naturalHeight;
-        scaleFactor = Math.min(scaleFactor, 16);
-    }
+    const originX = Math.floor(nwPixel.x);
+    const originY = Math.floor(nwPixel.y);
 
     const TILE_SIZE = 256;
-    const tempCanvas = document.createElement('canvas');
-    tempCanvas.width = naturalWidth;
-    tempCanvas.height = naturalHeight;
-    const tempCtx = tempCanvas.getContext('2d');
-
-    const finalCanvas = document.createElement('canvas');
-    finalCanvas.width = Math.round(naturalWidth * scaleFactor);
-    finalCanvas.height = Math.round(naturalHeight * scaleFactor);
-    const ctx = finalCanvas.getContext('2d');
-    
-    ctx.imageSmoothingEnabled = true;
-    ctx.imageSmoothingQuality = 'high';
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.ceil(sePixel.x) - originX;
+    canvas.height = Math.ceil(sePixel.y) - originY;
+    const tempCtx = canvas.getContext('2d');
 
     const nwTile = { x: Math.floor(nwPixel.x / TILE_SIZE), y: Math.floor(nwPixel.y / TILE_SIZE) };
     const seTile = { x: Math.floor(sePixel.x / TILE_SIZE), y: Math.floor(sePixel.y / TILE_SIZE) };
@@ -538,9 +540,7 @@ async function createFinalCanvasWithLayers(boundingBox, zoom, mapConfig, onProgr
                     await new Promise(resolve => {
                         const img = new Image();
                         img.onload = () => {
-                            const tileX = (x * TILE_SIZE) - nwPixel.x;
-                            const tileY = (y * TILE_SIZE) - nwPixel.y;
-                            tempCtx.drawImage(img, Math.round(tileX), Math.round(tileY));
+                            tempCtx.drawImage(img, x * TILE_SIZE - originX, y * TILE_SIZE - originY);
                             URL.revokeObjectURL(blobUrl);
                             resolve();
                         };
@@ -588,8 +588,8 @@ async function createFinalCanvasWithLayers(boundingBox, zoom, mapConfig, onProgr
                         const westLon  = tileResult.tx / n3395 * 360 - 180;
                         const northPx  = itpLatLonToWorldPixels(northLat, westLon, actualZoom);
                         const southPx  = itpLatLonToWorldPixels(southLat, westLon, actualZoom);
-                        const destX = Math.floor(northPx.x - nwPixel.x);
-                        const destY = Math.floor(northPx.y - nwPixel.y);
+                        const destX = Math.floor(northPx.x - originX);
+                        const destY = Math.floor(northPx.y - originY);
                         const destH = Math.ceil(southPx.y - northPx.y) + 1;
                         tempCtx.drawImage(tileResult.img, destX, destY, TILE_SIZE + 1, destH);
                     }
@@ -610,15 +610,12 @@ async function createFinalCanvasWithLayers(boundingBox, zoom, mapConfig, onProgr
                     img.src = job.safeUrl;
                 }))).forEach(tileResult => {
                     if (tileResult.success) {
-                        const tileX = (tileResult.x * TILE_SIZE) - nwPixel.x;
-                        const tileY = (tileResult.y * TILE_SIZE) - nwPixel.y;
-                        tempCtx.drawImage(tileResult.img, Math.round(tileX), Math.round(tileY));
+                        tempCtx.drawImage(tileResult.img, tileResult.x * TILE_SIZE - originX, tileResult.y * TILE_SIZE - originY);
                     }
                 });
             }
         }
     }
 
-    ctx.drawImage(tempCanvas, 0, 0, finalCanvas.width, finalCanvas.height);
-    return { finalCanvas, scaleFactor, actualZoom };
+    return { canvas, originX, originY, actualZoom };
 }
