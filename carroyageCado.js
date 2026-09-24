@@ -369,7 +369,7 @@ async function handleCadoKmzFile(event) {
 function updateDynamicGridName() {
     try {
         const baseName = document.getElementById('grid-name-base').value || 'CADO Grid';
-        const scale = document.getElementById('scale').value || 20;
+        const scale = roundGridScale(document.getElementById('scale').value || 20);
         const refPoint = document.querySelector('input[name="reference-point"]:checked').value;
         const lettering = document.querySelector('input[name="lettering-direction"]:checked').value;
         
@@ -547,8 +547,8 @@ function getGridConfiguration(lat, lon) {
     }
 
     const contentType = document.querySelector('input[name="content-type"]:checked').value;
-    // Échelle limitée à 65 535 m, comme dans CadoTour (cf. RC_MAX_SCALE, seedManager.js).
-    const scale = parseFloat(document.getElementById('scale').value);
+    // Échelle au demi-mètre, de 0,5 à 65 535 m, comme dans CadoTour (cf. seedManager.js).
+    const scale = roundGridScale(document.getElementById('scale').value);
     const scaleProblem = gridScaleProblem(scale);
     if (scaleProblem) throw new Error(scaleProblem);
     return {

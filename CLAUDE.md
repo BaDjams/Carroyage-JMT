@@ -9,13 +9,17 @@ exactement la même grille dans l'autre. Les fichiers concernés : `seedManager.
 de `utilities.js` ici ; `gridRecreation.js` et `roundDeviation` / `MAX_SCALE` de
 `carroyage.js` dans CadoTour.
 
-État commun (format v2, depuis Carroyage-JMT v23.30 et CadoTour 1.53.157) :
+État commun (format v3, depuis Carroyage-JMT v23.31 et CadoTour 1.53.158) :
 - déviation au dixième de degré, `(déviation + 180) × 10` sur 12 bits ; échelle
-  sur 16 bits ; la version 1 (déviation au degré, échelle sur 17 bits) reste lue ;
+  en mètres sur 16 bits puis un bit de demi-mètre ; les versions 1 (déviation au
+  degré, échelle sur 17 bits) et 2 (sans le bit du demi-mètre) restent lues ;
+  le champ de version (2 bits) n'a plus de valeur libre : une version 4 devra
+  d'abord réserver de la place ;
 - arrondi de la déviation : `Math.round(x × 10) / 10` D'ABORD, repli dans
   [-180, 180] seulement pour un angle qui en sort ;
-- échelle de 1 à **65 535 m** par case dans les deux applications, avec un
-  message qui l'explique dès la saisie (depuis v23.31 et CadoTour 1.53.158) ;
+- échelle de **0,5 à 65 535 m** par case, arrondie au demi-mètre
+  `Math.round(x × 2) / 2` (`roundGridScale` ici, `roundScale` dans CadoTour), dans
+  les deux applications, avec un message qui l'explique dès la saisie ;
 - PNG : une espace suit le code dans le chunk `tEXt` ; à la lecture, un code
   invalide est retenté privé de 1 à 4 caractères finaux (octets du CRC).
 

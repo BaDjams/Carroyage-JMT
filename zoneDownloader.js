@@ -481,9 +481,9 @@ function getZoneCadoConfigAndBounds() {
     const [seLat, seLon] = seCoordsStr.split(',').map(c => parseFloat(c.trim()));
 
     // Lecture du Panel 5 (Nouvelle logique)
-    const scale = parseFloat(document.getElementById('zone-cado-scale').value);
+    const scale = roundGridScale(document.getElementById('zone-cado-scale').value);
     if (isNaN(scale) || scale <= 0) throw new Error("L'échelle doit être un nombre positif.");
-    // Même limite qu'en carroyage rapide et que dans CadoTour (cf. RC_MAX_SCALE).
+    // Mêmes règles qu'en carroyage rapide et que dans CadoTour (cf. seedManager.js).
     const scaleProblem = gridScaleProblem(scale);
     if (scaleProblem) throw new Error(scaleProblem);
     

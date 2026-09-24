@@ -12,6 +12,7 @@ const CHANGELOG = [
     date: "2026-09-24",
     changes: [
       "Échelle limitée à 65 535 m par case, comme dans CadoTour, avec un message dès la saisie en carroyage rapide et en export de zone",
+      "Échelle réglable au demi-mètre (12,5 m), comme dans CadoTour",
     ],
   },
   {
