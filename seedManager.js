@@ -22,10 +22,15 @@
 //     grille 0 à 4 : Q12, Z18, Q9, Z14, Z26
 //            5     : de A1 à N colonnes × M lignes (8 + 8)
 //            6     : bornes libres, colonnes puis lignes de début et de fin (4 × 8, signées)
+//            7     : bornes libres (4 × 8), puis décalage du centre (colonnes, lignes : 2 × 8,
+//                    demi-cases, signés) — grille « centre » complétée d'un seul côté dans
+//                    CadoTour : A1 et le centre de rotation restent ceux d'origine, le centre
+//                    n'est plus le milieu des bornes (cf. gridCenterOffsetCells, utilities.js)
 // Suit un caractère de contrôle : somme des caractères pondérés par les puissances
 // successives d'un générateur de GF(32) (GF(64) en base64). Toute faute sur un
 // caractère et toute inversion de deux caractères voisins sont repérées, tant que le
-// code compte moins de 31 caractères (63 en base64) : il en fait 28 au plus.
+// code compte au plus 31 caractères (63 en base64) : il en fait 31 au plus (bornes libres et
+// décalage du centre), 28 sans décalage.
 //
 // Versions précédentes, encore lues :
 //   - version 1 (v23.28 et v23.29) : déviation au degré sur 9 bits, échelle en mètres
@@ -68,6 +73,15 @@ const RC_PRESETS = [
 ];
 const RC_SPEC_FROM_A1 = 5;
 const RC_SPEC_FREE = 6;
+const RC_SPEC_FREE_SHIFT = 7;
+
+// Décalage du centre d'une grille « centre » complétée (centerShift, demi-cases), ou
+// null : grille « coin A1 », ou centre au milieu des bornes.
+function rcCenterShift(p) {
+    if (p.pivot === 'origin' || !p.centerShift) return null;
+    const cols = Number(p.centerShift.cols) || 0, rows = Number(p.centerShift.rows) || 0;
+    return cols || rows ? { cols, rows } : null;
+}
 
 // Échelle d'une case, en mètres : de 0,5 à 65 535 m, au demi-mètre — les 16 bits
 // de mètres et le bit du demi-mètre du code (version 3). Hors de là, une grille
@@ -164,6 +178,12 @@ function rcGridSpec(p) {
     if (!b.every(Number.isInteger) || b.includes(0)) return null;
     const preset = RC_PRESETS.findIndex(g =>
         g.startCol === p.startCol && g.endCol === p.endCol && g.startRow === p.startRow && g.endRow === p.endRow);
+    // Centre décalé : bornes libres et décalage, ou pas de code.
+    const shift = rcCenterShift(p);
+    if (shift) {
+        const fits = v => Number.isInteger(v) && v >= -128 && v <= 127;
+        return b.every(fits) && fits(shift.cols) && fits(shift.rows) ? { spec: RC_SPEC_FREE_SHIFT, shift } : null;
+    }
     if (preset >= 0) return { spec: preset };
     if (p.startCol === 1 && p.startRow === 1 && p.endCol >= 1 && p.endCol <= 255 && p.endRow >= 1 && p.endRow <= 255) {
         return { spec: RC_SPEC_FROM_A1 };
@@ -203,8 +223,12 @@ function rcPayloadBits(p) {
         if (grid.spec === RC_SPEC_FROM_A1) {
             rcPush(bits, p.endCol, 8);
             rcPush(bits, p.endRow, 8);
-        } else if (grid.spec === RC_SPEC_FREE) {
+        } else if (grid.spec === RC_SPEC_FREE || grid.spec === RC_SPEC_FREE_SHIFT) {
             [p.startCol, p.endCol, p.startRow, p.endRow].forEach(v => rcPush(bits, v + 128, 8));
+            if (grid.spec === RC_SPEC_FREE_SHIFT) {
+                rcPush(bits, grid.shift.cols + 128, 8);
+                rcPush(bits, grid.shift.rows + 128, 8);
+            }
         }
         rcPush(bits, p.direction === 'descending' ? 0 : 1, 1);
         rcPush(bits, p.pivot === 'origin' ? 0 : 1, 1);
@@ -275,9 +299,10 @@ function rcParse(bits) {
             bounds = { startCol, endCol, startRow, endRow };
         } else if (spec === RC_SPEC_FROM_A1) {
             bounds = { startCol: 1, endCol: r.read(8), startRow: 1, endRow: r.read(8) };
-        } else if (spec === RC_SPEC_FREE) {
+        } else if (spec === RC_SPEC_FREE || spec === RC_SPEC_FREE_SHIFT) {
             const [startCol, endCol, startRow, endRow] = [0, 0, 0, 0].map(() => r.read(8) - 128);
             bounds = { startCol, endCol, startRow, endRow };
+            if (spec === RC_SPEC_FREE_SHIFT) bounds.centerShift = { cols: r.read(8) - 128, rows: r.read(8) - 128 };
         } else {
             bounds = null;
         }
@@ -286,6 +311,8 @@ function rcParse(bits) {
         const swapAxes = r.read(1) === 1;
         const doubleEntry = r.read(1) === 1;
         p = { kind: 'cado', lat, lon, pivot, scale, ...bounds, direction, swapAxes, doubleEntry, deviation, zoom, _valid: !!bounds };
+        // Un décalage n'existe que pour une grille « centre », et n'est jamais nul.
+        if (p.centerShift) p._valid = p._valid && pivot === 'center' && !!(p.centerShift.cols || p.centerShift.rows);
     } else {
         const dLat = r.read(22);
         const dLon = r.read(23);
@@ -343,9 +370,16 @@ function decodeRecreationCode(input) {
 
     // base32 : casse indifférente, tirets de groupement ignorés, O lu 0, I et L lus 1.
     const asBase32 = s.toUpperCase().replace(/-/g, '').replace(/O/g, '0').replace(/[IL]/g, '1');
-    const tries = /[a-z_]/.test(s)
-        ? [['base64', s], ['base32', asBase32]]
-        : [['base32', asBase32], ['base64', s]];
+    // Casse mêlée : base64 seulement. Un code base32 se tape d'une seule casse ; relire
+    // en base32 un code base64 mal recopié (sans ses « - », en majuscules) en ferait
+    // parfois un autre code valide — une faute ne serait plus repérée. Même règle dans
+    // CadoTour (gridRecreation.js).
+    // i, l, o ne comptent pas : base32 les relit 1, 1, 0, et on les tape sans y penser.
+    const mixedCase = /[a-hjkmnp-z]/.test(s) && /[A-HJKMNP-Z]/.test(s);
+    const tries = mixedCase ? [['base64', s]]
+        : /[a-z_]/.test(s)
+            ? [['base64', s], ['base32', asBase32]]
+            : [['base32', asBase32], ['base64', s]];
     let firstError = null;
     for (const [alphabet, text] of tries) {
         try { return rcDecodeWith(text, alphabet); }
@@ -371,6 +405,7 @@ function cadoRecreationCode(config, { deviation = 0, zoom = null } = {}) {
         startRow: Number(config.startRow), endRow: Number(config.endRow),
         direction: config.letteringDirection,
         swapAxes: !!config.swapAxes, doubleEntry: !!config.doubleEntry,
+        centerShift: config.centerShift,
         deviation, zoom,
     });
 }
@@ -508,7 +543,19 @@ function rcGridConfig(p, deviation) {
         startCol: numberToLetter(p.startCol), endCol: numberToLetter(p.endCol),
         startRow: p.startRow, endRow: p.endRow,
         deviation, swapAxes: p.swapAxes,
+        ...(p.centerShift ? { centerShift: { ...p.centerShift } } : {}),
     };
+}
+
+// Signature d'une grille reprise d'un code : tant que point, échelle, bornes,
+// référence et sens des lettres restent ceux-là, son décalage du centre vaut (cf.
+// getGridConfiguration).
+function centerShiftKey(config) {
+    const micro = v => Math.round(Number(v) * RC_MICRO);
+    return [micro(config.latitude), micro(config.longitude), Number(config.scale),
+        letterToNumber(String(config.startCol)), letterToNumber(String(config.endCol)),
+        Number(config.startRow), Number(config.endRow),
+        config.referencePointChoice === 'origin' ? 'origin' : 'center', config.letteringDirection].join('|');
 }
 
 // Emprise d'une grille CADO (bords extrêmes de ses lignes).
@@ -588,6 +635,12 @@ function applyQuickGridSettings(g) {
         zoomSelect.dispatchEvent(new Event('change'));
     }
 
+    // Grille complétée dans CadoTour : A1 et centre figés, repris par getGridConfiguration
+    // tant que la grille n'est pas retouchée.
+    window.cadoCenterShiftFromCode = g.centerShift
+        ? { shift: { ...g.centerShift }, key: centerShiftKey(rcGridConfig(g, g.deviation)) }
+        : null;
+
     if (typeof updateDynamicGridName === 'function') updateDynamicGridName();
 }
 
@@ -621,6 +674,7 @@ function zoneFrameFromCode(p) {
             startCol: numberToLetter(p.startCol), endCol: numberToLetter(p.endCol),
             startRow: p.startRow, endRow: p.endRow,
             direction: p.direction, swapAxes: p.swapAxes, doubleEntry: p.doubleEntry,
+            ...(p.centerShift ? { centerShift: { ...p.centerShift } } : {}),
         },
     };
 }

@@ -160,14 +160,17 @@ async function generateImageToPrint() {
         // partie positive de la grille (le fond de carte s'arrête à la moitié droite).
         let bboxP1, bboxP2, bboxP3, bboxP4;
         if (config.referencePointChoice === 'center') {
-            const halfCols = colsCount / 2 + bufferCells;
-            const halfRows = rowsCount / 2 + bufferCells;
+            // Grille en cases autour du centre : symétrique, sauf grille complétée d'un
+            // seul côté (centre figé, cf. gridCenterOffsetCells).
+            const center = gridCenterOffsetCells(config);
+            const x0 = minColOff - center.col - bufferCells, x1 = minColOff - center.col + colsCount + bufferCells;
+            const y0 = minRowOff - center.row - bufferCells, y1 = minRowOff - center.row + rowsCount + bufferCells;
             const cLat = config.latitude;
             const cLon = config.longitude;
-            bboxP1 = calculateLocalGeoPoint(-halfCols, -halfRows, config, cLat, cLon);
-            bboxP2 = calculateLocalGeoPoint( halfCols, -halfRows, config, cLat, cLon);
-            bboxP3 = calculateLocalGeoPoint( halfCols,  halfRows, config, cLat, cLon);
-            bboxP4 = calculateLocalGeoPoint(-halfCols,  halfRows, config, cLat, cLon);
+            bboxP1 = calculateLocalGeoPoint(x0, y0, config, cLat, cLon);
+            bboxP2 = calculateLocalGeoPoint(x1, y0, config, cLat, cLon);
+            bboxP3 = calculateLocalGeoPoint(x1, y1, config, cLat, cLon);
+            bboxP4 = calculateLocalGeoPoint(x0, y1, config, cLat, cLon);
         } else {
             bboxP1 = calculateLocalGeoPoint(minColOff - bufferCells, minRowOff - bufferCells, config, realA1Coords[1], realA1Coords[0]);
             bboxP2 = calculateLocalGeoPoint(maxColOff + bufferCells, minRowOff - bufferCells, config, realA1Coords[1], realA1Coords[0]);
@@ -261,8 +264,15 @@ async function generateImageToPrint() {
         let pivotFinalX, pivotFinalY;
 
         if (isCenterMode) {
-            pivotFinalX = marginLeft + (gridWidthPx / 2);
-            pivotFinalY = marginTop + (gridHeightPx / 2);
+            // Milieu de la grille, décalé du centerShift d'une grille complétée d'un seul
+            // côté (demi-cases) : colonnes vers la droite ; lignes vers le haut en
+            // numérotation ascendante, vers le bas en descendante.
+            const shift = config.centerShift || {};
+            const shiftColsPx = (Number(shift.cols) || 0) / 2 * scalePx;
+            const shiftRowsPx = (Number(shift.rows) || 0) / 2 * scalePx;
+            pivotFinalX = marginLeft + (gridWidthPx / 2) + shiftColsPx;
+            pivotFinalY = marginTop + (gridHeightPx / 2)
+                + (config.letteringDirection === 'ascending' ? -shiftRowsPx : shiftRowsPx);
         } else {
             // Mode Origine : On doit placer A1 correctement sur le papier par rapport aux marges
             // startColOffset est la distance (en nb cases) entre A1 (0) et le début de la grille (ex: -26)
@@ -425,14 +435,13 @@ async function generateImageToPrint() {
             // Pour le dessin des labels, on doit recalculer le A1 virtuel si on est en mode "Center"
             // La logique est : A1 = Centre - (Distance Centre-A1)
             
-            // Distance Centre-A1 en X : 
-            // CentreX (relatif à A1) = colOffsetStart + (gridWidth/2)
-            const gridWidthM = colsCount * config.scale;
-            const centerX_M = (colOffsetStart * config.scale) + (gridWidthM / 2);
+            // Distance Centre-A1, décalage d'une grille complétée compris
+            // (cf. gridCenterOffsetCells, comme calculateGridData).
+            const center = gridCenterOffsetCells(config);
+            const centerX_M = center.col * config.scale;
             a1GeoForDrawLon = pivotGeoLon - (centerX_M * mToDegLon);
-            
-            const gridHeightM = rowsCount * config.scale;
-            const centerY_M = (rowOffsetStart * config.scale) + (gridHeightM / 2);
+
+            const centerY_M = center.row * config.scale;
 
             if (config.letteringDirection === 'ascending') {
                 a1GeoForDrawLat = pivotGeoLat - (centerY_M * mToDegLat);
@@ -528,12 +537,12 @@ function getA1CornerCoordsForPrint(config) {
         const startRowNum = config.startRow;
         const endRowNum = config.endRow;
         
-        const cols = getCadoCount(startColNum, endColNum);
-        const rows = getCadoCount(startRowNum, endRowNum);
-        
-        const xOffsetMeters = (cols * config.scale) / 2;
-        const yOffsetMeters = (rows * config.scale) / 2;
-        
+        // Même position du centre que calculateGridData (bornes négatives et grille
+        // complétée comprises), cf. gridCenterOffsetCells.
+        const center = gridCenterOffsetCells(config);
+        const xOffsetMeters = center.col * config.scale;
+        const yOffsetMeters = center.row * config.scale;
+
         const a1Lon = refLon - metersToLonDegrees(xOffsetMeters, refLat);
         let a1Lat;
         

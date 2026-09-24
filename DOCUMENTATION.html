@@ -1706,8 +1706,8 @@ python3<span class="w"> </span>tools/bathy_mbtiles.py<span class="w"> </span>bat
 </tr>
 <tr>
 <td><em>CADO</em> grille</td>
-<td>3 (+16 ou +32)</td>
-<td>0–4 Q12, Z18, Q9, Z14, Z26 ; 5 = de A1 à N×M (8+8) ; 6 = bornes libres signées (4×8)</td>
+<td>3 (+16, +32 ou +48)</td>
+<td>0–4 Q12, Z18, Q9, Z14, Z26 ; 5 = de A1 à N×M (8+8) ; 6 = bornes libres signées (4×8) ; 7 = bornes libres (4×8) + écart du centre (2×8, demi-cases, signés)</td>
 </tr>
 <tr>
 <td><em>CADO</em> drapeaux</td>
@@ -1719,7 +1719,8 @@ python3<span class="w"> </span>tools/bathy_mbtiles.py<span class="w"> </span>bat
 <p>Le sens des lettres est géométrique (il place les lignes au nord ou au sud de A1) ; inversion des axes et double entrée ne changent que les étiquettes, mais ne coûtent aucun caractère en base32. Le bit du demi-mètre (version 3) allonge d'un caractère le code base32 d'une grille prédéfinie (21 → 22) et le code base64 à bornes libres (23 → 24).</p>
 <p><strong>Échelle</strong> : de 0,5 à 65 535 m par case, au demi-mètre (<code>RC_MAX_SCALE</code>, <code>roundGridScale</code>, <code>seedManager.js</code>) : les 16 bits de mètres et le bit du demi-mètre du code. La saisie est arrondie au demi-mètre (12,3 → 12,5 ; 12,2 → 12), dans les deux modes et dans le nom de la grille. CadoTour applique les mêmes règles (<code>MAX_SCALE</code>, <code>roundScale</code>, <code>carroyage.js</code>) : aucune grille de l'un n'est sans code dans l'autre. Hors limites, <code>gridScaleProblem</code> donne le message, affiché dès la saisie sous <code>#scale</code> et <code>#zone-cado-scale</code> ; <code>getGridConfiguration</code> et <code>getZoneCadoConfigAndBounds</code> refusent l'échelle avec le même texte.</p>
 <p><strong>Déviation</strong> : au dixième de degré dans toute l'application (<code>roundDeviation</code>, <code>wrapDeviation</code> dans <code>utilities.js</code>) — curseurs au pas de 0,1, valeur saisissable (<code>#deviation-value</code>, <code>#zone-deviation-value</code>), boutons ↺/↻ au degré.</p>
-<p><strong>Alphabets</strong> : base32 de Crockford par défaut (sans I, L, O, U ; casse indifférente ; <code>O</code> lu 0, <code>I</code>/<code>L</code> lus 1 ; groupé par 4 avec des tirets), ou base64url, plus court, au choix dans la fenêtre « Réglages » (bouton « Gestion ⚙️ »). Le décodage essaie les deux et accepte un nom de fichier entier (ce qui suit <code>code=</code>, extension retirée).</p>
+<p><strong>Alphabets</strong> : base32 de Crockford par défaut (sans I, L, O, U ; casse indifférente ; <code>O</code> lu 0, <code>I</code>/<code>L</code> lus 1 ; groupé par 4 avec des tirets), ou base64url, plus court, au choix dans la fenêtre « Réglages » (bouton « Gestion ⚙️ »). Le décodage essaie les deux et accepte un nom de fichier entier (ce qui suit <code>code=</code>, extension retirée). Une saisie de casse mêlée (hors <code>i</code>, <code>l</code>, <code>o</code>, que base32 relit) est lue en base64 seulement : relue en base32, une faute dans un code base64 pouvait donner un autre code valide.</p>
+<p><strong>Grille complétée</strong> (valeur 7) : une grille « milieu » agrandie ou réduite d'un seul côté dans CadoTour garde son A1 et son centre de rotation ; seule l'étendue des cases change. L'écart du centre au milieu des bornes, en demi-cases, est dans <code>config.centerShift</code> ; <code>gridCenterOffsetCells</code> (<code>utilities.js</code>) en est la seule définition, pour <code>calculateGridData</code> comme pour <code>imagetoprint.js</code>.</p>
 <table>
 <thead>
 <tr>
@@ -1743,6 +1744,11 @@ python3<span class="w"> </span>tools/bathy_mbtiles.py<span class="w"> </span>bat
 <td>CADO à bornes libres</td>
 <td>28</td>
 <td>24</td>
+</tr>
+<tr>
+<td>CADO complétée d'un seul côté (centre écarté)</td>
+<td>31</td>
+<td>26</td>
 </tr>
 <tr>
 <td>Zone</td>
