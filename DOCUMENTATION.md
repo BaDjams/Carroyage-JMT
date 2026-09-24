@@ -935,6 +935,10 @@ Un code court qui décrit la **zone d'intérêt** d'un export pour la refaire à
 
 **Où il figure** : ligne `Code : …` du cartouche (`buildCartoucheLines`, option `code`) ; nom de fichier, en `_code=…` à la place de `_origine=lat,lon` (conservé si aucun code n'est possible, par exemple une échelle non entière) ; description du point d'origine A1 en KML/KMZ, GeoJSON (`properties.description`), GPX (`<desc>`) et CSV ; `<description>` du document KML de l'export de zone ; métadonnée `code_recreation` des MBTiles (`generateMbtilesProcess(..., extraMetadata)`). Les fichiers vectoriels n'ont pas de zoom : leur code n'en porte pas.
 
+**Métadonnées des images** : le texte `CADO-code=<code>` est écrit près du début du fichier — chunk `tEXt` « Comment » après IHDR en PNG, segment COM après SOI en JPEG (`blobWithRecreationCode`), tag `ImageDescription` (270) en GeoTIFF, GeoTIFF JPEG et GeoTIFF UTM (option `description` de `geotiffExport.js`, lue par QGIS/`gdalinfo`). Le code survit ainsi à un renommage.
+
+**Lecture depuis un fichier** (`readRecreationCodeFromFile`) : bouton « 📂 Fichier » ou glisser-déposer sur le champ du code, dans les deux modes. Ordre : métadonnées d'image (tranches de 4 Mo), puis description du point A1 des KML, KMZ (via JSZip), GeoJSON, GPX et CSV, puis nom du fichier (`…_code=XXXX.ext`). Chaque candidat est validé par `decodeRecreationCode` avant d'être appliqué.
+
 **Deux sortes** :
 - *zone* : coin nord-ouest et étendue du rectangle, en µ° — la précision des champs `zone-nw-coords`/`zone-se-coords` (`toFixed(6)`), que le décodage retrouve donc à l'identique ;
 - *CADO* : point de référence (milieu ou A1), échelle, bornes de la grille ; l'étendue s'en déduit.

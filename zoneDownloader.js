@@ -925,6 +925,7 @@ async function generateZonePNG() {
                     bounds: finalBoundingBox,
                     metersPerPixel: anchor.metersPerPixel / (scaleFactor * sX),
                     quality,
+                    description: recreationCodeMetadata(recreationCode),
                 });
                 if (blob) { downloadFile(blob, fileName); }
                 else { showError("Erreur lors de la création du GeoTIFF UTM."); }
@@ -935,6 +936,7 @@ async function generateZonePNG() {
                     pixelScaleX: anchor.metersPerPixel / (scaleFactor * sX),
                     pixelScaleY: anchor.metersPerPixel / (scaleFactor * sY),
                     epsg: 3857,
+                    description: recreationCodeMetadata(recreationCode),
                     tiePointI: dynamicMargin * sX,
                     tiePointJ: dynamicMargin * sY,
                 };
@@ -950,8 +952,9 @@ async function generateZonePNG() {
                 }
             }
         } else {
-            exportCanvas.toBlob((blob) => {
-                if (blob) { downloadFile(blob, fileName); }
+            exportCanvas.toBlob(async (blob) => {
+                // Code de recréation dans les métadonnées de l'image (cf. seedManager.js)
+                if (blob) { downloadFile(await blobWithRecreationCode(blob, recreationCode), fileName); }
                 else {
                     showError("Erreur lors de la création du fichier image.");
                 }

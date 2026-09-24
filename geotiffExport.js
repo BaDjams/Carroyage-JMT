@@ -17,10 +17,11 @@
 //   canvasToGeoTIFF(canvas, opts) -> Blob             (RGB non compressé)
 //   canvasToGeoTIFFJpeg(canvas, opts) -> Promise<Blob> (compressé JPEG, + opts.quality)
 //     opts communs : originX, originY, pixelScaleX, pixelScaleY, epsg=3857,
-//                    tiePointI=0, tiePointJ=0
+//                    tiePointI=0, tiePointJ=0, description (tag ImageDescription, facultatif)
 //   canvasToGeoTIFFUTM(canvas, opts) -> Promise<Blob|null> (reprojeté UTM, compressé JPEG)
 //     opts : latLonToPx(lat,lon)->{x,y} (pixels du canvas source), bounds={north,south,east,west},
-//            metersPerPixel (résolution cible), maxDim=4096 (borne la taille de sortie), quality=0.92
+//            metersPerPixel (résolution cible), maxDim=4096 (borne la taille de sortie), quality=0.92,
+//            description
 //     Nécessite WGS84_to_UTM (carroyageUTM.js) chargé avant l'appel.
 //
 // Limite v1 : géoréférencement axis-aligned (nord-haut) → valable uniquement quand
@@ -51,14 +52,24 @@
     // ----- Tags TIFF -----
     const T = {
         ImageWidth: 256, ImageLength: 257, BitsPerSample: 258, Compression: 259,
-        Photometric: 262, StripOffsets: 273, SamplesPerPixel: 277, RowsPerStrip: 278,
+        Photometric: 262, ImageDescription: 270, StripOffsets: 273, SamplesPerPixel: 277, RowsPerStrip: 278,
         StripByteCounts: 279, PlanarConfig: 284,
         YCbCrSubSampling: 530, YCbCrPositioning: 531, ReferenceBlackWhite: 532,
         ModelPixelScale: 33550, ModelTiepoint: 33922, GeoKeyDirectory: 34735,
     };
     // Types TIFF
-    const TYPE = { SHORT: 3, LONG: 4, RATIONAL: 5, DOUBLE: 12 };
-    const TYPE_SIZE = { 3: 2, 4: 4, 5: 8, 12: 8 };
+    const TYPE = { ASCII: 2, SHORT: 3, LONG: 4, RATIONAL: 5, DOUBLE: 12 };
+    const TYPE_SIZE = { 2: 1, 3: 2, 4: 4, 5: 8, 12: 8 };
+
+    // Tag ImageDescription (texte ASCII terminé par un octet nul), inséré à sa place
+    // dans les entrées triées par tag. Sans description, les entrées sont inchangées.
+    function withDescription(entries, description) {
+        if (!description) return entries;
+        const values = [...description].map(c => c.charCodeAt(0) & 0x7F).concat(0);
+        const entry = { tag: T.ImageDescription, type: TYPE.ASCII, count: values.length, values };
+        const i = entries.findIndex(e => e.tag > T.ImageDescription);
+        return [...entries.slice(0, i), entry, ...entries.slice(i)];
+    }
 
     // GeoKeyDirectory : 3 clés (toutes inline).
     //  1024 GTModelTypeGeoKey    = 1 (ModelTypeProjected)
@@ -176,7 +187,7 @@
             { tag: T.GeoKeyDirectory, type: TYPE.SHORT,  count: geoKeys.length, values: geoKeys },
         ];
 
-        return new Blob([assembleTiff(entries, pixels)], { type: 'image/tiff' });
+        return new Blob([assembleTiff(withDescription(entries, opts.description), pixels)], { type: 'image/tiff' });
     }
 
     // =========================================================================
@@ -263,7 +274,7 @@
             { tag: T.GeoKeyDirectory,     type: TYPE.SHORT,    count: geoKeys.length, values: geoKeys },
         ];
 
-        return new Blob([assembleTiff(entries, jpeg)], { type: 'image/tiff' });
+        return new Blob([assembleTiff(withDescription(entries, opts.description), jpeg)], { type: 'image/tiff' });
     }
 
     // =========================================================================
@@ -355,6 +366,7 @@
             pixelScaleY: res,
             epsg,
             quality: (opts.quality != null) ? opts.quality : 0.92,
+            description: opts.description,
         });
     }
 
@@ -365,7 +377,8 @@
     function writeValues(dv, pos, type, values, inline) {
         for (let i = 0; i < values.length; i++) {
             const v = values[i];
-            if (type === TYPE.SHORT) dv.setUint16(pos + i * 2, v & 0xffff, true);
+            if (type === TYPE.ASCII) dv.setUint8(pos + i, v);
+            else if (type === TYPE.SHORT) dv.setUint16(pos + i * 2, v & 0xffff, true);
             else if (type === TYPE.LONG) dv.setUint32(pos + i * 4, v >>> 0, true);
             else if (type === TYPE.DOUBLE) dv.setFloat64(pos + i * 8, v, true);
             else if (type === TYPE.RATIONAL) {

@@ -11,6 +11,8 @@ const CHANGELOG = [
     version: "23.29",
     date: "2026-09-24",
     changes: [
+      "Code de recréation inscrit dans les métadonnées des images PNG, JPEG et GeoTIFF",
+      "Glisser-déposer une carte exportée sur le champ du code, ou bouton « Fichier », pour la recréer",
       "Notes de mise à jour raccourcies et simplifiées",
       "Correction : en export de zone avec rotation, la grille CADO était décalée par rapport au terrain",
     ],
