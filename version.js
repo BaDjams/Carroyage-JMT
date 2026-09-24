@@ -12,6 +12,7 @@ const CHANGELOG = [
     date: "2026-09-24",
     changes: [
       "Notes de mise à jour raccourcies et simplifiées",
+      "Correction : en export de zone avec rotation, la grille CADO était décalée par rapport au terrain",
     ],
   },
   {

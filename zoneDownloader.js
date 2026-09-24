@@ -730,7 +730,7 @@ async function generateZonePNG() {
         const { finalCanvas, dynamicMargin, scaleFactor, actualZoom, isoSummary } = await zdCreateFinalCanvas(
             finalBoundingBox, zoom, selectedMap, needsExternalMargin, upscaleEnabled, zoneDeviationDeg, isobaths, (f) => {
                 loadingMessage.textContent = `Lignes de profondeur : altitudes IGN (${Math.round(f * 100)} %)...`;
-            });
+            }, cadoData ? { lat: cadoData.config.latitude, lon: cadoData.config.longitude } : null);
         showIsobathReport('zone', isoSummary);
         const ctx = finalCanvas.getContext('2d');
 
@@ -1496,7 +1496,9 @@ async function generatePoiKmlFolder(pois, imagesToZip, isKmz) {
 // FONCTIONS CANEVAS / HELPERS
 // =============================================================================
 
-async function zdCreateFinalCanvas(boundingBox, zoom, mapConfig, externalMargin, upscaleEnabled = true, rotationAngleDeg = 0, isobaths = null, onIsoProgress = null) {
+// rotationPivot ({ lat, lon }) : point autour duquel le fond pivote, celui du carroyage
+// (cf. calculateAndRotatePoint). Par défaut, le centre de l'emprise.
+async function zdCreateFinalCanvas(boundingBox, zoom, mapConfig, externalMargin, upscaleEnabled = true, rotationAngleDeg = 0, isobaths = null, onIsoProgress = null, rotationPivot = null) {
     const actualZoom = (typeof tileSourceIsActive === 'function' && tileSourceIsActive())
         ? tileSourceGetBestZoom(zoom)
         : (mapConfig && mapConfig.maxZoom ? Math.min(zoom, mapConfig.maxZoom) : zoom);
@@ -1521,23 +1523,30 @@ async function zdCreateFinalCanvas(boundingBox, zoom, mapConfig, externalMargin,
 
     console.log(`[ZONE] Native: ${Math.round(natW)}x${Math.round(natH)} | Zoom: ${zoom} | Scale: ${scale} | Rotation: ${rotationAngleDeg}°`);
 
-    // Si déviation, on calcule une bbox élargie pour que la zone originale
-    // soit entièrement couverte après rotation du fond de carte
+    // Avec une déviation, le fond pivote autour du point de référence du carroyage,
+    // comme en carroyage rapide et dans le KML, et non autour du centre de l'image :
+    // les marges d'étiquettes, plus larges d'un côté, décaleraient la grille sur le
+    // terrain. L'emprise téléchargée est celle des coins de l'image ramenés sur le
+    // terrain par la rotation inverse.
+    const rotRad = rotationAngleDeg * Math.PI / 180;
+    const pivotPx = rotationPivot
+        ? zdLatLonToWorldPixels(rotationPivot.lat, rotationPivot.lon, actualZoom)
+        : { x: (nwPx.x + sePx.x) / 2, y: (nwPx.y + sePx.y) / 2 };
     let dlNwPx = nwPx;
     let dlSePx = sePx;
-    let dlNatW = natW;
-    let dlNatH = natH;
 
     if (rotationAngleDeg !== 0) {
-        const rad = Math.abs(rotationAngleDeg * Math.PI / 180);
-        const cos = Math.cos(rad), sin = Math.sin(rad);
-        dlNatW = natW * cos + natH * sin;
-        dlNatH = natW * sin + natH * cos;
-        const cx = (nwPx.x + sePx.x) / 2;
-        const cy = (nwPx.y + sePx.y) / 2;
-        dlNwPx = { x: cx - dlNatW / 2, y: cy - dlNatH / 2 };
-        dlSePx = { x: cx + dlNatW / 2, y: cy + dlNatH / 2 };
+        const cos = Math.cos(rotRad), sin = Math.sin(rotRad);
+        const onGround = [[nwPx.x, nwPx.y], [sePx.x, nwPx.y], [nwPx.x, sePx.y], [sePx.x, sePx.y]].map(([x, y]) => ({
+            x: pivotPx.x + (x - pivotPx.x) * cos - (y - pivotPx.y) * sin,
+            y: pivotPx.y + (x - pivotPx.x) * sin + (y - pivotPx.y) * cos,
+        }));
+        // Un pixel de plus de chaque côté : les tuiles se calent au pixel entier.
+        dlNwPx = { x: Math.min(...onGround.map(p => p.x)) - 1, y: Math.min(...onGround.map(p => p.y)) - 1 };
+        dlSePx = { x: Math.max(...onGround.map(p => p.x)) + 1, y: Math.max(...onGround.map(p => p.y)) + 1 };
     }
+    const dlNatW = dlSePx.x - dlNwPx.x;
+    const dlNatH = dlSePx.y - dlNwPx.y;
 
     const finalW = Math.round(natW * scale);
     const finalH = Math.round(natH * scale);
@@ -1679,16 +1688,20 @@ async function zdCreateFinalCanvas(boundingBox, zoom, mapConfig, externalMargin,
     };
 
     if (rotationAngleDeg !== 0) {
-        const dlFinalW = Math.round(dlNatW * scale);
-        const dlFinalH = Math.round(dlNatH * scale);
+        // Le pixel (0, 0) du canevas natif est le pixel monde tileOrigin (cf. drawIso) ;
+        // le point de référence tombe dans l'image là où le place latLonToCanvasPixels.
+        const tileOrigin = {
+            x: nwTile.x * ZD_TILE_SIZE - Math.floor(nwTile.x * ZD_TILE_SIZE - dlNwPx.x),
+            y: nwTile.y * ZD_TILE_SIZE - Math.floor(nwTile.y * ZD_TILE_SIZE - dlNwPx.y),
+        };
+        const dlFinalW = tempC.width * scale;
+        const dlFinalH = tempC.height * scale;
         ctx.save();
-        ctx.translate(finalC.width / 2, finalC.height / 2);
-        ctx.rotate(-rotationAngleDeg * Math.PI / 180);
-        ctx.drawImage(tempC, -dlFinalW / 2, -dlFinalH / 2, dlFinalW, dlFinalH);
-        if (isobaths) {
-            ctx.translate(-dlFinalW / 2, -dlFinalH / 2);
-            await drawIso(dlFinalW, dlFinalH);
-        }
+        ctx.translate((pivotPx.x - nwPx.x) * scale + margin, (pivotPx.y - nwPx.y) * scale + margin);
+        ctx.rotate(-rotRad);
+        ctx.translate((tileOrigin.x - pivotPx.x) * scale, (tileOrigin.y - pivotPx.y) * scale);
+        ctx.drawImage(tempC, 0, 0, dlFinalW, dlFinalH);
+        if (isobaths) await drawIso(dlFinalW, dlFinalH);
         ctx.restore();
     } else {
         ctx.drawImage(tempC, margin, margin, finalW, finalH);
