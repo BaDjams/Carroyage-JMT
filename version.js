@@ -1,12 +1,23 @@
 // version.js
 
 // Source unique de vérité pour la version de l'application.
-const APP_VERSION = '23.29';
+const APP_VERSION = '23.30';
 
 // Une ligne courte par changement, telle que l'utilisateur la voit : ce qui change,
 // sans le pourquoi ni le comment. Guillemets doubles : les apostrophes françaises
 // s'écrivent telles quelles.
 const CHANGELOG = [
+  {
+    version: "23.30",
+    date: "2026-09-24",
+    changes: [
+      "Déviation du carroyage au dixième de degré, comme dans CadoTour",
+      "Valeur de la déviation saisissable directement, en carroyage rapide et en export de zone",
+      "Les codes de recréation déjà imprimés restent lisibles",
+      "Correction : environ une image PNG sur quatre ne rendait pas son code de recréation par glisser-déposer",
+      "Correction : le bouton « Télécharger l'image (Rotatée) » de l'export de zone ne signalait jamais la rotation",
+    ],
+  },
   {
     version: "23.29",
     date: "2026-09-24",

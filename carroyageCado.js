@@ -386,7 +386,7 @@ function updateDynamicGridName() {
             gridTypeStr = `_${gridType}`;
         }
 
-        const deviation = parseInt(document.getElementById('deviation').value) || 0;
+        const deviation = roundDeviation(document.getElementById('deviation').value);
         let deviationStr = deviation > 0 ? `_+${deviation}°` : (deviation < 0 ? `_${deviation}°` : "");
         const colorName = document.getElementById('grid-color-name').value;
         const letteringStr = lettering === 'descending' ? '_descendant' : '';
@@ -556,7 +556,7 @@ function getGridConfiguration(lat, lon) {
         colorOpacity: (100 - parseInt(document.getElementById('transparency').value)) / 100,
         gridNameBase: document.getElementById('grid-name-base').value || 'CADO Grid',
         gridName: document.getElementById('grid-name').value || "CADO Grid",
-        deviation: parseInt(document.getElementById('deviation').value),
+        deviation: roundDeviation(document.getElementById('deviation').value),
         labelSize: parseFloat(document.getElementById('label-size').value),
         iconSize: parseFloat(document.getElementById('icon-size').value || 2),
         referencePointChoice: document.querySelector('input[name="reference-point"]:checked').value,

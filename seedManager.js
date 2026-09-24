@@ -12,22 +12,27 @@
 //     précision des champs de l'export de zone : le rectangle revient à l'identique ;
 //   - CADO : point de référence (milieu ou A1), échelle et bornes de la grille.
 //     L'étendue s'en déduit, d'où un code plus court.
-// Communs : déviation et zoom de l'export (0 = non précisé, exports vectoriels).
+// Communs : déviation au dixième de degré, comme CadoTour, et zoom de l'export
+// (0 = non précisé, exports vectoriels).
 //
-// Disposition des bits, poids fort en tête :
-//   version 2 | sorte 1 | lat 28 | lon 29 (µ°) | déviation + 180 9 | zoom 5
+// Disposition des bits (version 2), poids fort en tête :
+//   version 2 | sorte 1 | lat 28 | lon 29 (µ°) | (déviation + 180) × 10 : 12 | zoom 5
 //   zone : Δlat 22 | Δlon 23 (µ°)
-//   CADO : échelle 17 (m) | grille 3 | [bornes] | ascendant 1 | milieu 1 | axes inversés 1 | double entrée 1
+//   CADO : échelle 16 (m) | grille 3 | [bornes] | ascendant 1 | milieu 1 | axes inversés 1 | double entrée 1
 //     grille 0 à 4 : Q12, Z18, Q9, Z14, Z26
 //            5     : de A1 à N colonnes × M lignes (8 + 8)
 //            6     : bornes libres, colonnes puis lignes de début et de fin (4 × 8, signées)
 // Suit un caractère de contrôle : somme des caractères pondérés par les puissances
 // successives d'un générateur de GF(32) (GF(64) en base64). Toute faute sur un
 // caractère et toute inversion de deux caractères voisins sont repérées, tant que le
-// code compte moins de 31 caractères (63 en base64) : il en fait 27 au plus.
+// code compte moins de 31 caractères (63 en base64) : il en fait 28 au plus.
+//
+// Version 1 (v23.28 et v23.29), encore lue : déviation au degré sur 9 bits, échelle
+// sur 17 bits. La version 2 gagne un bit sur l'échelle (65 535 m au plus) pour qu'un
+// code CADO de grille prédéfinie garde ses 21 caractères en base32.
 //
 // Inversion des axes et double entrée se lisent sur l'image, mais ne coûtent rien :
-// en base32 un code CADO fait 98 bits sans elles comme avec, soit 20 caractères.
+// en base32 un code CADO de grille prédéfinie fait 100 bits, soit 20 caractères.
 // Le sens des lettres, lui, est indispensable : il place les lignes au nord ou au
 // sud de A1.
 //
@@ -38,7 +43,7 @@
 //     dans un nom de fichier.
 // Le décodage reconnaît les deux.
 
-const RC_VERSION = 1;
+const RC_VERSION = 2;
 const RC_ALPHABETS = {
     base32: '0123456789ABCDEFGHJKMNPQRSTVWXYZ',
     base64: 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_',
@@ -147,8 +152,8 @@ function rcPayloadBits(p) {
     const lat = Number(cado ? p.lat : p.north);
     const lon = rcNormLon(Number(cado ? p.lon : p.west));
     if (!Number.isFinite(lat) || !Number.isFinite(lon) || Math.abs(lat) > 90) return null;
-    const deviation = Math.round(Number(p.deviation) || 0);
-    if (deviation < -180 || deviation > 180) return null;
+    const devTenths = Math.round((Number(p.deviation) || 0) * 10);
+    if (devTenths < -1800 || devTenths > 1800) return null;
     const zoom = (Number.isInteger(p.zoom) && p.zoom > 0 && p.zoom < 32) ? p.zoom : 0;
 
     const bits = [];
@@ -156,15 +161,15 @@ function rcPayloadBits(p) {
     rcPush(bits, cado ? 1 : 0, 1);
     rcPush(bits, rcMicro(lat + 90), 28);
     rcPush(bits, rcMicro(lon + 180), 29);
-    rcPush(bits, deviation + 180, 9);
+    rcPush(bits, devTenths + 1800, 12);
     rcPush(bits, zoom, 5);
 
     if (cado) {
         const scale = Number(p.scale);
-        if (!Number.isInteger(scale) || scale < 1 || scale >= 2 ** 17) return null;
+        if (!Number.isInteger(scale) || scale < 1 || scale >= 2 ** 16) return null;
         const grid = rcGridSpec(p);
         if (!grid) return null;
-        rcPush(bits, scale, 17);
+        rcPush(bits, scale, 16);
         rcPush(bits, grid.spec, 3);
         if (grid.spec === RC_SPEC_FROM_A1) {
             rcPush(bits, p.endCol, 8);
@@ -217,20 +222,21 @@ const RC_ERR_TYPO = "Code de recréation erroné : un caractère a sans doute é
 
 function rcParse(bits) {
     const r = rcReader(bits);
-    if (r.read(2) !== RC_VERSION) {
+    const version = r.read(2);
+    if (version !== 1 && version !== 2) {
         throw new Error("Code de recréation non reconnu : faute de frappe, ou code produit par une version plus récente de l'application.");
     }
     const cado = r.read(1) === 1;
     const latInt = r.read(28);
     const lonInt = r.read(29);
-    const deviation = r.read(9) - 180;
+    const deviation = version === 1 ? r.read(9) - 180 : (r.read(12) - 1800) / 10;
     const zoom = r.read(5) || null;
     const lat = latInt / RC_MICRO - 90;
     const lon = lonInt / RC_MICRO - 180;
 
     let p;
     if (cado) {
-        const scale = r.read(17);
+        const scale = r.read(version === 1 ? 17 : 16);
         const spec = r.read(3);
         let bounds;
         if (spec < RC_PRESETS.length) {
@@ -259,7 +265,7 @@ function rcParse(bits) {
             deviation, zoom, _valid: dLat > 0 && dLon > 0 && lonInt + dLon <= 360 * RC_MICRO,
         };
     }
-    p._valid = p._valid && latInt <= 180 * RC_MICRO && lonInt <= 360 * RC_MICRO && deviation <= 180;
+    p._valid = p._valid && latInt <= 180 * RC_MICRO && lonInt <= 360 * RC_MICRO && Math.abs(deviation) <= 180;
     if (cado) {
         p._valid = p._valid && p.scale >= 1 && [p.startCol, p.endCol, p.startRow, p.endRow].every(v => v !== 0);
     }
@@ -379,8 +385,11 @@ async function blobWithRecreationCode(blob, code) {
     const text = new TextEncoder().encode(recreationCodeMetadata(code));
 
     if (bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4E && bytes[3] === 0x47) {
-        // PNG : chunk tEXt juste après IHDR (signature 8 + IHDR 25 octets)
-        const data = new Uint8Array([...new TextEncoder().encode('Comment'), 0, ...text]);
+        // PNG : chunk tEXt juste après IHDR (signature 8 + IHDR 25 octets). Le texte y
+        // est suivi, sans séparateur, des 4 octets du CRC : une espace finale l'en
+        // sépare, sans quoi un octet de CRC pris pour un caractère du code le
+        // rallongerait (cf. RC_TRAILING_BYTES).
+        const data = new Uint8Array([...new TextEncoder().encode('Comment'), 0, ...text, 0x20]);
         const chunk = new Uint8Array(12 + data.length);
         const dv = new DataView(chunk.buffer);
         dv.setUint32(0, data.length);
@@ -399,15 +408,31 @@ async function blobWithRecreationCode(blob, code) {
     return blob;
 }
 
+// Premier code valide d'un texte. Un PNG écrit avant la v23.30 n'a pas d'espace
+// après le code : les 4 octets du CRC suivent, et chacun a une chance sur quatre
+// d'être un caractère du code, que l'expression avale alors (« …-GP » + « l ») —
+// une image sur quatre environ. On retente donc sans ces octets ; le caractère de
+// contrôle et la longueur exacte écartent toute lecture de travers. Même règle
+// dans CadoTour (gridRecreation.js).
+const RC_TRAILING_BYTES = 4;
+
+function findRecreationCodeIn(text, re) {
+    const valid = (code) => { try { decodeRecreationCode(code); return true; } catch (e) { return false; } };
+    for (const m of text.matchAll(re)) {
+        for (let cut = 0; cut <= RC_TRAILING_BYTES && cut < m[1].length; cut++) {
+            const candidate = m[1].slice(0, m[1].length - cut);
+            if (valid(candidate)) return candidate;
+        }
+    }
+    return null;
+}
+
 // Code d'un fichier exporté : métadonnées d'image, puis description du point A1 des
 // fichiers vectoriels (KML, KMZ, GeoJSON, GPX, CSV), puis nom du fichier. Lève une
 // erreur lisible si aucun code n'y figure.
 async function readRecreationCodeFromFile(file) {
     const valid = (code) => { try { decodeRecreationCode(code); return true; } catch (e) { return false; } };
-    const find = (text, re) => {
-        for (const m of text.matchAll(re)) if (valid(m[1])) return m[1];
-        return null;
-    };
+    const find = findRecreationCodeIn;
     const META_RE = /CADO-code=([0-9A-Za-z_-]+)/g;
     const DESC_RE = /Code de recréation : ([0-9A-Za-z_-]+)/g;
 

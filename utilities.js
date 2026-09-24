@@ -656,6 +656,20 @@ function gridLabelColors(hex) {
 // visible de 12 %, assez pour détacher le texte d'un fond chargé.
 const GRID_LABEL_HALO_RATIO = 0.25;
 
+// DÉVIATION DU CARROYAGE : au dixième de degré, comme CadoTour.
+function roundDeviation(value) {
+    const v = Math.round((Number(value) || 0) * 10) / 10;
+    return v === 0 ? 0 : v; // pas de « -0 »
+}
+
+// Ramène une déviation dans [-180, 180] après un pas de rotation.
+function wrapDeviation(value) {
+    let v = roundDeviation(value);
+    if (v > 180) v -= 360;
+    if (v < -180) v += 360;
+    return roundDeviation(v);
+}
+
 function cartoucheCoords(lat, lon) {
     return `${Number(lat).toFixed(5)}, ${Number(lon).toFixed(5)}`;
 }
@@ -878,7 +892,7 @@ function drawCompass(ctx, latLonToPixels, config, a1CornerCoords, cellWidthInPix
         ctx.strokeStyle = 'white';
         ctx.lineWidth = 3;
         const sign = devVal > 0 ? '+' : '';
-        const text = `${sign}${devVal}°`;
+        const text = `${sign}${roundDeviation(devVal)}°`;
         ctx.strokeText(text, center.x, center.y + radius + 4);
         ctx.fillText(text, center.x, center.y + radius + 4);
     }

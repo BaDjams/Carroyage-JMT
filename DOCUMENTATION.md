@@ -935,38 +935,40 @@ Un code court qui décrit la **zone d'intérêt** d'un export pour la refaire à
 
 **Où il figure** : ligne `Code : …` du cartouche (`buildCartoucheLines`, option `code`) ; nom de fichier, en `_code=…` à la place de `_origine=lat,lon` (conservé si aucun code n'est possible, par exemple une échelle non entière) ; description du point d'origine A1 en KML/KMZ, GeoJSON (`properties.description`), GPX (`<desc>`) et CSV ; `<description>` du document KML de l'export de zone ; métadonnée `code_recreation` des MBTiles (`generateMbtilesProcess(..., extraMetadata)`). Les fichiers vectoriels n'ont pas de zoom : leur code n'en porte pas.
 
-**Métadonnées des images** : le texte `CADO-code=<code>` est écrit près du début du fichier — chunk `tEXt` « Comment » après IHDR en PNG, segment COM après SOI en JPEG (`blobWithRecreationCode`), tag `ImageDescription` (270) en GeoTIFF, GeoTIFF JPEG et GeoTIFF UTM (option `description` de `geotiffExport.js`, lue par QGIS/`gdalinfo`). Le code survit ainsi à un renommage.
+**Métadonnées des images** : le texte `CADO-code=<code>` est écrit près du début du fichier — chunk `tEXt` « Comment » après IHDR en PNG (suivi d'une espace depuis la v23.30 : sans elle, les octets du CRC qui suivent le texte pouvaient se lire comme la fin du code), segment COM après SOI en JPEG (`blobWithRecreationCode`), tag `ImageDescription` (270) en GeoTIFF, GeoTIFF JPEG et GeoTIFF UTM (option `description` de `geotiffExport.js`, lue par QGIS/`gdalinfo`). Le code survit ainsi à un renommage.
 
-**Lecture depuis un fichier** (`readRecreationCodeFromFile`) : bouton « 📂 Fichier » ou glisser-déposer sur le champ du code, dans les deux modes. Ordre : métadonnées d'image (tranches de 4 Mo), puis description du point A1 des KML, KMZ (via JSZip), GeoJSON, GPX et CSV, puis nom du fichier (`…_code=XXXX.ext`). Chaque candidat est validé par `decodeRecreationCode` avant d'être appliqué.
+**Lecture depuis un fichier** (`readRecreationCodeFromFile`) : bouton « 📂 Fichier » ou glisser-déposer sur le champ du code, dans les deux modes. Ordre : métadonnées d'image (tranches de 4 Mo), puis description du point A1 des KML, KMZ (via JSZip), GeoJSON, GPX et CSV, puis nom du fichier (`…_code=XXXX.ext`). Chaque candidat est validé par `decodeRecreationCode` avant d'être appliqué ; invalide, il est retenté privé de 1 à 4 caractères finaux (`findRecreationCodeIn`, `RC_TRAILING_BYTES`), pour les PNG écrits avant la v23.30 dont le CRC se collait au code (une image sur quatre environ). Même règle dans CadoTour.
 
 **Deux sortes** :
 - *zone* : coin nord-ouest et étendue du rectangle, en µ° — la précision des champs `zone-nw-coords`/`zone-se-coords` (`toFixed(6)`), que le décodage retrouve donc à l'identique ;
 - *CADO* : point de référence (milieu ou A1), échelle, bornes de la grille ; l'étendue s'en déduit.
 
-**Bits** (poids fort en tête) :
+**Bits** (version 2, poids fort en tête) :
 
 | Champ | Bits | Contenu |
 |---|---|---|
-| version | 2 | 1 |
+| version | 2 | 2 (la version 1, de v23.28 et v23.29, reste lue) |
 | sorte | 1 | 0 zone, 1 CADO |
 | lat, lon | 28 + 29 | µ°, décalés de +90 / +180 |
-| déviation | 9 | degrés + 180 |
+| déviation | 12 | (degrés + 180) × 10 : dixième de degré, comme CadoTour (v1 : 9 bits, au degré) |
 | zoom | 5 | 0 = non précisé |
 | *zone* Δlat, Δlon | 22 + 23 | µ° |
-| *CADO* échelle | 17 | mètres entiers |
+| *CADO* échelle | 16 | mètres entiers, 65 535 au plus (v1 : 17 bits) |
 | *CADO* grille | 3 (+16 ou +32) | 0–4 Q12, Z18, Q9, Z14, Z26 ; 5 = de A1 à N×M (8+8) ; 6 = bornes libres signées (4×8) |
 | *CADO* drapeaux | 4 | ascendant, milieu, axes inversés, double entrée |
 
-Le sens des lettres est géométrique (il place les lignes au nord ou au sud de A1) ; inversion des axes et double entrée ne changent que les étiquettes, mais ne coûtent aucun caractère en base32.
+Le sens des lettres est géométrique (il place les lignes au nord ou au sud de A1) ; inversion des axes et double entrée ne changent que les étiquettes, mais ne coûtent aucun caractère en base32. Le passage de la déviation au dixième (+3 bits) est compensé pour les grilles prédéfinies par l'échelle ramenée à 16 bits : leur code garde 21 caractères.
+
+**Déviation** : au dixième de degré dans toute l'application (`roundDeviation`, `wrapDeviation` dans `utilities.js`) — curseurs au pas de 0,1, valeur saisissable (`#deviation-value`, `#zone-deviation-value`), boutons ↺/↻ au degré.
 
 **Alphabets** : base32 de Crockford par défaut (sans I, L, O, U ; casse indifférente ; `O` lu 0, `I`/`L` lus 1 ; groupé par 4 avec des tirets), ou base64url, plus court, au choix dans la fenêtre « Réglages » (bouton « Gestion ⚙️ »). Le décodage essaie les deux et accepte un nom de fichier entier (ce qui suit `code=`, extension retirée).
 
 | Code | base32 | base64 |
 |---|---|---|
 | CADO, grille prédéfinie | 21 | 18 |
-| CADO de A1 à N×M (export de zone) | 24 | 20 |
-| CADO à bornes libres | 27 | 23 |
-| Zone | 25 | 21 |
+| CADO de A1 à N×M (export de zone) | 25 | 21 |
+| CADO à bornes libres | 28 | 23 |
+| Zone | 26 | 22 |
 
 **Contrôle** : dernier caractère = Σ αⁱ·vᵢ dans GF(32) (GF(64) en base64), α générateur. Toute substitution d'un caractère et toute inversion de deux voisins sont détectées tant que le code compte moins de 31 caractères (63).
 
