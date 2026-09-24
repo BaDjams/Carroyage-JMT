@@ -101,6 +101,10 @@ async function generateImageToPrint() {
         const [refLat, refLon] = coordsStr.split(',').map(c => parseFloat(c.trim()));
         
         const config = getGridConfiguration(refLat, refLon);
+        // Lignes de profondeur : lues d'abord, pour qu'un zéro hydrographique mal
+        // saisi arrête l'export avant tout téléchargement.
+        const isobaths = readIsobathOptions('cado');
+        if (isobaths) await ensureIsobathModule();
         const usingMbtiles = typeof tileSourceIsActive === 'function' && tileSourceIsActive();
         let mapConfig;
         if (usingMbtiles) {
@@ -317,6 +321,40 @@ async function generateImageToPrint() {
             finalCtx.restore();
         }
 
+        // Lignes de profondeur : sur la carte posée, à la résolution finale, dans son
+        // repère même (pivot, déviation, agrandissement) — elles tournent avec elle et
+        // restent calées dessus. Seule la partie de la carte visible dans l'image est
+        // lue : la marge de téléchargement autour du carroyage ne coûte rien.
+        let isoSummary = null;
+        if (isobaths) {
+            loadingMessage.textContent = "Lignes de profondeur : altitudes IGN...";
+            const s = scaleFactor, cos = Math.cos(deviationRad), sin = Math.sin(deviationRad);
+            // Point de l'image → point de la carte native agrandie (inverse du tracé ci-dessus).
+            const toMap = (X, Y) => {
+                const dx = X - pivotFinalX, dy = Y - pivotFinalY;
+                return [dx * cos - dy * sin + pivotOnWorldCanvasX * s, dx * sin + dy * cos + pivotOnWorldCanvasY * s];
+            };
+            const corners = [toMap(0, 0), toMap(finalWidth, 0), toMap(0, finalHeight), toMap(finalWidth, finalHeight)];
+            const a0 = Math.max(0, Math.floor(Math.min(...corners.map(c => c[0]))));
+            const b0 = Math.max(0, Math.floor(Math.min(...corners.map(c => c[1]))));
+            const a1 = Math.min(worldCanvas.width * s, Math.ceil(Math.max(...corners.map(c => c[0]))));
+            const b1 = Math.min(worldCanvas.height * s, Math.ceil(Math.max(...corners.map(c => c[1]))));
+            if (a1 > a0 && b1 > b0) {
+                const view = isobathViewFromWorldPixels(
+                    { x: worldOriginX + a0 / s, y: worldOriginY + b0 / s }, actualZoom, s, a1 - a0, b1 - b0);
+                view.lineScale = isobathLineScale(finalWidth, finalHeight);
+                finalCtx.save();
+                finalCtx.translate(pivotFinalX, pivotFinalY);
+                finalCtx.rotate(-deviationRad);
+                finalCtx.translate(a0 - pivotOnWorldCanvasX * s, b0 - pivotOnWorldCanvasY * s);
+                isoSummary = await drawIsobathsForImage(finalCtx, view, isobaths, (f) => {
+                    loadingMessage.textContent = `Lignes de profondeur : altitudes IGN (${Math.round(f * 100)} %)...`;
+                });
+                finalCtx.restore();
+            }
+            showIsobathReport('cado', isoSummary);
+        }
+
         // 6. DESSIN DE LA GRILLE
         const drawConfig = { ...config, deviation: 0, realDeviation: config.deviation };
         // Épaisseur rapportée à l'image livrée (cf. gridLineWidthPx) : celle-ci n'est plus
@@ -327,6 +365,7 @@ async function generateImageToPrint() {
         drawConfig.cartoucheGridKind = 'cado';
         drawConfig.cartoucheLayerShort = mapConfig?.shortName || mapConfig?.name || '';
         drawConfig.cartoucheZoom = (actualZoom !== undefined && actualZoom !== null) ? actualZoom : zoomLevel;
+        drawConfig.cartoucheIsobathes = isoSummary?.cartouche || null;
 
         // KML Import
         if (typeof loadedCadoKmlFeatures !== 'undefined' && loadedCadoKmlFeatures.length > 0) {

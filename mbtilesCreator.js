@@ -331,6 +331,14 @@ function initCreatorMode() {
     // La case ne verrouille plus aucun niveau de fond (cf. FORMAT V2 en tête de
     // fichier) : elle ne change que le compte de tuiles à télécharger.
     document.getElementById('creator-include-mnt')?.addEventListener('change', updateCreatorUI);
+    // Isobathes : le module est chargé dès la case cochée, pour chiffrer le
+    // volume d'altitudes à télécharger dans l'estimation.
+    document.getElementById('creator-iso')?.addEventListener('change', (e) => {
+        if (e.target.checked && typeof ensureIsobathModule === 'function') {
+            ensureIsobathModule().then(updateCreatorUI).catch(() => {});
+        }
+        updateCreatorUI();
+    });
     document.getElementById('creator-point-radius')?.addEventListener('input', () => {
         if (!currentCreatorCenter) return;
         currentCreatorBounds = boundsAroundPoint(currentCreatorCenter, getCreatorPointRadius());
@@ -452,6 +460,19 @@ function updateCreatorUI() {
     infoTiles.textContent = totalTiles.toLocaleString() + " tuiles";
     const sizeMb = (totalTiles * TILE_SIZE_ESTIMATE_KB) / 1024;
     infoSize.textContent = `~ ${sizeMb.toFixed(1)} Mo`;
+    // Les isobathes ne grossissent guère le fichier, mais chaque tuile de zoom 11
+    // et plus demande sa grille d'altitudes (float32) : c'est le téléchargement
+    // qui s'alourdit. Majorant : les tuiles hors France ou élaguées n'en coûtent pas.
+    if (document.getElementById('creator-iso')?.checked) {
+        const isoMinZoom = typeof ISOBATH_MIN_ZOOM !== 'undefined' ? ISOBATH_MIN_ZOOM : 11;
+        if (!zooms.some(z => z >= isoMinZoom)) {
+            infoSize.textContent += ` — isobathes : aucun zoom ≥ ${isoMinZoom} choisi, rien ne sera tracé`;
+        } else if (typeof estimateIsobathBytes === 'function') {
+            const b = currentCreatorBounds;
+            const isoMb = estimateIsobathBytes({ west: b.getWest(), east: b.getEast(), south: b.getSouth(), north: b.getNorth() }, zooms) / 1048576;
+            infoSize.textContent += ` (+ jusqu'à ~${isoMb.toFixed(isoMb < 10 ? 1 : 0)} Mo d'altitudes IGN lues pour les isobathes)`;
+        }
+    }
 
     // La couleur est reposee en entier a chaque passage : l'ancienne version faisait
     // un replace() sur className, donc une fois passee au jaune elle n'y revenait
@@ -508,13 +529,19 @@ function getTileRange(bounds, zoom) {
 // --- JOB MANAGEMENT ---
 
 class MbtilesJob {
-    constructor(id, bounds, zooms, layerConfig, filename, includeMnt = false) {
+    constructor(id, bounds, zooms, layerConfig, filename, includeMnt = false, isobaths = null) {
         this.id = id;
         this.bounds = bounds;
         this.zooms = zooms;
         this.layerConfig = layerConfig;
         this.filename = filename;
         this.includeMnt = includeMnt; // ajoute terrain_tiles z0..z12 dans ce même fichier
+        // Isobathes tracées sur les tuiles du fond (zooms 11 et plus) : réglages
+        // lus dans le formulaire, état partagé par toutes les tuiles du job
+        // (santé des services IGN, élagage, bilan). Cf. isobathes.js.
+        this.isobaths = isobaths;
+        this.isoAbort = isobaths ? new AbortController() : null;
+        this.isoState = isobaths ? createIsobathState(this.isoAbort.signal) : null;
         this.status = 'pending';
         this.totalTiles = 0;
         this.processedTiles = 0;
@@ -787,6 +814,12 @@ class MbtilesJob {
 
         const hasYandex = this.layerConfig.layers.some(l => l.type === 'yandex');
 
+        // Isobathes : demandées en même temps que le fond, pour ne pas allonger
+        // l'attente de chaque tuile. null = rien à tracer sur cette tuile.
+        const isoPromise = this.isobaths
+            ? isobathTile(tile.z, tile.x, tile.y, this.isobaths, this.isoState)
+            : null;
+
         // --- Cas mono-couche SANS Yandex : passthrough natif (AUCUNE recompression) ---
         // On stocke l'octet pour octet ce que renvoie le serveur, dans son
         // format d'origine (JPEG/PNG/WebP). Évite la perte de génération
@@ -794,7 +827,13 @@ class MbtilesJob {
         // DOIT toujours passer par le canvas : sa reprojection (1-2 bandes
         // source) ne peut jamais être un simple octet-pour-octet.
         if (this.layerConfig.layers.length === 1 && !hasYandex) {
-            return this._fetchRawTile(this._layerUrl(this.layerConfig.layers[0], tile));
+            const [raw, drawIso] = await Promise.all([
+                this._fetchRawTile(this._layerUrl(this.layerConfig.layers[0], tile)),
+                isoPromise,
+            ]);
+            // Seules les tuiles qui portent des isobathes sont ré-encodées ; les
+            // autres gardent l'octet près du serveur.
+            return drawIso ? this._overlayIsobaths(raw, drawIso) : raw;
         }
 
         // --- Cas multi-couches ou reprojection Yandex : composition sur canvas ---
@@ -816,8 +855,51 @@ class MbtilesJob {
                 : await this.fetchAndDrawLayer(this._layerUrl(layer, tile), canvas, ctx);
             if (ok) hasContent = true;
         }
+        const drawIso = await isoPromise;
+        if (drawIso) { drawIso(ctx); hasContent = true; }
         if (!hasContent) return null;
         return new Promise(r => canvas.toBlob(r, TILE_FORMAT, TILE_QUALITY));
+    }
+
+    // Superpose les isobathes à une tuile passthrough et la ré-encode dans son
+    // propre format (JPEG, PNG ou WebP), pour ne pas mêler les formats dans le
+    // fichier. Sans tuile de fond (mer vide chez certains serveurs), les lignes
+    // sont posées sur un fond blanc (JPEG) ou transparent.
+    async _overlayIsobaths(raw, drawIso) {
+        let fmt = this.tileFormat || 'png';
+        let bitmap = null;
+        if (raw) {
+            fmt = this._sniffFormat(new Uint8Array(await raw.slice(0, 16).arrayBuffer())) || fmt;
+            try { bitmap = await createImageBitmap(raw); }
+            catch { return raw; }                     // image illisible : la tuile reste telle quelle
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = 256; canvas.height = 256;
+        const ctx = canvas.getContext('2d');
+        if (fmt === 'jpg') { ctx.fillStyle = TILE_BG; ctx.fillRect(0, 0, 256, 256); }
+        if (bitmap) { ctx.drawImage(bitmap, 0, 0, 256, 256); bitmap.close?.(); }
+        drawIso(ctx);
+        const mime = fmt === 'jpg' ? 'image/jpeg' : fmt === 'webp' ? 'image/webp' : 'image/png';
+        return new Promise(r => canvas.toBlob(r, mime, TILE_QUALITY));
+    }
+
+    // Références des isobathes, écrites avant le COMMIT (les sources réellement
+    // jointes ne sont connues qu'à la fin). Mêmes clés que tools/bathy_mbtiles.py.
+    _insertIsobathMetadata() {
+        // Rien n'est annoncé si aucune ligne n'a pu être tracée (zone hors
+        // couverture, service injoignable) : le bilan du job le dit à la place.
+        if (!this.isobaths || !this.isoState.stats.withLines) return;
+        const put = (k, v) => this.db.run("INSERT INTO metadata VALUES (?, ?)", [k, v]);
+        const datum = isobathDatum(this.isobaths);
+        const sources = [...this.isoState.stats.sources]
+            .map(v => v === 'wms' ? 'IGN RGE ALTI 1 m (WMS)' : 'IGN RGE ALTI HIGHRES (WMTS)').join(', ');
+        put('bathy_reference', datum === 0 ? 'IGN69' : 'ZH');
+        if (datum !== 0) put('bathy_zh_sous_ign69', String(-datum));
+        put('bathy_intervalle', String(this.isobaths.finestStep));
+        put('bathy_sources', sources || 'aucune');
+        put('description', `Isobathes (m) ${isobathReferenceText(this.isobaths)} ; `
+            + `équidistance ${isobathDepthText(this.isobaths.finestStep)} m aux grands zooms, élargie aux petits.`);
+        put('attribution', 'Isobathes : © IGN RGE ALTI® (lidar Litto3D® IGN-SHOM)');
     }
 
     // Télécharge une tuile et renvoie le blob brut, sans la décoder ni la
@@ -918,6 +1000,7 @@ class MbtilesJob {
                 await this.assembleFromOPFS();
             } else {
                 this._insertFormatMetadata();
+                this._insertIsobathMetadata();
                 this.db.run("COMMIT;");
                 this.finish();
             }
@@ -952,6 +1035,7 @@ class MbtilesJob {
         }
 
         this._insertFormatMetadata();
+        this._insertIsobathMetadata();
         this.db.run("COMMIT;");
 
         // Nettoyage OPFS
@@ -1013,6 +1097,13 @@ class MbtilesJob {
                 setTimeout(() => URL.revokeObjectURL(url), 10000);
             };
 
+            if (this.isobaths) {
+                const note = document.createElement('p');
+                note.className = "mt-1 text-xs text-gray-600 dark:text-gray-300";
+                note.textContent = isobathReport(this.isoState);
+                container.appendChild(note);
+            }
+
             const dlBtn = document.createElement('button');
             dlBtn.className = "text-green-600 font-bold hover:underline cursor-pointer";
             dlBtn.textContent = "Télécharger";
@@ -1049,6 +1140,7 @@ class MbtilesJob {
 
     cancel() {
         this.isCancelled = true;
+        this.isoAbort?.abort();
         this.status = 'error';
         document.getElementById(`job-status-${this.id}`).textContent = "ANNULÉ";
         // Nettoyage OPFS si utilisé
@@ -1061,7 +1153,7 @@ class MbtilesJob {
     }
 }
 
-function startMbtilesJob() {
+async function startMbtilesJob() {
     if (!currentCreatorBounds) {
         alert("Veuillez définir une zone.");
         return;
@@ -1077,8 +1169,16 @@ function startMbtilesJob() {
     let filename = document.getElementById('creator-filename').value.trim();
     if (!filename) filename = `Carte_Offline_${Date.now()}`;
     const includeMnt = document.getElementById('creator-include-mnt')?.checked || false;
+    let isobaths = null;
+    try {
+        isobaths = readIsobathOptions('creator');
+        if (isobaths) await ensureIsobathModule();
+    } catch (e) {
+        alert(e.message);
+        return;
+    }
 
-    const job = new MbtilesJob(jobIdCounter++, currentCreatorBounds, zooms, layerConfig, filename, includeMnt);
+    const job = new MbtilesJob(jobIdCounter++, currentCreatorBounds, zooms, layerConfig, filename, includeMnt, isobaths);
     activeJobs.push(job);
     job.start();
 }

@@ -298,6 +298,7 @@ em { font-style: italic; }
 <li><a href="#76-cartes-marines-shom">7.6 Cartes marines SHOM</a></li>
 <li><a href="#77-lignes-de-profondeur-emodnet-et-le-type-wms">7.7 Lignes de profondeur EMODnet, et le type wms</a></li>
 <li><a href="#78-bathymetrie-fine-hors-ligne-toolsbathy_mbtilespy">7.8 Bathymétrie fine hors ligne : tools/bathy_mbtiles.py</a></li>
+<li><a href="#79-lignes-de-profondeur-dans-les-trois-modes-isobathesjs">7.9 Lignes de profondeur dans les trois modes : isobathes.js</a></li>
 </ul>
 </li>
 <li><a href="#8-pipelines-dexport">8. Pipelines d'export</a><ul>
@@ -495,6 +496,7 @@ em { font-style: italic; }
 13. mbtilesCreator.js  → mode 3
 14. settingsManager.js → gestion icônes utilisateur
 15. imagetoprint.js    → export PNG haute résolution
+16. isobathes.js       → lignes de profondeur (chargé à la demande, cf. §7.9)
 </code></pre></div>
 <h3 id="33-etat-global-variables-window">3.3 État global (variables <code>window</code>)</h3>
 <table>
@@ -774,6 +776,10 @@ em { font-style: italic; }
   plus écrit, mais reste lu par CadoTour ; il n'est délibérément plus annoncé pour
   qu'une version ancienne ne prenne pas une tuile de fond du niveau 12 pour une
   carte d'altitude.</li>
+<li>Case « Ajouter les lignes de profondeur aquatiques » : isobathes cuites dans les
+  tuiles du fond aux zooms 11 et plus, demandées en même temps que chaque tuile
+  (<code>isobathTile</code>, cf. §7.9). Seules les tuiles qui portent une ligne sont
+  ré-encodées, dans leur propre format ; les autres restent en passthrough.</li>
 </ul>
 <p><strong>Spécifique</strong> : gestion projection EPSG:3395 pour Yandex (correction nécessaire), gestion QuadKey pour Bing.</p>
 <h4 id="seedmanagerjs-86-kb"><code>seedManager.js</code> (~8.6 KB)</h4>
@@ -1165,7 +1171,7 @@ python3<span class="w"> </span>tools/ogc_layers.py<span class="w"> </span>--brut
 <p><strong>Portée</strong></p>
 <p>Le SHOM couvre la mer, les estuaires et les approches, pas les canaux ni les rivières intérieures : ces couches complètent le fond « Eaux intérieures » (§7.5), elles ne le remplacent pas.</p>
 <h3 id="77-lignes-de-profondeur-emodnet-et-le-type-wms">7.7 Lignes de profondeur EMODnet, et le type <code>wms</code></h3>
-<p>Couche <code>emodnet_bathy</code> : fond OpenStreetMap surmonté des <strong>isobathes EMODnet</strong>, l'infrastructure bathymétrique européenne. Ces isobathes sont espacées de 50 m : pour des isobathes métriques, voir l'outil hors ligne du §7.8. Services OGC libres d'accès, donc exportables et rediffusables — contrairement au SHOM et à i-Boating. Couverture : mers européennes.</p>
+<p>Couche <code>emodnet_bathy</code> : fond OpenStreetMap surmonté des <strong>isobathes EMODnet</strong>, l'infrastructure bathymétrique européenne. Ces isobathes sont espacées de 50 m : pour des isobathes métriques, voir la case « lignes de profondeur » des trois modes (§7.9), ou l'outil hors ligne du §7.8 pour d'autres sources. Services OGC libres d'accès, donc exportables et rediffusables — contrairement au SHOM et à i-Boating. Couverture : mers européennes.</p>
 <p>Les isobathes ne sont pas servies en tuiles pré-calculées mais en <strong>WMS</strong>, d'où un quatrième type de couche.</p>
 <div class="highlight"><pre><span></span><code><span class="p">{</span><span class="w"> </span><span class="nx">url</span><span class="o">:</span><span class="w"> </span><span class="s2">&quot;https://ows.emodnet-bathymetry.eu/wms&quot;</span><span class="p">,</span><span class="w"> </span><span class="nx">type</span><span class="o">:</span><span class="w"> </span><span class="s2">&quot;wms&quot;</span><span class="p">,</span>
 <span class="w">  </span><span class="nx">layers</span><span class="o">:</span><span class="w"> </span><span class="s2">&quot;emodnet:contours&quot;</span><span class="p">,</span><span class="w"> </span><span class="nx">transparent</span><span class="o">:</span><span class="w"> </span><span class="kc">true</span><span class="w"> </span><span class="p">}</span>
@@ -1205,6 +1211,9 @@ python3<span class="w"> </span>tools/ogc_layers.py<span class="w"> </span>--brut
 <div class="highlight"><pre><span></span><code>python3<span class="w"> </span>tools/ogc_layers.py<span class="w"> </span>--url<span class="w"> </span>https://ows.emodnet-bathymetry.eu/wms<span class="w"> </span>--filtre<span class="w"> </span>contour
 </code></pre></div>
 <h3 id="78-bathymetrie-fine-hors-ligne-toolsbathy_mbtilespy">7.8 Bathymétrie fine hors ligne : <code>tools/bathy_mbtiles.py</code></h3>
+<blockquote>
+<p>Pour la bande côtière française, <strong>l'application trace elle-même les isobathes du RGE ALTI</strong> : c'est la case « Ajouter les lignes de profondeur aquatiques » des trois modes (§7.9), sans préparation. Cet outil reste utile pour ce que le navigateur ne peut pas aller chercher : levés au sondeur des équipes, MNT HOMONIM, lacs suisses, cartes S-57, fichiers reçus sur disque.</p>
+</blockquote>
 <p>Les isobathes EMODnet (§7.7) sont espacées de 50 m : trop lâche pour une embarcation ou un plongeur. Aucune source unique ne donne des isobathes métriques partout ; elles existent par morceaux — Litto3D au mètre sur la bande côtière, HOMONIM au large, levés au sondeur dans les ports — chacune dans son format et sa référence verticale. <code>tools/bathy_mbtiles.py</code> les assemble en <strong>une seule carte d'isobathes</strong>, écrite en MBTiles : lisible par l'application (mode MBTiles), par les drones DJI et par QGIS.</p>
 <p><strong>Principe</strong></p>
 <ol>
@@ -1452,6 +1461,125 @@ python3<span class="w"> </span>tools/bathy_mbtiles.py<span class="w"> </span>bat
 <li><strong>Réseau</strong> : aucun, sauf pour cuire un fond.</li>
 </ul>
 <p><strong>Tests</strong> : <code>python3 tools/test_bathy_mbtiles.py</code> — jeux synthétiques fidèles aux formats réels (ESRI ASCII Lambert-93 sans <code>.prj</code>, NetCDF, semis à virgule décimale, S-57), sans réseau.</p>
+<h3 id="79-lignes-de-profondeur-dans-les-trois-modes-isobathesjs">7.9 Lignes de profondeur dans les trois modes : <code>isobathes.js</code></h3>
+<p><strong>Pour l'utilisateur</strong></p>
+<p>Une case <strong>« Ajouter les lignes de profondeur aquatiques »</strong> dans chacun des trois modes :</p>
+<table>
+<thead>
+<tr>
+<th>Mode</th>
+<th>Emplacement</th>
+<th>Ce qui est produit</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Carroyage rapide</td>
+<td>carte « 4. Générer l'image »</td>
+<td>lignes sur l'image (PNG, JPEG, GeoTIFF), sous le carroyage ; ligne ajoutée au cartouche</td>
+</tr>
+<tr>
+<td>Export de zone</td>
+<td>carte « 6. Générer l'image »</td>
+<td>idem, rotation du fond comprise</td>
+</tr>
+<tr>
+<td>Créer MBTiles</td>
+<td>sous la case du relief 3D</td>
+<td>lignes cuites dans les tuiles du fond, aux zooms 11 et plus</td>
+</tr>
+</tbody>
+</table>
+<p>L'application va chercher elle-même, pour la zone voulue, les altitudes du RGE ALTI® de l'IGN, puis trace les courbes de niveau situées sous le zéro. Deux réglages suivent la case, partagés entre les modes et retenus par le navigateur (<code>localStorage</code>, simple confort) :</p>
+<ul>
+<li><strong>Équidistance la plus fine</strong> : 1 m (défaut), 2,5, 5 ou 10 m. Elle s'élargit d'office quand les lignes deviendraient illisibles, selon la taille du pixel au sol (<code>ISOBATH_LEGIBLE</code>) : sur toute la métropole, 1 m aux zooms 16 et plus, 2,5 m au 15, 5 m au 14, 10 m au 13, 25 m au 12, 50 m au 11. Une isobathe maîtresse — 5 m pour un pas de 1 m, 10 m pour 2,5 m — est épaissie et cotée à la française (« 2,5 ») ; le zéro est en trait fort, sans cote.</li>
+<li><strong>Zéro hydrographique local</strong>, facultatif : de combien de mètres il est sous le zéro NGF-IGN69 (virgule admise, signe indifférent). Une saisie illisible arrête l'export plutôt que de compter depuis un autre zéro que celui voulu.</li>
+</ul>
+<p>Un bilan s'affiche après l'export : sources lues, volume, ou raison de l'absence de lignes. Un échec complet des services passe aussi par la zone d'erreur, l'image étant produite sans lignes.</p>
+<p><strong>Ce qu'on peut en attendre</strong></p>
+<table>
+<thead>
+<tr>
+<th>Zone</th>
+<th>Résultat</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Bande côtière levée au lidar bathymétrique Litto3D, métropole et outre-mer</td>
+<td>isobathes au mètre jusqu'à la limite du levé : en général 10 à 20 m de fond, davantage en eau très claire</td>
+</tr>
+<tr>
+<td>Au large, au-delà du levé</td>
+<td>rien, le MNT n'y a pas de valeur ; pour les grands fonds, couche EMODnet (§7.7)</td>
+</tr>
+<tr>
+<td>Lacs, rivières, canaux</td>
+<td>rien : le MNT ne porte que la surface de l'eau, à plat. Sources : i-Boating (§7.5), levés propres via §7.8</td>
+</tr>
+<tr>
+<td>Hors de France</td>
+<td>rien, et aucune requête n'est faite</td>
+</tr>
+<tr>
+<td>Terres sous le zéro (polders, marais, estran)</td>
+<td>lignes tracées aussi : le MNT ne distingue pas la terre de l'eau</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Référence verticale</strong></p>
+<p>Les altitudes IGN partent du zéro NGF-IGN69 en métropole, proche du niveau moyen de la mer ; outre-mer, de la référence locale (IGN 1988 en Guadeloupe, IGN 1987 en Martinique, NGG 1977 en Guyane, IGN 1989 à La Réunion…), et c'est depuis elle que l'écart se saisit. Les cartes marines comptent leurs sondes depuis le <strong>zéro hydrographique</strong> (ZH), voisin des plus basses mers : plusieurs mètres plus bas en Manche et en Atlantique, quelques décimètres en Méditerranée. Sans saisie, une zone cotée 2 m sous le zéro NGF peut être <strong>à sec</strong> à marée basse. Avec la saisie (tables RAM du SHOM, port le plus proche), la profondeur <code>d</code> d'une isobathe est comptée sous le ZH : elle est tracée à l'altitude IGN <code>-(écart) - d</code>. Le zéro employé est toujours écrit : ligne de cartouche des images (<code>Isobathes IGN (m) : sous zéro NGF, équid. 1 m</code>), métadonnées MBTiles <code>bathy_reference</code> (<code>IGN69</code> ou <code>ZH</code>), <code>bathy_zh_sous_ign69</code>, <code>bathy_intervalle</code>, <code>bathy_sources</code>, <code>description</code>, <code>attribution</code>. Aucune de ces clés n'est écrite si aucune ligne n'a pu être tracée.</p>
+<p><strong>Sources interrogées</strong></p>
+<p>Relevées dans la configuration officielle du Géoportail (dépôt IGNF/geoportal-configuration, <code>fullConfig.json</code>) :</p>
+<table>
+<thead>
+<tr>
+<th>Service</th>
+<th>Couche</th>
+<th>Grille</th>
+<th>Rôle</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>WMS raster <code>data.geopf.fr/wms-r/wms</code></td>
+<td><code>RGEALTI-MNT_PYR-ZIP_&lt;FXX, GLP, MTQ, GUF, REU, MYT, SPM&gt;_…_WMS</code></td>
+<td>RGE ALTI natif, pas de 1 m</td>
+<td>principal</td>
+</tr>
+<tr>
+<td>WMTS <code>data.geopf.fr/wmts</code></td>
+<td><code>ELEVATION.ELEVATIONGRIDCOVERAGE.HIGHRES</code></td>
+<td>WGS84G, niveaux 6 à 14 (~4,8 m au 14)</td>
+<td>secours, couche d'altitude de la vue 3D iTowns de l'IGN</td>
+</tr>
+</tbody>
+</table>
+<p>Les deux servent des altitudes brutes : <code>image/x-bil;bits=32</code>, flottants petit-boutistes, <code>-99999</code> hors donnée. Le WMS est demandé <strong>en EPSG:3857, sur l'emprise exacte de la tuile ou du bloc</strong> : la grille reçue tombe sur les pixels de la sortie, sans reprojection dans le navigateur. Le territoire est choisi d'après l'emprise ; celle de la Guadeloupe est corrigée dans le code, la configuration IGN en publiant une fausse. Après trois échecs de suite (CORS, exception XML, taille inattendue), le WMS est abandonné pour le reste de l'export au profit du WMTS, rééchantillonné en bilinéaire aux centres des pixels Mercator ; le nom de grille <code>WGS84G_6_14</code> n'est essayé que si <code>WGS84G</code> est refusé.</p>
+<p>Ce qui n'a pas pu être vérifié depuis l'environnement de développement, faute d'accès à la Géoplateforme : la réponse réelle des deux services (en-têtes CORS, présence de la partie marine dans les pyramides). Le module a été éprouvé contre un faux service qui imite leurs réponses ; en cas de panne réelle, l'export se fait sans lignes et le bilan dit pourquoi.</p>
+<p><strong>Résolution et volume</strong></p>
+<p>Les couches WMS refusent les échelles plus fines que 1:3571, soit 1 m par pixel Mercator (<code>ISOBATH_WMS_MIN_RES</code>, 2 % de marge). Au sol, on s'arrête à 1,2 m (<code>ISOBATH_GROUND_MIN_RES</code>) pour ne pas suréchantillonner un MNT au pas de 1 m : en métropole, la grille la plus fine est celle du zoom 16 (1,6 m au sol). Une tuile de zoom 17 ou plus demande donc une grille plus petite (128 px au 17, 64 au 18), agrandie puis lissée (Chaikin, une ou deux passes). Chaque grille déborde de 8 px (<code>ISOBATH_MARGIN</code>) : deux tuiles voisines calculent les mêmes lignes sur la même grille, sans couture.</p>
+<p>Les altitudes voyagent en flottants non compressés : environ <strong>1,5 Mo par km²</strong> au zoom 16 en métropole, un tiers de plus pour l'ensemble des zooms inférieurs, et autant qu'au 16 pour chaque zoom au-delà. L'estimation du mode MBTiles en affiche un majorant. Pour l'alléger, une tuile dont la parente n'avait aucune donnée, ou n'était que terre à plus de 30 m au-dessus du zéro, n'est pas demandée.</p>
+<p><strong>Tracé</strong></p>
+<ul>
+<li><code>isobathContours</code> : marching squares ; les cols sont tranchés par la moyenne des quatre coins ; une maille dont un coin manque est ignorée, pour qu'aucune ligne ne longe le bord des données ; les segments sont recollés en polylignes par identifiant d'arête.</li>
+<li>Une boucle fermée de moins de 4 px est du bruit ; aux équidistances élargies, le seuil passe à 12 px — un écueil de quelques mètres ne serait qu'un point illisible. Au pas le plus fin, il reste : une tête de roche est ce qu'un bateau doit voir.</li>
+<li>Styles et cotes repris de <code>tools/bathy_mbtiles.py</code> : cote dans l'axe de la maîtresse, sur un halo blanc qui interrompt le trait, sans chevauchement ni débord. Sur une image, trait fin d'environ 0,18 mm une fois imprimée en A3, cotes de 2,3 mm (<code>isobathLineScale</code>) ; l'image est lue par blocs de 480 px, chacun ne peignant que son cœur, les cotes posées en dernier.</li>
+</ul>
+<p><strong>Points d'entrée</strong> : <code>isobathTile(z, x, y, réglages, état)</code> (mode MBTiles) et <code>drawIsobathsForImage(ctx, vue, réglages)</code> (modes 1 et 2, la vue étant construite par <code>isobathViewFromWorldPixels</code>). Côté interface : <code>renderIsobathOptions</code>, <code>readIsobathOptions</code>, <code>showIsobathReport</code> et <code>ensureIsobathModule</code> dans <code>utilities.js</code>.</p>
+<p><strong>Calage sur le fond</strong> — les lignes doivent tomber sur l'image, le zéro sur le trait de côte :</p>
+<ul>
+<li>Carroyage rapide (<code>generateImageToPrint</code>) : tracé sur l'image finale, après la carte, dans son repère même (pivot, déviation, agrandissement unique) ; la carte native part d'un pixel entier du monde (<code>originX</code>, <code>originY</code>), qui sert d'origine à la vue. Seule la partie de la carte visible dans l'image est lue, la marge de téléchargement autour du carroyage ne coûte aucune requête.</li>
+<li>Export de zone (<code>zdCreateFinalCanvas</code>) : les tuiles y sont collées au pixel entier inférieur, soit à moins d'un pixel natif des coordonnées exactes ; la vue part de ce même pixel, pour suivre l'image plutôt que la position théorique.</li>
+<li>Contrôle : un fond de test porte l'isobathe théorique en rouge ; l'écart médian entre ce trait et la ligne tracée reste sous 0,2 pixel natif, déviation et agrandissement compris.</li>
+</ul>
+<p><strong>Tests</strong> : <code>node tools/test_isobathes.mjs</code> — niveaux et équidistances, courbes sur des champs analytiques (plan, cône, trou de données, col), décodage BIL dans les deux ordres d'octets, requêtes WMS conformes, bascule WMTS, panne complète, élagage. Sans réseau ni dépendance.</p>
+<p><strong>Limites</strong></p>
+<ul>
+<li>Référence verticale : voir plus haut. C'est le premier point à vérifier devant une carte produite.</li>
+<li>Les fonds bougent (bancs, chenaux) et le levé Litto3D date de plusieurs années selon les secteurs : ces lignes aident au repérage, elles ne remplacent pas les cartes marines pour naviguer.</li>
+<li>Connexion requise à l'export ; le MBTiles produit s'utilise ensuite hors ligne.</li>
+</ul>
 <hr />
 <h2 id="8-pipelines-dexport">8. Pipelines d'export</h2>
 <p>Toutes les exports passent par le même <code>gridData</code> (lignes + étiquettes) calculé une seule fois, puis dispatché.</p>
@@ -1762,7 +1890,7 @@ docker<span class="w"> </span>build<span class="w"> </span>-t<span class="w"> </
 <h3 id="155-evolutions-souhaitables">15.5 Évolutions souhaitables</h3>
 <ul>
 <li><strong>Découper <code>index.html</code></strong> : actuellement monolithique. Une approche template (HTML imports natifs ou simple concat de fragments) faciliterait la maintenance</li>
-<li><strong>Tests</strong> : seul l'outil bathymétrique en a (<code>tools/test_bathy_mbtiles.py</code>) ; l'application elle-même n'a pas de test automatisé. Un harnais Playwright sur les exports core (KML, MBTiles) renforcerait la régression</li>
+<li><strong>Tests</strong> : l'outil bathymétrique (<code>tools/test_bathy_mbtiles.py</code>) et le module des lignes de profondeur (<code>node tools/test_isobathes.mjs</code>) en ont ; le reste de l'application n'a pas de test automatisé. Un harnais Playwright sur les exports core (KML, MBTiles) renforcerait la régression</li>
 <li><strong>Migration Tailwind JIT</strong> : permettrait les classes arbitraires (<code>z-[xxxx]</code>)</li>
 <li><strong>Modules ES natifs</strong> : remplacer les globales <code>window.xxx</code> par <code>import/export</code> quand on quittera la compatibilité totale (PWA installée)</li>
 </ul>
