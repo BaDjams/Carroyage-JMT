@@ -274,6 +274,35 @@
 
         <hr class="border-gray-200 dark:border-gray-700 my-10">
 
+        <!-- CODE DE RECRÉATION -->
+        <section id="code-recreation" class="mb-12">
+            <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-6">🔁 Refaire une carte : le code de recréation</h2>
+            <p class="mb-4">
+                Chaque export porte un <strong>code de recréation</strong> : sur la dernière ligne du cartouche des images,
+                à la fin du nom de fichier (<code>_code=…</code>), et dans la description du point d'origine A1 des fichiers
+                KML, KMZ, GeoJSON, GPX et CSV. Il décrit la zone d'intérêt ; recopiez-le dans le champ
+                <strong>« Code de recréation »</strong> puis cliquez sur <strong>Appliquer</strong>. Vous pouvez aussi
+                coller le nom de fichier entier.
+            </p>
+            <ul class="list-disc pl-5 space-y-2 text-sm mb-4">
+                <li><strong>Carroyage rapide</strong> : le code règle le point, l'échelle, la grille, la déviation et le zoom
+                    de l'image. Changez ensuite le fond, la couleur ou le format à votre guise. Une grille en
+                    « Origine (A1) » peut s'agrandir en gardant ses cases : ajoutez des colonnes et lignes négatives
+                    (-A, -1…) dans la grille custom.</li>
+                <li><strong>Export de zone</strong> : le code retrace la zone et remet la carte au même zoom ; choisissez
+                    ensuite le carroyage. Le même code sert pour CADO, UTM, MGRS, CFSI ou DFCI. Un code de
+                    carroyage CADO reprend aussi sa grille.</li>
+                <li><strong>Recopie</strong> : le code n'emploie ni I, L, O ni U, et les majuscules ou minuscules sont
+                    indifférentes. Son dernier caractère sert de contrôle : une faute de frappe ou deux caractères
+                    inversés sont signalés au lieu de donner une autre carte.</li>
+                <li><strong>Base32 ou base64</strong> : la fenêtre <strong>Gestion ⚙️</strong> propose un code plus court
+                    en base64, pratique pour le copier-coller mais sensible aux majuscules. Les deux formes se relisent
+                    quel que soit ce réglage.</li>
+            </ul>
+        </section>
+
+        <hr class="border-gray-200 dark:border-gray-700 my-10">
+
         <!-- CONFIGURATION -->
         <section id="config-icons" class="mb-12">
             <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-6">⚙️ Gestion des Icônes</h2>

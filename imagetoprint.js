@@ -365,6 +365,9 @@ async function generateImageToPrint() {
         drawConfig.cartoucheGridKind = 'cado';
         drawConfig.cartoucheLayerShort = mapConfig?.shortName || mapConfig?.name || '';
         drawConfig.cartoucheZoom = (actualZoom !== undefined && actualZoom !== null) ? actualZoom : zoomLevel;
+        // Code de recréation (cf. seedManager.js) : cartouche et nom de fichier.
+        const recreationCode = cadoRecreationCode(config, { deviation: Number(config.deviation) || 0, zoom: drawConfig.cartoucheZoom });
+        drawConfig.cartoucheCode = recreationCode;
         drawConfig.cartoucheIsobathes = isoSummary?.cartouche || null;
 
         // KML Import
@@ -451,7 +454,10 @@ async function generateImageToPrint() {
         // Le nom compose passe par cartoucheFileName : il part du nom saisi, qui peut
         // contenir la date par defaut et donc des caracteres interdits.
         const finalGridName = cartoucheFileName(document.getElementById('grid-name').value);
-        const originString = `_origine=${realA1Coords[1].toFixed(6)},${realA1Coords[0].toFixed(6)}`;
+        // Le code remplace l'origine ; faute de code (échelle non entière), l'origine reste.
+        const originString = recreationCode
+            ? recreationCodeFilePart(recreationCode)
+            : `_origine=${realA1Coords[1].toFixed(6)},${realA1Coords[0].toFixed(6)}`;
         const fileName = `${finalGridName}${originString}${fileExtension}`;
 
         if (format === 'geotiff' || format === 'geotiff-jpeg') {

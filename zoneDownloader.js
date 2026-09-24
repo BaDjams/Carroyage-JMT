@@ -487,6 +487,16 @@ function getZoneCadoConfigAndBounds() {
     const direction = document.querySelector('input[name="zone-cado-direction"]:checked').value;
     const swapAxes = document.getElementById('zone-cado-swap-axes').checked;
 
+    // Grille reprise d'un code de recréation CADO (cf. applyZoneRecreationCode) : elle
+    // vaut tant que rectangle, échelle et sens des lettres n'ont pas été retouchés.
+    // Recalculée d'après le rectangle, elle perdrait ses bornes (colonnes négatives) et
+    // son point de référence, et un arrondi pourrait lui ajouter une colonne.
+    const fromCode = window.zoneCadoFromCode;
+    if (fromCode && fromCode.rectKey === `${nwCoordsStr}|${seCoordsStr}`
+        && fromCode.scale === scale && fromCode.direction === direction) {
+        return zoneCadoConfigFromCode(fromCode, direction, swapAxes);
+    }
+
     const widthMeters = haversineDistance({lat: nwLat, lon: nwLon}, {lat: nwLat, lon: seLon});
     const heightMeters = haversineDistance({lat: nwLat, lon: nwLon}, {lat: seLat, lon: nwLon});
     const numCols = Math.ceil(widthMeters / scale);
@@ -514,26 +524,12 @@ function getZoneCadoConfigAndBounds() {
     }
     
     const config = {
+        ...zoneCadoCommonConfig(scale, direction, swapAxes),
         latitude: refLat,
         longitude: refLon,
-        scale: scale,
-        lineWidth: parseInt(document.getElementById('common-grid-thickness').value, 10) || 1,
-        letteringDirection: direction,
-        gridColor: document.getElementById('utm-grid-color').value,
-        colorName: document.getElementById('utm-grid-color-name').value,
-        colorOpacity: (100 - parseInt(document.getElementById('utm-transparency').value)) / 100,
-        gridNameBase: document.getElementById("zone-title").value || "Carroyage CADO",
-        gridName: document.getElementById("zone-title").value || "Carroyage CADO", 
-        deviation: 0,
-        labelSize: 1.2,
-        iconSize: 1.0,
         referencePointChoice: 'no_cross', 
         startRow: 1, endRow: numRows,
         startCol: 'A', endCol: numberToLetter(numCols),
-        includeGrid: true, includePoints: true,
-        swapAxes: swapAxes,
-        doubleEntry: document.getElementById('zone-cado-double-entry')?.checked || false,
-        outputFormat: 'KMZ'
     };
 
     const gridCorners = [
@@ -551,6 +547,70 @@ function getZoneCadoConfigAndBounds() {
     };
 
     return { config, gridBounds, a1CornerLat, a1CornerLon };
+}
+
+// Réglages de la grille CADO de l'export de zone qui ne dépendent pas de sa géométrie.
+function zoneCadoCommonConfig(scale, direction, swapAxes) {
+    return {
+        scale: scale,
+        lineWidth: parseInt(document.getElementById('common-grid-thickness').value, 10) || 1,
+        letteringDirection: direction,
+        gridColor: document.getElementById('utm-grid-color').value,
+        colorName: document.getElementById('utm-grid-color-name').value,
+        colorOpacity: (100 - parseInt(document.getElementById('utm-transparency').value)) / 100,
+        gridNameBase: document.getElementById("zone-title").value || "Carroyage CADO",
+        gridName: document.getElementById("zone-title").value || "Carroyage CADO", 
+        deviation: 0,
+        labelSize: 1.2,
+        iconSize: 1.0,
+        includeGrid: true, includePoints: true,
+        swapAxes: swapAxes,
+        doubleEntry: document.getElementById('zone-cado-double-entry')?.checked || false,
+        outputFormat: 'KMZ'
+    };
+}
+
+// Grille CADO reprise d'un code de recréation, sous la forme que rend
+// getZoneCadoConfigAndBounds. Son point de référence est celui du code, milieu ou
+// origine A1, comme en carroyage rapide.
+function zoneCadoConfigFromCode(code, direction, swapAxes) {
+    const config = {
+        ...zoneCadoCommonConfig(code.scale, direction, swapAxes),
+        latitude: code.lat,
+        longitude: code.lon,
+        referencePointChoice: code.pivot === 'origin' ? 'origin' : 'no_cross',
+        startRow: code.startRow, endRow: code.endRow,
+        startCol: code.startCol, endCol: code.endCol,
+    };
+    const [a1CornerLon, a1CornerLat] = calculateGridData(config).a1Corner;
+
+    const colEdges = [letterToNumber(config.startCol), getNextIndex(letterToNumber(config.endCol))];
+    const rowEdges = [config.startRow, getNextIndex(config.endRow)];
+    const gridCorners = colEdges.flatMap(c => rowEdges.map(r => calculateAndRotatePoint(c, r, config, a1CornerLat, a1CornerLon)))
+        .map(p => ({ lon: p[0], lat: p[1] }));
+
+    const gridBounds = {
+        minLat: Math.min(...gridCorners.map(c => c.lat)),
+        maxLat: Math.max(...gridCorners.map(c => c.lat)),
+        minLon: Math.min(...gridCorners.map(c => c.lon)),
+        maxLon: Math.max(...gridCorners.map(c => c.lon))
+    };
+
+    return { config, gridBounds, a1CornerLat, a1CornerLon };
+}
+
+// Code de recréation de l'export de zone : la grille CADO si elle est choisie, sinon
+// le rectangle, qui vaut pour tous les autres carroyages.
+function zoneRecreationCodeFor(useCado, zoom = null) {
+    const deviation = parseFloat(document.getElementById('zone-deviation')?.value || 0);
+    try {
+        if (useCado) return cadoRecreationCode(getZoneCadoConfigAndBounds().config, { deviation, zoom });
+        const [north, west] = document.getElementById("zone-nw-coords").value.split(',').map(c => parseFloat(c.trim()));
+        const [south, east] = document.getElementById("zone-se-coords").value.split(',').map(c => parseFloat(c.trim()));
+        return zoneRecreationCode({ north, west, south, east }, { deviation, zoom });
+    } catch (e) {
+        return null; // zone non définie : l'export s'arrêtera plus loin, avec son message
+    }
 }
 
 // =============================================================================
@@ -635,6 +695,8 @@ async function generateZonePNG() {
         
         // Cartouche et nom de fichier partagent ces deux valeurs.
         const cartoucheLayerShort = selectedMap?.shortName || mapLayerName || '';
+        // Code de recréation (cf. seedManager.js) : cartouche et nom de fichier.
+        const recreationCode = zoneRecreationCodeFor(useCado, zoom);
         const cartoucheGridKind = useCado ? 'cado'
             : useUtm ? (gridMode === 'mgrs' ? 'mgrs' : 'utm')
             : useCfsi ? 'cfsi'
@@ -720,6 +782,7 @@ async function generateZonePNG() {
             config.cartoucheGridKind = 'cado';
             config.cartoucheLayerShort = cartoucheLayerShort;
             config.cartoucheZoom = zoom;
+            config.cartoucheCode = recreationCode;
             config.cartoucheIsobathes = isoSummary?.cartouche || null;
             drawCadoElementsOnCanvas(ctx, config, latLonToCanvasPixels, [a1CornerLon, a1CornerLat]);
             config.lineWidth = thicknessLevel;
@@ -770,6 +833,7 @@ async function generateZonePNG() {
                 originLat: finalBoundingBox.north,
                 originLon: finalBoundingBox.west,
                 originLabel: '(coin NO)',
+                code: recreationCode,
                 isobathes: isoSummary?.cartouche || null,
             }, dynamicMargin, cartoucheFontSize);
 
@@ -829,9 +893,11 @@ async function generateZonePNG() {
             : '';
         const deviationStr = zoneDeviationDeg !== 0 ? `_dev${Math.round(zoneDeviationDeg)}deg` : '';
         const layerStr = `_${cartoucheLayerShort}-z${zoom}`.replace(/\s+/g, '-');
-        // L'origine suit celle du cartouche : le coin A1 s'il y a un carroyage CADO,
-        // sinon le coin nord-ouest de l'emprise exportee.
-        const originString = (useCado && cadoData)
+        // Le code de recréation remplace l'origine. Faute de code (échelle non entière),
+        // l'origine reste : le coin A1 s'il y a un carroyage CADO, sinon le coin
+        // nord-ouest de l'emprise exportee.
+        const originString = recreationCode ? recreationCodeFilePart(recreationCode)
+            : (useCado && cadoData)
             ? `_origine=${cadoData.a1CornerLat.toFixed(6)},${cadoData.a1CornerLon.toFixed(6)}`
             : `_origine=${finalBoundingBox.north.toFixed(6)},${finalBoundingBox.west.toFixed(6)}`;
 
@@ -919,17 +985,12 @@ async function handleZoneVectorExport() {
     const useCado = (gridChoice === 'cado');
     
     const format = document.querySelector('input[name="zone-file-format"]:checked').value; 
-    const filenameBase = document.getElementById('zone-title').value || "Export_Zone";
-
-    // Ajout de l'origine A1 au nom de base si CADO est sélectionné
-    if (useCado) {
-        try {
-            const cadoData = getZoneCadoConfigAndBounds();
-            filenameBase += `_origine=${cadoData.a1CornerLat.toFixed(6)},${cadoData.a1CornerLon.toFixed(6)}`;
-        } catch(e) {
-            // S'il y a une erreur (zone non définie), on ignore ici, elle sera bloquée plus bas
-        }
-    }
+    // Code de recréation (cf. seedManager.js), sans zoom : un fichier vectoriel n'en a
+    // pas. Il va dans le nom de fichier, à la place de l'origine A1 qui y figurait
+    // (en fait jamais : filenameBase, déclaré const, refusait l'ajout en silence), et
+    // dans la description du point A1 ou, sans carroyage CADO, du document.
+    const recreationCode = zoneRecreationCodeFor(useCado);
+    const filenameBase = (document.getElementById('zone-title').value || "Export_Zone") + recreationCodeFilePart(recreationCode);
 
     if (!useUtm && !useCfsi && !useDfci && !useCado && userPOIs.length === 0 && format !== 'MBTILES' && format !== 'DEM') {
         if (!confirm("Aucune grille sélectionnée. Voulez-vous exporter uniquement les points d'intérêt ?")) {
@@ -944,7 +1005,8 @@ async function handleZoneVectorExport() {
     try {
         // --- CAS SPECIAL : EXPORT DJI MBTILES (RASTER TRANSPARENT) ---
         if (format === 'MBTILES') {
-            await generateZoneMBTiles(filenameBase, useUtm, useCfsi, useCado, gridMode, useDfci);
+            await generateZoneMBTiles(filenameBase, useUtm, useCfsi, useCado, gridMode, useDfci,
+                recreationCode ? { code_recreation: recreationCode } : {});
             return; // STOP ICI
         }
 
@@ -973,7 +1035,7 @@ async function handleZoneVectorExport() {
             kmlFolders += generateDfciKmlFolder();
         }
         if (useCado) {
-            kmlFolders += await generateCadoKmlFolder(imagesToZip, format === 'KMZ');
+            kmlFolders += await generateCadoKmlFolder(imagesToZip, format === 'KMZ', recreationCode);
         }
         if (userPOIs.length > 0) {
             kmlFolders += await generatePoiKmlFolder(userPOIs, imagesToZip, format === 'KMZ');
@@ -992,6 +1054,7 @@ async function handleZoneVectorExport() {
 <kml xmlns="http://www.opengis.net/kml/2.2">
   <Document>
     <name>${filenameBase}</name>
+    ${recreationCode ? `<description>${recreationCodeDescription(recreationCode)}</description>` : ''}
     <Style id="commonLineStyle"><LineStyle><color>${kmlColor}</color><width>2</width></LineStyle><IconStyle><scale>0</scale></IconStyle></Style>
     <Style id="commonLabelStyle"><IconStyle><scale>0</scale></IconStyle><LabelStyle><scale>0.8</scale><color>${kmlLabelColor}</color></LabelStyle></Style>
     
@@ -1024,6 +1087,7 @@ async function handleZoneVectorExport() {
             if (useCado) {
                  const { config } = getZoneCadoConfigAndBounds();
                  const gridData = calculateGridData(config); 
+                 gridData.originPointPlacemark.description = recreationCodeDescription(recreationCode);
                  
                  if (format === 'GeoJSON') {
                      const json = generateGeoJSON(config, gridData); 
@@ -1084,7 +1148,7 @@ async function generateZoneDEM(filenameBase) {
 }
 
 // --- NOUVELLE FONCTION : GENERATE ZONE MBTILES (OVERLAY TRANSPARENT) ---
-async function generateZoneMBTiles(filename, useUtm, useCfsi, useCado, gridMode = 'utm', useDfci = false) {
+async function generateZoneMBTiles(filename, useUtm, useCfsi, useCado, gridMode = 'utm', useDfci = false, extraMetadata = {}) {
     await ensureMbtilesOverlayModule();
     if (typeof window.initSqlJs !== 'function') {
         throw new Error("La librairie SQL.js n'est pas chargée.");
@@ -1146,7 +1210,8 @@ async function generateZoneMBTiles(filename, useUtm, useCfsi, useCado, gridMode 
         window.userPOIs,
         null,
         gridMode,
-        useDfci
+        useDfci,
+        extraMetadata
     );
 
     // 3. Téléchargement
@@ -1347,13 +1412,18 @@ function generateDfciKmlFolder() {
     </Folder>`;
 }
 
-async function generateCadoKmlFolder(imagesToZip, isKmz) {
+async function generateCadoKmlFolder(imagesToZip, isKmz, recreationCode = null) {
     const { config } = getZoneCadoConfigAndBounds();
     const zoneDeviationDeg = parseFloat(document.getElementById('zone-deviation')?.value || 0);
     if (zoneDeviationDeg !== 0) config.deviation = zoneDeviationDeg;
     const gridData = calculateGridData(config); 
     
     let kml = "<Folder><name>Grille CADO</name>";
+
+    // Point d'origine A1, porteur du code de recréation
+    const origin = gridData.originPointPlacemark;
+    const originDesc = recreationCode ? `<description>${recreationCodeDescription(recreationCode)}</description>` : '';
+    kml += `<Placemark><name>${origin.name}</name>${originDesc}<Point><coordinates>${origin.coordinates.join(',')}</coordinates></Point></Placemark>`;
     
     gridData.horizontalLines.concat(gridData.verticalLines).forEach(line => {
         kml += `<Placemark><name>${line.name}</name><styleUrl>#commonLineStyle</styleUrl><LineString><coordinates>${line.points.map(p=>p.join(',')).join(' ')}</coordinates></LineString></Placemark>`;

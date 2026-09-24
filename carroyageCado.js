@@ -13,7 +13,6 @@ function schedulePreviewUpdate() {
     clearTimeout(_previewTimer);
     _previewTimer = setTimeout(() => {
         updateCadoGridPreview();
-        if (typeof updateSeedInput === 'function') updateSeedInput();
     }, 400);
 }
 
@@ -424,9 +423,14 @@ async function generateGrid() {
         const config = getGridConfiguration(lat, lon);
         const gridData = calculateGridData(config);
 
+        // Code de recréation (cf. seedManager.js) : nom de fichier et description du
+        // point d'origine A1. Pas de zoom : un fichier vectoriel n'en a pas.
+        const recreationCode = cadoRecreationCode(config, { deviation: Number(config.deviation) || 0 });
+        gridData.originPointPlacemark.description = recreationCodeDescription(recreationCode);
         const originCoords = gridData.originPointPlacemark.coordinates;
-        const originString = `_origine=${originCoords[1].toFixed(6)},${originCoords[0].toFixed(6)}`;
-        config.gridName += originString;
+        config.gridName += recreationCode
+            ? recreationCodeFilePart(recreationCode)
+            : `_origine=${originCoords[1].toFixed(6)},${originCoords[0].toFixed(6)}`;
         
         const disp = document.getElementById("full-grid-name");
         if(disp) disp.textContent = config.gridName;
@@ -462,7 +466,8 @@ async function generateGrid() {
             if (typeof generateMbtilesProcess === 'function') {
                 const manualCadoData = { config: config, gridData: gridData };
                 // Pas d'UTM ni CFSI en Mode 1
-                fileBlob = await generateMbtilesProcess(config.gridName, false, false, true, bbox, baseZoom, window.userPOIs, manualCadoData);
+                fileBlob = await generateMbtilesProcess(config.gridName, false, false, true, bbox, baseZoom, window.userPOIs, manualCadoData,
+                    'utm', false, recreationCode ? { code_recreation: recreationCode } : {});
                 fileName = `${config.gridName}.mbtiles`;
             } else {
                 throw new Error("Module MBTiles manquant (carroyageToMbtiles.js).");
@@ -746,7 +751,8 @@ function generateKML(config, gridData) {
     // --- CARROYAGE ---
     p.push('<Folder><name>Carroyage CADO</name>');
     p.push(`<Placemark><name>Point de Référence</name><styleUrl>#referenceCircleStyle</styleUrl><Polygon><outerBoundaryIs><LinearRing><coordinates>${gridData.referencePointCircle.map(pt => pt.join(',') + ',0').join(' ')}</coordinates></LinearRing></outerBoundaryIs></Polygon></Placemark>`);
-    p.push(`<Placemark><name>${gridData.originPointPlacemark.name}</name><styleUrl>#originPointStyle</styleUrl><Point><coordinates>${gridData.originPointPlacemark.coordinates.join(',')},0</coordinates></Point></Placemark>`);
+    const originDesc = gridData.originPointPlacemark.description ? `<description>${gridData.originPointPlacemark.description}</description>` : '';
+    p.push(`<Placemark><name>${gridData.originPointPlacemark.name}</name>${originDesc}<styleUrl>#originPointStyle</styleUrl><Point><coordinates>${gridData.originPointPlacemark.coordinates.join(',')},0</coordinates></Point></Placemark>`);
 
     if (config.includeGrid) {
         p.push('<Folder><name>Lignes</name>');
@@ -861,7 +867,9 @@ async function generateKMZ(config, gridData, kmlContent, mimeType) {
 function generateGeoJSON(config, gridData) {
     const features = [];
     features.push({ type: "Feature", properties: { name: "Point de Référence (cercle)" }, geometry: { type: "Polygon", coordinates: [gridData.referencePointCircle] } });
-    features.push({ type: "Feature", properties: { name: gridData.originPointPlacemark.name }, geometry: { type: "Point", coordinates: gridData.originPointPlacemark.coordinates } });
+    const originProps = { name: gridData.originPointPlacemark.name };
+    if (gridData.originPointPlacemark.description) originProps.description = gridData.originPointPlacemark.description;
+    features.push({ type: "Feature", properties: originProps, geometry: { type: "Point", coordinates: gridData.originPointPlacemark.coordinates } });
     if (config.includeGrid) {
         gridData.horizontalLines.concat(gridData.verticalLines).forEach(line => {
             if (line.points.length > 1) {
@@ -881,7 +889,8 @@ function generateGPX(config, gridData) {
     const p = [];
     p.push(`<?xml version="1.0" encoding="UTF-8"?><gpx version="1.1" creator="CADO"><metadata><name>${config.gridName}</name></metadata>`);
     const orig = gridData.originPointPlacemark;
-    p.push(`<wpt lat="${orig.coordinates[1]}" lon="${orig.coordinates[0]}"><name>${orig.name}</name></wpt>`);
+    const origDesc = orig.description ? `<desc>${orig.description}</desc>` : '';
+    p.push(`<wpt lat="${orig.coordinates[1]}" lon="${orig.coordinates[0]}"><name>${orig.name}</name>${origDesc}</wpt>`);
     if (config.includePoints) {
         gridData.points.forEach(pt => {
             p.push(`<wpt lat="${pt.coordinates[1]}" lon="${pt.coordinates[0]}"><name>${pt.name}</name></wpt>`);
@@ -923,9 +932,4 @@ document.addEventListener('DOMContentLoaded', () => {
     setTimeout(() => {
         if (window.cadoMap) window.cadoMap.on('click', schedulePreviewUpdate);
     }, 400);
-
-    // Init du SEED manager
-    setTimeout(() => {
-        if (typeof initSeedManager === 'function') initSeedManager();
-    }, 300);
 });

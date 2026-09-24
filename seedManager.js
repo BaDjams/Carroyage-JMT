@@ -1,182 +1,487 @@
 // seedManager.js
-// Encode / restaure les paramètres clés de la session CADO dans un code SEED compact (binaire → base64).
-// Format : 8 octets → 11 caractères base64 (sans padding).
+// CODE DE RECRÉATION
+// Un code court, inscrit dans le cartouche, le nom de fichier et la description du
+// point d'origine A1, qui décrit la zone d'intérêt d'un export pour la refaire à
+// l'identique, en carroyage rapide comme en export de zone. Le carroyage n'y est pas
+// figé : saisi en export de zone, le code redessine l'emprise, et l'on choisit
+// ensuite CFSI, DFCI, UTM, MGRS ou CADO. Fond, couleur, épaisseur et format restent
+// libres.
+//
+// Deux sortes de codes :
+//   - zone : coin nord-ouest et étendue du rectangle, au millionième de degré, la
+//     précision des champs de l'export de zone : le rectangle revient à l'identique ;
+//   - CADO : point de référence (milieu ou A1), échelle et bornes de la grille.
+//     L'étendue s'en déduit, d'où un code plus court.
+// Communs : déviation et zoom de l'export (0 = non précisé, exports vectoriels).
+//
+// Disposition des bits, poids fort en tête :
+//   version 2 | sorte 1 | lat 28 | lon 29 (µ°) | déviation + 180 9 | zoom 5
+//   zone : Δlat 22 | Δlon 23 (µ°)
+//   CADO : échelle 17 (m) | grille 3 | [bornes] | ascendant 1 | milieu 1 | axes inversés 1 | double entrée 1
+//     grille 0 à 4 : Q12, Z18, Q9, Z14, Z26
+//            5     : de A1 à N colonnes × M lignes (8 + 8)
+//            6     : bornes libres, colonnes puis lignes de début et de fin (4 × 8, signées)
+// Suit un caractère de contrôle : somme des caractères pondérés par les puissances
+// successives d'un générateur de GF(32) (GF(64) en base64). Toute faute sur un
+// caractère et toute inversion de deux caractères voisins sont repérées, tant que le
+// code compte moins de 31 caractères (63 en base64) : il en fait 27 au plus.
+//
+// Inversion des axes et double entrée se lisent sur l'image, mais ne coûtent rien :
+// en base32 un code CADO fait 98 bits sans elles comme avec, soit 20 caractères.
+// Le sens des lettres, lui, est indispensable : il place les lignes au nord ou au
+// sud de A1.
+//
+// Deux alphabets, au choix dans la fenêtre « Gestion ⚙️ » :
+//   - base32 de Crockford (défaut) : ni I, L, O ni U, casse indifférente, groupé par
+//     4, pour être relu sur une carte imprimée et retapé sur le terrain ;
+//   - base64url : plus court, pour le copier-coller. Sans « / » ni « + », il tient
+//     dans un nom de fichier.
+// Le décodage reconnaît les deux.
 
-// Types de grille dans l'ordre d'index (3 bits → 8 valeurs max)
-const SEED_GRID_TYPES = ['Q12', 'Z18', 'Q9', 'Z14', 'Z26', 'custom'];
+const RC_VERSION = 1;
+const RC_ALPHABETS = {
+    base32: '0123456789ABCDEFGHJKMNPQRSTVWXYZ',
+    base64: 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_',
+};
+const RC_BITS_PER_CHAR = { base32: 5, base64: 6 };
+const RC_STORAGE_KEY = 'recreationCodeAlphabet';
+const RC_MICRO = 1e6;
+
+// Grilles prédéfinies du carroyage rapide, dans l'ordre de leur index (cf.
+// getGridConfiguration). Colonnes en nombres : A = 1, Q = 17, Z = 26.
+const RC_PRESETS = [
+    { name: 'Q12', startCol: 1, endCol: 17, startRow: 1, endRow: 12 },
+    { name: 'Z18', startCol: 1, endCol: 26, startRow: 1, endRow: 18 },
+    { name: 'Q9',  startCol: 1, endCol: 17, startRow: 1, endRow: 9 },
+    { name: 'Z14', startCol: 1, endCol: 26, startRow: 1, endRow: 14 },
+    { name: 'Z26', startCol: 1, endCol: 26, startRow: 1, endRow: 26 },
+];
+const RC_SPEC_FROM_A1 = 5;
+const RC_SPEC_FREE = 6;
 
 // ----------------------------------------------------------------
-// Génération du SEED (binaire compact)
+// Préférence d'alphabet
 // ----------------------------------------------------------------
-// Disposition des bits (8 octets = 64 bits, 4 bits de padding à la fin) :
-//   bits  0-20 (21 bits) : latInt  = round((lat+90)  × 10000)  → précision ~11m
-//   bits 21-42 (22 bits) : lonInt  = round((lon+180) × 10000)  → précision ~11m
-//   bits 43-52 (10 bits) : scale   = round(scale / 10)         → pas 10 m, max 10230 m
-//   bits 53-55  (3 bits) : gridType index (cf. SEED_GRID_TYPES)
-//   bit  56              : swapAxes
-//   bit  57              : doubleEntry
-//   bit  58              : letteringDir (1 = ascending)
-//   bit  59              : referencePoint (1 = center)
-//   bits 60-63  (4 bits) : padding zéro
-
-function generateSeed() {
+function getRecreationCodeAlphabet() {
     try {
-        const decStr = document.getElementById('decimal-coords')?.value.trim() || '';
-        const parts  = decStr.split(',').map(s => parseFloat(s.trim()));
-        const lat = parts[0] || 0;
-        const lon = parts[1] || 0;
-
-        const scale        = parseFloat(document.getElementById('scale')?.value || 20);
-        const gridTypeVal  = document.querySelector('input[name="grid-type"]:checked')?.value || 'Q12';
-        const swapAxes     = document.getElementById('swap-axes')?.checked     ? 1 : 0;
-        const doubleEntry  = document.getElementById('double-entry')?.checked  ? 1 : 0;
-        const letteringDir = document.querySelector('input[name="lettering-direction"]:checked')?.value === 'ascending' ? 1 : 0;
-        const refPoint     = document.querySelector('input[name="reference-point"]:checked')?.value === 'center' ? 1 : 0;
-
-        const latInt      = Math.max(0, Math.min(1800000, Math.round((lat  +  90) * 10000))); // 21 bits
-        const lonInt      = Math.max(0, Math.min(3600000, Math.round((lon  + 180) * 10000))); // 22 bits
-        const scaleInt    = Math.max(0, Math.min(1023,    Math.round(scale / 10)));            // 10 bits
-        const gridTypeIdx = Math.max(0, SEED_GRID_TYPES.indexOf(gridTypeVal)) & 0x07;          //  3 bits
-
-        const b = new Uint8Array(8);
-
-        // Octet 0 : latInt bits 0-7
-        b[0] = latInt & 0xFF;
-        // Octet 1 : latInt bits 8-15
-        b[1] = (latInt >> 8) & 0xFF;
-        // Octet 2 : latInt bits 16-20 (5 bits) | lonInt bits 0-2 (3 bits)
-        b[2] = ((latInt >> 16) & 0x1F) | ((lonInt & 0x07) << 5);
-        // Octet 3 : lonInt bits 3-10
-        b[3] = (lonInt >> 3) & 0xFF;
-        // Octet 4 : lonInt bits 11-18
-        b[4] = (lonInt >> 11) & 0xFF;
-        // Octet 5 : lonInt bits 19-21 (3 bits) | scaleInt bits 0-4 (5 bits)
-        b[5] = ((lonInt >> 19) & 0x07) | ((scaleInt & 0x1F) << 3);
-        // Octet 6 : scaleInt bits 5-9 (5 bits) | gridTypeIdx bits 0-2 (3 bits)
-        b[6] = ((scaleInt >> 5) & 0x1F) | (gridTypeIdx << 5);
-        // Octet 7 : flags (swapAxes | doubleEntry<<1 | letteringDir<<2 | refPoint<<3)
-        b[7] = swapAxes | (doubleEntry << 1) | (letteringDir << 2) | (refPoint << 3);
-
-        return btoa(String.fromCharCode(...b)).replace(/=/g, '');
-    } catch(e) {
-        console.error('SEED generation error:', e);
-        return null;
+        return localStorage.getItem(RC_STORAGE_KEY) === 'base64' ? 'base64' : 'base32';
+    } catch (e) {
+        return 'base32';
     }
 }
 
+function setRecreationCodeAlphabet(alphabet) {
+    try { localStorage.setItem(RC_STORAGE_KEY, alphabet === 'base64' ? 'base64' : 'base32'); } catch (e) {}
+}
+
 // ----------------------------------------------------------------
-// Restauration du SEED
+// Bits
 // ----------------------------------------------------------------
-function restoreSeed(seed) {
-    try {
-        const padded = seed + '=='.slice(0, (4 - seed.length % 4) % 4);
-        const bin    = atob(padded);
-        const b      = new Uint8Array(bin.length).map((_, i) => bin.charCodeAt(i));
+function rcPush(bits, value, width) {
+    for (let i = width - 1; i >= 0; i--) bits.push(Math.floor(value / 2 ** i) % 2);
+}
 
-        if (b.length < 8) throw new Error('SEED trop court (format invalide).');
+function rcReader(bits) {
+    let pos = 0;
+    return {
+        read(width) {
+            // RangeError : le code s'arrête avant la fin de ses champs.
+            if (pos + width > bits.length) throw new RangeError('incomplet');
+            let value = 0;
+            for (let i = 0; i < width; i++) value = value * 2 + bits[pos++];
+            return value;
+        },
+        get pos() { return pos; },
+    };
+}
 
-        // Décodage
-        const latInt      = b[0] | (b[1] << 8) | ((b[2] & 0x1F) << 16);
-        const lonInt      = ((b[2] >> 5) & 0x07) | (b[3] << 3) | (b[4] << 11) | ((b[5] & 0x07) << 19);
-        const scaleInt    = ((b[5] >> 3) & 0x1F) | ((b[6] & 0x1F) << 5);
-        const gridTypeIdx = (b[6] >> 5) & 0x07;
-        const swapAxes    =  b[7]       & 1;
-        const doubleEntry = (b[7] >> 1) & 1;
-        const letteringDir= (b[7] >> 2) & 1;
-        const refPoint    = (b[7] >> 3) & 1;
+// Polynômes primitifs de GF(2^5) et GF(2^6) : x est générateur, ses puissances
+// x^1..x^30 (x^1..x^62) sont distinctes et différentes de 1, poids du contrôle.
+const RC_GF_POLY = { 5: 0x25, 6: 0x43 };
 
-        const lat      = latInt  / 10000 - 90;
-        const lon      = lonInt  / 10000 - 180;
-        const scale    = scaleInt * 10;
-        const gridType = SEED_GRID_TYPES[gridTypeIdx] || 'Q12';
+function rcGfMul(a, b, k) {
+    let r = 0;
+    while (b) {
+        if (b & 1) r ^= a;
+        b >>= 1;
+        a <<= 1;
+        if (a & (1 << k)) a ^= RC_GF_POLY[k];
+    }
+    return r;
+}
 
-        // Coordonnées
-        const coordEl = document.getElementById('decimal-coords');
-        if (coordEl) coordEl.value = `${lat.toFixed(4)}, ${lon.toFixed(4)}`;
-        if (typeof updateAllFromDecimal === 'function') updateAllFromDecimal(lat, lon);
-        if (window.cadoMap) window.cadoMap.setView([lat, lon], 15);
+function rcCheck(values, k) {
+    let check = 0, weight = 1;
+    for (const v of values) {
+        weight = rcGfMul(weight, 2, k);
+        check ^= rcGfMul(weight, v, k);
+    }
+    return check;
+}
 
-        // Échelle
-        const scaleEl = document.getElementById('scale');
-        if (scaleEl) scaleEl.value = scale;
+const rcMicro = (deg) => Math.round(deg * RC_MICRO);
+const rcNormLon = (lon) => ((lon + 180) % 360 + 360) % 360 - 180;
 
-        // Type de grille
-        const gtEl = document.querySelector(`input[name="grid-type"][value="${gridType}"]`);
-        if (gtEl) {
-            gtEl.checked = true;
-            const customOpts = document.getElementById('custom-grid-options');
-            if (customOpts) customOpts.classList.toggle('hidden', gridType !== 'custom');
+// ----------------------------------------------------------------
+// Encodage
+// ----------------------------------------------------------------
+// Grille d'un code CADO : index de grille prédéfinie, ou bornes. null si les bornes
+// ne tiennent pas dans le code (au-delà de ±127 cases, ou une borne nulle).
+function rcGridSpec(p) {
+    const b = [p.startCol, p.endCol, p.startRow, p.endRow];
+    if (!b.every(Number.isInteger) || b.includes(0)) return null;
+    const preset = RC_PRESETS.findIndex(g =>
+        g.startCol === p.startCol && g.endCol === p.endCol && g.startRow === p.startRow && g.endRow === p.endRow);
+    if (preset >= 0) return { spec: preset };
+    if (p.startCol === 1 && p.startRow === 1 && p.endCol >= 1 && p.endCol <= 255 && p.endRow >= 1 && p.endRow <= 255) {
+        return { spec: RC_SPEC_FROM_A1 };
+    }
+    if (b.every(v => v >= -128 && v <= 127)) return { spec: RC_SPEC_FREE };
+    return null;
+}
+
+// Bits du code, ou null si les paramètres ne s'y prêtent pas (échelle non entière,
+// zone traversant l'antiméridien...). L'export se fait alors sans code.
+function rcPayloadBits(p) {
+    const cado = p.kind === 'cado';
+    const lat = Number(cado ? p.lat : p.north);
+    const lon = rcNormLon(Number(cado ? p.lon : p.west));
+    if (!Number.isFinite(lat) || !Number.isFinite(lon) || Math.abs(lat) > 90) return null;
+    const deviation = Math.round(Number(p.deviation) || 0);
+    if (deviation < -180 || deviation > 180) return null;
+    const zoom = (Number.isInteger(p.zoom) && p.zoom > 0 && p.zoom < 32) ? p.zoom : 0;
+
+    const bits = [];
+    rcPush(bits, RC_VERSION, 2);
+    rcPush(bits, cado ? 1 : 0, 1);
+    rcPush(bits, rcMicro(lat + 90), 28);
+    rcPush(bits, rcMicro(lon + 180), 29);
+    rcPush(bits, deviation + 180, 9);
+    rcPush(bits, zoom, 5);
+
+    if (cado) {
+        const scale = Number(p.scale);
+        if (!Number.isInteger(scale) || scale < 1 || scale >= 2 ** 17) return null;
+        const grid = rcGridSpec(p);
+        if (!grid) return null;
+        rcPush(bits, scale, 17);
+        rcPush(bits, grid.spec, 3);
+        if (grid.spec === RC_SPEC_FROM_A1) {
+            rcPush(bits, p.endCol, 8);
+            rcPush(bits, p.endRow, 8);
+        } else if (grid.spec === RC_SPEC_FREE) {
+            [p.startCol, p.endCol, p.startRow, p.endRow].forEach(v => rcPush(bits, v + 128, 8));
         }
-
-        // Axes
-        const swEl = document.getElementById('swap-axes');
-        if (swEl) swEl.checked = !!swapAxes;
-
-        // Double entrée
-        const deEl = document.getElementById('double-entry');
-        if (deEl) deEl.checked = !!doubleEntry;
-
-        // Direction lettrage
-        const ldEl = document.querySelector(`input[name="lettering-direction"][value="${letteringDir ? 'ascending' : 'descending'}"]`);
-        if (ldEl) ldEl.checked = true;
-
-        // Point de référence
-        const rpEl = document.querySelector(`input[name="reference-point"][value="${refPoint ? 'center' : 'origin'}"]`);
-        if (rpEl) rpEl.checked = true;
-
-        if (typeof updateDynamicGridName  === 'function') updateDynamicGridName();
-        if (typeof updateCadoGridPreview  === 'function') updateCadoGridPreview();
-
-        return true;
-    } catch(e) {
-        console.error('SEED restore error:', e);
-        alert('Code SEED invalide ou corrompu : ' + e.message);
-        return false;
+        rcPush(bits, p.direction === 'descending' ? 0 : 1, 1);
+        rcPush(bits, p.pivot === 'origin' ? 0 : 1, 1);
+        rcPush(bits, p.swapAxes ? 1 : 0, 1);
+        rcPush(bits, p.doubleEntry ? 1 : 0, 1);
+    } else {
+        // Étendue calculée sur les coordonnées déjà arrondies au µ° : le décodage
+        // retrouve exactement les quatre bords saisis à 6 décimales.
+        const dLat = rcMicro(Number(p.north)) - rcMicro(Number(p.south));
+        const dLon = rcMicro(Number(p.east)) - rcMicro(Number(p.west));
+        if (!(dLat > 0 && dLat < 2 ** 22 && dLon > 0 && dLon < 2 ** 23)) return null;
+        rcPush(bits, dLat, 22);
+        rcPush(bits, dLon, 23);
     }
+    return bits;
+}
+
+// Paramètres :
+//   { kind: 'zone', north, west, south, east, deviation, zoom }
+//   { kind: 'cado', lat, lon, pivot: 'center'|'origin', scale, startCol, endCol,
+//     startRow, endRow (nombres, A = 1), direction, swapAxes, doubleEntry, deviation, zoom }
+// Renvoie le code, ou null.
+function encodeRecreationCode(p, alphabet = getRecreationCodeAlphabet()) {
+    const bits = rcPayloadBits(p);
+    if (!bits) return null;
+    const k = RC_BITS_PER_CHAR[alphabet];
+    const chars = RC_ALPHABETS[alphabet];
+    const padded = bits.concat(new Array((k - bits.length % k) % k).fill(0));
+    const values = [];
+    for (let i = 0; i < padded.length; i += k) {
+        let v = 0;
+        for (let j = 0; j < k; j++) v = v * 2 + padded[i + j];
+        values.push(v);
+    }
+    values.push(rcCheck(values, k));
+    const out = values.map(v => chars[v]).join('');
+    return alphabet === 'base32' ? out.match(/.{1,4}/g).join('-') : out;
 }
 
 // ----------------------------------------------------------------
-// Mise à jour automatique du champ SEED
+// Décodage
 // ----------------------------------------------------------------
-function updateSeedInput() {
-    const seedInput = document.getElementById('seed-input');
-    if (!seedInput) return;
-    const seed = generateSeed();
-    if (seed) seedInput.value = seed;
-}
+const RC_ERR_TYPO = "Code de recréation erroné : un caractère a sans doute été mal recopié.";
 
-// ----------------------------------------------------------------
-// Initialisation des boutons SEED
-// ----------------------------------------------------------------
-function initSeedManager() {
-    const copyBtn    = document.getElementById('seed-copy-btn');
-    const restoreBtn = document.getElementById('seed-restore-btn');
-    const seedInput  = document.getElementById('seed-input');
-    if (!copyBtn || !restoreBtn || !seedInput) return;
+function rcParse(bits) {
+    const r = rcReader(bits);
+    if (r.read(2) !== RC_VERSION) {
+        throw new Error("Code de recréation non reconnu : faute de frappe, ou code produit par une version plus récente de l'application.");
+    }
+    const cado = r.read(1) === 1;
+    const latInt = r.read(28);
+    const lonInt = r.read(29);
+    const deviation = r.read(9) - 180;
+    const zoom = r.read(5) || null;
+    const lat = latInt / RC_MICRO - 90;
+    const lon = lonInt / RC_MICRO - 180;
 
-    copyBtn.addEventListener('click', () => {
-        const seed = generateSeed();
-        if (!seed) { alert('Impossible de générer le SEED. Vérifiez les paramètres.'); return; }
-        seedInput.value = seed;
-        if (navigator.clipboard) {
-            navigator.clipboard.writeText(seed).then(() => {
-                copyBtn.textContent = '✓ Copié !';
-                setTimeout(() => { copyBtn.textContent = 'Copier SEED'; }, 2500);
-            });
+    let p;
+    if (cado) {
+        const scale = r.read(17);
+        const spec = r.read(3);
+        let bounds;
+        if (spec < RC_PRESETS.length) {
+            const { startCol, endCol, startRow, endRow } = RC_PRESETS[spec];
+            bounds = { startCol, endCol, startRow, endRow };
+        } else if (spec === RC_SPEC_FROM_A1) {
+            bounds = { startCol: 1, endCol: r.read(8), startRow: 1, endRow: r.read(8) };
+        } else if (spec === RC_SPEC_FREE) {
+            const [startCol, endCol, startRow, endRow] = [0, 0, 0, 0].map(() => r.read(8) - 128);
+            bounds = { startCol, endCol, startRow, endRow };
         } else {
-            seedInput.select();
-            document.execCommand('copy');
-            copyBtn.textContent = '✓ Copié !';
-            setTimeout(() => { copyBtn.textContent = 'Copier SEED'; }, 2500);
+            bounds = null;
         }
-    });
+        const direction = r.read(1) ? 'ascending' : 'descending';
+        const pivot = r.read(1) ? 'center' : 'origin';
+        const swapAxes = r.read(1) === 1;
+        const doubleEntry = r.read(1) === 1;
+        p = { kind: 'cado', lat, lon, pivot, scale, ...bounds, direction, swapAxes, doubleEntry, deviation, zoom, _valid: !!bounds };
+    } else {
+        const dLat = r.read(22);
+        const dLon = r.read(23);
+        p = {
+            kind: 'zone', north: lat, west: lon,
+            south: (latInt - dLat) / RC_MICRO - 90,
+            east: (lonInt + dLon) / RC_MICRO - 180,
+            deviation, zoom, _valid: dLat > 0 && dLon > 0 && lonInt + dLon <= 360 * RC_MICRO,
+        };
+    }
+    p._valid = p._valid && latInt <= 180 * RC_MICRO && lonInt <= 360 * RC_MICRO && deviation <= 180;
+    if (cado) {
+        p._valid = p._valid && p.scale >= 1 && [p.startCol, p.endCol, p.startRow, p.endRow].every(v => v !== 0);
+    }
+    return { p, used: r.pos };
+}
 
-    restoreBtn.addEventListener('click', () => {
-        const seed = seedInput.value.trim();
-        if (!seed) { alert('Collez d\'abord un code SEED dans le champ.'); return; }
-        if (restoreSeed(seed)) {
-            restoreBtn.textContent = '✓ Restauré !';
-            setTimeout(() => { restoreBtn.textContent = 'Restaurer'; }, 2500);
-        }
+function rcDecodeWith(text, alphabet) {
+    const chars = RC_ALPHABETS[alphabet];
+    const k = RC_BITS_PER_CHAR[alphabet];
+    const values = [...text].map(c => chars.indexOf(c));
+    const bad = values.indexOf(-1);
+    if (bad >= 0) throw new Error(`Code de recréation illisible : caractère « ${text[bad]} » inconnu.`);
+    if (values.length < 2) throw new Error("Code de recréation incomplet : un ou plusieurs caractères manquent.");
+
+    const check = values.pop();
+    const bits = [];
+    values.forEach(v => rcPush(bits, v, k));
+
+    let parsed;
+    try {
+        parsed = rcParse(bits);
+    } catch (e) {
+        if (e instanceof RangeError) throw new Error("Code de recréation incomplet : un ou plusieurs caractères manquent.");
+        throw e;
+    }
+    const { p, used } = parsed;
+    if (Math.ceil(used / k) !== values.length) {
+        throw new Error("Code de recréation trop long : un caractère a sans doute été ajouté ou collé en trop.");
+    }
+    if (rcCheck(values, k) !== check || bits.slice(used).some(Boolean)) throw new Error(RC_ERR_TYPO);
+    if (!p._valid) throw new Error(RC_ERR_TYPO);
+    delete p._valid;
+    return p;
+}
+
+// Accepte un code seul, ou un nom de fichier entier : on prend ce qui suit « code= ».
+// Lève une erreur au message lisible si le code est faux.
+function decodeRecreationCode(input) {
+    let s = String(input ?? '').trim();
+    const at = s.toLowerCase().lastIndexOf('code=');
+    if (at >= 0) s = s.slice(at + 5).replace(/\.[a-z0-9]{2,5}$/i, '');
+    s = s.replace(/\s+/g, '');
+    if (!s) throw new Error("Saisissez d'abord un code de recréation.");
+
+    // base32 : casse indifférente, tirets de groupement ignorés, O lu 0, I et L lus 1.
+    const asBase32 = s.toUpperCase().replace(/-/g, '').replace(/O/g, '0').replace(/[IL]/g, '1');
+    const tries = /[a-z_]/.test(s)
+        ? [['base64', s], ['base32', asBase32]]
+        : [['base32', asBase32], ['base64', s]];
+    let firstError = null;
+    for (const [alphabet, text] of tries) {
+        try { return rcDecodeWith(text, alphabet); }
+        catch (e) { firstError = firstError || e; }
+    }
+    throw firstError;
+}
+
+// ----------------------------------------------------------------
+// Codes des exports
+// ----------------------------------------------------------------
+// Carroyage CADO, d'après sa configuration : getGridConfiguration en carroyage
+// rapide, getZoneCadoConfigAndBounds en export de zone (pivot au centre du rectangle,
+// « no_cross » valant « milieu »). La déviation est passée à part : les images la
+// retirent de config pour la porter elles-mêmes.
+function cadoRecreationCode(config, { deviation = 0, zoom = null } = {}) {
+    return encodeRecreationCode({
+        kind: 'cado',
+        lat: config.latitude, lon: config.longitude,
+        pivot: config.referencePointChoice === 'origin' ? 'origin' : 'center',
+        scale: Number(config.scale),
+        startCol: letterToNumber(String(config.startCol)), endCol: letterToNumber(String(config.endCol)),
+        startRow: Number(config.startRow), endRow: Number(config.endRow),
+        direction: config.letteringDirection,
+        swapAxes: !!config.swapAxes, doubleEntry: !!config.doubleEntry,
+        deviation, zoom,
     });
+}
+
+// Rectangle de l'export de zone, tel que saisi (6 décimales).
+function zoneRecreationCode({ north, west, south, east }, { deviation = 0, zoom = null } = {}) {
+    return encodeRecreationCode({ kind: 'zone', north, west, south, east, deviation, zoom });
+}
+
+const recreationCodeFilePart = (code) => code ? `_code=${code}` : '';
+const recreationCodeDescription = (code) => code ? `Code de recréation : ${code}` : '';
+
+// ----------------------------------------------------------------
+// Restauration
+// ----------------------------------------------------------------
+// Configuration à la manière de getGridConfiguration, pour calculateGridData.
+function rcGridConfig(p, deviation) {
+    return {
+        latitude: p.lat, longitude: p.lon, scale: p.scale,
+        referencePointChoice: p.pivot === 'origin' ? 'origin' : 'center',
+        letteringDirection: p.direction,
+        startCol: numberToLetter(p.startCol), endCol: numberToLetter(p.endCol),
+        startRow: p.startRow, endRow: p.endRow,
+        deviation, swapAxes: p.swapAxes,
+    };
+}
+
+// Emprise d'une grille CADO (bords extrêmes de ses lignes).
+function rcGridBounds(p, deviation) {
+    const gridData = calculateGridData(rcGridConfig(p, deviation));
+    let north = -90, south = 90, east = -180, west = 180;
+    [...gridData.horizontalLines, ...gridData.verticalLines].forEach(line => line.points.forEach(([lon, lat]) => {
+        north = Math.max(north, lat); south = Math.min(south, lat);
+        east = Math.max(east, lon); west = Math.min(west, lon);
+    }));
+    return { north, south, east, west };
+}
+
+// Carroyage rapide : grille CADO à appliquer. Un code de zone y devient une grille
+// CADO « milieu » qui la couvre, de 26 colonnes environ comme le propose l'export de
+// zone ; le sens des lettres et les axes restent ceux de l'écran.
+function quickGridFromCode(p) {
+    if (p.kind === 'cado') return { ...p, fromZone: false };
+    const lat = (p.north + p.south) / 2;
+    const lon = (p.west + p.east) / 2;
+    const width = (typeof haversineDistance === 'function')
+        ? haversineDistance({ lat: p.north, lon: p.west }, { lat: p.north, lon: p.east })
+        : (p.east - p.west) * 111320 * Math.cos(lat * Math.PI / 180);
+    const height = (p.north - p.south) * 111320;
+    const scale = Math.max(1, Math.round(width / 26));
+    return {
+        kind: 'cado', lat, lon, pivot: 'center', scale,
+        startCol: 1, endCol: Math.max(1, Math.ceil(width / scale)),
+        startRow: 1, endRow: Math.max(1, Math.ceil(height / scale)),
+        direction: null, swapAxes: null, doubleEntry: null,
+        deviation: p.deviation, zoom: p.zoom, fromZone: true,
+    };
+}
+
+// Remplit les champs du carroyage rapide. Les valeurs null laissent le champ tel quel.
+function applyQuickGridSettings(g) {
+    const setRadio = (name, value) => {
+        const el = document.querySelector(`input[name="${name}"][value="${value}"]`);
+        if (el) el.checked = true;
+        return el;
+    };
+    const setValue = (id, value) => { const el = document.getElementById(id); if (el) el.value = value; };
+    const setChecked = (id, value) => { const el = document.getElementById(id); if (el && value !== null) el.checked = !!value; };
+
+    setValue('scale', g.scale);
+
+    const preset = RC_PRESETS.find(r =>
+        r.startCol === g.startCol && r.endCol === g.endCol && r.startRow === g.startRow && r.endRow === g.endRow);
+    if (preset) {
+        setRadio('grid-type', preset.name);
+    } else {
+        setRadio('grid-type', 'custom');
+        setValue('start-col', numberToLetter(g.startCol));
+        setValue('end-col', numberToLetter(g.endCol));
+        setValue('start-row', g.startRow);
+        setValue('end-row', g.endRow);
+    }
+    document.getElementById('custom-grid-options')?.classList.toggle('hidden', !!preset);
+    // Les bornes libres se règlent dans les options avancées : on les ouvre pour qu'elles se voient.
+    if (!preset) document.getElementById('advanced-grid-config')?.classList.remove('hidden');
+
+    setRadio('reference-point', g.pivot === 'origin' ? 'origin' : 'center');
+    if (g.direction) setRadio('lettering-direction', g.direction);
+    setChecked('swap-axes', g.swapAxes);
+    setChecked('double-entry', g.doubleEntry);
+
+    const dev = document.getElementById('deviation');
+    if (dev) {
+        dev.value = g.deviation;
+        dev.dispatchEvent(new Event('input'));
+    }
+
+    const zoomSelect = document.getElementById('cado-forced-zoom');
+    if (zoomSelect) {
+        const wanted = g.zoom ? String(g.zoom) : 'auto';
+        zoomSelect.value = [...zoomSelect.options].some(o => o.value === wanted) ? wanted : 'auto';
+        zoomSelect.dispatchEvent(new Event('change'));
+    }
+
+    if (typeof updateDynamicGridName === 'function') updateDynamicGridName();
+}
+
+// Résumé affiché sous le champ après application.
+function describeQuickGrid(g) {
+    const bounds = `${numberToLetter(g.startCol)}${g.startRow} à ${numberToLetter(g.endCol)}${g.endRow}`;
+    const parts = [
+        `${g.scale} m`, bounds,
+        g.pivot === 'origin' ? 'origine A1' : 'milieu',
+        g.deviation ? `déviation ${g.deviation}°` : null,
+        g.zoom ? `zoom ${g.zoom} forcé` : null,
+    ].filter(Boolean);
+    return g.fromZone
+        ? `Zone appliquée, couverte par une grille CADO : ${parts.join(', ')}. Ajustez l'échelle si besoin.`
+        : `Carroyage appliqué : ${parts.join(', ')}.`;
+}
+
+// Export de zone : rectangle à tracer et, pour un code CADO, grille à reprendre telle
+// quelle (cf. getZoneCadoConfigAndBounds) plutôt que recalculée d'après le rectangle.
+// Le rectangle d'une grille CADO l'encadre sans rotation : c'est ainsi que l'export
+// de zone la définit, la carte pivotant dessous.
+function zoneFrameFromCode(p) {
+    if (p.kind === 'zone') {
+        return { north: p.north, west: p.west, south: p.south, east: p.east, deviation: p.deviation, zoom: p.zoom, cado: null };
+    }
+    const box = rcGridBounds(p, 0);
+    return {
+        ...box, deviation: p.deviation, zoom: p.zoom,
+        cado: {
+            lat: p.lat, lon: p.lon, pivot: p.pivot, scale: p.scale,
+            startCol: numberToLetter(p.startCol), endCol: numberToLetter(p.endCol),
+            startRow: p.startRow, endRow: p.endRow,
+            direction: p.direction, swapAxes: p.swapAxes, doubleEntry: p.doubleEntry,
+        },
+    };
+}
+
+function describeZoneFrame(z) {
+    const extra = [
+        z.deviation ? `rotation ${z.deviation}°` : null,
+        z.zoom ? `zoom ${z.zoom}` : null,
+    ].filter(Boolean).join(', ');
+    const head = z.cado
+        ? `Zone et carroyage CADO appliqués (${z.cado.scale} m, ${z.cado.startCol}${z.cado.startRow} à ${z.cado.endCol}${z.cado.endRow}).`
+        : 'Zone appliquée : choisissez le carroyage.';
+    return extra ? `${head} ${extra[0].toUpperCase()}${extra.slice(1)}.` : head;
 }

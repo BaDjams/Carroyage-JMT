@@ -52,6 +52,10 @@ async function generateGridCSV(filename, useUtm, useCfsi, useCado, userPOIs, opt
         }
 
         if (config && gridData) {
+            // Point d'origine A1, avec le code de recréation quand il est connu
+            const origin = gridData.originPointPlacemark;
+            if (origin) addRow("Point", origin.coordinates, origin.name, origin.description || "Origine A1");
+
             // Lignes
             const allLines = [...gridData.horizontalLines, ...gridData.verticalLines];
             allLines.forEach(line => {

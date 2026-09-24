@@ -540,6 +540,7 @@ function drawReferenceCross(ctx, latLonToPixels, config, cellWidthInPixels) {
 //   ligne 2  echelle + fond + zoom « 1 carre = 10m, OSM z16 »
 //   ligne 3  point d'origine       « Origine (A1) : 46.22760, 2.21370 »
 //   ligne 4  point de reference    seulement s'il differe de l'origine A1
+//   ligne 5  code de recreation    « Code : E26S-2K5D-WYAY-B920-1J9G-7 » (cf. seedManager.js)
 // La taille de l'encadre suit le contenu : hauteur par nombre de lignes, largeur
 // par la ligne la plus longue.
 
@@ -689,6 +690,8 @@ function buildCartoucheLines(opts = {}) {
         refIndex = lines.length;
         lines.push(`Pt. Réf : ${cartoucheCoords(opts.refLat, opts.refLon)}`);
     }
+    // Code de recréation : relu sur la carte imprimée pour la refaire à l'identique.
+    if (opts.code) lines.push(`Code : ${opts.code}`);
     // Lignes de profondeur : leur zéro doit se lire sur la carte elle-même.
     if (opts.isobathes) lines.push(opts.isobathes);
     return { lines, refIndex };
@@ -757,6 +760,7 @@ function drawCartouche(ctx, latLonToPixels, config, a1CornerCoords, cellWidthInP
         originLat: a1Lat, originLon: a1Lon, originLabel: '(A1)',
         refLat: hasRef ? config.latitude : null,
         refLon: hasRef ? config.longitude : null,
+        code: config.cartoucheCode || null,
         isobathes: config.cartoucheIsobathes || null,
     });
 
