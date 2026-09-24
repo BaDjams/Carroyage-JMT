@@ -598,6 +598,7 @@ em { font-style: italic; }
 <h3 id="mode-1-carroyage-rapide-cado">Mode 1 — Carroyage rapide (CADO)</h3>
 <p>Génère un quadrillage CADO <strong>centré sur un point unique</strong> (lat/lon en décimal, DMS, DM, UTM, MGRS ou Mercator). Aperçu temps réel sur carte Leaflet, exports KML/KMZ/GeoJSON/GPX/CSV/PNG/MBTiles.</p>
 <p><strong>Fichier pivot</strong> : <code>carroyageCado.js</code> (~43 KB).</p>
+<p><strong>Zoom forcé</strong> (options avancées du carroyage, <code>#cado-forced-zoom</code>) : en « Automatique », l'image est assemblée au zoom de <code>calculateOptimalZoom</code> (≈ 4000 px de large, plafonné au zoom du fond). Un zoom choisi est appliqué tel quel par <code>checkForcedZoom</code> (<code>imagetoprint.js</code>) pour refaire une image identique à une précédente, le zoom étant lu dans son cartouche. Il est refusé, jamais substitué, s'il dépasse le <code>maxZoom</code> du fond, s'il manque au MBTiles chargé, ou si la carte dépasserait 16 384 px de côté ou 16 384 × 8 192 px ; le message donne alors le zoom maximal utilisable. Le rappel <code>#cado-forced-zoom-note</code> reste affiché sous « Générer l'image » tant qu'un zoom est forcé. Exports image seulement : KML, MBTiles et CSV n'ont pas de fond.</p>
 <h3 id="mode-2-export-de-zone">Mode 2 — Export de zone</h3>
 <p>L'utilisateur dessine un rectangle (Leaflet.draw) ou importe un KML/KMZ existant. Génère plusieurs grilles superposées (UTM, MGRS, CFSI, DFCI ou CADO, au choix) sur la zone, gère les POI utilisateur.</p>
 <p><strong>Fichier pivot</strong> : <code>zoneDownloader.js</code>.</p>

@@ -134,6 +134,8 @@ Génère un quadrillage CADO **centré sur un point unique** (lat/lon en décima
 
 **Fichier pivot** : `carroyageCado.js` (~43 KB).
 
+**Zoom forcé** (options avancées du carroyage, `#cado-forced-zoom`) : en « Automatique », l'image est assemblée au zoom de `calculateOptimalZoom` (≈ 4000 px de large, plafonné au zoom du fond). Un zoom choisi est appliqué tel quel par `checkForcedZoom` (`imagetoprint.js`) pour refaire une image identique à une précédente, le zoom étant lu dans son cartouche. Il est refusé, jamais substitué, s'il dépasse le `maxZoom` du fond, s'il manque au MBTiles chargé, ou si la carte dépasserait 16 384 px de côté ou 16 384 × 8 192 px ; le message donne alors le zoom maximal utilisable. Le rappel `#cado-forced-zoom-note` reste affiché sous « Générer l'image » tant qu'un zoom est forcé. Exports image seulement : KML, MBTiles et CSV n'ont pas de fond.
+
 ### Mode 2 — Export de zone
 
 L'utilisateur dessine un rectangle (Leaflet.draw) ou importe un KML/KMZ existant. Génère plusieurs grilles superposées (UTM, MGRS, CFSI, DFCI ou CADO, au choix) sur la zone, gère les POI utilisateur.
