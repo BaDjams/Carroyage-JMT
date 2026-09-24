@@ -180,8 +180,12 @@ async function generateImageToPrint() {
             west: Math.min(...lons)
         };
         
-        // 2. ZOOM
-        const zoomLevel = calculateOptimalZoom(downloadBoundingBox, mapConfig);
+        // 2. ZOOM : optimal, sauf zoom forcé dans les options avancées (refaire une
+        // image identique à une précédente, dont le cartouche donne le zoom).
+        const forcedZoom = getForcedZoom();
+        const zoomLevel = forcedZoom !== null
+            ? checkForcedZoom(forcedZoom, downloadBoundingBox, mapConfig, usingMbtiles)
+            : calculateOptimalZoom(downloadBoundingBox, mapConfig);
 
         // 3. TÉLÉCHARGEMENT
         loadingMessage.textContent = `Téléchargement de la zone étendue (0%)...`;
@@ -502,6 +506,47 @@ function calculateOptimalZoom(boundingBox, mapConfig) {
     const targetWidthInPixels = 4000; 
     const zoomApproximation = Math.log2(360 * targetWidthInPixels / (lonDiff * 256));
     return Math.min(Math.floor(zoomApproximation), maxLayerZoom);
+}
+
+// Zoom forcé (options avancées du carroyage), null en automatique.
+function getForcedZoom() {
+    const z = parseInt(document.getElementById('cado-forced-zoom')?.value, 10);
+    return Number.isInteger(z) ? z : null;
+}
+
+// Plus grande carte assemblable : au-delà, le canvas échoue ou vide la mémoire
+// d'une tablette. Le zoom automatique vise 4000 px de large et n'en approche pas.
+const FORCED_ZOOM_MAX_SIDE = 16384;
+const FORCED_ZOOM_MAX_PIXELS = 16384 * 8192;
+
+// Un zoom forcé est pris tel quel ou refusé : le remplacer par un voisin donnerait
+// une image différente de celle qu'on veut refaire, sans que rien ne le signale.
+function checkForcedZoom(zoom, boundingBox, mapConfig, usingMbtiles) {
+    if (usingMbtiles) {
+        const zooms = tileSourceGetZooms();
+        if (!zooms.includes(zoom)) {
+            throw new Error(`Zoom forcé ${zoom} absent du MBTiles chargé (zooms disponibles : ${Math.min(...zooms)} à ${Math.max(...zooms)}). Choisissez un autre zoom dans les options avancées du carroyage.`);
+        }
+    } else {
+        const maxLayerZoom = mapConfig.maxZoom || 20;
+        if (zoom > maxLayerZoom) {
+            throw new Error(`Zoom forcé ${zoom} indisponible : le fond « ${mapConfig.name} » monte jusqu'au zoom ${maxLayerZoom}. Choisissez un autre zoom dans les options avancées du carroyage, ou un autre fond.`);
+        }
+    }
+
+    const fits = (z) => {
+        const nw = itpLatLonToWorldPixels(boundingBox.north, boundingBox.west, z);
+        const se = itpLatLonToWorldPixels(boundingBox.south, boundingBox.east, z);
+        const w = se.x - nw.x;
+        const h = se.y - nw.y;
+        return w <= FORCED_ZOOM_MAX_SIDE && h <= FORCED_ZOOM_MAX_SIDE && w * h <= FORCED_ZOOM_MAX_PIXELS;
+    };
+    if (!fits(zoom)) {
+        let maxFit = zoom - 1;
+        while (maxFit > 0 && !fits(maxFit)) maxFit--;
+        throw new Error(`Zoom forcé ${zoom} trop élevé pour ce carroyage : l'image dépasserait la taille que le navigateur sait produire. Zoom maximal pour ce carroyage : ${maxFit}.`);
+    }
+    return zoom;
 }
 
 // Assemble les tuiles à leur résolution native, sans aucun rééchantillonnage.

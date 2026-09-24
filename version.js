@@ -1,9 +1,17 @@
 // version.js
 
 // Source unique de vérité pour la version de l'application.
-const APP_VERSION = '23.25';
+const APP_VERSION = '23.26';
 
 const CHANGELOG = [
+  {
+    version: '23.26',
+    date: '2026-09-24',
+    changes: [
+      'Carroyage rapide : nouvelle option « Niveau de zoom de la carte » dans les options avancées du carroyage. En « Automatique », rien ne change ; un zoom choisi est appliqué tel quel, ce qui permet de refaire une image identique à une précédente en reprenant le zoom inscrit dans son cartouche. Un rappel s'affiche sous le bouton « Générer l'image » tant qu'un zoom est forcé',
+      'Un zoom forcé que le fond ne fournit pas, absent du MBTiles chargé ou trop élevé pour la taille du carroyage est refusé avec un message qui dit quoi choisir, plutôt que remplacé en silence par un autre',
+    ],
+  },
   {
     version: '23.25',
     date: '2026-09-23',

@@ -321,6 +321,28 @@
                                     </select>
                                     <p class="text-xs text-secondary">Proportionnelle à la taille de l'image : épaisseur d'un trait sur l'image imprimée en A3 (ISO 128).</p>
                                 </div>
+                                <div class="flex flex-col space-y-1">
+                                    <label for="cado-forced-zoom" class="text-sm md:text-base text-content">Niveau de zoom de la carte :</label>
+                                    <select id="cado-forced-zoom" autocomplete="off" class="input-field px-3 py-2 border rounded shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white text-base">
+                                        <option value="auto" selected>Automatique (zoom optimal)</option>
+                                        <option value="8">Zoom 8</option>
+                                        <option value="9">Zoom 9</option>
+                                        <option value="10">Zoom 10</option>
+                                        <option value="11">Zoom 11</option>
+                                        <option value="12">Zoom 12</option>
+                                        <option value="13">Zoom 13</option>
+                                        <option value="14">Zoom 14</option>
+                                        <option value="15">Zoom 15</option>
+                                        <option value="16">Zoom 16</option>
+                                        <option value="17">Zoom 17</option>
+                                        <option value="18">Zoom 18</option>
+                                        <option value="19">Zoom 19</option>
+                                        <option value="20">Zoom 20</option>
+                                        <option value="21">Zoom 21</option>
+                                        <option value="22">Zoom 22</option>
+                                    </select>
+                                    <p class="text-xs text-secondary">Pour refaire une image identique à une précédente : reprendre le zoom inscrit dans son cartouche. Exports image seulement.</p>
+                                </div>
                                 <div class="flex space-x-4">
                                     <div class="flex-1 flex flex-col space-y-1">
                                         <label for="label-size" class="text-sm md:text-base text-content">Taille du texte :</label>
@@ -411,6 +433,7 @@
                                 </label>
                             </div>
                             <button id="generate-image-button" class="btn-main btn-image w-full sm:w-auto">Générer l'image</button>
+                            <p id="cado-forced-zoom-note" class="hidden text-xs font-medium text-yellow-600 text-center">Zoom forcé : <span id="cado-forced-zoom-value"></span> (options avancées du carroyage)</p>
                         </div>
                     </div>
                     <div class="card bg-white shadow-md rounded-lg p-4 md:p-6 dark:bg-gray-800 dark:border dark:border-gray-700 flex flex-col justify-between">
@@ -2130,6 +2153,13 @@
                 });
             });
             
+            // Zoom forcé : rappel sous le bouton, l'option étant rangée dans les options avancées
+            document.getElementById('cado-forced-zoom')?.addEventListener('change', function() {
+                const forced = this.value !== 'auto';
+                document.getElementById('cado-forced-zoom-value').textContent = forced ? this.value : '';
+                document.getElementById('cado-forced-zoom-note').classList.toggle('hidden', !forced);
+            });
+
             if(generateImageButton) generateImageButton.addEventListener('click', generateImageToPrint);
             const genBtn = document.getElementById('generate-button');
             if(genBtn) genBtn.addEventListener('click', generateGrid);
