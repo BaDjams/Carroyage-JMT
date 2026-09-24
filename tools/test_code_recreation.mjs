@@ -13,8 +13,8 @@ const util = fs.readFileSync('utilities.js', 'utf8');
 vm.runInContext(util.slice(util.indexOf('function letterToNumber'), util.indexOf('// --- LOGIQUE DE GRILLE PARTAGÉE')), ctx);
 vm.runInContext(fs.readFileSync('seedManager.js', 'utf8'), ctx);
 const { encodeRecreationCode: encode, decodeRecreationCode: decode, RC_ALPHABETS,
-    blobWithRecreationCode, readRecreationCodeFromFile } = vm.runInContext(
-    '({ encodeRecreationCode, decodeRecreationCode, RC_ALPHABETS, blobWithRecreationCode, readRecreationCodeFromFile })', ctx);
+    blobWithRecreationCode, readRecreationCodeFromFile, gridScaleProblem, roundGridScale, RC_MAX_SCALE } = vm.runInContext(
+    '({ encodeRecreationCode, decodeRecreationCode, RC_ALPHABETS, blobWithRecreationCode, readRecreationCodeFromFile, gridScaleProblem, roundGridScale, RC_MAX_SCALE })', ctx);
 
 let passed = 0, failed = 0;
 function test(name, cond, detail = '') {
@@ -33,7 +33,9 @@ const CASES = [
     { kind: 'zone', north: 43.300123, west: 5.360456, south: 43.250001, east: 5.44, deviation: 12.5, zoom: 16 },
     { kind: 'zone', north: -12.5, west: -179.9, south: -16.4, east: -172.0, deviation: 0, zoom: null },
 ];
-const LENGTHS = { base32: [21, 25, 28, 26, 26], base64: [18, 21, 23, 22, 22] };
+// Version 3 : le bit du demi-mètre allonge d'un caractère le code base32 d'une grille
+// prédéfinie (21 → 22) et le code base64 à bornes libres (23 → 24).
+const LENGTHS = { base32: [22, 25, 28, 26, 26], base64: [18, 21, 24, 22, 22] };
 
 for (const alphabet of ['base32', 'base64']) {
     CASES.forEach((c, i) => {
@@ -64,12 +66,27 @@ const b32 = encode(CASES[0], 'base32');
 test('base32 en minuscules, O pour 0', decode(b32.toLowerCase().replace(/0/g, 'o')).scale === 100);
 test('nom de fichier entier', decode(`Carte_100m_center_Z26_black_code=${b32}.jpg`).endRow === 26);
 test('nom de fichier base64', Math.abs(decode(`Carte_code=${encode(CASES[0], 'base64')}.png`).lat - 48.856614) < 1e-9);
-test('échelle non entière : pas de code', encode({ ...CASES[0], scale: 12.5 }, 'base32') === null);
+// Version 3 : échelle au demi-mètre (bit du demi-mètre après les 16 bits de mètres).
+test('échelle au demi-mètre : 0,5 à 65 535 m relus tels quels',
+    [0.5, 1, 12.5, 100, 999.5, 65534.5, 65535].every(scale => decode(encode({ ...CASES[0], scale }, 'base32')).scale === scale
+        && decode(encode({ ...CASES[0], scale }, 'base64')).scale === scale));
+test('échelle hors du demi-mètre : pas de code', [12.3, 12.25, 0.25].every(scale => encode({ ...CASES[0], scale }, 'base32') === null));
+test('échelle nulle : pas de code', encode({ ...CASES[0], scale: 0 }, 'base32') === null);
+test('saisie arrondie au demi-mètre', [['12.3', 12.5], ['12.2', 12], ['12.25', 12.5], ['12.75', 13], [7, 7], ['0.3', 0.5]]
+    .every(([v, r]) => roundGridScale(v) === r));
+test('saisie sous 0,5 m : message', gridScaleProblem('0.2') === "L'échelle doit être d'au moins 0,5 m par case." && gridScaleProblem(0) !== null);
 test('bornes hors du code : pas de code', encode({ ...CASES[0], startCol: -200 }, 'base32') === null);
 test('code vide refusé', throws(''));
 test('déviation au dixième : -179,9 à 180', [-179.9, -0.1, 0.1, 32.5, 180].every(dev => decode(encode({ ...CASES[0], deviation: dev }, 'base32')).deviation === dev));
 test('déviation arrondie au dixième', decode(encode({ ...CASES[0], deviation: 32.46 }, 'base32')).deviation === 32.5);
 test('échelle au-delà de 65 535 m : pas de code', encode({ ...CASES[0], scale: 70000 }, 'base32') === null);
+// Limite de saisie commune avec CadoTour (MAX_SCALE, carroyage.js) : 65 535 m.
+test('échelle 65 535 m : code, et relue telle quelle', RC_MAX_SCALE === 65535
+    && decode(encode({ ...CASES[0], scale: 65535 }, 'base32')).scale === 65535);
+test('échelle 65 536 m : pas de code', encode({ ...CASES[0], scale: 65536 }, 'base32') === null);
+test('saisie jusqu\'à 65 535 m acceptée sans message', [1, 10, 65535, '65535', ''].every(v => gridScaleProblem(v) === null));
+test('saisie au-delà de 65 535 m : message qui nomme la limite et CadoTour',
+    [65536, 100000, '70000'].every(v => /65 535 m .*CadoTour/.test(gridScaleProblem(v))));
 
 // Codes de la version 1 (v23.28 et v23.29, déviation au degré) : toujours lus.
 // Relevés sur deux cartes exportées du terrain : carroyage rapide et export de zone.
@@ -78,6 +95,15 @@ test('code v1 relu (carte du terrain)', Math.abs(V1.lat - 47.08352) < 5e-6 && Ma
     && V1.scale === 10 && V1.deviation === 32 && V1.zoom === 20 && V1.endCol === 17 && V1.endRow === 12, JSON.stringify(V1));
 const V1b = decode('E26S-Y15D-V5YH-B960-0A1G-7');
 test('code v1 relu (image de test v23.28)', V1b.scale === 20 && V1b.deviation === 0 && V1b.endRow === 12, JSON.stringify(V1b));
+
+// Codes de la version 2 (v23.30, échelle en mètres entiers sur 16 bits) : toujours lus.
+for (const code of ['P26S-2K5D-WYAY-BGWR-0Z85-B', 'sI2RTK3nleXDmAfQUY']) {
+    const V2 = decode(code);
+    test(`code v2 relu (v23.30, ${code})`, V2.scale === 250 && V2.deviation === -32.5 && V2.zoom === 19
+        && V2.direction === 'descending' && V2.doubleEntry === true && V2.endCol === 17 && V2.endRow === 12, JSON.stringify(V2));
+}
+test('code v2 réécrit en version 3', encode(decode('P26S-2K5D-WYAY-BGWR-0Z85-B'), 'base32') !== 'P26S-2K5D-WYAY-BGWR-0Z85-B'
+    && decode(encode(decode('P26S-2K5D-WYAY-BGWR-0Z85-B'), 'base32')).scale === 250);
 
 // PNG : le texte du chunk tEXt est suivi, sans séparateur, des 4 octets du CRC.
 // Avant la v23.30, un octet de CRC qui tombait dans l'alphabet du code s'y collait

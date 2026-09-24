@@ -15,10 +15,10 @@
 // Communs : déviation au dixième de degré, comme CadoTour, et zoom de l'export
 // (0 = non précisé, exports vectoriels).
 //
-// Disposition des bits (version 2), poids fort en tête :
+// Disposition des bits (version 3), poids fort en tête :
 //   version 2 | sorte 1 | lat 28 | lon 29 (µ°) | (déviation + 180) × 10 : 12 | zoom 5
 //   zone : Δlat 22 | Δlon 23 (µ°)
-//   CADO : échelle 16 (m) | grille 3 | [bornes] | ascendant 1 | milieu 1 | axes inversés 1 | double entrée 1
+//   CADO : échelle 16 (m) | demi-mètre 1 | grille 3 | [bornes] | ascendant 1 | milieu 1 | axes inversés 1 | double entrée 1
 //     grille 0 à 4 : Q12, Z18, Q9, Z14, Z26
 //            5     : de A1 à N colonnes × M lignes (8 + 8)
 //            6     : bornes libres, colonnes puis lignes de début et de fin (4 × 8, signées)
@@ -27,12 +27,17 @@
 // caractère et toute inversion de deux caractères voisins sont repérées, tant que le
 // code compte moins de 31 caractères (63 en base64) : il en fait 28 au plus.
 //
-// Version 1 (v23.28 et v23.29), encore lue : déviation au degré sur 9 bits, échelle
-// sur 17 bits. La version 2 gagne un bit sur l'échelle (65 535 m au plus) pour qu'un
-// code CADO de grille prédéfinie garde ses 21 caractères en base32.
+// Versions précédentes, encore lues :
+//   - version 1 (v23.28 et v23.29) : déviation au degré sur 9 bits, échelle en mètres
+//     entiers sur 17 bits ;
+//   - version 2 (v23.30) : déviation au dixième, échelle en mètres entiers sur 16 bits
+//     (65 535 m au plus), sans le bit du demi-mètre.
+// La version 3 ajoute ce bit : l'échelle se règle au demi-mètre (12,5 m), comme dans
+// CadoTour. C'est la dernière valeur libre du champ de version (0 exclu).
 //
 // Inversion des axes et double entrée se lisent sur l'image, mais ne coûtent rien :
-// en base32 un code CADO de grille prédéfinie fait 100 bits, soit 20 caractères.
+// en base32 un code CADO de grille prédéfinie fait 101 bits, soit 21 caractères
+// (22 avec le contrôle).
 // Le sens des lettres, lui, est indispensable : il place les lignes au nord ou au
 // sud de A1.
 //
@@ -43,7 +48,7 @@
 //     dans un nom de fichier.
 // Le décodage reconnaît les deux.
 
-const RC_VERSION = 2;
+const RC_VERSION = 3;
 const RC_ALPHABETS = {
     base32: '0123456789ABCDEFGHJKMNPQRSTVWXYZ',
     base64: 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_',
@@ -63,6 +68,28 @@ const RC_PRESETS = [
 ];
 const RC_SPEC_FROM_A1 = 5;
 const RC_SPEC_FREE = 6;
+
+// Échelle d'une case, en mètres : de 0,5 à 65 535 m, au demi-mètre — les 16 bits
+// de mètres et le bit du demi-mètre du code (version 3). Hors de là, une grille
+// n'aurait pas de code et ne pourrait pas être refaite à l'identique, ici comme dans
+// CadoTour, qui applique les mêmes règles (MAX_SCALE, roundScale, carroyage.js).
+const RC_MAX_SCALE = 65535;
+const RC_SCALE_TOO_HIGH = "L'échelle est limitée à 65 535 m par case : au-delà, la grille n'aurait pas de code de recréation et ne pourrait pas être refaite à l'identique dans CadoTour.";
+const RC_SCALE_TOO_LOW = "L'échelle doit être d'au moins 0,5 m par case.";
+
+// Échelle saisie, arrondie au demi-mètre (12,3 → 12,5). Même calcul dans CadoTour.
+function roundGridScale(value) {
+    return Math.round(parseFloat(value) * 2) / 2;
+}
+
+// Message si l'échelle, une fois arrondie, sort des limites ; sinon null. Un champ
+// vide ou illisible n'a pas de message ici : chaque mode le signale déjà.
+function gridScaleProblem(value) {
+    const scale = roundGridScale(value);
+    if (!Number.isFinite(scale)) return null;
+    if (scale < 0.5) return RC_SCALE_TOO_LOW;
+    return scale > RC_MAX_SCALE ? RC_SCALE_TOO_HIGH : null;
+}
 
 // ----------------------------------------------------------------
 // Préférence d'alphabet
@@ -166,10 +193,12 @@ function rcPayloadBits(p) {
 
     if (cado) {
         const scale = Number(p.scale);
-        if (!Number.isInteger(scale) || scale < 1 || scale >= 2 ** 16) return null;
+        // Échelle au demi-mètre : mètres entiers sur 16 bits, puis le bit du demi-mètre.
+        if (!Number.isInteger(scale * 2) || scale < 0.5 || scale > RC_MAX_SCALE) return null;
         const grid = rcGridSpec(p);
         if (!grid) return null;
-        rcPush(bits, scale, 16);
+        rcPush(bits, Math.floor(scale), 16);
+        rcPush(bits, scale * 2 % 2, 1);
         rcPush(bits, grid.spec, 3);
         if (grid.spec === RC_SPEC_FROM_A1) {
             rcPush(bits, p.endCol, 8);
@@ -223,7 +252,7 @@ const RC_ERR_TYPO = "Code de recréation erroné : un caractère a sans doute é
 function rcParse(bits) {
     const r = rcReader(bits);
     const version = r.read(2);
-    if (version !== 1 && version !== 2) {
+    if (version < 1) {
         throw new Error("Code de recréation non reconnu : faute de frappe, ou code produit par une version plus récente de l'application.");
     }
     const cado = r.read(1) === 1;
@@ -236,7 +265,9 @@ function rcParse(bits) {
 
     let p;
     if (cado) {
-        const scale = r.read(version === 1 ? 17 : 16);
+        const scale = version === 1 ? r.read(17)
+            : version === 2 ? r.read(16)
+            : r.read(16) + r.read(1) / 2;
         const spec = r.read(3);
         let bounds;
         if (spec < RC_PRESETS.length) {
@@ -267,7 +298,7 @@ function rcParse(bits) {
     }
     p._valid = p._valid && latInt <= 180 * RC_MICRO && lonInt <= 360 * RC_MICRO && Math.abs(deviation) <= 180;
     if (cado) {
-        p._valid = p._valid && p.scale >= 1 && [p.startCol, p.endCol, p.startRow, p.endRow].every(v => v !== 0);
+        p._valid = p._valid && p.scale > 0 && [p.startCol, p.endCol, p.startRow, p.endRow].every(v => v !== 0);
     }
     return { p, used: r.pos };
 }

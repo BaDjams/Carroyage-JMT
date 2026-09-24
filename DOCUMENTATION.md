@@ -943,21 +943,23 @@ Un code court qui décrit la **zone d'intérêt** d'un export pour la refaire à
 - *zone* : coin nord-ouest et étendue du rectangle, en µ° — la précision des champs `zone-nw-coords`/`zone-se-coords` (`toFixed(6)`), que le décodage retrouve donc à l'identique ;
 - *CADO* : point de référence (milieu ou A1), échelle, bornes de la grille ; l'étendue s'en déduit.
 
-**Bits** (version 2, poids fort en tête) :
+**Bits** (version 3, poids fort en tête) :
 
 | Champ | Bits | Contenu |
 |---|---|---|
-| version | 2 | 2 (la version 1, de v23.28 et v23.29, reste lue) |
+| version | 2 | 3 (restent lues : la version 1, de v23.28 et v23.29 ; la version 2, de v23.30) |
 | sorte | 1 | 0 zone, 1 CADO |
 | lat, lon | 28 + 29 | µ°, décalés de +90 / +180 |
 | déviation | 12 | (degrés + 180) × 10 : dixième de degré, comme CadoTour (v1 : 9 bits, au degré) |
 | zoom | 5 | 0 = non précisé |
 | *zone* Δlat, Δlon | 22 + 23 | µ° |
-| *CADO* échelle | 16 | mètres entiers, 65 535 au plus (v1 : 17 bits) |
+| *CADO* échelle | 16 + 1 | mètres entiers (65 535 au plus), puis demi-mètre : 1 = +0,5 m (v2 : 16 bits sans demi-mètre ; v1 : 17 bits) |
 | *CADO* grille | 3 (+16 ou +32) | 0–4 Q12, Z18, Q9, Z14, Z26 ; 5 = de A1 à N×M (8+8) ; 6 = bornes libres signées (4×8) |
 | *CADO* drapeaux | 4 | ascendant, milieu, axes inversés, double entrée |
 
-Le sens des lettres est géométrique (il place les lignes au nord ou au sud de A1) ; inversion des axes et double entrée ne changent que les étiquettes, mais ne coûtent aucun caractère en base32. Le passage de la déviation au dixième (+3 bits) est compensé pour les grilles prédéfinies par l'échelle ramenée à 16 bits : leur code garde 21 caractères.
+Le sens des lettres est géométrique (il place les lignes au nord ou au sud de A1) ; inversion des axes et double entrée ne changent que les étiquettes, mais ne coûtent aucun caractère en base32. Le bit du demi-mètre (version 3) allonge d'un caractère le code base32 d'une grille prédéfinie (21 → 22) et le code base64 à bornes libres (23 → 24).
+
+**Échelle** : de 0,5 à 65 535 m par case, au demi-mètre (`RC_MAX_SCALE`, `roundGridScale`, `seedManager.js`) : les 16 bits de mètres et le bit du demi-mètre du code. La saisie est arrondie au demi-mètre (12,3 → 12,5 ; 12,2 → 12), dans les deux modes et dans le nom de la grille. CadoTour applique les mêmes règles (`MAX_SCALE`, `roundScale`, `carroyage.js`) : aucune grille de l'un n'est sans code dans l'autre. Hors limites, `gridScaleProblem` donne le message, affiché dès la saisie sous `#scale` et `#zone-cado-scale` ; `getGridConfiguration` et `getZoneCadoConfigAndBounds` refusent l'échelle avec le même texte.
 
 **Déviation** : au dixième de degré dans toute l'application (`roundDeviation`, `wrapDeviation` dans `utilities.js`) — curseurs au pas de 0,1, valeur saisissable (`#deviation-value`, `#zone-deviation-value`), boutons ↺/↻ au degré.
 
@@ -965,9 +967,9 @@ Le sens des lettres est géométrique (il place les lignes au nord ou au sud de 
 
 | Code | base32 | base64 |
 |---|---|---|
-| CADO, grille prédéfinie | 21 | 18 |
+| CADO, grille prédéfinie | 22 | 18 |
 | CADO de A1 à N×M (export de zone) | 25 | 21 |
-| CADO à bornes libres | 28 | 23 |
+| CADO à bornes libres | 28 | 24 |
 | Zone | 26 | 22 |
 
 **Contrôle** : dernier caractère = Σ αⁱ·vᵢ dans GF(32) (GF(64) en base64), α générateur. Toute substitution d'un caractère et toute inversion de deux voisins sont détectées tant que le code compte moins de 31 caractères (63).
