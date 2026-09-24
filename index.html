@@ -181,14 +181,14 @@
                                     
                                     <div class="flex items-center gap-2 bg-white dark:bg-gray-800 p-1 rounded border border-gray-300 dark:border-gray-500">
                                         <button id="rotate-left-btn" class="px-2 py-1 text-gray-600 hover:text-blue-600 hover:bg-gray-100 rounded transition-colors" title="Pivoter à gauche (-1°)">↺</button>
-                                        <span id="deviation-value" class="text-sm font-bold text-blue-600 dark:text-blue-400 min-w-[2.5rem] text-center select-none">0°</span>
+                                        <span class="inline-flex items-center"><input type="number" id="deviation-value" step="0.1" min="-180" max="180" value="0" class="w-16 text-sm font-bold text-blue-600 dark:text-blue-400 bg-transparent text-right border-0 p-0 focus:ring-1 focus:ring-blue-500" title="Déviation au dixième de degré" aria-label="Déviation en degrés"><span class="text-sm font-bold text-blue-600 dark:text-blue-400">°</span></span>
                                         <button id="rotate-right-btn" class="px-2 py-1 text-gray-600 hover:text-blue-600 hover:bg-gray-100 rounded transition-colors" title="Pivoter à droite (+1°)">↻</button>
                                         <div class="w-px h-4 bg-gray-300 mx-1"></div>
                                         <button id="reset-deviation" class="text-xs font-medium text-red-500 hover:text-red-700 px-1" title="Remettre au Nord (0°)">Reset</button>
                                     </div>
                                 </div>
                                 <div class="relative w-full h-6 flex items-center">
-                                    <input type="range" id="deviation" class="w-full h-2 bg-gray-300 rounded-lg appearance-none cursor-pointer dark:bg-gray-600 grid-parameter z-10 relative" min="-180" max="180" value="0">
+                                    <input type="range" id="deviation" class="w-full h-2 bg-gray-300 rounded-lg appearance-none cursor-pointer dark:bg-gray-600 grid-parameter z-10 relative" min="-180" max="180" step="0.1" value="0">
                                     <div class="absolute left-1/2 top-0 bottom-0 w-0.5 bg-gray-400 h-4 -mt-1 transform -translate-x-1/2 z-0"></div>
                                 </div>
                                 <p class="text-xs text-gray-500 dark:text-gray-400 italic text-center">Astuce : Alignez la grille parallèlement à une route ou un bâtiment.</p>
@@ -553,14 +553,14 @@
                                 <label for="zone-deviation" class="text-sm font-semibold text-content">Rotation du fond de carte :</label>
                                 <div class="flex items-center gap-2 bg-white dark:bg-gray-800 p-1 rounded border border-gray-300 dark:border-gray-500">
                                     <button type="button" id="zone-rotate-left-btn" class="px-2 py-1 text-gray-600 hover:text-blue-600 hover:bg-gray-100 rounded transition-colors" title="Pivoter à gauche (-1°)">↺</button>
-                                    <span id="zone-deviation-value" class="text-sm font-bold text-blue-600 dark:text-blue-400 min-w-[2.5rem] text-center select-none">0°</span>
+                                    <span class="inline-flex items-center"><input type="number" id="zone-deviation-value" step="0.1" min="-180" max="180" value="0" class="w-16 text-sm font-bold text-blue-600 dark:text-blue-400 bg-transparent text-right border-0 p-0 focus:ring-1 focus:ring-blue-500" title="Déviation au dixième de degré" aria-label="Déviation en degrés"><span class="text-sm font-bold text-blue-600 dark:text-blue-400">°</span></span>
                                     <button type="button" id="zone-rotate-right-btn" class="px-2 py-1 text-gray-600 hover:text-blue-600 hover:bg-gray-100 rounded transition-colors" title="Pivoter à droite (+1°)">↻</button>
                                     <div class="w-px h-4 bg-gray-300 mx-1"></div>
                                     <button type="button" id="zone-reset-deviation" class="text-xs font-medium text-red-500 hover:text-red-700 px-1">Reset</button>
                                 </div>
                             </div>
                             <div class="relative w-full h-6 flex items-center">
-                                <input type="range" id="zone-deviation" class="w-full h-2 bg-gray-300 rounded-lg appearance-none cursor-pointer dark:bg-gray-600 z-10 relative" min="-180" max="180" value="0">
+                                <input type="range" id="zone-deviation" class="w-full h-2 bg-gray-300 rounded-lg appearance-none cursor-pointer dark:bg-gray-600 z-10 relative" min="-180" max="180" step="0.1" value="0">
                                 <div class="absolute left-1/2 top-0 bottom-0 w-0.5 bg-gray-400 h-4 -mt-1 transform -translate-x-1/2 z-0"></div>
                             </div>
                             <p class="text-xs text-gray-500 dark:text-gray-400 italic text-center">Le rectangle d'export reste horizontal, le fond de carte pivote.</p>
@@ -1122,11 +1122,7 @@
         window.updateDeviation = function(change) {
             const devInput = document.getElementById('deviation');
             if (!devInput) return;
-            let currentVal = parseInt(devInput.value, 10);
-            let newVal = currentVal + change;
-            if (newVal > 180) newVal = -179;
-            if (newVal < -180) newVal = 179;
-            devInput.value = newVal;
+            devInput.value = wrapDeviation(parseFloat(devInput.value) + change);
             devInput.dispatchEvent(new Event('input'));
         };
 
@@ -1884,7 +1880,7 @@
             if(transEl) document.getElementById('transparency-value').textContent = `${transEl.value}%`;
             
             const devEl = document.getElementById('deviation');
-            if(devEl) document.getElementById('deviation-value').textContent = `${devEl.value}°`;
+            if(devEl) document.getElementById('deviation-value').value = roundDeviation(devEl.value);
             
             const utmTransEl = document.getElementById('utm-transparency');
             if(utmTransEl) document.getElementById('utm-transparency-value').textContent = `${utmTransEl.value}%`;
@@ -1927,7 +1923,7 @@
                     const z = zoneFrameFromCode(decodeRecreationCode(document.getElementById('zone-recreation-code').value));
                     // La rotation bloque le déplacement de la carte : remise à zéro le temps de la placer.
                     const devInput = document.getElementById('zone-deviation');
-                    if (devInput && parseInt(devInput.value, 10) !== 0) {
+                    if (devInput && parseFloat(devInput.value) !== 0) {
                         devInput.value = 0;
                         devInput.dispatchEvent(new Event('input'));
                     }
@@ -2093,7 +2089,6 @@
             // Zone déviation fond de carte
             const zoneDevInput = document.getElementById('zone-deviation');
             const zoneDevValueSpan = document.getElementById('zone-deviation-value');
-            const zonePngBtn = document.getElementById('generate-zone-png-button');
             let zoneGuideTimeout;
             let zoneTileDeviation = 0;
             let zoneInjectedGuide = null;
@@ -2162,8 +2157,10 @@
             }
 
             const updateZonePngBtnState = () => {
+                // Relu à chaque fois : zoneDownloader.js remplace le bouton par un clone.
+                const zonePngBtn = document.getElementById('generate-zone-png-button');
                 if (!zonePngBtn || !zoneDevInput) return;
-                const dev = parseInt(zoneDevInput.value, 10);
+                const dev = parseFloat(zoneDevInput.value);
                 if (dev !== 0) {
                     zonePngBtn.textContent = "Télécharger l'image (Rotatée)";
                     zonePngBtn.classList.add('ring-2', 'ring-yellow-400');
@@ -2195,9 +2192,9 @@
             };
             if (zoneDevInput && zoneDevValueSpan) {
                 zoneDevInput.addEventListener('input', () => {
-                    const val = parseInt(zoneDevInput.value, 10);
+                    const val = roundDeviation(zoneDevInput.value);
                     zoneTileDeviation = val;
-                    zoneDevValueSpan.textContent = `${val}°`;
+                    zoneDevValueSpan.value = val;
                     updateZonePngBtnState();
                     applyZoneTileRotation(val);
                     applyZoneMapInteraction(val);
@@ -2211,17 +2208,22 @@
             }
             document.getElementById('zone-rotate-left-btn')?.addEventListener('click', () => {
                 if (!zoneDevInput) return;
-                let v = parseInt(zoneDevInput.value, 10) - 1;
-                if (v < -180) v = 179;
-                zoneDevInput.value = v;
+                zoneDevInput.value = wrapDeviation(parseFloat(zoneDevInput.value) - 1);
                 zoneDevInput.dispatchEvent(new Event('input'));
             });
             document.getElementById('zone-rotate-right-btn')?.addEventListener('click', () => {
                 if (!zoneDevInput) return;
-                let v = parseInt(zoneDevInput.value, 10) + 1;
-                if (v > 180) v = -179;
-                zoneDevInput.value = v;
+                zoneDevInput.value = wrapDeviation(parseFloat(zoneDevInput.value) + 1);
                 zoneDevInput.dispatchEvent(new Event('input'));
+            });
+            // Valeur saisie au dixième (reprise de CadoTour, par exemple) : elle pilote le curseur.
+            [['deviation-value', 'deviation'], ['zone-deviation-value', 'zone-deviation']].forEach(([fieldId, sliderId]) => {
+                const field = document.getElementById(fieldId);
+                const slider = document.getElementById(sliderId);
+                field?.addEventListener('change', () => {
+                    slider.value = wrapDeviation(field.value);
+                    slider.dispatchEvent(new Event('input'));
+                });
             });
             document.getElementById('zone-reset-deviation')?.addEventListener('click', () => {
                 if (!zoneDevInput) return;
@@ -2268,7 +2270,7 @@
 
             if(deviationInput && deviationValueSpan && mapContainer && rotationGuide) {
                const updateMapRotation = (val) => {
-                    deviationValueSpan.textContent = `${val}°`; 
+                    deviationValueSpan.value = val;
                     mapContainer.style.transform = `translate(-50%, -50%) rotate(${-val}deg)`;
                     rotationGuide.style.opacity = '1';
                     clearTimeout(guideTimeout);
@@ -2278,12 +2280,12 @@
                 };
 
                 deviationInput.addEventListener('input', () => { 
-                    const val = parseInt(deviationInput.value, 10);
+                    const val = roundDeviation(deviationInput.value);
                     updateMapRotation(val);
                 });
                 
                 // Init value
-                deviationValueSpan.textContent = `${deviationInput.value}°`;
+                deviationValueSpan.value = roundDeviation(deviationInput.value);
             }
 
             // Boutons d'action Mode CADO
@@ -2291,7 +2293,7 @@
             const updateImageButtonState = () => {
                 if(!generateImageButton || !deviationInput) return;
                 generateImageButton.disabled = false;
-                const dev = parseInt(deviationInput.value, 10);
+                const dev = parseFloat(deviationInput.value);
                 if (dev !== 0) {
                     generateImageButton.textContent = "Générer l'image (Rotatée)";
                     generateImageButton.classList.add('ring-2', 'ring-yellow-400');

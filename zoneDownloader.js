@@ -891,7 +891,7 @@ async function generateZonePNG() {
         const colorStr = (useCado || useUtm || useCfsi || useDfci)
             ? `_${document.getElementById('utm-grid-color-name').value || ''}`.replace(/_$/, '')
             : '';
-        const deviationStr = zoneDeviationDeg !== 0 ? `_dev${Math.round(zoneDeviationDeg)}deg` : '';
+        const deviationStr = zoneDeviationDeg !== 0 ? `_dev${roundDeviation(zoneDeviationDeg)}deg` : '';
         const layerStr = `_${cartoucheLayerShort}-z${zoom}`.replace(/\s+/g, '-');
         // Le code de recréation remplace l'origine. Faute de code (échelle non entière),
         // l'origine reste : le coin A1 s'il y a un carroyage CADO, sinon le coin

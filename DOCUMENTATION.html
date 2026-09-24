@@ -1659,7 +1659,7 @@ python3<span class="w"> </span>tools/bathy_mbtiles.py<span class="w"> </span>bat
 <p><strong>Deux sortes</strong> :
 - <em>zone</em> : coin nord-ouest et étendue du rectangle, en µ° — la précision des champs <code>zone-nw-coords</code>/<code>zone-se-coords</code> (<code>toFixed(6)</code>), que le décodage retrouve donc à l'identique ;
 - <em>CADO</em> : point de référence (milieu ou A1), échelle, bornes de la grille ; l'étendue s'en déduit.</p>
-<p><strong>Bits</strong> (poids fort en tête) :</p>
+<p><strong>Bits</strong> (version 2, poids fort en tête) :</p>
 <table>
 <thead>
 <tr>
@@ -1672,7 +1672,7 @@ python3<span class="w"> </span>tools/bathy_mbtiles.py<span class="w"> </span>bat
 <tr>
 <td>version</td>
 <td>2</td>
-<td>1</td>
+<td>2 (la version 1, de v23.28 et v23.29, reste lue)</td>
 </tr>
 <tr>
 <td>sorte</td>
@@ -1686,8 +1686,8 @@ python3<span class="w"> </span>tools/bathy_mbtiles.py<span class="w"> </span>bat
 </tr>
 <tr>
 <td>déviation</td>
-<td>9</td>
-<td>degrés + 180</td>
+<td>12</td>
+<td>(degrés + 180) × 10 : dixième de degré, comme CadoTour (v1 : 9 bits, au degré)</td>
 </tr>
 <tr>
 <td>zoom</td>
@@ -1701,8 +1701,8 @@ python3<span class="w"> </span>tools/bathy_mbtiles.py<span class="w"> </span>bat
 </tr>
 <tr>
 <td><em>CADO</em> échelle</td>
-<td>17</td>
-<td>mètres entiers</td>
+<td>16</td>
+<td>mètres entiers, 65 535 au plus (v1 : 17 bits)</td>
 </tr>
 <tr>
 <td><em>CADO</em> grille</td>
@@ -1716,7 +1716,8 @@ python3<span class="w"> </span>tools/bathy_mbtiles.py<span class="w"> </span>bat
 </tr>
 </tbody>
 </table>
-<p>Le sens des lettres est géométrique (il place les lignes au nord ou au sud de A1) ; inversion des axes et double entrée ne changent que les étiquettes, mais ne coûtent aucun caractère en base32.</p>
+<p>Le sens des lettres est géométrique (il place les lignes au nord ou au sud de A1) ; inversion des axes et double entrée ne changent que les étiquettes, mais ne coûtent aucun caractère en base32. Le passage de la déviation au dixième (+3 bits) est compensé pour les grilles prédéfinies par l'échelle ramenée à 16 bits : leur code garde 21 caractères.</p>
+<p><strong>Déviation</strong> : au dixième de degré dans toute l'application (<code>roundDeviation</code>, <code>wrapDeviation</code> dans <code>utilities.js</code>) — curseurs au pas de 0,1, valeur saisissable (<code>#deviation-value</code>, <code>#zone-deviation-value</code>), boutons ↺/↻ au degré.</p>
 <p><strong>Alphabets</strong> : base32 de Crockford par défaut (sans I, L, O, U ; casse indifférente ; <code>O</code> lu 0, <code>I</code>/<code>L</code> lus 1 ; groupé par 4 avec des tirets), ou base64url, plus court, au choix dans la fenêtre « Réglages » (bouton « Gestion ⚙️ »). Le décodage essaie les deux et accepte un nom de fichier entier (ce qui suit <code>code=</code>, extension retirée).</p>
 <table>
 <thead>
@@ -1734,18 +1735,18 @@ python3<span class="w"> </span>tools/bathy_mbtiles.py<span class="w"> </span>bat
 </tr>
 <tr>
 <td>CADO de A1 à N×M (export de zone)</td>
-<td>24</td>
-<td>20</td>
+<td>25</td>
+<td>21</td>
 </tr>
 <tr>
 <td>CADO à bornes libres</td>
-<td>27</td>
+<td>28</td>
 <td>23</td>
 </tr>
 <tr>
 <td>Zone</td>
-<td>25</td>
-<td>21</td>
+<td>26</td>
+<td>22</td>
 </tr>
 </tbody>
 </table>

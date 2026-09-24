@@ -25,13 +25,13 @@ const CASES = [
     { kind: 'cado', lat: 48.856614, lon: 2.352222, pivot: 'center', scale: 100, startCol: 1, endCol: 26, startRow: 1, endRow: 26,
       direction: 'ascending', swapAxes: false, doubleEntry: false, deviation: 0, zoom: 17 },
     { kind: 'cado', lat: -21.115141, lon: 55.536384, pivot: 'origin', scale: 1000, startCol: 1, endCol: 15, startRow: 1, endRow: 26,
-      direction: 'descending', swapAxes: true, doubleEntry: true, deviation: -37, zoom: null },
+      direction: 'descending', swapAxes: true, doubleEntry: true, deviation: -37.4, zoom: null },
     { kind: 'cado', lat: 45.1, lon: -1.25, pivot: 'center', scale: 25, startCol: -4, endCol: 7, startRow: -13, endRow: 34,
       direction: 'ascending', swapAxes: false, doubleEntry: true, deviation: 180, zoom: 19 },
-    { kind: 'zone', north: 43.300123, west: 5.360456, south: 43.250001, east: 5.44, deviation: 12, zoom: 16 },
+    { kind: 'zone', north: 43.300123, west: 5.360456, south: 43.250001, east: 5.44, deviation: 12.5, zoom: 16 },
     { kind: 'zone', north: -12.5, west: -179.9, south: -16.4, east: -172.0, deviation: 0, zoom: null },
 ];
-const LENGTHS = { base32: [21, 24, 27, 25, 25], base64: [18, 20, 23, 21, 21] };
+const LENGTHS = { base32: [21, 25, 28, 26, 26], base64: [18, 21, 23, 22, 22] };
 
 for (const alphabet of ['base32', 'base64']) {
     CASES.forEach((c, i) => {
@@ -65,6 +65,17 @@ test('nom de fichier base64', Math.abs(decode(`Carte_code=${encode(CASES[0], 'ba
 test('échelle non entière : pas de code', encode({ ...CASES[0], scale: 12.5 }, 'base32') === null);
 test('bornes hors du code : pas de code', encode({ ...CASES[0], startCol: -200 }, 'base32') === null);
 test('code vide refusé', throws(''));
+test('déviation au dixième : -179,9 à 180', [-179.9, -0.1, 0.1, 32.5, 180].every(dev => decode(encode({ ...CASES[0], deviation: dev }, 'base32')).deviation === dev));
+test('déviation arrondie au dixième', decode(encode({ ...CASES[0], deviation: 32.46 }, 'base32')).deviation === 32.5);
+test('échelle au-delà de 65 535 m : pas de code', encode({ ...CASES[0], scale: 70000 }, 'base32') === null);
+
+// Codes de la version 1 (v23.28 et v23.29, déviation au degré) : toujours lus.
+// Relevés sur deux cartes exportées du terrain : carroyage rapide et export de zone.
+const V1 = decode('E1BQ-9Y5E-05VJ-D980-051G-H');
+test('code v1 relu (carte du terrain)', Math.abs(V1.lat - 47.08352) < 5e-6 && Math.abs(V1.lon - 2.45823) < 5e-6
+    && V1.scale === 10 && V1.deviation === 32 && V1.zoom === 20 && V1.endCol === 17 && V1.endRow === 12, JSON.stringify(V1));
+const V1b = decode('E26S-Y15D-V5YH-B960-0A1G-7');
+test('code v1 relu (image de test v23.28)', V1b.scale === 20 && V1b.deviation === 0 && V1b.endRow === 12, JSON.stringify(V1b));
 
 console.log(`\n${passed}/${passed + failed} tests réussis`);
 process.exit(failed ? 1 : 0);
