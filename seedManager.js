@@ -64,6 +64,18 @@ const RC_PRESETS = [
 const RC_SPEC_FROM_A1 = 5;
 const RC_SPEC_FREE = 6;
 
+// Échelle maximale d'une case, en mètres : les 16 bits de l'échelle dans le code
+// (version 2). Au-delà, une grille n'a pas de code et ne peut pas être refaite à
+// l'identique, ici comme dans CadoTour, qui applique la même limite (MAX_SCALE,
+// carroyage.js). La saisie la refuse donc dans les deux modes, avec ce message.
+const RC_MAX_SCALE = 65535;
+const RC_SCALE_TOO_HIGH = "L'échelle est limitée à 65 535 m par case : au-delà, la grille n'aurait pas de code de recréation et ne pourrait pas être refaite à l'identique dans CadoTour.";
+
+// Message si l'échelle dépasse la limite, sinon null.
+function gridScaleProblem(scale) {
+    return Number(scale) > RC_MAX_SCALE ? RC_SCALE_TOO_HIGH : null;
+}
+
 // ----------------------------------------------------------------
 // Préférence d'alphabet
 // ----------------------------------------------------------------
@@ -166,7 +178,7 @@ function rcPayloadBits(p) {
 
     if (cado) {
         const scale = Number(p.scale);
-        if (!Number.isInteger(scale) || scale < 1 || scale >= 2 ** 16) return null;
+        if (!Number.isInteger(scale) || scale < 1 || scale > RC_MAX_SCALE) return null;
         const grid = rcGridSpec(p);
         if (!grid) return null;
         rcPush(bits, scale, 16);

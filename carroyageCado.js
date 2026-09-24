@@ -547,10 +547,14 @@ function getGridConfiguration(lat, lon) {
     }
 
     const contentType = document.querySelector('input[name="content-type"]:checked').value;
+    // Échelle limitée à 65 535 m, comme dans CadoTour (cf. RC_MAX_SCALE, seedManager.js).
+    const scale = parseFloat(document.getElementById('scale').value);
+    const scaleProblem = gridScaleProblem(scale);
+    if (scaleProblem) throw new Error(scaleProblem);
     return {
         latitude: lat,
         longitude: lon,
-        scale: parseFloat(document.getElementById('scale').value),
+        scale,
         gridColor: document.getElementById('grid-color').value,
         colorName: document.getElementById('grid-color-name').value,
         colorOpacity: (100 - parseInt(document.getElementById('transparency').value)) / 100,

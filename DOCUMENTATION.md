@@ -959,6 +959,8 @@ Un code court qui décrit la **zone d'intérêt** d'un export pour la refaire à
 
 Le sens des lettres est géométrique (il place les lignes au nord ou au sud de A1) ; inversion des axes et double entrée ne changent que les étiquettes, mais ne coûtent aucun caractère en base32. Le passage de la déviation au dixième (+3 bits) est compensé pour les grilles prédéfinies par l'échelle ramenée à 16 bits : leur code garde 21 caractères.
 
+**Échelle** : de 1 à 65 535 m par case (`RC_MAX_SCALE`, `seedManager.js`), la place que lui laisse le code (16 bits). CadoTour applique la même limite (`MAX_SCALE`, `carroyage.js`) : aucune grille de l'un n'est sans code dans l'autre. Au-delà, `gridScaleProblem` donne le message, affiché dès la saisie sous `#scale` et `#zone-cado-scale` ; `getGridConfiguration` et `getZoneCadoConfigAndBounds` refusent l'échelle avec le même texte.
+
 **Déviation** : au dixième de degré dans toute l'application (`roundDeviation`, `wrapDeviation` dans `utilities.js`) — curseurs au pas de 0,1, valeur saisissable (`#deviation-value`, `#zone-deviation-value`), boutons ↺/↻ au degré.
 
 **Alphabets** : base32 de Crockford par défaut (sans I, L, O, U ; casse indifférente ; `O` lu 0, `I`/`L` lus 1 ; groupé par 4 avec des tirets), ou base64url, plus court, au choix dans la fenêtre « Réglages » (bouton « Gestion ⚙️ »). Le décodage essaie les deux et accepte un nom de fichier entier (ce qui suit `code=`, extension retirée).

@@ -283,7 +283,8 @@
                          <div class="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
                              <div class="flex flex-col space-y-3">
                                  <label for="scale" class="text-sm md:text-base text-content">Échelle (en mètres) :</label>
-                                 <input type="number" id="scale" class="input-field px-3 py-2 border rounded shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white text-base grid-parameter" value="10">
+                                 <input type="number" id="scale" class="input-field px-3 py-2 border rounded shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white text-base grid-parameter" value="10" min="1" max="65535" title="De 1 à 65 535 m par case, comme dans CadoTour">
+                                 <p id="scale-limit-warning" class="hidden text-xs font-medium text-red-600" role="alert"></p>
                              </div>
                              <div class="flex flex-col space-y-3">
                                  <span class="text-sm md:text-base text-content">Choisir une couleur :</span>
@@ -796,7 +797,8 @@
                             <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
                                 <div class="flex flex-col space-y-1">
                                     <label for="zone-cado-scale" class="text-sm text-content">Échelle (mètres) :</label>
-                                    <input type="number" id="zone-cado-scale" class="input-field px-2 py-1 border rounded text-sm bg-white dark:bg-gray-600 dark:border-gray-500 dark:text-white" value="50" min="10">
+                                    <input type="number" id="zone-cado-scale" class="input-field px-2 py-1 border rounded text-sm bg-white dark:bg-gray-600 dark:border-gray-500 dark:text-white" value="50" min="10" max="65535" title="De 10 à 65 535 m par case">
+                                    <p id="zone-scale-limit-warning" class="hidden text-xs font-medium text-red-600" role="alert"></p>
                                 </div>
                                 <div class="flex flex-col space-y-1">
                                     <span class="text-sm text-content">Orientation Lettres :</span>
@@ -1962,6 +1964,21 @@
                     showRecreationCodeStatus('zone', e.message, true);
                 }
             }
+
+            // Échelle au-delà de 65 535 m : dite dès la saisie, dans les deux modes
+            // (limite du code de recréation, commune avec CadoTour — cf. RC_MAX_SCALE).
+            [['scale', 'scale-limit-warning'], ['zone-cado-scale', 'zone-scale-limit-warning']].forEach(([inputId, warnId]) => {
+                const input = document.getElementById(inputId);
+                const warn = document.getElementById(warnId);
+                if (!input || !warn) return;
+                const check = () => {
+                    const problem = gridScaleProblem(input.value);
+                    warn.textContent = problem || '';
+                    warn.classList.toggle('hidden', !problem);
+                };
+                input.addEventListener('input', check);
+                check();
+            });
 
             [['cado', applyQuickRecreationCode], ['zone', applyZoneRecreationCode]].forEach(([prefix, apply]) => {
                 const input = document.getElementById(`${prefix}-recreation-code`);

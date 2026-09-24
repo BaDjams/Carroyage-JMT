@@ -13,8 +13,8 @@ const util = fs.readFileSync('utilities.js', 'utf8');
 vm.runInContext(util.slice(util.indexOf('function letterToNumber'), util.indexOf('// --- LOGIQUE DE GRILLE PARTAGÉE')), ctx);
 vm.runInContext(fs.readFileSync('seedManager.js', 'utf8'), ctx);
 const { encodeRecreationCode: encode, decodeRecreationCode: decode, RC_ALPHABETS,
-    blobWithRecreationCode, readRecreationCodeFromFile } = vm.runInContext(
-    '({ encodeRecreationCode, decodeRecreationCode, RC_ALPHABETS, blobWithRecreationCode, readRecreationCodeFromFile })', ctx);
+    blobWithRecreationCode, readRecreationCodeFromFile, gridScaleProblem, RC_MAX_SCALE } = vm.runInContext(
+    '({ encodeRecreationCode, decodeRecreationCode, RC_ALPHABETS, blobWithRecreationCode, readRecreationCodeFromFile, gridScaleProblem, RC_MAX_SCALE })', ctx);
 
 let passed = 0, failed = 0;
 function test(name, cond, detail = '') {
@@ -70,6 +70,13 @@ test('code vide refusé', throws(''));
 test('déviation au dixième : -179,9 à 180', [-179.9, -0.1, 0.1, 32.5, 180].every(dev => decode(encode({ ...CASES[0], deviation: dev }, 'base32')).deviation === dev));
 test('déviation arrondie au dixième', decode(encode({ ...CASES[0], deviation: 32.46 }, 'base32')).deviation === 32.5);
 test('échelle au-delà de 65 535 m : pas de code', encode({ ...CASES[0], scale: 70000 }, 'base32') === null);
+// Limite de saisie commune avec CadoTour (MAX_SCALE, carroyage.js) : 65 535 m.
+test('échelle 65 535 m : code, et relue telle quelle', RC_MAX_SCALE === 65535
+    && decode(encode({ ...CASES[0], scale: 65535 }, 'base32')).scale === 65535);
+test('échelle 65 536 m : pas de code', encode({ ...CASES[0], scale: 65536 }, 'base32') === null);
+test('saisie jusqu\'à 65 535 m acceptée sans message', [1, 10, 65535, '65535', ''].every(v => gridScaleProblem(v) === null));
+test('saisie au-delà de 65 535 m : message qui nomme la limite et CadoTour',
+    [65536, 100000, '70000'].every(v => /65 535 m .*CadoTour/.test(gridScaleProblem(v))));
 
 // Codes de la version 1 (v23.28 et v23.29, déviation au degré) : toujours lus.
 // Relevés sur deux cartes exportées du terrain : carroyage rapide et export de zone.
