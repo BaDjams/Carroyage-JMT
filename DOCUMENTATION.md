@@ -935,6 +935,10 @@ Un code court qui décrit la **zone d'intérêt** d'un export pour la refaire à
 
 **Où il figure** : ligne `Code : …` du cartouche (`buildCartoucheLines`, option `code`) ; nom de fichier, en `_code=…` à la place de `_origine=lat,lon` (conservé si aucun code n'est possible, par exemple une échelle non entière) ; description du point d'origine A1 en KML/KMZ, GeoJSON (`properties.description`), GPX (`<desc>`) et CSV ; `<description>` du document KML de l'export de zone ; métadonnée `code_recreation` des MBTiles (`generateMbtilesProcess(..., extraMetadata)`). Les fichiers vectoriels n'ont pas de zoom : leur code n'en porte pas.
 
+**Métadonnées des images** : le texte `CADO-code=<code>` est écrit près du début du fichier — chunk `tEXt` « Comment » après IHDR en PNG, segment COM après SOI en JPEG (`blobWithRecreationCode`), tag `ImageDescription` (270) en GeoTIFF, GeoTIFF JPEG et GeoTIFF UTM (option `description` de `geotiffExport.js`, lue par QGIS/`gdalinfo`). Le code survit ainsi à un renommage.
+
+**Lecture depuis un fichier** (`readRecreationCodeFromFile`) : bouton « 📂 Fichier » ou glisser-déposer sur le champ du code, dans les deux modes. Ordre : métadonnées d'image (tranches de 4 Mo), puis description du point A1 des KML, KMZ (via JSZip), GeoJSON, GPX et CSV, puis nom du fichier (`…_code=XXXX.ext`). Chaque candidat est validé par `decodeRecreationCode` avant d'être appliqué.
+
 **Deux sortes** :
 - *zone* : coin nord-ouest et étendue du rectangle, en µ° — la précision des champs `zone-nw-coords`/`zone-se-coords` (`toFixed(6)`), que le décodage retrouve donc à l'identique ;
 - *CADO* : point de référence (milieu ou A1), échelle, bornes de la grille ; l'étendue s'en déduit.
@@ -969,7 +973,7 @@ Le sens des lettres est géométrique (il place les lignes au nord ou au sud de 
 **Restauration**
 - *Carroyage rapide* : un code CADO règle point, échelle, grille (prédéfinie ou bornes libres), point de référence, sens, axes, double entrée, déviation et zoom forcé. Le mode de référence d'origine est conservé : `calculateAndRotatePoint` convertit les distances est-ouest au cosinus de la latitude du point de référence, et passer d'un milieu à A1 étirerait les colonnes (une cinquantaine de mètres au bord d'une grille de 26 km). Une grille « Origine (A1) » s'agrandit en gardant ses cases (bornes négatives) ; une grille « milieu » s'agrandit autour de son centre. Un code de zone donne une grille CADO « milieu » d'environ 26 colonnes qui couvre la zone.
 - *Export de zone* : le rectangle est retracé, la carte placée au zoom du code. Un code CADO retrace le cadre non tourné de sa grille et la mémorise dans `window.zoneCadoFromCode` : `getZoneCadoConfigAndBounds` la reprend telle quelle (`zoneCadoConfigFromCode`) tant que rectangle, échelle et sens des lettres restent ceux du code, plutôt que de la recalculer depuis le rectangle, ce qui perdrait les bornes et le point de référence.
-- *Limite* : avec une déviation, l'image de l'export de zone tourne autour de son centre et le carroyage rapide autour du point de référence. Un code tourné passé d'un mode à l'autre donne une grille voisine, identique dans son propre mode.
+- *Déviation* : dans les deux modes, le fond pivote autour du point de référence du carroyage (en export de zone, `zdCreateFinalCanvas(..., rotationPivot)`), comme dans les KML. Un code tourné donne donc la même grille sur le terrain d'un mode à l'autre.
 
 **Tests** : `node tools/test_code_recreation.mjs` (aller-retour, longueurs, détection des fautes et inversions, lecture d'un nom de fichier).
 

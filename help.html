@@ -81,6 +81,7 @@
 
                 <div class="pt-4 font-bold text-gray-900 dark:text-white border-t dark:border-gray-700">🌊 Tous les modes</div>
                 <a href="#isobathes" class="block ml-4 hover:text-blue-500">Lignes de profondeur</a>
+                <a href="#code-recreation" class="block ml-4 hover:text-blue-500">Refaire une carte (code)</a>
 
                 <div class="pt-4 font-bold text-gray-900 dark:text-white border-t dark:border-gray-700">⚙️ Configuration</div>
                 <a href="#config-icons" class="block ml-4 hover:text-blue-500">Icônes personnalisées</a>
@@ -280,9 +281,11 @@
             <p class="mb-4">
                 Chaque export porte un <strong>code de recréation</strong> : sur la dernière ligne du cartouche des images,
                 à la fin du nom de fichier (<code>_code=…</code>), et dans la description du point d'origine A1 des fichiers
-                KML, KMZ, GeoJSON, GPX et CSV. Il décrit la zone d'intérêt ; recopiez-le dans le champ
-                <strong>« Code de recréation »</strong> puis cliquez sur <strong>Appliquer</strong>. Vous pouvez aussi
-                coller le nom de fichier entier.
+                KML, KMZ, GeoJSON, GPX et CSV. Les images PNG, JPEG et GeoTIFF le portent aussi dans leurs métadonnées,
+                même renommées. Il décrit la zone d'intérêt ; recopiez-le dans le champ
+                <strong>« Code de recréation »</strong> puis cliquez sur <strong>Appliquer</strong>, ou plus simplement
+                <strong>glissez-déposez la carte exportée</strong> sur ce champ (ou bouton <strong>📂 Fichier</strong>) :
+                le code est lu et appliqué tout seul.
             </p>
             <ul class="list-disc pl-5 space-y-2 text-sm mb-4">
                 <li><strong>Carroyage rapide</strong> : le code règle le point, l'échelle, la grille, la déviation et le zoom

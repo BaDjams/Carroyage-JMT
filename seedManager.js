@@ -347,6 +347,100 @@ const recreationCodeFilePart = (code) => code ? `_code=${code}` : '';
 const recreationCodeDescription = (code) => code ? `Code de recréation : ${code}` : '';
 
 // ----------------------------------------------------------------
+// Métadonnées des images : le code voyage dans le fichier, même renommé
+// ----------------------------------------------------------------
+// Même texte dans tous les formats, près du début du fichier : chunk tEXt
+// « Comment » en PNG, segment COM en JPEG, tag ImageDescription en GeoTIFF (cf.
+// geotiffExport.js, option description).
+const RC_META_PREFIX = 'CADO-code=';
+const recreationCodeMetadata = (code) => code ? RC_META_PREFIX + code : null;
+
+const RC_CRC_TABLE = (() => {
+    const t = new Uint32Array(256);
+    for (let n = 0; n < 256; n++) {
+        let c = n;
+        for (let k = 0; k < 8; k++) c = (c & 1) ? 0xEDB88320 ^ (c >>> 1) : c >>> 1;
+        t[n] = c >>> 0;
+    }
+    return t;
+})();
+
+function rcCrc32(bytes) {
+    let c = 0xFFFFFFFF;
+    for (const b of bytes) c = RC_CRC_TABLE[(c ^ b) & 0xFF] ^ (c >>> 8);
+    return (c ^ 0xFFFFFFFF) >>> 0;
+}
+
+// Image PNG ou JPEG avec le code dans ses métadonnées ; les autres blobs, ou un code
+// absent, passent tels quels.
+async function blobWithRecreationCode(blob, code) {
+    if (!blob || !code) return blob;
+    const bytes = new Uint8Array(await blob.arrayBuffer());
+    const text = new TextEncoder().encode(recreationCodeMetadata(code));
+
+    if (bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4E && bytes[3] === 0x47) {
+        // PNG : chunk tEXt juste après IHDR (signature 8 + IHDR 25 octets)
+        const data = new Uint8Array([...new TextEncoder().encode('Comment'), 0, ...text]);
+        const chunk = new Uint8Array(12 + data.length);
+        const dv = new DataView(chunk.buffer);
+        dv.setUint32(0, data.length);
+        chunk.set([0x74, 0x45, 0x58, 0x74], 4);                    // « tEXt »
+        chunk.set(data, 8);
+        dv.setUint32(8 + data.length, rcCrc32(chunk.subarray(4, 8 + data.length)));
+        return new Blob([bytes.subarray(0, 33), chunk, bytes.subarray(33)], { type: blob.type });
+    }
+    if (bytes[0] === 0xFF && bytes[1] === 0xD8) {
+        // JPEG : segment COM juste après SOI
+        const seg = new Uint8Array(4 + text.length);
+        seg.set([0xFF, 0xFE, (text.length + 2) >> 8, (text.length + 2) & 0xFF]);
+        seg.set(text, 4);
+        return new Blob([bytes.subarray(0, 2), seg, bytes.subarray(2)], { type: blob.type });
+    }
+    return blob;
+}
+
+// Code d'un fichier exporté : métadonnées d'image, puis description du point A1 des
+// fichiers vectoriels (KML, KMZ, GeoJSON, GPX, CSV), puis nom du fichier. Lève une
+// erreur lisible si aucun code n'y figure.
+async function readRecreationCodeFromFile(file) {
+    const valid = (code) => { try { decodeRecreationCode(code); return true; } catch (e) { return false; } };
+    const find = (text, re) => {
+        for (const m of text.matchAll(re)) if (valid(m[1])) return m[1];
+        return null;
+    };
+    const META_RE = /CADO-code=([0-9A-Za-z_-]+)/g;
+    const DESC_RE = /Code de recréation : ([0-9A-Za-z_-]+)/g;
+
+    // Métadonnées d'image, près du début ; en entier au besoin, par tranches.
+    const CHUNK = 4 * 1024 * 1024;
+    for (let start = 0; start < file.size; start += CHUNK - 64) {
+        const bytes = new Uint8Array(await file.slice(start, start + CHUNK).arrayBuffer());
+        const found = find(new TextDecoder('latin1').decode(bytes), META_RE);
+        if (found) return found;
+        if (start === 0 && !/\.(tiff?|png|jpe?g)$/i.test(file.name)) break;
+    }
+
+    // Fichiers vectoriels
+    if (/\.kmz$/i.test(file.name) && typeof ensureJSZip === 'function') {
+        await ensureJSZip();
+        const zip = await JSZip.loadAsync(file);
+        for (const entry of Object.values(zip.files)) {
+            if (!/\.kml$/i.test(entry.name)) continue;
+            const found = find(await entry.async('string'), DESC_RE);
+            if (found) return found;
+        }
+    } else if (/\.(kml|geojson|json|gpx|csv)$/i.test(file.name)) {
+        const found = find(await file.text(), DESC_RE);
+        if (found) return found;
+    }
+
+    // Nom du fichier (…_code=XXXX.ext)
+    const m = /code=([0-9A-Za-z_-]+)\.[a-z0-9]{2,7}$/i.exec(file.name);
+    if (m && valid(m[1])) return m[1];
+    throw new Error(`Aucun code de recréation trouvé dans « ${file.name} ».`);
+}
+
+// ----------------------------------------------------------------
 // Restauration
 // ----------------------------------------------------------------
 // Configuration à la manière de getGridConfiguration, pour calculateGridData.

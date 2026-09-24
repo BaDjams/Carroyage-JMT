@@ -473,6 +473,7 @@ async function generateImageToPrint() {
                 pixelScaleX: anchor.metersPerPixel / scaleFactor,
                 pixelScaleY: anchor.metersPerPixel / scaleFactor,
                 epsg: 3857,
+                description: recreationCodeMetadata(recreationCode),
             };
             if (format === 'geotiff-jpeg') {
                 geoOpts.quality = quality;
@@ -485,8 +486,9 @@ async function generateImageToPrint() {
                 else { showError("Erreur lors de la création du fichier GeoTIFF."); }
             }
         } else {
-            finalCanvas.toBlob((blob) => {
-                if (blob) { downloadFile(blob, fileName); }
+            finalCanvas.toBlob(async (blob) => {
+                // Code de recréation dans les métadonnées de l'image (cf. seedManager.js)
+                if (blob) { downloadFile(await blobWithRecreationCode(blob, recreationCode), fileName); }
                 else { showError("Erreur lors de la création du fichier image."); }
             }, mimeType, quality);
         }
