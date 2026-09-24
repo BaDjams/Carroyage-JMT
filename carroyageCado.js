@@ -551,7 +551,7 @@ function getGridConfiguration(lat, lon) {
     const scale = roundGridScale(document.getElementById('scale').value);
     const scaleProblem = gridScaleProblem(scale);
     if (scaleProblem) throw new Error(scaleProblem);
-    return {
+    const config = {
         latitude: lat,
         longitude: lon,
         scale,
@@ -572,6 +572,12 @@ function getGridConfiguration(lat, lon) {
         swapAxes: document.getElementById('swap-axes').checked,
         doubleEntry: document.getElementById('double-entry')?.checked ?? false
     };
+    // Grille reprise d'un code dont A1 et le centre sont figés (grille complétée dans
+    // CadoTour) : son décalage vaut tant que point, échelle, bornes, référence et sens
+    // restent ceux du code (cf. applyQuickGridSettings, seedManager.js).
+    const fromCode = window.cadoCenterShiftFromCode;
+    if (fromCode && fromCode.key === centerShiftKey(config)) config.centerShift = { ...fromCode.shift };
+    return config;
 }
 
 function calculateGridData(config) {
@@ -586,28 +592,9 @@ function calculateGridData(config) {
         a1CornerLat = refLat;
         a1CornerLon = refLon;
     } else {
-        const startColNum = letterToNumber(config.startCol);
-        const endColNum = letterToNumber(config.endCol);
-        const startRowNum = config.startRow;
-        const endRowNum = config.endRow;
+        // Centre depuis A1, décalage d'une grille complétée compris (cf. utilities.js).
+        const { col: centerColOffset, row: centerRowOffset } = gridCenterOffsetCells(config);
 
-        const calculateCenterOffsetInCells = (start, end) => {
-            const indices = generateIndices(start, end);
-            const numCells = indices.length;
-            const startOffset = getOffsetInCells(indices[0]);
-
-            if (numCells % 2 === 0) {
-                const middleIndex = numCells / 2;
-                return startOffset + middleIndex;
-            } else {
-                const middleIndex = Math.floor(numCells / 2);
-                return startOffset + middleIndex + 0.5;
-            }
-        };
-        
-        const centerColOffset = calculateCenterOffsetInCells(startColNum, endColNum);
-        const centerRowOffset = calculateCenterOffsetInCells(startRowNum, endRowNum);
-        
         const xOffsetMeters = centerColOffset * config.scale;
 		const yOffsetMeters = centerRowOffset * config.scale;
 

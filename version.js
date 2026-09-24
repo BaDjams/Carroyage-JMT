@@ -1,12 +1,20 @@
 // version.js
 
 // Source unique de vérité pour la version de l'application.
-const APP_VERSION = '23.31';
+const APP_VERSION = '23.32';
 
 // Une ligne courte par changement, telle que l'utilisateur la voit : ce qui change,
 // sans le pourquoi ni le comment. Guillemets doubles : les apostrophes françaises
 // s'écrivent telles quelles.
 const CHANGELOG = [
+  {
+    version: "23.32",
+    date: "2026-09-24",
+    changes: [
+      "Code de recréation d'une grille complétée dans CadoTour : même grille, cases à la même place",
+      "Correction : une faute de frappe dans un code base64 pouvait passer pour un autre code",
+    ],
+  },
   {
     version: "23.31",
     date: "2026-09-24",

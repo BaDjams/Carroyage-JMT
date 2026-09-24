@@ -584,6 +584,8 @@ function zoneCadoConfigFromCode(code, direction, swapAxes) {
         referencePointChoice: code.pivot === 'origin' ? 'origin' : 'no_cross',
         startRow: code.startRow, endRow: code.endRow,
         startCol: code.startCol, endCol: code.endCol,
+        // A1 et centre figés d'une grille complétée (cf. gridCenterOffsetCells).
+        ...(code.centerShift ? { centerShift: { ...code.centerShift } } : {}),
     };
     const [a1CornerLon, a1CornerLat] = calculateGridData(config).a1Corner;
 

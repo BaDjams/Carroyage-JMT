@@ -138,6 +138,28 @@ const getOffsetInCells = (n) => {
 
 const getNextIndex = (n) => (n === -1 ? 1 : n + 1);
 
+// Position du point de référence d'une grille « centre », en cases depuis A1 (avant
+// rotation) : le milieu des bornes — une grille paire est centrée sur une
+// intersection, une impaire sur le milieu de la case médiane. Une grille complétée
+// d'un seul côté (lignes ajoutées ou retirées dans CadoTour) garde son A1 et son
+// centre de rotation : `centerShift` { cols, rows }, en demi-cases, dit alors de
+// combien le centre s'écarte du milieu des nouvelles bornes. Seule source de cette
+// position : calculateGridData et imagetoprint.js l'emploient tous deux, et CadoTour
+// fait le même calcul (centerOffsetCells, carroyage.js).
+function gridCenterOffsetCells(config) {
+    const middle = (start, end) => {
+        const indices = generateIndices(start, end);
+        const n = indices.length;
+        const startOffset = getOffsetInCells(indices[0]);
+        return n % 2 === 0 ? startOffset + n / 2 : startOffset + Math.floor(n / 2) + 0.5;
+    };
+    const shift = config.centerShift || {};
+    return {
+        col: middle(letterToNumber(String(config.startCol)), letterToNumber(String(config.endCol))) + (Number(shift.cols) || 0) / 2,
+        row: middle(Number(config.startRow), Number(config.endRow)) + (Number(shift.rows) || 0) / 2,
+    };
+}
+
 function calculateAndRotatePoint(colNumber, rowNumber, config, a1Lat, a1Lon) {
     const metersToLatDegrees = (meters) => meters / 111320;
     const metersToLonDegrees = (meters, lat) => meters / (111320 * Math.cos(toRad(lat)));

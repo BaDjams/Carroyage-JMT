@@ -9,7 +9,7 @@ exactement la même grille dans l'autre. Les fichiers concernés : `seedManager.
 de `utilities.js` ici ; `gridRecreation.js` et `roundDeviation` / `MAX_SCALE` de
 `carroyage.js` dans CadoTour.
 
-État commun (format v3, depuis Carroyage-JMT v23.31 et CadoTour 1.53.158) :
+État commun (format v3, depuis Carroyage-JMT v23.32 et CadoTour 1.53.161) :
 - déviation au dixième de degré, `(déviation + 180) × 10` sur 12 bits ; échelle
   en mètres sur 16 bits puis un bit de demi-mètre ; les versions 1 (déviation au
   degré, échelle sur 17 bits) et 2 (sans le bit du demi-mètre) restent lues ;
@@ -20,6 +20,14 @@ de `utilities.js` ici ; `gridRecreation.js` et `roundDeviation` / `MAX_SCALE` de
 - échelle de **0,5 à 65 535 m** par case, arrondie au demi-mètre
   `Math.round(x × 2) / 2` (`roundGridScale` ici, `roundScale` dans CadoTour), dans
   les deux applications, avec un message qui l'explique dès la saisie ;
+- grille « centre » complétée d'un seul côté (lignes ajoutées ou retirées dans
+  CadoTour) : A1 et le centre de rotation sont FIGÉS, seule l'étendue des cases
+  change ; l'écart du centre au milieu des bornes est retenu dans `centerShift`
+  { cols, rows } (demi-cases), A1 = centre − `gridCenterOffsetCells` ici,
+  `centerOffsetCells` dans CadoTour ; valeur 7 du champ grille du code (bornes
+  libres + écart sur 2 × 8 bits), 31 caractères base32 au plus ;
+- décodage : une saisie de casse mêlée (hors i, l, o) est du base64 seulement,
+  jamais relue en base32 — une faute dans un code base64 y serait passée ;
 - PNG : une espace suit le code dans le chunk `tEXt` ; à la lecture, un code
   invalide est retenté privé de 1 à 4 caractères finaux (octets du CRC).
 

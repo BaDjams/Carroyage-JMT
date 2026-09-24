@@ -954,7 +954,7 @@ Un code court qui décrit la **zone d'intérêt** d'un export pour la refaire à
 | zoom | 5 | 0 = non précisé |
 | *zone* Δlat, Δlon | 22 + 23 | µ° |
 | *CADO* échelle | 16 + 1 | mètres entiers (65 535 au plus), puis demi-mètre : 1 = +0,5 m (v2 : 16 bits sans demi-mètre ; v1 : 17 bits) |
-| *CADO* grille | 3 (+16 ou +32) | 0–4 Q12, Z18, Q9, Z14, Z26 ; 5 = de A1 à N×M (8+8) ; 6 = bornes libres signées (4×8) |
+| *CADO* grille | 3 (+16, +32 ou +48) | 0–4 Q12, Z18, Q9, Z14, Z26 ; 5 = de A1 à N×M (8+8) ; 6 = bornes libres signées (4×8) ; 7 = bornes libres (4×8) + écart du centre (2×8, demi-cases, signés) |
 | *CADO* drapeaux | 4 | ascendant, milieu, axes inversés, double entrée |
 
 Le sens des lettres est géométrique (il place les lignes au nord ou au sud de A1) ; inversion des axes et double entrée ne changent que les étiquettes, mais ne coûtent aucun caractère en base32. Le bit du demi-mètre (version 3) allonge d'un caractère le code base32 d'une grille prédéfinie (21 → 22) et le code base64 à bornes libres (23 → 24).
@@ -963,19 +963,21 @@ Le sens des lettres est géométrique (il place les lignes au nord ou au sud de 
 
 **Déviation** : au dixième de degré dans toute l'application (`roundDeviation`, `wrapDeviation` dans `utilities.js`) — curseurs au pas de 0,1, valeur saisissable (`#deviation-value`, `#zone-deviation-value`), boutons ↺/↻ au degré.
 
-**Alphabets** : base32 de Crockford par défaut (sans I, L, O, U ; casse indifférente ; `O` lu 0, `I`/`L` lus 1 ; groupé par 4 avec des tirets), ou base64url, plus court, au choix dans la fenêtre « Réglages » (bouton « Gestion ⚙️ »). Le décodage essaie les deux et accepte un nom de fichier entier (ce qui suit `code=`, extension retirée).
+**Alphabets** : base32 de Crockford par défaut (sans I, L, O, U ; casse indifférente ; `O` lu 0, `I`/`L` lus 1 ; groupé par 4 avec des tirets), ou base64url, plus court, au choix dans la fenêtre « Réglages » (bouton « Gestion ⚙️ »). Le décodage essaie les deux et accepte un nom de fichier entier (ce qui suit `code=`, extension retirée). Une saisie de casse mêlée (hors `i`, `l`, `o`, que base32 relit) est lue en base64 seulement : relue en base32, une faute dans un code base64 pouvait donner un autre code valide.
 
 | Code | base32 | base64 |
 |---|---|---|
 | CADO, grille prédéfinie | 22 | 18 |
 | CADO de A1 à N×M (export de zone) | 25 | 21 |
 | CADO à bornes libres | 28 | 24 |
+| CADO complétée d'un seul côté (centre écarté) | 31 | 26 |
 | Zone | 26 | 22 |
 
 **Contrôle** : dernier caractère = Σ αⁱ·vᵢ dans GF(32) (GF(64) en base64), α générateur. Toute substitution d'un caractère et toute inversion de deux voisins sont détectées tant que le code compte moins de 31 caractères (63).
 
 **Restauration**
 - *Carroyage rapide* : un code CADO règle point, échelle, grille (prédéfinie ou bornes libres), point de référence, sens, axes, double entrée, déviation et zoom forcé. Le mode de référence d'origine est conservé : `calculateAndRotatePoint` convertit les distances est-ouest au cosinus de la latitude du point de référence, et passer d'un milieu à A1 étirerait les colonnes (une cinquantaine de mètres au bord d'une grille de 26 km). Une grille « Origine (A1) » s'agrandit en gardant ses cases (bornes négatives) ; une grille « milieu » s'agrandit autour de son centre. Un code de zone donne une grille CADO « milieu » d'environ 26 colonnes qui couvre la zone.
+- *Grille complétée* (valeur 7) : une grille « milieu » agrandie ou réduite d'un seul côté dans CadoTour garde son A1 et son centre de rotation ; seule l'étendue des cases change. Le centre n'est alors plus le milieu des bornes : son écart, en demi-cases, est dans `config.centerShift` { cols, rows }, et `gridCenterOffsetCells` (`utilities.js`) donne la position du centre depuis A1 pour `calculateGridData`, la boîte de téléchargement, l'A1 des étiquettes et `getA1CornerCoordsForPrint` (`imagetoprint.js`) — une seule définition. Appliqué en carroyage rapide, l'écart est retenu (`window.cadoCenterShiftFromCode`) tant que point, échelle, bornes, référence et sens restent ceux du code (`centerShiftKey`) ; en export de zone, il suit `window.zoneCadoFromCode`.
 - *Export de zone* : le rectangle est retracé, la carte placée au zoom du code. Un code CADO retrace le cadre non tourné de sa grille et la mémorise dans `window.zoneCadoFromCode` : `getZoneCadoConfigAndBounds` la reprend telle quelle (`zoneCadoConfigFromCode`) tant que rectangle, échelle et sens des lettres restent ceux du code, plutôt que de la recalculer depuis le rectangle, ce qui perdrait les bornes et le point de référence.
 - *Déviation* : dans les deux modes, le fond pivote autour du point de référence du carroyage (en export de zone, `zdCreateFinalCanvas(..., rotationPivot)`), comme dans les KML. Un code tourné donne donc la même grille sur le terrain d'un mode à l'autre.
 
