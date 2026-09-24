@@ -5,14 +5,16 @@
 import fs from 'node:fs';
 import vm from 'node:vm';
 
-const ctx = { console, Math };
+// Blob, File et TextDecoder : lecture des métadonnées d'image (readRecreationCodeFromFile).
+const ctx = { console, Math, TextEncoder, TextDecoder, Blob, File };
 vm.createContext(ctx);
 // Le codec n'a besoin, d'utilities.js, que des conversions lettres/nombres.
 const util = fs.readFileSync('utilities.js', 'utf8');
 vm.runInContext(util.slice(util.indexOf('function letterToNumber'), util.indexOf('// --- LOGIQUE DE GRILLE PARTAGÉE')), ctx);
 vm.runInContext(fs.readFileSync('seedManager.js', 'utf8'), ctx);
-const { encodeRecreationCode: encode, decodeRecreationCode: decode, RC_ALPHABETS } = vm.runInContext(
-    '({ encodeRecreationCode, decodeRecreationCode, RC_ALPHABETS })', ctx);
+const { encodeRecreationCode: encode, decodeRecreationCode: decode, RC_ALPHABETS,
+    blobWithRecreationCode, readRecreationCodeFromFile } = vm.runInContext(
+    '({ encodeRecreationCode, decodeRecreationCode, RC_ALPHABETS, blobWithRecreationCode, readRecreationCodeFromFile })', ctx);
 
 let passed = 0, failed = 0;
 function test(name, cond, detail = '') {
@@ -76,6 +78,26 @@ test('code v1 relu (carte du terrain)', Math.abs(V1.lat - 47.08352) < 5e-6 && Ma
     && V1.scale === 10 && V1.deviation === 32 && V1.zoom === 20 && V1.endCol === 17 && V1.endRow === 12, JSON.stringify(V1));
 const V1b = decode('E26S-Y15D-V5YH-B960-0A1G-7');
 test('code v1 relu (image de test v23.28)', V1b.scale === 20 && V1b.deviation === 0 && V1b.endRow === 12, JSON.stringify(V1b));
+
+// PNG : le texte du chunk tEXt est suivi, sans séparateur, des 4 octets du CRC.
+// Avant la v23.30, un octet de CRC qui tombait dans l'alphabet du code s'y collait
+// (une image sur quatre environ) et le code n'était plus lu.
+const PNG_1PX = Uint8Array.from(Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64'));
+const readBytes = (bytes, name) => readRecreationCodeFromFile(new File([bytes], name));
+{
+    const code = encode(CASES[1], 'base32');
+    const png = new Uint8Array(await (await blobWithRecreationCode(new Blob([PNG_1PX], { type: 'image/png' }), code)).arrayBuffer());
+    test('PNG : une espace sépare le code du CRC', Buffer.from(png).toString('latin1').includes(`CADO-code=${code} `));
+    test('PNG écrit : code relu, même renommé', (await readBytes(png, 'renomme.png')) === code);
+    // PNG d'avant la v23.30 : code suivi directement d'octets du CRC qui ressemblent au code.
+    for (const tail of ['l', 'l7', 'Ab_-', 'zz9Q']) {
+        const legacy = Buffer.from(`PNG tEXtComment CADO-code=${code}${tail}\u0001\u0002`, 'latin1');
+        test(`PNG ancien : code relu malgré le CRC « ${tail} » collé`, (await readBytes(legacy, 'ancien.png')) === code);
+    }
+    const b64 = encode(CASES[0], 'base64');
+    test('PNG ancien : code base64 relu malgré un CRC collé',
+        (await readBytes(Buffer.from(`CADO-code=${b64}Q\u0000`, 'latin1'), 'ancien.png')) === b64);
+}
 
 console.log(`\n${passed}/${passed + failed} tests réussis`);
 process.exit(failed ? 1 : 0);

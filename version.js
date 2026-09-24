@@ -14,6 +14,7 @@ const CHANGELOG = [
       "Déviation du carroyage au dixième de degré, comme dans CadoTour",
       "Valeur de la déviation saisissable directement, en carroyage rapide et en export de zone",
       "Les codes de recréation déjà imprimés restent lisibles",
+      "Correction : environ une image PNG sur quatre ne rendait pas son code de recréation par glisser-déposer",
       "Correction : le bouton « Télécharger l'image (Rotatée) » de l'export de zone ne signalait jamais la rotation",
     ],
   },

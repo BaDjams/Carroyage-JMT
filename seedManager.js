@@ -25,7 +25,7 @@
 // Suit un caractère de contrôle : somme des caractères pondérés par les puissances
 // successives d'un générateur de GF(32) (GF(64) en base64). Toute faute sur un
 // caractère et toute inversion de deux caractères voisins sont repérées, tant que le
-// code compte moins de 31 caractères (63 en base64) : il en fait 27 au plus.
+// code compte moins de 31 caractères (63 en base64) : il en fait 28 au plus.
 //
 // Version 1 (v23.28 et v23.29), encore lue : déviation au degré sur 9 bits, échelle
 // sur 17 bits. La version 2 gagne un bit sur l'échelle (65 535 m au plus) pour qu'un
@@ -385,8 +385,11 @@ async function blobWithRecreationCode(blob, code) {
     const text = new TextEncoder().encode(recreationCodeMetadata(code));
 
     if (bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4E && bytes[3] === 0x47) {
-        // PNG : chunk tEXt juste après IHDR (signature 8 + IHDR 25 octets)
-        const data = new Uint8Array([...new TextEncoder().encode('Comment'), 0, ...text]);
+        // PNG : chunk tEXt juste après IHDR (signature 8 + IHDR 25 octets). Le texte y
+        // est suivi, sans séparateur, des 4 octets du CRC : une espace finale l'en
+        // sépare, sans quoi un octet de CRC pris pour un caractère du code le
+        // rallongerait (cf. RC_TRAILING_BYTES).
+        const data = new Uint8Array([...new TextEncoder().encode('Comment'), 0, ...text, 0x20]);
         const chunk = new Uint8Array(12 + data.length);
         const dv = new DataView(chunk.buffer);
         dv.setUint32(0, data.length);
@@ -405,15 +408,31 @@ async function blobWithRecreationCode(blob, code) {
     return blob;
 }
 
+// Premier code valide d'un texte. Un PNG écrit avant la v23.30 n'a pas d'espace
+// après le code : les 4 octets du CRC suivent, et chacun a une chance sur quatre
+// d'être un caractère du code, que l'expression avale alors (« …-GP » + « l ») —
+// une image sur quatre environ. On retente donc sans ces octets ; le caractère de
+// contrôle et la longueur exacte écartent toute lecture de travers. Même règle
+// dans CadoTour (gridRecreation.js).
+const RC_TRAILING_BYTES = 4;
+
+function findRecreationCodeIn(text, re) {
+    const valid = (code) => { try { decodeRecreationCode(code); return true; } catch (e) { return false; } };
+    for (const m of text.matchAll(re)) {
+        for (let cut = 0; cut <= RC_TRAILING_BYTES && cut < m[1].length; cut++) {
+            const candidate = m[1].slice(0, m[1].length - cut);
+            if (valid(candidate)) return candidate;
+        }
+    }
+    return null;
+}
+
 // Code d'un fichier exporté : métadonnées d'image, puis description du point A1 des
 // fichiers vectoriels (KML, KMZ, GeoJSON, GPX, CSV), puis nom du fichier. Lève une
 // erreur lisible si aucun code n'y figure.
 async function readRecreationCodeFromFile(file) {
     const valid = (code) => { try { decodeRecreationCode(code); return true; } catch (e) { return false; } };
-    const find = (text, re) => {
-        for (const m of text.matchAll(re)) if (valid(m[1])) return m[1];
-        return null;
-    };
+    const find = findRecreationCodeIn;
     const META_RE = /CADO-code=([0-9A-Za-z_-]+)/g;
     const DESC_RE = /Code de recréation : ([0-9A-Za-z_-]+)/g;
 
