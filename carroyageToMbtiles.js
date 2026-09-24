@@ -6,7 +6,7 @@
  * gridMode ('utm' ou 'mgrs') choisit la désignation de la grille UTM dessinée.
  * useDfci ajoute le carroyage DFCI (sécurité civile).
  */
-async function generateMbtilesProcess(filename, useUtm, useCfsi, useCado, bbox, baseZoom, userPOIs, optionalCadoData = null, gridMode = 'utm', useDfci = false) {
+async function generateMbtilesProcess(filename, useUtm, useCfsi, useCado, bbox, baseZoom, userPOIs, optionalCadoData = null, gridMode = 'utm', useDfci = false, extraMetadata = {}) {
     if (typeof window.initSqlJs !== 'function') throw new Error("SQL.js non chargé.");
 
    
@@ -34,6 +34,8 @@ async function generateMbtilesProcess(filename, useUtm, useCfsi, useCado, bbox, 
     db.run("INSERT INTO metadata VALUES (?, ?)", ["minzoom", String(minZ)]);
     db.run("INSERT INTO metadata VALUES (?, ?)", ["maxzoom", String(maxZ)]);
     db.run("INSERT INTO metadata VALUES (?, ?)", ["scheme", "tms"]);
+    // Métadonnées propres à l'export, dont le code de recréation (cf. seedManager.js)
+    Object.entries(extraMetadata).forEach(([name, value]) => db.run("INSERT INTO metadata VALUES (?, ?)", [name, String(value)]));
 
     // Configuration CADO
     let cadoConfig = null;

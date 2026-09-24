@@ -89,7 +89,7 @@ L'ordre dans `index.html` est important — plusieurs fichiers exposent des vari
 8. carroyageUTM.js     → WGS84_to_UTM, WGS84_to_MGRS
 9. zoneDownloader.js   → orchestrateur mode 2
 10. carroyageToMbtiles.js / carroyageToCSV.js → exports
-11. seedManager.js     → encodage seeds
+11. seedManager.js     → code de recréation (§8.6)
 12. tileSource.js      → abstraction MBTiles/online
 13. mbtilesCreator.js  → mode 3
 14. settingsManager.js → gestion icônes utilisateur
@@ -135,6 +135,8 @@ Génère un quadrillage CADO **centré sur un point unique** (lat/lon en décima
 
 **Fichier pivot** : `carroyageCado.js` (~43 KB).
 
+**Code de recréation** : champ `#cado-recreation-code` en tête du bloc 2, cf. §8.6.
+
 **Zoom forcé** (options avancées du carroyage, `#cado-forced-zoom`) : en « Automatique », l'image est assemblée au zoom de `calculateOptimalZoom` (≈ 4000 px de large, plafonné au zoom du fond). Un zoom choisi est appliqué tel quel par `checkForcedZoom` (`imagetoprint.js`) pour refaire une image identique à une précédente, le zoom étant lu dans son cartouche. Il est refusé, jamais substitué, s'il dépasse le `maxZoom` du fond, s'il manque au MBTiles chargé, ou si la carte dépasserait 16 384 px de côté ou 16 384 × 8 192 px ; le message donne alors le zoom maximal utilisable. Le rappel `#cado-forced-zoom-note` reste affiché sous « Générer l'image » tant qu'un zoom est forcé. Exports image seulement : KML, MBTiles et CSV n'ont pas de fond.
 
 ### Mode 2 — Export de zone
@@ -147,7 +149,7 @@ L'utilisateur dessine un rectangle (Leaflet.draw) ou importe un KML/KMZ existant
 
 Interface dédiée pour générer une base MBTiles (fond de carte tuilé hors-ligne) sur une zone et plage de zoom choisies. Utilise OPFS pour stocker > 100 000 tuiles sans saturer la RAM.
 
-**Fichier pivot** : `mbtilesCreator.js` + `seedManager.js`.
+**Fichier pivot** : `mbtilesCreator.js`.
 
 ---
 
@@ -321,7 +323,7 @@ Interface Mode 3 (carte Leaflet + contrôles + barre de progression).
 - `initCreatorMode()` — initialise la carte avec toutes les couches disponibles
 - `updateCreatorUI()` — barre de progression + alertes (seuil **8000 tuiles** RAM, **100 000** avec OPFS)
 - `checkOPFS()` — détecte le support du stockage privé navigateur
-- `seedTiles(selectedBbox, selectedZoom)` — orchestre via `seedManager.js`
+- `seedTiles(selectedBbox, selectedZoom)` — téléchargement des tuiles
 - Case « Inclure le relief 3D hors-ligne (MNT) » : ajoute les tuiles PNG Terrarium/AWS
   du MNT (passthrough sans recompression) dans le MÊME fichier que le fond de carte,
   mais dans une table SÉPARÉE `terrain_tiles` (même structure `zoom_level`,
@@ -342,18 +344,15 @@ Interface Mode 3 (carte Leaflet + contrôles + barre de progression).
 
 **Spécifique** : gestion projection EPSG:3395 pour Yandex (correction nécessaire), gestion QuadKey pour Bing.
 
-#### `seedManager.js` (~8.6 KB)
+#### `seedManager.js`
 
-Encodage compact (base64, 11 caractères) d'une configuration de carroyage pour partage par URL.
+Code de recréation : encodage, décodage et application dans les deux modes (cf. §8.6).
 
-**Layout 8 octets** :
-| Bits | Champ | Plage |
-|---|---|---|
-| 0–20 | latInt | 21 bits, ~11 m de précision |
-| 21–42 | lonInt | 22 bits |
-| 43–52 | scale/10 | 10 bits, max 10 230 m |
-| 53–55 | type de grille | 3 bits |
-| 56–59 | flags | swap axes, double entrée, sens lettrage, point de réf |
+- `encodeRecreationCode(params, alphabet)` / `decodeRecreationCode(texte)` — codec pur, sans DOM
+- `cadoRecreationCode(config, { deviation, zoom })` — code d'une grille CADO (`getGridConfiguration`, ou `getZoneCadoConfigAndBounds`)
+- `zoneRecreationCode(rectangle, { deviation, zoom })` — code d'un rectangle d'export de zone
+- `quickGridFromCode`, `applyQuickGridSettings` — carroyage rapide ; `zoneFrameFromCode` — export de zone
+- `getRecreationCodeAlphabet` / `setRecreationCodeAlphabet` — préférence `localStorage.recreationCodeAlphabet`
 
 #### `tileSource.js`
 
@@ -930,10 +929,49 @@ Format compatible QGIS/Google Earth Pro : une colonne `WKT` + colonnes label/typ
 - Plage de zoom typique : 17-19
 - Limite canvas : 8192 px (alerte au-delà)
 
-### 8.6 Seeds
+### 8.6 Code de recréation
 
-- Encodage 8 octets → 11 caractères base64
-- Partage par URL : `?seed=<11chars>`
+Un code court qui décrit la **zone d'intérêt** d'un export pour la refaire à l'identique. Il ne fige pas le carroyage : saisi en export de zone, il retrace l'emprise, puis l'on choisit CADO, UTM, MGRS, CFSI ou DFCI. Fond, couleur, épaisseur et format restent libres.
+
+**Où il figure** : ligne `Code : …` du cartouche (`buildCartoucheLines`, option `code`) ; nom de fichier, en `_code=…` à la place de `_origine=lat,lon` (conservé si aucun code n'est possible, par exemple une échelle non entière) ; description du point d'origine A1 en KML/KMZ, GeoJSON (`properties.description`), GPX (`<desc>`) et CSV ; `<description>` du document KML de l'export de zone ; métadonnée `code_recreation` des MBTiles (`generateMbtilesProcess(..., extraMetadata)`). Les fichiers vectoriels n'ont pas de zoom : leur code n'en porte pas.
+
+**Deux sortes** :
+- *zone* : coin nord-ouest et étendue du rectangle, en µ° — la précision des champs `zone-nw-coords`/`zone-se-coords` (`toFixed(6)`), que le décodage retrouve donc à l'identique ;
+- *CADO* : point de référence (milieu ou A1), échelle, bornes de la grille ; l'étendue s'en déduit.
+
+**Bits** (poids fort en tête) :
+
+| Champ | Bits | Contenu |
+|---|---|---|
+| version | 2 | 1 |
+| sorte | 1 | 0 zone, 1 CADO |
+| lat, lon | 28 + 29 | µ°, décalés de +90 / +180 |
+| déviation | 9 | degrés + 180 |
+| zoom | 5 | 0 = non précisé |
+| *zone* Δlat, Δlon | 22 + 23 | µ° |
+| *CADO* échelle | 17 | mètres entiers |
+| *CADO* grille | 3 (+16 ou +32) | 0–4 Q12, Z18, Q9, Z14, Z26 ; 5 = de A1 à N×M (8+8) ; 6 = bornes libres signées (4×8) |
+| *CADO* drapeaux | 4 | ascendant, milieu, axes inversés, double entrée |
+
+Le sens des lettres est géométrique (il place les lignes au nord ou au sud de A1) ; inversion des axes et double entrée ne changent que les étiquettes, mais ne coûtent aucun caractère en base32.
+
+**Alphabets** : base32 de Crockford par défaut (sans I, L, O, U ; casse indifférente ; `O` lu 0, `I`/`L` lus 1 ; groupé par 4 avec des tirets), ou base64url, plus court, au choix dans la fenêtre « Réglages » (bouton « Gestion ⚙️ »). Le décodage essaie les deux et accepte un nom de fichier entier (ce qui suit `code=`, extension retirée).
+
+| Code | base32 | base64 |
+|---|---|---|
+| CADO, grille prédéfinie | 21 | 18 |
+| CADO de A1 à N×M (export de zone) | 24 | 20 |
+| CADO à bornes libres | 27 | 23 |
+| Zone | 25 | 21 |
+
+**Contrôle** : dernier caractère = Σ αⁱ·vᵢ dans GF(32) (GF(64) en base64), α générateur. Toute substitution d'un caractère et toute inversion de deux voisins sont détectées tant que le code compte moins de 31 caractères (63).
+
+**Restauration**
+- *Carroyage rapide* : un code CADO règle point, échelle, grille (prédéfinie ou bornes libres), point de référence, sens, axes, double entrée, déviation et zoom forcé. Le mode de référence d'origine est conservé : `calculateAndRotatePoint` convertit les distances est-ouest au cosinus de la latitude du point de référence, et passer d'un milieu à A1 étirerait les colonnes (une cinquantaine de mètres au bord d'une grille de 26 km). Une grille « Origine (A1) » s'agrandit en gardant ses cases (bornes négatives) ; une grille « milieu » s'agrandit autour de son centre. Un code de zone donne une grille CADO « milieu » d'environ 26 colonnes qui couvre la zone.
+- *Export de zone* : le rectangle est retracé, la carte placée au zoom du code. Un code CADO retrace le cadre non tourné de sa grille et la mémorise dans `window.zoneCadoFromCode` : `getZoneCadoConfigAndBounds` la reprend telle quelle (`zoneCadoConfigFromCode`) tant que rectangle, échelle et sens des lettres restent ceux du code, plutôt que de la recalculer depuis le rectangle, ce qui perdrait les bornes et le point de référence.
+- *Limite* : avec une déviation, l'image de l'export de zone tourne autour de son centre et le carroyage rapide autour du point de référence. Un code tourné passé d'un mode à l'autre donne une grille voisine, identique dans son propre mode.
+
+**Tests** : `node tools/test_code_recreation.mjs` (aller-retour, longueurs, détection des fautes et inversions, lecture d'un nom de fichier).
 
 ---
 

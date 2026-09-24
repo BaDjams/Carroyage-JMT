@@ -251,7 +251,7 @@ em { font-style: italic; }
 </li>
 <li><a href="#54-mode-3-creation-mbtiles">5.4 Mode 3 — création MBTiles</a><ul>
 <li><a href="#mbtilescreatorjs-32-kb">mbtilesCreator.js (~32 KB)</a></li>
-<li><a href="#seedmanagerjs-86-kb">seedManager.js (~8.6 KB)</a></li>
+<li><a href="#seedmanagerjs">seedManager.js</a></li>
 <li><a href="#tilesourcejs">tileSource.js</a></li>
 </ul>
 </li>
@@ -307,7 +307,7 @@ em { font-style: italic; }
 <li><a href="#83-csv-wkt">8.3 CSV (WKT)</a></li>
 <li><a href="#84-png-haute-resolution">8.4 PNG haute résolution</a></li>
 <li><a href="#85-mbtiles-drone-dji">8.5 MBTiles (drone DJI)</a></li>
-<li><a href="#86-seeds">8.6 Seeds</a></li>
+<li><a href="#86-code-de-recreation">8.6 Code de recréation</a></li>
 </ul>
 </li>
 <li><a href="#9-street-view-dualmaps">9. Street View &amp; DualMaps</a><ul>
@@ -491,7 +491,7 @@ em { font-style: italic; }
 8. carroyageUTM.js     → WGS84_to_UTM, WGS84_to_MGRS
 9. zoneDownloader.js   → orchestrateur mode 2
 10. carroyageToMbtiles.js / carroyageToCSV.js → exports
-11. seedManager.js     → encodage seeds
+11. seedManager.js     → code de recréation (§8.6)
 12. tileSource.js      → abstraction MBTiles/online
 13. mbtilesCreator.js  → mode 3
 14. settingsManager.js → gestion icônes utilisateur
@@ -600,13 +600,14 @@ em { font-style: italic; }
 <h3 id="mode-1-carroyage-rapide-cado">Mode 1 — Carroyage rapide (CADO)</h3>
 <p>Génère un quadrillage CADO <strong>centré sur un point unique</strong> (lat/lon en décimal, DMS, DM, UTM, MGRS ou Mercator). Aperçu temps réel sur carte Leaflet, exports KML/KMZ/GeoJSON/GPX/CSV/PNG/MBTiles.</p>
 <p><strong>Fichier pivot</strong> : <code>carroyageCado.js</code> (~43 KB).</p>
+<p><strong>Code de recréation</strong> : champ <code>#cado-recreation-code</code> en tête du bloc 2, cf. §8.6.</p>
 <p><strong>Zoom forcé</strong> (options avancées du carroyage, <code>#cado-forced-zoom</code>) : en « Automatique », l'image est assemblée au zoom de <code>calculateOptimalZoom</code> (≈ 4000 px de large, plafonné au zoom du fond). Un zoom choisi est appliqué tel quel par <code>checkForcedZoom</code> (<code>imagetoprint.js</code>) pour refaire une image identique à une précédente, le zoom étant lu dans son cartouche. Il est refusé, jamais substitué, s'il dépasse le <code>maxZoom</code> du fond, s'il manque au MBTiles chargé, ou si la carte dépasserait 16 384 px de côté ou 16 384 × 8 192 px ; le message donne alors le zoom maximal utilisable. Le rappel <code>#cado-forced-zoom-note</code> reste affiché sous « Générer l'image » tant qu'un zoom est forcé. Exports image seulement : KML, MBTiles et CSV n'ont pas de fond.</p>
 <h3 id="mode-2-export-de-zone">Mode 2 — Export de zone</h3>
 <p>L'utilisateur dessine un rectangle (Leaflet.draw) ou importe un KML/KMZ existant. Génère plusieurs grilles superposées (UTM, MGRS, CFSI, DFCI ou CADO, au choix) sur la zone, gère les POI utilisateur.</p>
 <p><strong>Fichier pivot</strong> : <code>zoneDownloader.js</code>.</p>
 <h3 id="mode-3-creer-mbtiles">Mode 3 — Créer MBTiles</h3>
 <p>Interface dédiée pour générer une base MBTiles (fond de carte tuilé hors-ligne) sur une zone et plage de zoom choisies. Utilise OPFS pour stocker &gt; 100 000 tuiles sans saturer la RAM.</p>
-<p><strong>Fichier pivot</strong> : <code>mbtilesCreator.js</code> + <code>seedManager.js</code>.</p>
+<p><strong>Fichier pivot</strong> : <code>mbtilesCreator.js</code>.</p>
 <hr />
 <h2 id="5-reference-des-fichiers">5. Référence des fichiers</h2>
 <h3 id="51-scripts-metier">5.1 Scripts métier</h3>
@@ -762,7 +763,7 @@ em { font-style: italic; }
 <li><code>initCreatorMode()</code> — initialise la carte avec toutes les couches disponibles</li>
 <li><code>updateCreatorUI()</code> — barre de progression + alertes (seuil <strong>8000 tuiles</strong> RAM, <strong>100 000</strong> avec OPFS)</li>
 <li><code>checkOPFS()</code> — détecte le support du stockage privé navigateur</li>
-<li><code>seedTiles(selectedBbox, selectedZoom)</code> — orchestre via <code>seedManager.js</code></li>
+<li><code>seedTiles(selectedBbox, selectedZoom)</code> — téléchargement des tuiles</li>
 <li>Case « Inclure le relief 3D hors-ligne (MNT) » : ajoute les tuiles PNG Terrarium/AWS
   du MNT (passthrough sans recompression) dans le MÊME fichier que le fond de carte,
   mais dans une table SÉPARÉE <code>terrain_tiles</code> (même structure <code>zoom_level</code>,
@@ -782,16 +783,15 @@ em { font-style: italic; }
   ré-encodées, dans leur propre format ; les autres restent en passthrough.</li>
 </ul>
 <p><strong>Spécifique</strong> : gestion projection EPSG:3395 pour Yandex (correction nécessaire), gestion QuadKey pour Bing.</p>
-<h4 id="seedmanagerjs-86-kb"><code>seedManager.js</code> (~8.6 KB)</h4>
-<p>Encodage compact (base64, 11 caractères) d'une configuration de carroyage pour partage par URL.</p>
-<p><strong>Layout 8 octets</strong> :
-| Bits | Champ | Plage |
-|---|---|---|
-| 0–20 | latInt | 21 bits, ~11 m de précision |
-| 21–42 | lonInt | 22 bits |
-| 43–52 | scale/10 | 10 bits, max 10 230 m |
-| 53–55 | type de grille | 3 bits |
-| 56–59 | flags | swap axes, double entrée, sens lettrage, point de réf |</p>
+<h4 id="seedmanagerjs"><code>seedManager.js</code></h4>
+<p>Code de recréation : encodage, décodage et application dans les deux modes (cf. §8.6).</p>
+<ul>
+<li><code>encodeRecreationCode(params, alphabet)</code> / <code>decodeRecreationCode(texte)</code> — codec pur, sans DOM</li>
+<li><code>cadoRecreationCode(config, { deviation, zoom })</code> — code d'une grille CADO (<code>getGridConfiguration</code>, ou <code>getZoneCadoConfigAndBounds</code>)</li>
+<li><code>zoneRecreationCode(rectangle, { deviation, zoom })</code> — code d'un rectangle d'export de zone</li>
+<li><code>quickGridFromCode</code>, <code>applyQuickGridSettings</code> — carroyage rapide ; <code>zoneFrameFromCode</code> — export de zone</li>
+<li><code>getRecreationCodeAlphabet</code> / <code>setRecreationCodeAlphabet</code> — préférence <code>localStorage.recreationCodeAlphabet</code></li>
+</ul>
 <h4 id="tilesourcejs"><code>tileSource.js</code></h4>
 <p>Abstraction unifiée pour les tuiles : MBTiles vs en ligne.</p>
 <ul>
@@ -1651,11 +1651,108 @@ python3<span class="w"> </span>tools/bathy_mbtiles.py<span class="w"> </span>bat
 <li>Plage de zoom typique : 17-19</li>
 <li>Limite canvas : 8192 px (alerte au-delà)</li>
 </ul>
-<h3 id="86-seeds">8.6 Seeds</h3>
-<ul>
-<li>Encodage 8 octets → 11 caractères base64</li>
-<li>Partage par URL : <code>?seed=&lt;11chars&gt;</code></li>
-</ul>
+<h3 id="86-code-de-recreation">8.6 Code de recréation</h3>
+<p>Un code court qui décrit la <strong>zone d'intérêt</strong> d'un export pour la refaire à l'identique. Il ne fige pas le carroyage : saisi en export de zone, il retrace l'emprise, puis l'on choisit CADO, UTM, MGRS, CFSI ou DFCI. Fond, couleur, épaisseur et format restent libres.</p>
+<p><strong>Où il figure</strong> : ligne <code>Code : …</code> du cartouche (<code>buildCartoucheLines</code>, option <code>code</code>) ; nom de fichier, en <code>_code=…</code> à la place de <code>_origine=lat,lon</code> (conservé si aucun code n'est possible, par exemple une échelle non entière) ; description du point d'origine A1 en KML/KMZ, GeoJSON (<code>properties.description</code>), GPX (<code>&lt;desc&gt;</code>) et CSV ; <code>&lt;description&gt;</code> du document KML de l'export de zone ; métadonnée <code>code_recreation</code> des MBTiles (<code>generateMbtilesProcess(..., extraMetadata)</code>). Les fichiers vectoriels n'ont pas de zoom : leur code n'en porte pas.</p>
+<p><strong>Deux sortes</strong> :
+- <em>zone</em> : coin nord-ouest et étendue du rectangle, en µ° — la précision des champs <code>zone-nw-coords</code>/<code>zone-se-coords</code> (<code>toFixed(6)</code>), que le décodage retrouve donc à l'identique ;
+- <em>CADO</em> : point de référence (milieu ou A1), échelle, bornes de la grille ; l'étendue s'en déduit.</p>
+<p><strong>Bits</strong> (poids fort en tête) :</p>
+<table>
+<thead>
+<tr>
+<th>Champ</th>
+<th>Bits</th>
+<th>Contenu</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>version</td>
+<td>2</td>
+<td>1</td>
+</tr>
+<tr>
+<td>sorte</td>
+<td>1</td>
+<td>0 zone, 1 CADO</td>
+</tr>
+<tr>
+<td>lat, lon</td>
+<td>28 + 29</td>
+<td>µ°, décalés de +90 / +180</td>
+</tr>
+<tr>
+<td>déviation</td>
+<td>9</td>
+<td>degrés + 180</td>
+</tr>
+<tr>
+<td>zoom</td>
+<td>5</td>
+<td>0 = non précisé</td>
+</tr>
+<tr>
+<td><em>zone</em> Δlat, Δlon</td>
+<td>22 + 23</td>
+<td>µ°</td>
+</tr>
+<tr>
+<td><em>CADO</em> échelle</td>
+<td>17</td>
+<td>mètres entiers</td>
+</tr>
+<tr>
+<td><em>CADO</em> grille</td>
+<td>3 (+16 ou +32)</td>
+<td>0–4 Q12, Z18, Q9, Z14, Z26 ; 5 = de A1 à N×M (8+8) ; 6 = bornes libres signées (4×8)</td>
+</tr>
+<tr>
+<td><em>CADO</em> drapeaux</td>
+<td>4</td>
+<td>ascendant, milieu, axes inversés, double entrée</td>
+</tr>
+</tbody>
+</table>
+<p>Le sens des lettres est géométrique (il place les lignes au nord ou au sud de A1) ; inversion des axes et double entrée ne changent que les étiquettes, mais ne coûtent aucun caractère en base32.</p>
+<p><strong>Alphabets</strong> : base32 de Crockford par défaut (sans I, L, O, U ; casse indifférente ; <code>O</code> lu 0, <code>I</code>/<code>L</code> lus 1 ; groupé par 4 avec des tirets), ou base64url, plus court, au choix dans la fenêtre « Réglages » (bouton « Gestion ⚙️ »). Le décodage essaie les deux et accepte un nom de fichier entier (ce qui suit <code>code=</code>, extension retirée).</p>
+<table>
+<thead>
+<tr>
+<th>Code</th>
+<th>base32</th>
+<th>base64</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>CADO, grille prédéfinie</td>
+<td>21</td>
+<td>18</td>
+</tr>
+<tr>
+<td>CADO de A1 à N×M (export de zone)</td>
+<td>24</td>
+<td>20</td>
+</tr>
+<tr>
+<td>CADO à bornes libres</td>
+<td>27</td>
+<td>23</td>
+</tr>
+<tr>
+<td>Zone</td>
+<td>25</td>
+<td>21</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Contrôle</strong> : dernier caractère = Σ αⁱ·vᵢ dans GF(32) (GF(64) en base64), α générateur. Toute substitution d'un caractère et toute inversion de deux voisins sont détectées tant que le code compte moins de 31 caractères (63).</p>
+<p><strong>Restauration</strong>
+- <em>Carroyage rapide</em> : un code CADO règle point, échelle, grille (prédéfinie ou bornes libres), point de référence, sens, axes, double entrée, déviation et zoom forcé. Le mode de référence d'origine est conservé : <code>calculateAndRotatePoint</code> convertit les distances est-ouest au cosinus de la latitude du point de référence, et passer d'un milieu à A1 étirerait les colonnes (une cinquantaine de mètres au bord d'une grille de 26 km). Une grille « Origine (A1) » s'agrandit en gardant ses cases (bornes négatives) ; une grille « milieu » s'agrandit autour de son centre. Un code de zone donne une grille CADO « milieu » d'environ 26 colonnes qui couvre la zone.
+- <em>Export de zone</em> : le rectangle est retracé, la carte placée au zoom du code. Un code CADO retrace le cadre non tourné de sa grille et la mémorise dans <code>window.zoneCadoFromCode</code> : <code>getZoneCadoConfigAndBounds</code> la reprend telle quelle (<code>zoneCadoConfigFromCode</code>) tant que rectangle, échelle et sens des lettres restent ceux du code, plutôt que de la recalculer depuis le rectangle, ce qui perdrait les bornes et le point de référence.
+- <em>Limite</em> : avec une déviation, l'image de l'export de zone tourne autour de son centre et le carroyage rapide autour du point de référence. Un code tourné passé d'un mode à l'autre donne une grille voisine, identique dans son propre mode.</p>
+<p><strong>Tests</strong> : <code>node tools/test_code_recreation.mjs</code> (aller-retour, longueurs, détection des fautes et inversions, lecture d'un nom de fichier).</p>
 <hr />
 <h2 id="9-street-view-dualmaps">9. Street View &amp; DualMaps</h2>
 <p>Ajouté récemment dans <code>index.html</code>. Clic droit sur la carte → menu contextuel :

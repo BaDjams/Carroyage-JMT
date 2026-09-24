@@ -1,9 +1,19 @@
 // version.js
 
 // Source unique de vérité pour la version de l'application.
-const APP_VERSION = '23.27';
+const APP_VERSION = '23.28';
 
 const CHANGELOG = [
+  {
+    version: '23.28',
+    date: '2026-09-24',
+    changes: [
+      'Nouveau « code de recréation », pour refaire une carte à l\'identique. Il est inscrit dans le cartouche des images, dans le nom des fichiers exportés, où il remplace les coordonnées de l\'origine, et dans la description du point d\'origine A1 des KML, KMZ, GeoJSON, GPX et CSV. Les MBTiles le portent dans leurs métadonnées',
+      'Un champ « Code de recréation » apparaît en carroyage rapide et en export de zone. En carroyage rapide, le code règle le point, l\'échelle, la grille (bornes négatives comprises), la déviation et le zoom ; fond, couleur et format restent libres. En export de zone, il retrace la zone : on choisit ensuite le carroyage, CADO, UTM, MGRS, CFSI ou DFCI. Un code de carroyage CADO reprend aussi sa grille. On peut coller le code seul ou le nom de fichier entier',
+      'Le code est écrit par défaut en base32 : ni I, L, O ni U, majuscules et minuscules indifférentes, groupé par quatre, pour être recopié depuis une carte imprimée. Un dernier caractère de contrôle repère toute faute sur un caractère et toute inversion de deux caractères voisins. La fenêtre « Gestion ⚙️ », renommée « Réglages », propose aussi le base64, plus court ; les deux se relisent quel que soit le réglage',
+      'Correction : les exports vectoriels de l\'export de zone en CADO devaient inscrire l\'origine A1 dans leur nom de fichier, mais une erreur l\'empêchait sans rien signaler. C\'est désormais le code de recréation qui y figure',
+    ],
+  },
   {
     version: '23.27',
     date: '2026-09-24',
