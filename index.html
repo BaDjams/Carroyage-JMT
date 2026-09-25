@@ -48,6 +48,8 @@
 <script src="zoneDownloader.js" defer></script>
 <script src="imagetoprint.js" defer></script>
 <script src="geotiffExport.js" defer></script>
+<script src="imageStream.js" defer></script>
+<script src="zoneBands.js" defer></script>
 <script src="carroyageToCSV.js" defer></script>
 <script src="adaptiveInk.js" defer></script>
 <script src="carroyageCFSI.js" defer></script>
@@ -855,6 +857,9 @@
                                 <span class="ms-3 text-sm font-medium text-gray-900 dark:text-gray-300">Upscaling HD (4K)</span>
                             </label>
                         </div>
+                        <p class="text-xs text-secondary italic text-center">Agrandissement d'un facteur entier (×2, ×3…) : les pixels du fond sont dupliqués, jamais recalculés.</p>
+                        <!-- Taille de l'image, format d'impression conseillé, avertissement (updateZoneImageSize, zoneDownloader.js) -->
+                        <div id="zone-image-size" class="hidden w-full text-center text-sm text-secondary"></div>
                         <!-- Lignes de profondeur (isobathes) : bloc rempli par renderIsobathOptions (utilities.js) -->
                         <div id="zone-iso-slot" class="w-full text-left"></div>
                         <p class="text-xs text-secondary italic text-center">L'image inclura les grilles sélectionnées dans le Panel 5.</p>
@@ -1676,6 +1681,9 @@
         }
         
         function updateZoneTileCount() {
+            // Taille annoncée de l'image : recalculée après le compte des tuiles, qui
+            // réactive le bouton ; une image impossible le désactive de nouveau.
+            queueMicrotask(() => { if (typeof updateZoneImageSize === 'function') updateZoneImageSize(); });
             const nwCoordsStr = document.getElementById("zone-nw-coords")?.value;
             const seCoordsStr = document.getElementById("zone-se-coords")?.value;
             const zoom = zoneMap ? zoneMap.getZoom() : 10;
@@ -2378,6 +2386,16 @@
 
             document.querySelectorAll('input[name="image-format-cado"]').forEach(radio => radio.addEventListener('change', handleFormatChange));
             document.querySelectorAll('input[name="image-format-zone"]').forEach(radio => radio.addEventListener('change', handleFormatChange));
+
+            // Taille de l'image annoncée (updateZoneImageSize) : tout réglage de l'export
+            // de zone peut la changer (format, upscale, grille, déviation, grille CADO…).
+            let zoneSizeTimer = null;
+            const refreshZoneSize = () => {
+                clearTimeout(zoneSizeTimer);
+                zoneSizeTimer = setTimeout(() => { if (typeof updateZoneImageSize === 'function') updateZoneImageSize(); }, 150);
+            };
+            document.addEventListener('input', refreshZoneSize);
+            document.addEventListener('change', refreshZoneSize);
             
             const cadoJpegSlider = document.getElementById('cado-jpeg-quality');
             if(cadoJpegSlider) cadoJpegSlider.addEventListener('input', (e) => { document.getElementById('cado-jpeg-quality-value').textContent = `${e.target.value}%`; });

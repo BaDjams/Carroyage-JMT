@@ -1,12 +1,22 @@
 // version.js
 
 // Source unique de vérité pour la version de l'application.
-const APP_VERSION = '23.32';
+const APP_VERSION = '23.33';
 
 // Une ligne courte par changement, telle que l'utilisateur la voit : ce qui change,
 // sans le pourquoi ni le comment. Guillemets doubles : les apostrophes françaises
 // s'écrivent telles quelles.
 const CHANGELOG = [
+  {
+    version: "23.33",
+    date: "2026-09-25",
+    changes: [
+      "Export de zone sans limite de taille : au-delà de ce que le navigateur fabrique d'un seul tenant, l'image est fabriquée par bandes et le fichier s'écrit au fil de l'eau, en PNG, JPEG, GeoTIFF ou GeoTIFF JPEG (BigTIFF au-delà de 4 Go)",
+      "Export de zone : taille de l'image annoncée avant le téléchargement, avec le format de papier conseillé pour l'imprimer, et un avertissement pour un fichier de grande taille",
+      "Upscaling HD d'un facteur entier (×2, ×3…), en export de zone comme en carroyage rapide : les pixels du fond sont dupliqués, plus recalculés, donc plus nets",
+      "Export de zone : fond, grille et géoréférencement partent du même pixel, exactement superposés ; la mémoire nécessaire est divisée par deux",
+    ],
+  },
   {
     version: "23.32",
     date: "2026-09-24",

@@ -622,6 +622,107 @@ function zoneRecreationCodeFor(useCado, zoom = null) {
 // GENERATION IMAGE (PNG/JPEG)
 // =============================================================================
 
+// Carroyage choisi au panneau 5. MGRS et UTM partagent la même géométrie de grille
+// (mailles 1 km) : useUtm couvre les deux, gridMode distingue seulement
+// l'étiquetage (numéros de zone vs carrés 100 km).
+function zoneGridChoice() {
+    const gridChoiceEl = document.querySelector('input[name="zone-grid-choice"]:checked');
+    const gridChoice = gridChoiceEl ? gridChoiceEl.value : 'none';
+    return {
+        gridChoice,
+        gridMode: (gridChoice === 'mgrs') ? 'mgrs' : 'utm',
+        useUtm: (gridChoice === 'utm' || gridChoice === 'mgrs'),
+        useCfsi: (gridChoice === 'cfsi'),
+        useDfci: (gridChoice === 'dfci'),
+        useCado: (gridChoice === 'cado'),
+    };
+}
+
+// Emprise exportée : la zone saisie, ou la grille CADO et ses marges d'étiquettes.
+function zoneExportBounds(useCado) {
+    const [north, west] = document.getElementById("zone-nw-coords").value.split(',').map(c => parseFloat(c.trim()));
+    const [south, east] = document.getElementById("zone-se-coords").value.split(',').map(c => parseFloat(c.trim()));
+    if (!useCado) return { finalBoundingBox: { north, west, south, east }, cadoData: null, zone: { north, west, south, east } };
+
+    const cadoData = getZoneCadoConfigAndBounds();
+    const { config, gridBounds } = cadoData;
+    const avgLat = (gridBounds.minLat + gridBounds.maxLat) / 2;
+    const metersToLat = (meters) => meters / 111320;
+    const metersToLon = (meters, lat) => meters / (111320 * Math.cos(toRadians(lat)));
+
+    // Marges : grande (1.0) du côté où les labels apparaissent, petite (0.5) sinon.
+    // Ascending : labels colonnes au sud, labels lignes à l'ouest.
+    // Descending : labels colonnes au nord, labels lignes à l'ouest.
+    // Double entrée : labels également au nord/est (ascending) ou sud/est (descending).
+    const lm = 1.0, sm = 0.5;
+    const asc = config.letteringDirection === 'ascending';
+    const de  = config.doubleEntry;
+    const finalBoundingBox = {
+        north: gridBounds.maxLat + metersToLat((!asc || de ? lm : sm) * config.scale),
+        south: gridBounds.minLat - metersToLat(( asc || de ? lm : sm) * config.scale),
+        west:  gridBounds.minLon - metersToLon(lm * config.scale, avgLat),
+        east:  gridBounds.maxLon + metersToLon((de ? lm : sm) * config.scale, avgLat)
+    };
+    return { finalBoundingBox, cadoData, zone: { north, west, south, east } };
+}
+
+// Fond de carte et zoom de l'export.
+function zoneExportLayer() {
+    if (typeof tileSourceIsActive === 'function' && tileSourceIsActive()) {
+        const targetZoom = parseInt(document.getElementById("zone-info-zoom").textContent, 10);
+        const zoom = tileSourceGetBestZoom(isNaN(targetZoom) ? 15 : targetZoom);
+        const mapLayerName = tileSourceGetName();
+        return { zoom, mapLayerName, selectedMap: { layers: [], maxZoom: zoom, name: mapLayerName } };
+    }
+    const rawZoom = parseInt(document.getElementById("zone-info-zoom").textContent, 10);
+    const mapLayerName = document.getElementById("zone-info-layer").textContent;
+    const selectedMap = MAP_LAYERS.find(m => m.name === mapLayerName);
+    if (!selectedMap) throw new Error("Impossible de trouver la configuration du fond de carte.");
+    // Limiter au zoom natif du provider (évite de demander des tuiles inexistantes en sur-zoom)
+    const zoom = selectedMap.maxZoom ? Math.min(rawZoom, selectedMap.maxZoom) : rawZoom;
+    return { zoom, mapLayerName, selectedMap };
+}
+
+// Plan de l'image que produirait l'export avec les réglages du moment.
+function zoneImagePlan() {
+    const grid = zoneGridChoice();
+    const { finalBoundingBox, cadoData } = zoneExportBounds(grid.useCado);
+    if (![finalBoundingBox.north, finalBoundingBox.south, finalBoundingBox.east, finalBoundingBox.west].every(Number.isFinite)) return null;
+    const { zoom, selectedMap } = zoneExportLayer();
+    // Marge blanche des inscriptions de bordure. En MGRS elles sont plus longues
+    // (« 31T BN 80 » contre « 31T 280 ») : la bande s'elargit d'autant, sans quoi
+    // elles depasseraient de l'image.
+    const needsExternalMargin = grid.useUtm ? (grid.gridMode === 'mgrs' ? 1.45 : 1) : 0;
+    const deviation = parseFloat(document.getElementById('zone-deviation')?.value || 0);
+    const upscaleEnabled = document.getElementById('zone-enable-upscale').checked;
+    return zdPlanZone(finalBoundingBox, zoom, selectedMap, needsExternalMargin, upscaleEnabled, deviation,
+        cadoData ? { lat: cadoData.config.latitude, lon: cadoData.config.longitude } : null);
+}
+
+// Annonce, au panneau 6, de l'image qui sera produite : taille, format
+// d'impression conseillé, et l'avertissement qui s'impose (cf. zoneBands.js).
+// Une image que le format choisi ne peut pas contenir bloque le téléchargement.
+function updateZoneImageSize() {
+    const el = document.getElementById('zone-image-size');
+    if (!el || typeof describeZoneImage !== 'function') return;
+    let d = null;
+    try {
+        const plan = zoneImagePlan();
+        const format = document.querySelector('input[name="image-format-zone"]:checked')?.value || 'jpeg';
+        if (plan) d = describeZoneImage(plan.width, plan.height, format);
+    } catch (e) { d = null; }   // réglages incomplets (grille CADO en cours de saisie…)
+    el.replaceChildren(...(d ? [d.size, d.print, d.note] : []).filter(Boolean).map((t, i, all) => {
+        const p = document.createElement('p');
+        p.textContent = t;
+        if (i === all.length - 1 && d.note) p.className = d.level === 'error' ? 'text-red-600 font-semibold' : 'text-orange-600 dark:text-orange-400';
+        return p;
+    }));
+    el.classList.toggle('hidden', !d);
+    el.dataset.level = d ? d.level : '';
+    const btn = document.getElementById('generate-zone-png-button');
+    if (btn && d && d.level === 'error') btn.disabled = true;
+}
+
 async function generateZonePNG() {
     const loadingIndicator = document.getElementById("loading-indicator");
     const loadingMessage = document.getElementById("loading-message");
@@ -629,16 +730,7 @@ async function generateZonePNG() {
     const zoneDeviationDeg = parseFloat(document.getElementById('zone-deviation')?.value || 0);
 
     // LECTURE DU PANEL 5
-    const gridChoiceEl = document.querySelector('input[name="zone-grid-choice"]:checked');
-    const gridChoice = gridChoiceEl ? gridChoiceEl.value : 'none';
-
-    // MGRS et UTM partagent la même géométrie de grille (mailles 1 km) : useUtm couvre
-    // les deux, gridMode distingue seulement l'étiquetage (numéros de zone vs carrés 100 km).
-    const gridMode = (gridChoice === 'mgrs') ? 'mgrs' : 'utm';
-    const useUtm = (gridChoice === 'utm' || gridChoice === 'mgrs');
-    const useCfsi = (gridChoice === 'cfsi');
-    const useDfci = (gridChoice === 'dfci');
-    const useCado = (gridChoice === 'cado');
+    const { gridMode, useUtm, useCfsi, useDfci, useCado } = zoneGridChoice();
 
     loadingMessage.textContent = "Préparation de l'export de la zone...";
     loadingIndicator.classList.remove("hidden");
@@ -649,55 +741,11 @@ async function generateZonePNG() {
         // saisi arrête l'export avant tout téléchargement.
         const isobaths = readIsobathOptions('zone');
         if (isobaths) await ensureIsobathModule();
-        let cadoData = null;
-        let finalBoundingBox;
 
-        const nwCoordsStr = document.getElementById("zone-nw-coords").value;
-        const seCoordsStr = document.getElementById("zone-se-coords").value;
-        const [north, west] = nwCoordsStr.split(',').map(c => parseFloat(c.trim()));
-        const [south, east] = seCoordsStr.split(',').map(c => parseFloat(c.trim()));
-        
         const thicknessLevel = parseInt(document.getElementById('common-grid-thickness').value, 10) || 1;
+        const { finalBoundingBox, cadoData, zone: { north, south, west, east } } = zoneExportBounds(useCado);
+        const { zoom, mapLayerName, selectedMap } = zoneExportLayer();
 
-        if(useCado) {
-            cadoData = getZoneCadoConfigAndBounds();
-            const { config, gridBounds } = cadoData;
-            const avgLat = (gridBounds.minLat + gridBounds.maxLat) / 2;
-            const metersToLat = (meters) => meters / 111320;
-            const metersToLon = (meters, lat) => meters / (111320 * Math.cos(toRadians(lat)));
-
-            // Marges : grande (1.0) du côté où les labels apparaissent, petite (0.5) sinon.
-            // Ascending : labels colonnes au sud, labels lignes à l'ouest.
-            // Descending : labels colonnes au nord, labels lignes à l'ouest.
-            // Double entrée : labels également au nord/est (ascending) ou sud/est (descending).
-            const lm = 1.0, sm = 0.5;
-            const asc = config.letteringDirection === 'ascending';
-            const de  = config.doubleEntry;
-            finalBoundingBox = {
-                north: gridBounds.maxLat + metersToLat((!asc || de ? lm : sm) * config.scale),
-                south: gridBounds.minLat - metersToLat(( asc || de ? lm : sm) * config.scale),
-                west:  gridBounds.minLon - metersToLon(lm * config.scale, avgLat),
-                east:  gridBounds.maxLon + metersToLon((de ? lm : sm) * config.scale, avgLat)
-            };
-        } else {
-            finalBoundingBox = { north, west, south, east };
-        }
-
-        let zoom, mapLayerName, selectedMap;
-        if (typeof tileSourceIsActive === 'function' && tileSourceIsActive()) {
-            const targetZoom = parseInt(document.getElementById("zone-info-zoom").textContent, 10);
-            zoom = tileSourceGetBestZoom(isNaN(targetZoom) ? 15 : targetZoom);
-            mapLayerName = tileSourceGetName();
-            selectedMap = { layers: [], maxZoom: zoom, name: mapLayerName };
-        } else {
-            const rawZoom = parseInt(document.getElementById("zone-info-zoom").textContent, 10);
-            mapLayerName = document.getElementById("zone-info-layer").textContent;
-            selectedMap = MAP_LAYERS.find(m => m.name === mapLayerName);
-            if (!selectedMap) throw new Error("Impossible de trouver la configuration du fond de carte.");
-            // Limiter au zoom natif du provider (évite de demander des tuiles inexistantes en sur-zoom)
-            zoom = selectedMap.maxZoom ? Math.min(rawZoom, selectedMap.maxZoom) : rawZoom;
-        }
-        
         // Cartouche et nom de fichier partagent ces deux valeurs.
         const cartoucheLayerShort = selectedMap?.shortName || mapLayerName || '';
         // Code de recréation (cf. seedManager.js) : cartouche et nom de fichier.
@@ -707,13 +755,10 @@ async function generateZonePNG() {
             : useCfsi ? 'cfsi'
             : useDfci ? 'dfci'
             : null;
-        // Maille etiquetee par les carroyages emboites (CFSI, DFCI), connue une fois la grille dessinee.
-        let cartoucheGridDetail = null;
 
         const format = document.querySelector('input[name="image-format-zone"]:checked').value;
         const isGeoTiffFormat = (format === 'geotiff' || format === 'geotiff-jpeg' || format === 'geotiff-utm');
         const quality = parseInt(document.getElementById('zone-jpeg-quality').value) / 100;
-        const mimeType = format === 'jpeg' ? 'image/jpeg' : 'image/png';
         const fileExtension = format === 'jpeg' ? '.jpg'
             : isGeoTiffFormat ? '.tif'
             : '.png';
@@ -723,164 +768,130 @@ async function generateZonePNG() {
             throw new Error("Export géoréférencé (GeoTIFF) indisponible avec une rotation du fond de carte (déviation ≠ 0°). Mettez la rotation à 0° ou exportez en PNG/JPEG.");
         }
 
-        loadingMessage.textContent = "Téléchargement et assemblage des fonds de carte...";
-        
-        // CORRECTION : Seuls les modes UTM/MGRS nécessitent une marge blanche externe pour les labels
         // Marge blanche des inscriptions de bordure. En MGRS elles sont plus longues
         // (« 31T BN 80 » contre « 31T 280 ») : la bande s'elargit d'autant, sans quoi
-        // elles depasseraient de l'image.
+        // elles depasseraient de l'image. Seuls les modes UTM/MGRS en ont besoin.
         const needsExternalMargin = useUtm ? (gridMode === 'mgrs' ? 1.45 : 1) : 0;
-        
-        // 1. Fond de Carte (Tuiles) - Z-INDEX 1
-        const { finalCanvas, dynamicMargin, scaleFactor, actualZoom, isoSummary } = await zdCreateFinalCanvas(
-            finalBoundingBox, zoom, selectedMap, needsExternalMargin, upscaleEnabled, zoneDeviationDeg, isobaths, (f) => {
-                loadingMessage.textContent = `Lignes de profondeur : altitudes IGN (${Math.round(f * 100)} %)...`;
-            }, cadoData ? { lat: cadoData.config.latitude, lon: cadoData.config.longitude } : null);
-        showIsobathReport('zone', isoSummary);
-        const ctx = finalCanvas.getContext('2d');
-
-        const nwPixel = zdLatLonToWorldPixels(finalBoundingBox.north, finalBoundingBox.west, actualZoom);
+        const plan = zdPlanZone(finalBoundingBox, zoom, selectedMap, needsExternalMargin, upscaleEnabled, zoneDeviationDeg,
+            cadoData ? { lat: cadoData.config.latitude, lon: cadoData.config.longitude } : null);
+        const verdict = describeZoneImage(plan.width, plan.height, format);
+        if (verdict.level === 'error') throw new Error(verdict.note);
+        // Au-delà d'un canevas, l'image est fabriquée par bandes (cf. zoneBands.js).
+        // window.__CJMT_EXPORT_BLOCK__ (côté de bloc) force ce chemin : essais.
+        const banded = verdict.banded || window.__CJMT_EXPORT_BLOCK__ > 0;
+        const { actualZoom, scale: scaleFactor, margin: dynamicMargin } = plan;
+        const W = plan.width, H = plan.height;
 
         const latLonToCanvasPixels = (lat, lon) => {
             const worldPixels = zdLatLonToWorldPixels(lat, lon, actualZoom);
             return {
-                x: (worldPixels.x - nwPixel.x) * scaleFactor + dynamicMargin,
-                y: (worldPixels.y - nwPixel.y) * scaleFactor + dynamicMargin
+                x: (worldPixels.x - plan.origin.x) * scaleFactor + dynamicMargin,
+                y: (worldPixels.y - plan.origin.y) * scaleFactor + dynamicMargin
             };
         };
-        
-        // Épaisseur rapportée à l'image livrée (cf. gridLineWidthPx), agrandissement final
-        // compris ; toutes les grilles la partagent.
-        const gridLineWidth = gridLineWidthPx(thicknessLevel, finalCanvas.width, finalCanvas.height,
-            exportUpscaleFactor(finalCanvas.height, upscaleEnabled));
 
-        if (cadoData) {
-            cadoData.config.lineWidth = gridLineWidth;
-        }
+        // Épaisseur rapportée à l'image livrée (cf. gridLineWidthPx) : celle-ci n'est
+        // plus ré-étirée après dessin, l'upscale se fait au dessin, d'un facteur entier.
+        // Toutes les grilles la partagent.
+        const gridLineWidth = gridLineWidthPx(thicknessLevel, W, H);
+        if (cadoData) cadoData.config.lineWidth = gridLineWidth;
 
-        // 2. DESSIN DES GRILLES - Z-INDEX 2
-        
-        if (useUtm) {
-            loadingMessage.textContent = `Dessin de la grille ${gridMode.toUpperCase()}...`;
-            const cartoucheFontSize = Math.max(10 * scaleFactor, Math.min(48 * scaleFactor, finalCanvas.width * 0.007));
-            await drawUtmGridOnCanvas(ctx, finalBoundingBox, latLonToCanvasPixels, dynamicMargin, cartoucheFontSize, gridLineWidth, gridMode);
-        }
+        // SURCOUCHES : grilles, traces, zones, points, cartouche. Dessinées sur
+        // l'image entière, ou enregistrées une fois pour être rejouées sur chaque
+        // bloc d'une image par bandes. Rend la maille étiquetée (CFSI, DFCI).
+        const drawOverlays = async (ctx, isoSummary) => {
+            let cartoucheGridDetail = null;
 
-        if (useCfsi) {
-            loadingMessage.textContent = "Dessin du carroyage CFSI...";
-            const cfsiFontSize = Math.max(10 * scaleFactor, finalCanvas.width * 0.006);
-            // Note : dynamicMargin sera à 0 ici, ce qui est correct pour CFSI (pas de marge externe)
-            cartoucheGridDetail = await drawCfsiGridOnCanvas(ctx, finalBoundingBox, latLonToCanvasPixels, dynamicMargin, cfsiFontSize, gridLineWidth);
-        }
-
-        if (useDfci) {
-            loadingMessage.textContent = "Dessin du carroyage DFCI...";
-            const dfciFontSize = Math.max(10 * scaleFactor, finalCanvas.width * 0.006);
-            cartoucheGridDetail = await drawDfciGridOnCanvas(ctx, finalBoundingBox, latLonToCanvasPixels, dynamicMargin, dfciFontSize, gridLineWidth);
-        }
-
-        if (useCado && cadoData) {
-            loadingMessage.textContent = "Dessin du carroyage CADO...";
-            const { config, a1CornerLat, a1CornerLon } = cadoData;
-            config.realDeviation = zoneDeviationDeg;
-            // Ligne 2 du cartouche : le carroyage CADO porte l'echelle, les autres non.
-            config.cartoucheGridKind = 'cado';
-            config.cartoucheLayerShort = cartoucheLayerShort;
-            config.cartoucheZoom = zoom;
-            config.cartoucheCode = recreationCode;
-            config.cartoucheIsobathes = isoSummary?.cartouche || null;
-            drawCadoElementsOnCanvas(ctx, config, latLonToCanvasPixels, [a1CornerLon, a1CornerLat]);
-            config.lineWidth = thicknessLevel;
-        }
-
-        // 3. DESSIN DES TRACES (LINESTRING) KML - Z-INDEX 3
-        if (loadedZoneKmlFeatures.length > 0) {
-            loadingMessage.textContent = "Dessin des Traces KML...";
-            const lineFeatures = loadedZoneKmlFeatures.filter(f => f.type === 'LineString');
-            if (lineFeatures.length > 0) drawZoneKmlFeatures(ctx, zoom, lineFeatures, latLonToCanvasPixels);
-        }
-
-        // 4. DESSIN DES ZONES (POLYGON) KML - Z-INDEX 4
-        if (loadedZoneKmlFeatures.length > 0) {
-            loadingMessage.textContent = "Dessin des Zones KML...";
-            const polyFeatures = loadedZoneKmlFeatures.filter(f => f.type === 'Polygon');
-            if (polyFeatures.length > 0) drawZoneKmlFeatures(ctx, zoom, polyFeatures, latLonToCanvasPixels);
-        }
-
-        // 5. DESSIN DES POINTS (KML + POI USER) - Z-INDEX 5
-        if (loadedZoneKmlFeatures.length > 0) {
-            loadingMessage.textContent = "Dessin des Points KML...";
-            const pointFeatures = loadedZoneKmlFeatures.filter(f => f.type === 'Point');
-            if (pointFeatures.length > 0) drawZoneKmlFeatures(ctx, zoom, pointFeatures, latLonToCanvasPixels);
-        }
-
-        if (userPOIs.length > 0) {
-            loadingMessage.textContent = "Dessin des points d'intérêt...";
-            const userScaleInput = document.getElementById('poi-icon-scale');
-            const userScalePreference = userScaleInput ? parseFloat(userScaleInput.value) : 1.0;
-            await drawUserPOIsOnCanvas(ctx, latLonToCanvasPixels, scaleFactor * userScalePreference);
-        }
-
-        // FINITIONS (CARTOUCHE)
-        // Le carroyage CADO pose deja le sien, ancre sur la grille (drawCadoElementsOnCanvas).
-        // Tous les autres cas — UTM, MGRS, CFSI, DFCI, ou export sans carroyage — recoivent
-        // desormais le meme cartouche, la ou CFSI et l'export nu n'en avaient aucun.
-        if (!useCado) {
-            loadingMessage.textContent = "Finalisation de l'image...";
-            const cartoucheFontSize = Math.max(10 * scaleFactor, Math.min(48 * scaleFactor, finalCanvas.width * 0.007));
-            // Sans carroyage CADO il n'y a pas de coin A1 : l'origine est celle de l'emprise.
-            const cartoucheMetrics = drawZoneCartouche(ctx, {
-                name: document.getElementById("zone-title").value,
-                gridKind: cartoucheGridKind,
-                gridDetail: cartoucheGridDetail,
-                layerShort: cartoucheLayerShort,
-                zoom: zoom,
-                originLat: finalBoundingBox.north,
-                originLon: finalBoundingBox.west,
-                originLabel: '(coin NO)',
-                code: recreationCode,
-                isobathes: isoSummary?.cartouche || null,
-            }, dynamicMargin, cartoucheFontSize);
-
+            // 2. DESSIN DES GRILLES - Z-INDEX 2
             if (useUtm) {
-                drawZoneCompass(ctx, finalCanvas.width, finalCanvas.height, dynamicMargin, cartoucheMetrics, zoneDeviationDeg);
-            } else {
-                // Pour CFSI, DFCI ou Aucun
-                const compassRadius = Math.max(10 * scaleFactor, finalCanvas.width * 0.012);
-                const padding = compassRadius * 0.8;
-                const compassCenterX = finalCanvas.width - dynamicMargin - padding - compassRadius;
-                const compassCenterY = dynamicMargin + padding + compassRadius;
-                const compassFontSize = compassRadius * 0.9;
-                drawSimpleCompass(ctx, compassCenterX, compassCenterY, compassRadius, compassFontSize, zoneDeviationDeg);
-
-                const avgLat = (north + south) / 2;
-                const realWidthMeters = haversineDistance({lat: avgLat, lon: west}, {lat: avgLat, lon: east});
-                const mapPixelWidth = finalCanvas.width - (2 * dynamicMargin);
-                const metersPerPixel = realWidthMeters / mapPixelWidth; 
-
-                const scaleBarMargin = (dynamicMargin === 0) ? 20 * scaleFactor : 0;
-                drawSmartScaleBar(ctx, finalCanvas.width, finalCanvas.height, scaleBarMargin, metersPerPixel);
+                loadingMessage.textContent = `Dessin de la grille ${gridMode.toUpperCase()}...`;
+                const cartoucheFontSize = Math.max(10 * scaleFactor, Math.min(48 * scaleFactor, W * 0.007));
+                await drawUtmGridOnCanvas(ctx, finalBoundingBox, latLonToCanvasPixels, dynamicMargin, cartoucheFontSize, gridLineWidth, gridMode);
             }
-        }
-        
-        const TARGET_EXPORT_HEIGHT = 2160;
-        let exportCanvas = finalCanvas;
-        if (upscaleEnabled && finalCanvas.height < TARGET_EXPORT_HEIGHT) {
-            const exportScale = TARGET_EXPORT_HEIGHT / finalCanvas.height;
-            const exportWidth = Math.round(finalCanvas.width * exportScale);
+            if (useCfsi) {
+                loadingMessage.textContent = "Dessin du carroyage CFSI...";
+                const cfsiFontSize = Math.max(10 * scaleFactor, W * 0.006);
+                // Note : dynamicMargin sera à 0 ici, ce qui est correct pour CFSI (pas de marge externe)
+                cartoucheGridDetail = await drawCfsiGridOnCanvas(ctx, finalBoundingBox, latLonToCanvasPixels, dynamicMargin, cfsiFontSize, gridLineWidth);
+            }
+            if (useDfci) {
+                loadingMessage.textContent = "Dessin du carroyage DFCI...";
+                const dfciFontSize = Math.max(10 * scaleFactor, W * 0.006);
+                cartoucheGridDetail = await drawDfciGridOnCanvas(ctx, finalBoundingBox, latLonToCanvasPixels, dynamicMargin, dfciFontSize, gridLineWidth);
+            }
+            if (useCado && cadoData) {
+                loadingMessage.textContent = "Dessin du carroyage CADO...";
+                const { config, a1CornerLat, a1CornerLon } = cadoData;
+                config.realDeviation = zoneDeviationDeg;
+                // Ligne 2 du cartouche : le carroyage CADO porte l'echelle, les autres non.
+                config.cartoucheGridKind = 'cado';
+                config.cartoucheLayerShort = cartoucheLayerShort;
+                config.cartoucheZoom = zoom;
+                config.cartoucheCode = recreationCode;
+                config.cartoucheIsobathes = isoSummary?.cartouche || null;
+                config.lineWidth = gridLineWidth;
+                drawCadoElementsOnCanvas(ctx, config, latLonToCanvasPixels, [a1CornerLon, a1CornerLat]);
+                config.lineWidth = thicknessLevel;
+            }
 
-            const scaledCanvas = document.createElement('canvas');
-            scaledCanvas.width = exportWidth;
-            scaledCanvas.height = TARGET_EXPORT_HEIGHT;
-            const scaledCtx = scaledCanvas.getContext('2d');
+            // 3-5. TRACES (LINESTRING), ZONES (POLYGON), PUIS POINTS KML - Z-INDEX 3 à 5
+            if (loadedZoneKmlFeatures.length > 0) {
+                for (const [type, label] of [['LineString', 'Traces'], ['Polygon', 'Zones'], ['Point', 'Points']]) {
+                    loadingMessage.textContent = `Dessin des ${label} KML...`;
+                    const features = loadedZoneKmlFeatures.filter(f => f.type === type);
+                    if (features.length > 0) drawZoneKmlFeatures(ctx, zoom, features, latLonToCanvasPixels);
+                }
+            }
+            if (userPOIs.length > 0) {
+                loadingMessage.textContent = "Dessin des points d'intérêt...";
+                const userScaleInput = document.getElementById('poi-icon-scale');
+                const userScalePreference = userScaleInput ? parseFloat(userScaleInput.value) : 1.0;
+                await drawUserPOIsOnCanvas(ctx, latLonToCanvasPixels, scaleFactor * userScalePreference);
+            }
 
-            scaledCtx.fillStyle = 'white';
-            scaledCtx.fillRect(0, 0, scaledCanvas.width, scaledCanvas.height);
-            scaledCtx.imageSmoothingEnabled = true;
-            scaledCtx.imageSmoothingQuality = 'high';
-            scaledCtx.drawImage(finalCanvas, 0, 0, scaledCanvas.width, scaledCanvas.height);
-            exportCanvas = scaledCanvas;
-        }
+            // FINITIONS (CARTOUCHE)
+            // Le carroyage CADO pose deja le sien, ancre sur la grille (drawCadoElementsOnCanvas).
+            // Tous les autres cas — UTM, MGRS, CFSI, DFCI, ou export sans carroyage — recoivent
+            // le meme cartouche.
+            if (!useCado) {
+                loadingMessage.textContent = "Finalisation de l'image...";
+                const cartoucheFontSize = Math.max(10 * scaleFactor, Math.min(48 * scaleFactor, W * 0.007));
+                // Sans carroyage CADO il n'y a pas de coin A1 : l'origine est celle de l'emprise.
+                const cartoucheMetrics = drawZoneCartouche(ctx, {
+                    name: document.getElementById("zone-title").value,
+                    gridKind: cartoucheGridKind,
+                    gridDetail: cartoucheGridDetail,
+                    layerShort: cartoucheLayerShort,
+                    zoom: zoom,
+                    originLat: finalBoundingBox.north,
+                    originLon: finalBoundingBox.west,
+                    originLabel: '(coin NO)',
+                    code: recreationCode,
+                    isobathes: isoSummary?.cartouche || null,
+                }, dynamicMargin, cartoucheFontSize);
+
+                if (useUtm) {
+                    drawZoneCompass(ctx, W, H, dynamicMargin, cartoucheMetrics, zoneDeviationDeg);
+                } else {
+                    // Pour CFSI, DFCI ou Aucun
+                    const compassRadius = Math.max(10 * scaleFactor, W * 0.012);
+                    const padding = compassRadius * 0.8;
+                    const compassCenterX = W - dynamicMargin - padding - compassRadius;
+                    const compassCenterY = dynamicMargin + padding + compassRadius;
+                    const compassFontSize = compassRadius * 0.9;
+                    drawSimpleCompass(ctx, compassCenterX, compassCenterY, compassRadius, compassFontSize, zoneDeviationDeg);
+
+                    const avgLat = (north + south) / 2;
+                    const realWidthMeters = haversineDistance({lat: avgLat, lon: west}, {lat: avgLat, lon: east});
+                    const mapPixelWidth = W - (2 * dynamicMargin);
+                    const metersPerPixel = realWidthMeters / mapPixelWidth;
+
+                    const scaleBarMargin = (dynamicMargin === 0) ? 20 * scaleFactor : 0;
+                    drawSmartScaleBar(ctx, W, H, scaleBarMargin, metersPerPixel);
+                }
+            }
+            return cartoucheGridDetail;
+        };
 
         // Meme modele de nom qu'en carroyage rapide : nom assaini, echelle, type de
         // carroyage, deviation, couleur, puis l'origine. Le fond et le zoom s'y ajoutent,
@@ -907,70 +918,154 @@ async function generateZonePNG() {
             : `_origine=${finalBoundingBox.north.toFixed(6)},${finalBoundingBox.west.toFixed(6)}`;
 
         const fileName = `${baseName}${scaleStr}${gridTypeStr}${deviationStr}${colorStr}${layerStr}${originString}${fileExtension}`;
-        
-        if (isGeoTiffFormat) {
-            // Géoréférencement EPSG:3857. nwPixel = coin haut-gauche du contenu (world pixels
-            // Web Mercator au zoom natif) ; dans finalCanvas il est dessiné au pixel
-            // (dynamicMargin, dynamicMargin) et l'échelle native est divisée par scaleFactor.
-            // exportCanvas peut être ré-étiré (upscale 4K) → on corrige par sX/sY.
-            const anchor = geoAnchorFromWorldPixels(nwPixel.x, nwPixel.y, actualZoom);
-            const sX = exportCanvas.width / finalCanvas.width;
-            const sY = exportCanvas.height / finalCanvas.height;
 
+        // Géoréférencement EPSG:3857 : l'origine de l'image est un pixel monde entier
+        // (cf. zdPlanZone), dessiné au pixel (marge, marge) ; un pixel d'image vaut
+        // un pixel natif divisé par le facteur d'upscale.
+        const anchor = geoAnchorFromWorldPixels(plan.origin.x, plan.origin.y, actualZoom);
+        const geoOpts = {
+            originX: anchor.originX,
+            originY: anchor.originY,
+            pixelScaleX: anchor.metersPerPixel / scaleFactor,
+            pixelScaleY: anchor.metersPerPixel / scaleFactor,
+            epsg: 3857,
+            description: recreationCodeMetadata(recreationCode),
+            tiePointI: dynamicMargin,
+            tiePointJ: dynamicMargin,
+        };
+        const onIso = (f) => { loadingMessage.textContent = `Lignes de profondeur : altitudes IGN (${Math.round(f * 100)} %)...`; };
+
+        if (banded) {
+            const { blob, isoSummary } = await zdExportBanded({
+                plan, selectedMap, isobaths, onIso, drawOverlays, format, quality, recreationCode, geoOpts,
+                adaptive: !!cartoucheGridKind && isAdaptiveGridColor(document.getElementById('utm-grid-color')?.value),
+                onMessage: (t) => { loadingMessage.textContent = t; },
+            });
+            showIsobathReport('zone', isoSummary);
+            downloadFile(blob, fileName);
+            return;
+        }
+
+        // D'UN SEUL TENANT : fond, lignes de profondeur, surcouches, sur un canevas.
+        loadingMessage.textContent = "Téléchargement et assemblage des fonds de carte...";
+        const finalCanvas = document.createElement('canvas');
+        finalCanvas.width = W;
+        finalCanvas.height = H;
+        const ctx = finalCanvas.getContext('2d');
+        ctx.fillStyle = 'white';
+        ctx.fillRect(0, 0, W, H);
+        await zdDrawBackground(ctx, plan, selectedMap, { x: 0, y: 0, w: W, h: H });
+        const isoSummary = isobaths ? await zdDrawIsobaths(ctx, plan, isobaths, onIso) : null;
+        showIsobathReport('zone', isoSummary);
+        await drawOverlays(ctx, isoSummary);
+
+        if (isGeoTiffFormat) {
             if (format === 'geotiff-utm') {
-                // Reprojection UTM : on réutilise la même transformation lat/lon → pixel
-                // que celle qui a servi à dessiner grilles/tracés sur finalCanvas, mise à
-                // l'échelle de exportCanvas (upscale éventuel).
-                const latLonToExportPx = (lat, lon) => {
-                    const p = latLonToCanvasPixels(lat, lon);
-                    return { x: p.x * sX, y: p.y * sY };
-                };
-                const blob = await canvasToGeoTIFFUTM(exportCanvas, {
-                    latLonToPx: latLonToExportPx,
+                // Reprojection UTM : la même transformation lat/lon → pixel que celle
+                // qui a servi à dessiner grilles et tracés.
+                const blob = await canvasToGeoTIFFUTM(finalCanvas, {
+                    latLonToPx: latLonToCanvasPixels,
                     bounds: finalBoundingBox,
-                    metersPerPixel: anchor.metersPerPixel / (scaleFactor * sX),
+                    metersPerPixel: anchor.metersPerPixel / scaleFactor,
                     quality,
                     description: recreationCodeMetadata(recreationCode),
                 });
                 if (blob) { downloadFile(blob, fileName); }
                 else { showError("Erreur lors de la création du GeoTIFF UTM."); }
+            } else if (format === 'geotiff-jpeg') {
+                const blob = await canvasToGeoTIFFJpeg(finalCanvas, { ...geoOpts, quality });
+                if (blob) { downloadFile(blob, fileName); }
+                else { showError("Erreur lors de la création du GeoTIFF JPEG."); }
             } else {
-                const geoOpts = {
-                    originX: anchor.originX,
-                    originY: anchor.originY,
-                    pixelScaleX: anchor.metersPerPixel / (scaleFactor * sX),
-                    pixelScaleY: anchor.metersPerPixel / (scaleFactor * sY),
-                    epsg: 3857,
-                    description: recreationCodeMetadata(recreationCode),
-                    tiePointI: dynamicMargin * sX,
-                    tiePointJ: dynamicMargin * sY,
-                };
-                if (format === 'geotiff-jpeg') {
-                    geoOpts.quality = quality;
-                    const blob = await canvasToGeoTIFFJpeg(exportCanvas, geoOpts);
-                    if (blob) { downloadFile(blob, fileName); }
-                    else { showError("Erreur lors de la création du GeoTIFF JPEG."); }
-                } else {
-                    const blob = canvasToGeoTIFF(exportCanvas, geoOpts);
-                    if (blob) { downloadFile(blob, fileName); }
-                    else { showError("Erreur lors de la création du fichier GeoTIFF."); }
-                }
+                const blob = canvasToGeoTIFF(finalCanvas, geoOpts);
+                if (blob) { downloadFile(blob, fileName); }
+                else { showError("Erreur lors de la création du fichier GeoTIFF."); }
             }
         } else {
-            exportCanvas.toBlob(async (blob) => {
-                // Code de recréation dans les métadonnées de l'image (cf. seedManager.js)
-                if (blob) { downloadFile(await blobWithRecreationCode(blob, recreationCode), fileName); }
-                else {
-                    showError("Erreur lors de la création du fichier image.");
-                }
-            }, mimeType, quality);
+            const blob = await new Promise(res => finalCanvas.toBlob(res, format === 'jpeg' ? 'image/jpeg' : 'image/png', quality));
+            // Code de recréation dans les métadonnées de l'image (cf. seedManager.js)
+            if (blob) { downloadFile(await blobWithRecreationCode(blob, recreationCode), fileName); }
+            else { showError("Erreur lors de la création du fichier image."); }
         }
+        finalCanvas.width = finalCanvas.height = 0;
     } catch (error) {
         console.error("Erreur image:", error);
-        showError(error.message);
+        showError(error && error.name === 'SecurityError'
+            ? "Export impossible : une tuile du fond de carte bloque la lecture de l'image (CORS)."
+            : error.message);
     } finally {
         loadingIndicator.classList.add("hidden");
     }
+}
+
+// IMAGE PAR BANDES (au-delà d'un canevas, cf. zoneBands.js). L'image n'est jamais
+// entière en mémoire :
+//   1. encre adaptative : la carte de luminance du fond de TOUTE l'image est
+//      calculée sur une vignette (le fond, bande par bande, réduit) ;
+//   2. lignes de profondeur et surcouches sont dessinées UNE fois dans un contexte
+//      enregistreur (altitudes IGN et icônes téléchargées une seule fois) ;
+//   3. bloc par bloc : fond de carte de la région, puis surcouches rejouées ; chaque
+//      bande part à l'encodeur (imageStream.js, geotiffExport.js).
+// Chaque pixel est le même que d'un seul tenant : même plan, mêmes tuiles, mêmes
+// ordres de dessin — le bloc n'en montre qu'une fenêtre.
+async function zdExportBanded({ plan, selectedMap, isobaths, onIso, drawOverlays, format, quality, recreationCode, geoOpts, adaptive, onMessage }) {
+    const W = plan.width, H = plan.height;
+    const cacheBust = 't=' + Date.now();
+    const blockSide = window.__CJMT_EXPORT_BLOCK__ > 0 ? window.__CJMT_EXPORT_BLOCK__ : undefined;
+    const bands = zoneExportBands(W, H, { unit: plan.scale, ...(blockSide && { blockSide }) });
+
+    // 1. Carte de luminance (encre adaptative) : vignette de 1 024 px au plus.
+    let luminanceMap = null;
+    if (adaptive) {
+        const t = Math.min(1, 1024 / Math.max(W, H));
+        const thumb = document.createElement('canvas');
+        thumb.width = Math.max(1, Math.round(W * t));
+        thumb.height = Math.max(1, Math.round(H * t));
+        const tctx = thumb.getContext('2d');
+        tctx.fillStyle = 'white';
+        tctx.fillRect(0, 0, thumb.width, thumb.height);
+        tctx.scale(t, t);
+        for (const [i, band] of bands.entries()) {
+            onMessage(`Couleur adaptative : lecture du fond (${i + 1} / ${bands.length})...`);
+            await zdDrawBackground(tctx, plan, selectedMap, { x: 0, y: band.y, w: W, h: band.h }, { cacheBust, smooth: true });
+        }
+        luminanceMap = createLuminanceMap(thumb, W, H);
+        thumb.width = thumb.height = 0;
+    }
+
+    // 2. Surcouches enregistrées.
+    const rec = createRecordingContext(W, H, { luminanceMap });
+    const isoSummary = isobaths ? await zdDrawIsobaths(rec.ctx, plan, isobaths, onIso) : null;
+    await drawOverlays(rec.ctx, isoSummary);
+
+    // 3. Encodeur, puis blocs.
+    const meta = recreationCode ? recreationCodeMetadata(recreationCode) : null;
+    const encoder = format === 'png' ? createPngStream({ width: W, height: H, alpha: false, comment: meta && `${meta} ` })
+        : format === 'jpeg' ? createJpegStream({ width: W, height: H, quality, comment: meta })
+        : createGeoTiffStream({ ...geoOpts, width: W, height: H, jpeg: format === 'geotiff-jpeg', quality });
+    const total = bands.reduce((n, b) => n + b.blocks.length, 0);
+    let done = 0;
+    for (const band of bands) {
+        const rows = new Uint8ClampedArray(W * band.h * 4);
+        for (const block of band.blocks) {
+            onMessage(`Image par bandes : bloc ${++done} sur ${total}...`);
+            const c = document.createElement('canvas');
+            c.width = block.w;
+            c.height = band.h;
+            const ctx = c.getContext('2d', { willReadFrequently: true });
+            ctx.fillStyle = 'white';
+            ctx.fillRect(0, 0, block.w, band.h);
+            ctx.translate(-block.x, -band.y);
+            await zdDrawBackground(ctx, plan, selectedMap, { x: block.x, y: band.y, w: block.w, h: band.h }, { cacheBust });
+            rec.replay(ctx, ctx.getTransform());
+            const px = ctx.getImageData(0, 0, block.w, band.h).data;
+            for (let r = 0; r < band.h; r++) rows.set(px.subarray(r * block.w * 4, (r + 1) * block.w * 4), (r * W + block.x) * 4);
+            c.width = c.height = 0;
+        }
+        await encoder.write(rows, band.h);
+    }
+    onMessage('Finalisation du fichier...');
+    return { blob: await encoder.finish(), isoSummary };
 }
 
 // =============================================================================
@@ -1506,58 +1601,36 @@ async function generatePoiKmlFolder(pois, imagesToZip, isKmz) {
 
 // rotationPivot ({ lat, lon }) : point autour duquel le fond pivote, celui du carroyage
 // (cf. calculateAndRotatePoint). Par défaut, le centre de l'emprise.
-async function zdCreateFinalCanvas(boundingBox, zoom, mapConfig, externalMargin, upscaleEnabled = true, rotationAngleDeg = 0, isobaths = null, onIsoProgress = null, rotationPivot = null) {
+// GÉOMÉTRIE de l'image d'export de zone, sans rien dessiner : l'annonce de taille
+// du panneau et le rendu partent du même plan.
+//   • Origine : le coin nord-ouest arrondi à un pixel monde ENTIER. Tuiles,
+//     grilles, points et géoréférencement partent de ce même pixel : ils se
+//     superposent exactement, et chaque tuile tombe à une position entière.
+//   • Upscale : facteur ENTIER, le premier qui porte le grand côté à 3840 px et la
+//     hauteur à 2160 px au moins (16 au plus). Chaque pixel de tuile devient un
+//     carré de k × k pixels identiques, sans lissage — l'agrandissement d'un
+//     facteur non entier recalculait chaque pixel, donc floutait.
+//   • Déviation : le fond pivote autour du point de référence du carroyage, comme
+//     en carroyage rapide et dans le KML (cf. zdDrawBackground).
+function zdPlanZone(boundingBox, zoom, mapConfig, externalMargin, upscaleEnabled = true, rotationAngleDeg = 0, rotationPivot = null) {
     const actualZoom = (typeof tileSourceIsActive === 'function' && tileSourceIsActive())
         ? tileSourceGetBestZoom(zoom)
         : (mapConfig && mapConfig.maxZoom ? Math.min(zoom, mapConfig.maxZoom) : zoom);
 
     const nwPx = zdLatLonToWorldPixels(boundingBox.north, boundingBox.west, actualZoom);
     const sePx = zdLatLonToWorldPixels(boundingBox.south, boundingBox.east, actualZoom);
+    const origin = { x: Math.round(nwPx.x), y: Math.round(nwPx.y) };
+    const natW = Math.max(1, Math.round(sePx.x) - origin.x);
+    const natH = Math.max(1, Math.round(sePx.y) - origin.y);
 
-    const natW = Math.abs(sePx.x - nwPx.x);
-    const natH = Math.abs(sePx.y - nwPx.y);
-
-    // Upscale en un seul agrandissement : plus grand côté à 3840 px et hauteur à
-    // 2160 px au moins. Sans ce second critère, une zone très en largeur finissait
-    // sous 2160 px et l'image entière, grille comprise, était ré-étirée à la fin.
     const TARGET = 3840; // 4K
     const TARGET_HEIGHT = 2160;
     let scale = 1;
     if (upscaleEnabled) {
-        const maxDim = Math.max(natW, natH);
-        scale = Math.max(1, TARGET / maxDim, TARGET_HEIGHT / natH);
-        scale = Math.min(scale, 16);
+        scale = Math.min(16, Math.max(1, Math.ceil(Math.max(TARGET / Math.max(natW, natH), TARGET_HEIGHT / natH) - 1e-9)));
     }
-
-    console.log(`[ZONE] Native: ${Math.round(natW)}x${Math.round(natH)} | Zoom: ${zoom} | Scale: ${scale} | Rotation: ${rotationAngleDeg}°`);
-
-    // Avec une déviation, le fond pivote autour du point de référence du carroyage,
-    // comme en carroyage rapide et dans le KML, et non autour du centre de l'image :
-    // les marges d'étiquettes, plus larges d'un côté, décaleraient la grille sur le
-    // terrain. L'emprise téléchargée est celle des coins de l'image ramenés sur le
-    // terrain par la rotation inverse.
-    const rotRad = rotationAngleDeg * Math.PI / 180;
-    const pivotPx = rotationPivot
-        ? zdLatLonToWorldPixels(rotationPivot.lat, rotationPivot.lon, actualZoom)
-        : { x: (nwPx.x + sePx.x) / 2, y: (nwPx.y + sePx.y) / 2 };
-    let dlNwPx = nwPx;
-    let dlSePx = sePx;
-
-    if (rotationAngleDeg !== 0) {
-        const cos = Math.cos(rotRad), sin = Math.sin(rotRad);
-        const onGround = [[nwPx.x, nwPx.y], [sePx.x, nwPx.y], [nwPx.x, sePx.y], [sePx.x, sePx.y]].map(([x, y]) => ({
-            x: pivotPx.x + (x - pivotPx.x) * cos - (y - pivotPx.y) * sin,
-            y: pivotPx.y + (x - pivotPx.x) * sin + (y - pivotPx.y) * cos,
-        }));
-        // Un pixel de plus de chaque côté : les tuiles se calent au pixel entier.
-        dlNwPx = { x: Math.min(...onGround.map(p => p.x)) - 1, y: Math.min(...onGround.map(p => p.y)) - 1 };
-        dlSePx = { x: Math.max(...onGround.map(p => p.x)) + 1, y: Math.max(...onGround.map(p => p.y)) + 1 };
-    }
-    const dlNatW = dlSePx.x - dlNwPx.x;
-    const dlNatH = dlSePx.y - dlNwPx.y;
-
-    const finalW = Math.round(natW * scale);
-    const finalH = Math.round(natH * scale);
+    const finalW = natW * scale;
+    const finalH = natH * scale;
 
     let margin = 0;
     if (externalMargin) {
@@ -1566,21 +1639,105 @@ async function zdCreateFinalCanvas(boundingBox, zoom, mapConfig, externalMargin,
         margin = Math.ceil(Math.max(10 * scale, Math.min(48 * scale, finalW * 0.007)) * 4 * marginFactor);
     }
 
-    const tempC = document.createElement('canvas');
-    tempC.width = Math.round(dlNatW);
-    tempC.height = Math.round(dlNatH);
-    const tempCtx = tempC.getContext('2d');
+    const rotRad = rotationAngleDeg * Math.PI / 180;
+    const pivotPx = rotationPivot
+        ? zdLatLonToWorldPixels(rotationPivot.lat, rotationPivot.lon, actualZoom)
+        : { x: origin.x + natW / 2, y: origin.y + natH / 2 };
 
-    const finalC = document.createElement('canvas');
-    finalC.width = finalW + margin * 2;
-    finalC.height = finalH + margin * 2;
-    const ctx = finalC.getContext('2d');
+    return {
+        actualZoom, origin, natW, natH, scale, finalW, finalH, margin,
+        width: finalW + 2 * margin, height: finalH + 2 * margin,
+        rotationAngleDeg, rotRad, pivotPx,
+    };
+}
 
-    ctx.fillStyle = 'white';
-    ctx.fillRect(0, 0, finalC.width, finalC.height);
-    ctx.imageSmoothingEnabled = true;
-    ctx.imageSmoothingQuality = 'high';
+// Pixels monde (au zoom rendu) couverts par la région { x, y, w, h } de l'image,
+// bornée à la carte (hors marges) ; null si elle n'en couvre rien. Avec une
+// déviation, l'enveloppe des coins ramenés sur le terrain, élargie de deux pixels
+// pour que le lissage de la rotation ne manque jamais de voisins.
+function zdRegionWorldBox(plan, region) {
+    const { margin: m, scale: s } = plan;
+    const x0 = Math.max(region.x, m), y0 = Math.max(region.y, m);
+    const x1 = Math.min(region.x + region.w, m + plan.finalW), y1 = Math.min(region.y + region.h, m + plan.finalH);
+    if (x1 <= x0 || y1 <= y0) return null;
+    if (!plan.rotRad) {
+        return {
+            x0: plan.origin.x + Math.floor((x0 - m) / s), y0: plan.origin.y + Math.floor((y0 - m) / s),
+            x1: plan.origin.x + Math.ceil((x1 - m) / s), y1: plan.origin.y + Math.ceil((y1 - m) / s),
+        };
+    }
+    const pf = { x: m + (plan.pivotPx.x - plan.origin.x) * s, y: m + (plan.pivotPx.y - plan.origin.y) * s };
+    const cos = Math.cos(plan.rotRad), sin = Math.sin(plan.rotRad);
+    const pts = [[x0, y0], [x1, y0], [x0, y1], [x1, y1]].map(([x, y]) => {
+        const dx = (x - pf.x) / s, dy = (y - pf.y) / s;
+        return { x: plan.pivotPx.x + dx * cos - dy * sin, y: plan.pivotPx.y + dx * sin + dy * cos };
+    });
+    return {
+        x0: Math.floor(Math.min(...pts.map(p => p.x))) - 2, y0: Math.floor(Math.min(...pts.map(p => p.y))) - 2,
+        x1: Math.ceil(Math.max(...pts.map(p => p.x))) + 2, y1: Math.ceil(Math.max(...pts.map(p => p.y))) + 2,
+    };
+}
 
+// Fond de carte de la région { x, y, w, h } de l'image, dessiné sur `ctx` (repère
+// de l'image entière — un bloc d'une image par bandes est simplement décalé). Les
+// tuiles sont d'abord assemblées à leur taille native sur un petit canevas (la
+// région seulement), puis posées d'un seul geste : sans déviation, agrandies d'un
+// facteur entier SANS lissage, à une position entière ; avec déviation, tournées
+// autour du point de référence (un seul rééchantillonnage, sans couture entre
+// tuiles). `smooth` : lissage demandé (vignette de l'encre adaptative).
+async function zdDrawBackground(ctx, plan, mapConfig, region, { cacheBust, smooth = false } = {}) {
+    const box = zdRegionWorldBox(plan, region);
+    if (!box) return;
+    const { margin: m, scale: s } = plan;
+    const patch = document.createElement('canvas');
+    patch.width = box.x1 - box.x0;
+    patch.height = box.y1 - box.y0;
+    await zdPaintTiles(patch.getContext('2d'), { x: box.x0, y: box.y0 }, { x: box.x1, y: box.y1 }, plan.actualZoom, mapConfig, cacheBust);
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(m, m, plan.finalW, plan.finalH);
+    ctx.clip();
+    if (plan.rotRad) {
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = 'high';
+        ctx.translate(m + (plan.pivotPx.x - plan.origin.x) * s, m + (plan.pivotPx.y - plan.origin.y) * s);
+        ctx.rotate(-plan.rotRad);
+        ctx.drawImage(patch, (box.x0 - plan.pivotPx.x) * s, (box.y0 - plan.pivotPx.y) * s, patch.width * s, patch.height * s);
+    } else {
+        ctx.imageSmoothingEnabled = !!smooth;
+        ctx.imageSmoothingQuality = 'high';
+        ctx.drawImage(patch, m + (box.x0 - plan.origin.x) * s, m + (box.y0 - plan.origin.y) * s, patch.width * s, patch.height * s);
+    }
+    ctx.restore();
+    patch.width = patch.height = 0;
+}
+
+// Lignes de profondeur : tracées à la résolution finale, dans le repère du fond
+// (tourné avec lui s'il est dévié), sur toute la carte. Rend le bilan (cartouche).
+async function zdDrawIsobaths(ctx, plan, isobaths, onProgress) {
+    const { margin: m, scale: s } = plan;
+    ctx.save();
+    let view;
+    if (plan.rotRad) {
+        const box = zdRegionWorldBox(plan, { x: m, y: m, w: plan.finalW, h: plan.finalH });
+        ctx.translate(m + (plan.pivotPx.x - plan.origin.x) * s, m + (plan.pivotPx.y - plan.origin.y) * s);
+        ctx.rotate(-plan.rotRad);
+        ctx.translate((box.x0 - plan.pivotPx.x) * s, (box.y0 - plan.pivotPx.y) * s);
+        view = isobathViewFromWorldPixels({ x: box.x0, y: box.y0 }, plan.actualZoom, s, (box.x1 - box.x0) * s, (box.y1 - box.y0) * s);
+    } else {
+        ctx.translate(m, m);
+        view = isobathViewFromWorldPixels(plan.origin, plan.actualZoom, s, plan.finalW, plan.finalH);
+    }
+    const summary = await drawIsobathsForImage(ctx, view, isobaths, onProgress);
+    ctx.restore();
+    return summary;
+}
+
+// Tuiles de l'emprise monde [dlNwPx, dlSePx] (pixels entiers) posées à leur taille
+// native sur tempCtx, dont le pixel (0, 0) est dlNwPx. `cacheBust` : un seul par
+// export, pour qu'une tuile partagée par deux blocs vienne du cache du navigateur.
+async function zdPaintTiles(tempCtx, dlNwPx, dlSePx, actualZoom, mapConfig, cacheBust) {
+    cacheBust = cacheBust || ('t=' + Date.now());
     const nwTile = { x: Math.floor(dlNwPx.x / ZD_TILE_SIZE), y: Math.floor(dlNwPx.y / ZD_TILE_SIZE) };
     const seTile = { x: Math.floor(dlSePx.x / ZD_TILE_SIZE), y: Math.floor(dlSePx.y / ZD_TILE_SIZE) };
 
@@ -1609,7 +1766,6 @@ async function zdCreateFinalCanvas(boundingBox, zoom, mapConfig, externalMargin,
         }
     } else {
         // --- Mode en ligne ---
-        const cacheBust = 't=' + Date.now();
         for (const layer of mapConfig.layers) {
             const tileJobs = [];
             if (layer.type === 'yandex') {
@@ -1678,50 +1834,6 @@ async function zdCreateFinalCanvas(boundingBox, zoom, mapConfig, externalMargin,
             }
         }
     }
-
-    // Lignes de profondeur : tracées à la résolution finale, dans le repère du
-    // fond (tourné avec lui s'il est dévié), sur l'emprise réellement téléchargée.
-    // Elles se calent sur les tuiles telles qu'elles sont collées, au pixel entier
-    // inférieur : le pixel (0, 0) du canevas natif est le pixel monde ci-dessous,
-    // pas dlNwPx, dont il diffère de moins d'un pixel. Le zéro suit ainsi le trait
-    // de côte de l'image.
-    let isoSummary = null;
-    const drawIso = async (w, h) => {
-        const tileOrigin = {
-            x: nwTile.x * ZD_TILE_SIZE - Math.floor(nwTile.x * ZD_TILE_SIZE - dlNwPx.x),
-            y: nwTile.y * ZD_TILE_SIZE - Math.floor(nwTile.y * ZD_TILE_SIZE - dlNwPx.y),
-        };
-        const view = isobathViewFromWorldPixels(tileOrigin, actualZoom, (w / tempC.width + h / tempC.height) / 2, w, h);
-        isoSummary = await drawIsobathsForImage(ctx, view, isobaths, onIsoProgress);
-    };
-
-    if (rotationAngleDeg !== 0) {
-        // Le pixel (0, 0) du canevas natif est le pixel monde tileOrigin (cf. drawIso) ;
-        // le point de référence tombe dans l'image là où le place latLonToCanvasPixels.
-        const tileOrigin = {
-            x: nwTile.x * ZD_TILE_SIZE - Math.floor(nwTile.x * ZD_TILE_SIZE - dlNwPx.x),
-            y: nwTile.y * ZD_TILE_SIZE - Math.floor(nwTile.y * ZD_TILE_SIZE - dlNwPx.y),
-        };
-        const dlFinalW = tempC.width * scale;
-        const dlFinalH = tempC.height * scale;
-        ctx.save();
-        ctx.translate((pivotPx.x - nwPx.x) * scale + margin, (pivotPx.y - nwPx.y) * scale + margin);
-        ctx.rotate(-rotRad);
-        ctx.translate((tileOrigin.x - pivotPx.x) * scale, (tileOrigin.y - pivotPx.y) * scale);
-        ctx.drawImage(tempC, 0, 0, dlFinalW, dlFinalH);
-        if (isobaths) await drawIso(dlFinalW, dlFinalH);
-        ctx.restore();
-    } else {
-        ctx.drawImage(tempC, margin, margin, finalW, finalH);
-        if (isobaths) {
-            ctx.save();
-            ctx.translate(margin, margin);
-            await drawIso(finalW, finalH);
-            ctx.restore();
-        }
-    }
-
-    return { finalCanvas: finalC, dynamicMargin: margin, scaleFactor: scale, actualZoom, isoSummary };
 }
 
 // Cartouche de l'export de zone. Meme contenu qu'en carroyage rapide (cf.

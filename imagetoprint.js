@@ -310,17 +310,22 @@ async function generateImageToPrint() {
 
         // --- PROJECTION CARTE ---
         const deviationRad = Number(config.deviation) * Math.PI / 180;
-        if (deviationRad === 0 && scaleFactor === 1) {
+        if (deviationRad === 0) {
             // Copie pixel pour pixel, comme MOBAC : le pivot est décalé de moins d'un
             // demi-pixel pour que la carte tombe sur une position entière. Grille, KML et
-            // géoréférencement partent de ce pivot et restent calés sur la carte.
-            const mapX = Math.round(pivotFinalX - pivotOnWorldCanvasX);
-            const mapY = Math.round(pivotFinalY - pivotOnWorldCanvasY);
-            pivotFinalX = mapX + pivotOnWorldCanvasX;
-            pivotFinalY = mapY + pivotOnWorldCanvasY;
-            finalCtx.drawImage(worldCanvas, mapX, mapY);
+            // géoréférencement partent de ce pivot et restent calés sur la carte. Upscale
+            // (facteur entier, cf. exportUpscaleFactor) : chaque pixel devient un carré de
+            // k × k pixels identiques, sans lissage — aucune valeur recalculée.
+            const mapX = Math.round(pivotFinalX - pivotOnWorldCanvasX * scaleFactor);
+            const mapY = Math.round(pivotFinalY - pivotOnWorldCanvasY * scaleFactor);
+            pivotFinalX = mapX + pivotOnWorldCanvasX * scaleFactor;
+            pivotFinalY = mapY + pivotOnWorldCanvasY * scaleFactor;
+            finalCtx.save();
+            finalCtx.imageSmoothingEnabled = false;
+            finalCtx.drawImage(worldCanvas, mapX, mapY, worldCanvas.width * scaleFactor, worldCanvas.height * scaleFactor);
+            finalCtx.restore();
         } else {
-            // Rotation et/ou agrandissement : un seul rééchantillonnage, depuis la carte native.
+            // Rotation : un seul rééchantillonnage, depuis la carte native.
             finalCtx.save();
             finalCtx.imageSmoothingEnabled = true;
             finalCtx.imageSmoothingQuality = 'high';
