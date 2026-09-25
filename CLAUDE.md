@@ -42,3 +42,18 @@ deux sens, arrondis au millième, PNG écrits par l'un et lus par l'autre. Aucun
 
 Tests : `node tools/test_code_recreation.mjs` (et `node tools/test_isobathes.mjs`).
 Les fichiers du dépôt sont en fins de ligne CRLF.
+
+## Encodeurs d'image par bandes partagés avec CadoTour
+
+`imageStream.js` (PNG et JPEG écrits au fil de l'eau, pour l'export de zone par
+bandes) est une COPIE CONFORME de `imageStream.js` de CadoTour : même corps, octet
+pour octet, seul l'emballage diffère (script classique ici, module ES là-bas). Il
+se régénère depuis la version de CadoTour, jamais à la main ; toute évolution se
+fait dans les deux dépôts, dans la même passe. `node tools/test_image_stream.mjs`
+compare les deux corps quand CadoTour est voisin (../VirtualTour). Même règle de
+découpage (`zoneExportBands` ↔ `exportBands`) et même format d'impression
+conseillé (`printSuggestion`) des deux côtés.
+
+Tests de l'export par bandes : `node tools/test_image_stream.mjs`,
+`node tools/test_geotiff_stream.mjs` (relecture par libtiff si Python et Pillow
+sont installés), `node tools/test_zone_bands.mjs`.

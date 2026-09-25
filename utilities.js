@@ -648,11 +648,12 @@ function gridLineWidthPx(level, width, height, exportScale = 1) {
     return (Math.round(px * 4) / 4) / exportScale;
 }
 
-// Agrandissement « upscale » vers 2160 px de haut. L'export de zone l'applique après
-// dessin (étape TARGET_EXPORT_HEIGHT), en dernier recours ; le carroyage rapide l'applique
-// dès le dessin de la carte.
+// Agrandissement « upscale » vers 2160 px de haut, appliqué dès le dessin de la carte
+// en carroyage rapide (l'export de zone a le sien, cf. zdPlanZone). Facteur ENTIER,
+// le premier qui atteint la cible : chaque pixel de tuile devient un carré de k × k
+// pixels identiques, là où un facteur non entier les recalculait tous (flou).
 function exportUpscaleFactor(height, upscaleEnabled, targetHeight = 2160) {
-    return (upscaleEnabled && height < targetHeight) ? targetHeight / height : 1;
+    return (upscaleEnabled && height < targetHeight) ? Math.ceil(targetHeight / height - 1e-9) : 1;
 }
 
 // COULEURS DES ÉTIQUETTES DE CARROYAGE

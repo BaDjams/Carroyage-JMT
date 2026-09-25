@@ -18,6 +18,8 @@
 //   canvasToGeoTIFFJpeg(canvas, opts) -> Promise<Blob> (compressé JPEG, + opts.quality)
 //     opts communs : originX, originY, pixelScaleX, pixelScaleY, epsg=3857,
 //                    tiePointI=0, tiePointJ=0, description (tag ImageDescription, facultatif)
+//   createGeoTiffStream(opts) -> { write(rgba, rows), finish() -> Promise<Blob> }
+//     (par bandes, RGB ou JPEG, BigTIFF au-delà de 4 Go ; + opts.width, height, jpeg)
 //   canvasToGeoTIFFUTM(canvas, opts) -> Promise<Blob|null> (reprojeté UTM, compressé JPEG)
 //     opts : latLonToPx(lat,lon)->{x,y} (pixels du canvas source), bounds={north,south,east,west},
 //            metersPerPixel (résolution cible), maxDim=4096 (borne la taille de sortie), quality=0.92,
@@ -389,8 +391,155 @@
         // inline + SHORT count 1 : les 2 octets de poids fort restent à 0 (déjà le cas).
     }
 
+    // =========================================================================
+    //  GeoTIFF PAR BANDES (strips) — l'image n'est jamais entière en mémoire
+    // =========================================================================
+
+    const TYPE_LONG8 = 16;   // BigTIFF : entier non signé sur 8 octets
+
+    /**
+     * Répertoire (IFD) d'un TIFF ou d'un BigTIFF, suivi de ses valeurs externes,
+     * pour un IFD posé à l'offset `ifdStart` du fichier. Entrées triées par tag.
+     */
+    function serializeIfd(entries, ifdStart, big) {
+        const entrySize = big ? 20 : 12, inlineMax = big ? 8 : 4;
+        const ifdSize = (big ? 8 : 2) + entries.length * entrySize + (big ? 8 : 4);
+        const sizeOf = e => (e.type === TYPE_LONG8 ? 8 : TYPE_SIZE[e.type]) * e.count;
+        let extPos = align2(ifdStart + ifdSize);
+        for (const e of entries) {
+            if (sizeOf(e) > inlineMax) { e.extOffset = extPos; extPos = align2(extPos + sizeOf(e)); }
+        }
+        const buf = new ArrayBuffer(extPos - ifdStart);
+        const dv = new DataView(buf);
+        const put = (pos, e) => {
+            if (e.type === TYPE_LONG8) e.values.forEach((v, i) => dv.setBigUint64(pos + i * 8, BigInt(v), true));
+            else writeValues(dv, pos, e.type, e.values, false);
+        };
+        let p = 0;
+        if (big) dv.setBigUint64(0, BigInt(entries.length), true); else dv.setUint16(0, entries.length, true);
+        p += big ? 8 : 2;
+        for (const e of entries) {
+            dv.setUint16(p, e.tag, true);
+            dv.setUint16(p + 2, e.type, true);
+            if (big) dv.setBigUint64(p + 4, BigInt(e.count), true); else dv.setUint32(p + 4, e.count, true);
+            const valPos = p + (big ? 12 : 8);
+            if (sizeOf(e) <= inlineMax) put(valPos, e);
+            else {
+                if (big) dv.setBigUint64(valPos, BigInt(e.extOffset), true); else dv.setUint32(valPos, e.extOffset, true);
+                put(e.extOffset - ifdStart, e);
+            }
+            p += entrySize;
+        }
+        // Pas d'IFD suivant : l'offset reste à 0.
+        return new Uint8Array(buf);
+    }
+
+    /**
+     * GeoTIFF écrit PAR BANDES, pour une image trop grande pour un canevas :
+     *   • RGB non compressé, bandes de 32 lignes (alpha aplati sur fond blanc) ;
+     *   • compressé JPEG (Compression=7), bandes de 64 lignes, chacune un flux JPEG
+     *     complet en 4:4:4 (imageStream.js), d'où YCbCrSubSampling = [1, 1].
+     * Au-delà de 4 Go, BigTIFF (offsets sur 8 octets), que QGIS et GDAL lisent.
+     * Le répertoire est écrit APRÈS les données : l'en-tête, qui le désigne, est
+     * calculé en dernier, une fois toutes les bandes connues.
+     *   const tif = createGeoTiffStream({ width, height, jpeg, quality, ...géoréf });
+     *   await tif.write(rgba, rows);  const blob = await tif.finish();
+     * Géoréférencement : mêmes options que canvasToGeoTIFF. `bigTiff: true` force
+     * le BigTIFF (essais).
+     */
+    function createGeoTiffStream(opts) {
+        const W = opts.width, H = opts.height, jpeg = !!opts.jpeg;
+        const quality = opts.quality != null ? opts.quality : 0.92;
+        const rowsPerStrip = jpeg ? 64 : 32;
+        const strips = [];
+        const pending = new Uint8ClampedArray(W * rowsPerStrip * 4);
+        let pendingRows = 0, done = 0;
+
+        async function flush() {
+            const rows = pendingRows, rgba = pending.subarray(0, rows * W * 4);
+            if (jpeg) {
+                const enc = createJpegStream({ width: W, height: rows, quality });
+                await enc.write(rgba, rows);
+                strips.push(new Uint8Array(await (await enc.finish()).arrayBuffer()));
+            } else {
+                const out = new Uint8Array(W * rows * 3);
+                for (let i = 0, o = 0; i < rgba.length; i += 4) {
+                    const a = rgba[i + 3];
+                    if (a === 255) { out[o++] = rgba[i]; out[o++] = rgba[i + 1]; out[o++] = rgba[i + 2]; }
+                    else {
+                        const af = a / 255, inv = 255 * (1 - af);
+                        out[o++] = Math.round(rgba[i] * af + inv);
+                        out[o++] = Math.round(rgba[i + 1] * af + inv);
+                        out[o++] = Math.round(rgba[i + 2] * af + inv);
+                    }
+                }
+                strips.push(out);
+            }
+            pendingRows = 0;
+        }
+
+        async function write(rgba, rows) {
+            if (!(rows > 0) || rgba.length < rows * W * 4) throw new Error('bande incomplète');
+            if (done + rows > H) throw new Error('plus de lignes que l’image n’en compte');
+            for (let r = 0; r < rows; r++) {
+                pending.set(rgba.subarray(r * W * 4, (r + 1) * W * 4), pendingRows * W * 4);
+                if (++pendingRows === rowsPerStrip) await flush();
+            }
+            done += rows;
+        }
+
+        async function finish() {
+            if (done !== H) throw new Error(`image incomplète : ${done} lignes sur ${H}`);
+            if (pendingRows) await flush();
+            const dataSize = strips.reduce((n, s) => n + s.length, 0);
+            const big = !!opts.bigTiff || dataSize + 16 * 1024 * 1024 > 0xffffffff;
+            const headerSize = big ? 16 : 8;
+            const offsets = [];
+            let pos = headerSize;
+            for (const s of strips) { offsets.push(pos); pos += s.length; }
+            const pad = pos & 1, ifdStart = pos + pad;
+            const offType = big ? TYPE_LONG8 : TYPE.LONG;
+            const geoKeys = buildGeoKeys(opts.epsg || 3857);
+            const entries = [
+                { tag: T.ImageWidth,      type: TYPE.LONG,   count: 1, values: [W] },
+                { tag: T.ImageLength,     type: TYPE.LONG,   count: 1, values: [H] },
+                { tag: T.BitsPerSample,   type: TYPE.SHORT,  count: 3, values: [8, 8, 8] },
+                { tag: T.Compression,     type: TYPE.SHORT,  count: 1, values: [jpeg ? 7 : 1] },
+                { tag: T.Photometric,     type: TYPE.SHORT,  count: 1, values: [jpeg ? 6 : 2] },   // YCbCr | RGB
+                { tag: T.StripOffsets,    type: offType,     count: strips.length, values: offsets },
+                { tag: T.SamplesPerPixel, type: TYPE.SHORT,  count: 1, values: [3] },
+                { tag: T.RowsPerStrip,    type: TYPE.LONG,   count: 1, values: [rowsPerStrip] },
+                { tag: T.StripByteCounts, type: offType,     count: strips.length, values: strips.map(s => s.length) },
+                { tag: T.PlanarConfig,    type: TYPE.SHORT,  count: 1, values: [1] },
+                ...(jpeg ? [
+                    { tag: T.YCbCrSubSampling,    type: TYPE.SHORT,    count: 2, values: [1, 1] },
+                    { tag: T.YCbCrPositioning,    type: TYPE.SHORT,    count: 1, values: [1] },
+                    { tag: T.ReferenceBlackWhite, type: TYPE.RATIONAL, count: 6, values: [0, 255, 128, 255, 128, 255] },
+                ] : []),
+                { tag: T.ModelPixelScale, type: TYPE.DOUBLE, count: 3, values: [opts.pixelScaleX, opts.pixelScaleY, 0] },
+                { tag: T.ModelTiepoint,   type: TYPE.DOUBLE, count: 6,
+                    values: [opts.tiePointI || 0, opts.tiePointJ || 0, 0, opts.originX, opts.originY, 0] },
+                { tag: T.GeoKeyDirectory, type: TYPE.SHORT,  count: geoKeys.length, values: geoKeys },
+            ];
+            const ifd = serializeIfd(withDescription(entries, opts.description), ifdStart, big);
+            const header = new Uint8Array(headerSize);
+            const hv = new DataView(header.buffer);
+            header[0] = header[1] = 0x49;                       // « II » : petit-boutiste
+            if (big) {
+                hv.setUint16(2, 43, true); hv.setUint16(4, 8, true); hv.setUint16(6, 0, true);
+                hv.setBigUint64(8, BigInt(ifdStart), true);
+            } else {
+                hv.setUint16(2, 42, true); hv.setUint32(4, ifdStart, true);
+            }
+            return new Blob([header, ...strips, new Uint8Array(pad), ifd], { type: 'image/tiff' });
+        }
+
+        return { write, finish };
+    }
+
     window.geoAnchorFromWorldPixels = geoAnchorFromWorldPixels;
     window.canvasToGeoTIFF = canvasToGeoTIFF;
     window.canvasToGeoTIFFJpeg = canvasToGeoTIFFJpeg;
     window.canvasToGeoTIFFUTM = canvasToGeoTIFFUTM;
+    window.createGeoTiffStream = createGeoTiffStream;
 })();

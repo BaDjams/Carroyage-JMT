@@ -78,9 +78,11 @@ function resolveStaticGridColor(value, fallback) {
 // Carte de luminance du fond déjà dessiné. La réduction passe par un drawImage
 // vers un petit canvas : moyenner ainsi coûte une image réduite, là où un
 // getImageData sur une image de 16 000 px demanderait des centaines de Mo.
-function createLuminanceMap(sourceCanvas) {
+// width × height : taille de l'image que la carte décrit, si sourceCanvas n'en
+// est qu'une vignette (image par bandes, cf. zoneBands.js).
+function createLuminanceMap(sourceCanvas, width = sourceCanvas.width, height = sourceCanvas.height) {
     try {
-        const w = sourceCanvas.width, h = sourceCanvas.height;
+        const w = width, h = height;
         if (!w || !h) return null;
         const block = Math.max(ADAPTIVE_SAMPLE_MIN_PX, Math.round(Math.max(w, h) * ADAPTIVE_SAMPLE_RATIO));
         const cols = Math.max(1, Math.min(ADAPTIVE_SAMPLE_MAX_CELLS, Math.ceil(w / block)));
@@ -91,7 +93,7 @@ function createLuminanceMap(sourceCanvas) {
         const sctx = small.getContext('2d', { willReadFrequently: true });
         sctx.imageSmoothingEnabled = true;
         sctx.imageSmoothingQuality = 'high';
-        sctx.drawImage(sourceCanvas, 0, 0, w, h, 0, 0, cols, rows);
+        sctx.drawImage(sourceCanvas, 0, 0, sourceCanvas.width, sourceCanvas.height, 0, 0, cols, rows);
         const data = sctx.getImageData(0, 0, cols, rows).data;
 
         const lin = (c) => { c /= 255; return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); };
@@ -144,13 +146,15 @@ function hexToRgb(hex) {
 
 // ENCRE DE CARROYAGE
 // Interface unique pour les deux cas : couleur fixe choisie par l'utilisateur, ou
-// couleur adaptative. `ctx` doit déjà porter le fond de carte, et aucune grille.
+// couleur adaptative. `ctx` doit déjà porter le fond de carte, et aucune grille —
+// sauf le contexte enregistreur d'une image par bandes, qui fournit lui-même la
+// carte de luminance de l'image entière (ctx.luminanceMap).
 //   ink.strokeFor(points) -> valeur à mettre dans ctx.strokeStyle (couleur ou dégradé)
 //   ink.colorAt(x, y)     -> couleur opaque à cet endroit
 //   ink.labelColorsAt(x, y) -> { fill, halo } pour une étiquette
 function createGridInk(ctx, colorValue, alpha = 1) {
     const inkKey = adaptiveInkKey(colorValue);
-    const map = inkKey ? createLuminanceMap(ctx.canvas) : null;
+    const map = inkKey ? (ctx.luminanceMap || createLuminanceMap(ctx.canvas)) : null;
 
     if (!inkKey || !map) {
         const base = resolveStaticGridColor(colorValue);
