@@ -371,6 +371,36 @@ const MAP_LAYERS = [
         ]
     },
     {
+        // Fond marin libre : OpenStreetMap, isobathes européennes EMODnet et
+        // balisage OpenSeaMap. Le serveur public OSM interdit les téléchargements
+        // anticipés de tuiles : ne pas proposer ce fond au créateur MBTiles.
+        "id": "marine_osm_bathy_seamarks",
+        "name": "Marine : OSM + profondeurs + amers",
+        "shortName": "Marine OSM",
+        "attribution": "&copy; les <a href='https://www.openstreetmap.org/copyright' target='_blank' rel='noopener'>contributeurs OpenStreetMap</a> &mdash; <a href='https://emodnet.ec.europa.eu/en/bathymetry' target='_blank' rel='noopener'>EMODnet</a> (CC BY 4.0) &mdash; <a href='https://www.openseamap.org/' target='_blank' rel='noopener'>OpenSeaMap</a> (CC BY-SA)",
+        "offlineAllowed": false,
+        "maxZoom": 18,
+        "layers": [
+            {
+                "url": "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+                "type": "xyz",
+                "maxZoom": 18
+            },
+            {
+                "url": EMODNET_WMS,
+                "type": "wms",
+                "layers": EMODNET_CONTOURS_LAYER,
+                "transparent": true,
+                "maxZoom": 18
+            },
+            {
+                "url": "https://tiles.openseamap.org/seamark/{z}/{x}/{y}.png",
+                "type": "xyz",
+                "maxZoom": 18
+            }
+        ]
+    },
+    {
         "id": "osm_standard",
         "name": "OpenStreetMap",
         "shortName": "OSM",
