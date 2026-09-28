@@ -181,6 +181,7 @@ function initCreatorMode() {
     creatorBaseMaps = {};
     if (typeof MAP_LAYERS !== 'undefined') {
         MAP_LAYERS.forEach(layerConfig => {
+            if (layerConfig.offlineAllowed === false) return;
             if (layerConfig.requiresKey) {
                 const keyVal = (typeof window[layerConfig.requiresKey] !== 'undefined') ? window[layerConfig.requiresKey] : '';
                 if (!keyVal) return;
@@ -358,6 +359,7 @@ function populateCreatorLayers() {
     select.innerHTML = '';
     if (typeof MAP_LAYERS !== 'undefined') {
         MAP_LAYERS.forEach(layer => {
+            if (layer.offlineAllowed === false) return;
             if (layer.requiresKey) {
                 const keyVal = (typeof window[layer.requiresKey] !== 'undefined') ? window[layer.requiresKey] : '';
                 if (!keyVal) return;
