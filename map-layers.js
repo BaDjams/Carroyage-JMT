@@ -102,14 +102,17 @@ const L_GarminMarineLayer = L.TileLayer.extend({
 });
 
 // ─── Couche Leaflet : Navionics (nav / sonar) ─────────────────────────────
-// Le config token est dans l'URL ET le bearer token est dans l'en-tête HTTP.
-// fetch() + blob URL est nécessaire pour injecter le header Authorization.
+// Le config token est dans l'URL. Le bearer token est injecté via fetch()
+// pour les serveurs qui l'exigent ; repli sur img.src en cas d'erreur CORS.
+// Note : Origin et Referer sont des headers interdits (RFC), ignorés par fetch().
 const L_NavionicsLayer = L.TileLayer.extend({
     initialize(url, options) {
         L.TileLayer.prototype.initialize.call(this, url, options);
         _ensureNavTok().then(() => { if (this._map) this.redraw(); });
     },
     getTileUrl(coords) {
+        if (Date.now() >= _navTok.exp)
+            _ensureNavTok().then(() => { if (this._map) this.redraw(); });
         return this._url
             .replace('{s}', (coords.x % 4) + 1)
             .replace('{z}', coords.z).replace('{x}', coords.x).replace('{y}', coords.y)
@@ -118,22 +121,27 @@ const L_NavionicsLayer = L.TileLayer.extend({
     createTile(coords, done) {
         const img = document.createElement('img');
         img.setAttribute('role', 'presentation');
-        if (Date.now() >= _navTok.exp)
-            _ensureNavTok().then(() => { if (this._map) this.redraw(); });
         const url = this.getTileUrl(coords);
-        fetch(url, { headers: {
-            'Authorization': `Bearer ${_navTok.bearer}`,
-            'Origin': 'https://maps.garmin.com',
-            'Referer': 'https://maps.garmin.com/'
-        }})
-        .then(r => r.ok ? r.blob() : Promise.reject(new Error(`HTTP ${r.status}`)))
-        .then(blob => {
-            const burl = URL.createObjectURL(blob);
-            img.onload = () => URL.revokeObjectURL(burl);
-            img.src = burl;
-            done(null, img);
-        })
-        .catch(err => done(err, img));
+        // Chargement direct via img.src (pas de restriction CORS pour l'affichage).
+        // Appelé aussi en repli si fetch() échoue (CORS ou serveur).
+        const loadDirect = () => {
+            img.onload  = () => done(null, img);
+            img.onerror = () => done(new Error('tile error'), img);
+            img.src = url;
+        };
+        if (_navTok.bearer) {
+            fetch(url, { headers: { 'Authorization': `Bearer ${_navTok.bearer}` } })
+                .then(r => r.ok ? r.blob() : Promise.reject())
+                .then(blob => {
+                    const burl = URL.createObjectURL(blob);
+                    img.onload  = () => { URL.revokeObjectURL(burl); done(null, img); };
+                    img.onerror = () => done(new Error('tile error'), img);
+                    img.src = burl;
+                })
+                .catch(loadDirect);
+        } else {
+            loadDirect();
+        }
         return img;
     }
 });
@@ -477,6 +485,7 @@ const MAP_LAYERS = [
         "id": "garmin_marine_fish",
         "name": "Cartes marines Garmin Fish (2m)",
         "shortName": "Garmin Fish",
+        "requiresKey": "GARMIN_MARINE_API_KEY",
         "attribution": "&copy; <a href='https://www.garmin.com/marine' target='_blank' rel='noopener'>Garmin</a> / <a href='https://www.navionics.com' target='_blank' rel='noopener'>Navionics</a>",
         "maxZoom": 18,
         "layers": [
@@ -492,6 +501,7 @@ const MAP_LAYERS = [
         "id": "garmin_marine_nav",
         "name": "Cartes marines Garmin Nav (2m)",
         "shortName": "Garmin Nav",
+        "requiresKey": "GARMIN_MARINE_API_KEY",
         "attribution": "&copy; <a href='https://www.garmin.com/marine' target='_blank' rel='noopener'>Garmin</a> / <a href='https://www.navionics.com' target='_blank' rel='noopener'>Navionics</a>",
         "maxZoom": 18,
         "layers": [
