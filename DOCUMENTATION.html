@@ -1018,34 +1018,6 @@ em { font-style: italic; }
 <td>non</td>
 </tr>
 <tr>
-<td><code>garmin_marine_fish</code></td>
-<td>Cartes marines Garmin Fish (2m)</td>
-<td>mcv{1-4}.marine.garmin.com</td>
-<td>7–18</td>
-<td><code>GARMIN_MARINE_API_KEY</code></td>
-</tr>
-<tr>
-<td><code>garmin_marine_nav</code></td>
-<td>Cartes marines Garmin Nav (2m)</td>
-<td>mcv{1-4}.marine.garmin.com</td>
-<td>7–18</td>
-<td><code>GARMIN_MARINE_API_KEY</code></td>
-</tr>
-<tr>
-<td><code>garmin_navionics_nav</code></td>
-<td>Cartes marines Navionics Nav (2m)</td>
-<td>tile{1-4}.navionics.com</td>
-<td>7–18</td>
-<td>non (token auto)</td>
-</tr>
-<tr>
-<td><code>garmin_navionics_sonar</code></td>
-<td>Cartes marines Navionics Sonar (2m)</td>
-<td>tile{1-4}.navionics.com</td>
-<td>7–18</td>
-<td>non (token auto)</td>
-</tr>
-<tr>
 <td><code>osm_standard</code></td>
 <td>OpenStreetMap</td>
 <td>tile.openstreetmap.org</td>
@@ -1859,11 +1831,6 @@ python3<span class="w"> </span>tools/bathy_mbtiles.py<span class="w"> </span>bat
 <span class="kd">var</span><span class="w"> </span><span class="nx">SHOM_API_KEY</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">&#39;xxx&#39;</span><span class="p">;</span>
 <span class="kd">var</span><span class="w"> </span><span class="nx">SHOM_RASTER_LAYER</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">&#39;RASTER_MARINE_3857_WMTS&#39;</span><span class="p">;</span>
 <span class="kd">var</span><span class="w"> </span><span class="nx">SHOM_INSPIRE_LAYER</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">&#39;TCHR_3857_WMTS&#39;</span><span class="p">;</span>
-
-<span class="c1">// Cartes marines Garmin (fish, nav) : clé partagée fournie par Garmin pour</span>
-<span class="c1">// l&#39;accès MOBAC — voir scripts communautaires MOBAC. Sans clé, le token ne</span>
-<span class="c1">// peut pas être obtenu et les tuiles restent vides (couche toujours visible).</span>
-<span class="kd">var</span><span class="w"> </span><span class="nx">GARMIN_MARINE_API_KEY</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">&#39;xxx&#39;</span><span class="p">;</span>
 
 <span class="c1">// Surcharges facultatives pour EMODnet (§7.7) : valeurs par defaut sinon.</span>
 <span class="kd">var</span><span class="w"> </span><span class="nx">EMODNET_WMS</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">&#39;https://ows.emodnet-bathymetry.eu/wms&#39;</span><span class="p">;</span>

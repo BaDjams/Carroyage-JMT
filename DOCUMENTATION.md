@@ -524,10 +524,6 @@ Voir §10 pour la stratégie complète.
 | `shom_raster` | Cartes marines SHOM (privé) | services.data.shom.fr (abonnement) | 18 | `SHOM_API_KEY` |
 | `shom_inspire` | SHOM INSPIRE (libre) | services.data.shom.fr/INSPIRE | 18 | `SHOM_INSPIRE_LAYER` |
 | `emodnet_bathy` | Lignes de profondeur (EMODnet) | OSM + WMS EMODnet | 19 | non |
-| `garmin_marine_fish` | Cartes marines Garmin Fish (2m) | mcv{1-4}.marine.garmin.com | 7–18 | `GARMIN_MARINE_API_KEY` |
-| `garmin_marine_nav` | Cartes marines Garmin Nav (2m) | mcv{1-4}.marine.garmin.com | 7–18 | `GARMIN_MARINE_API_KEY` |
-| `garmin_navionics_nav` | Cartes marines Navionics Nav (2m) | tile{1-4}.navionics.com | 7–18 | non (token auto) |
-| `garmin_navionics_sonar` | Cartes marines Navionics Sonar (2m) | tile{1-4}.navionics.com | 7–18 | non (token auto) |
 | `osm_standard` | OpenStreetMap | tile.openstreetmap.org | 19 | non |
 
 ### 7.3 Ajout d'une couche
@@ -1078,11 +1074,6 @@ var IBOATING_WMTS_MAXZOOM = 17;
 var SHOM_API_KEY = 'xxx';
 var SHOM_RASTER_LAYER = 'RASTER_MARINE_3857_WMTS';
 var SHOM_INSPIRE_LAYER = 'TCHR_3857_WMTS';
-
-// Cartes marines Garmin (fish, nav) : clé partagée fournie par Garmin pour
-// l'accès MOBAC — voir scripts communautaires MOBAC. Sans clé, le token ne
-// peut pas être obtenu et les tuiles restent vides (couche toujours visible).
-var GARMIN_MARINE_API_KEY = 'xxx';
 
 // Surcharges facultatives pour EMODnet (§7.7) : valeurs par defaut sinon.
 var EMODNET_WMS = 'https://ows.emodnet-bathymetry.eu/wms';
