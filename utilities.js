@@ -279,6 +279,20 @@ async function ensureMbtilesCreatorModule() {
     }
 }
 
+// « Générer depuis un fichier » (PDF, GeoTIFF → MBTiles) : fileToMbtilesCore.js
+// et fileToMbtiles.js, chargés au premier clic ; pdf.js, geotiff.js et proj4 le
+// sont ensuite à l'ouverture d'un fichier qui en a besoin.
+async function ensureFileToMbtilesModule() {
+    await ensureSqlJs();
+    if (typeof window.openFileToMbtiles !== 'function') {
+        await loadScriptOnce('fileToMbtilesCore.js');
+        await loadScriptOnce('fileToMbtiles.js');
+    }
+    if (typeof window.openFileToMbtiles !== 'function') {
+        throw new Error("Module « Générer depuis un fichier » manquant (fileToMbtiles.js).");
+    }
+}
+
 // Module des isobathes (isobathes.js), chargé au premier export qui les demande.
 async function ensureIsobathModule() {
     if (typeof window.isobathTile !== 'function') {

@@ -4,7 +4,7 @@
 // Un seul numéro à tenir à jour ici : la page lit le sien dans version.js, et
 // SW_APP_VERSION faisait doublon avec les deux — une occasion de plus de les
 // laisser diverger.
-const CACHE_NAME = 'cado-cache-23.33';
+const CACHE_NAME = 'cado-cache-23.34';
 
 // Liste EXACTE des fichiers à mettre en cache.
 // Si un seul fichier manque, la PWA ne s'installera pas.
@@ -39,6 +39,8 @@ const ASSETS_TO_CACHE = [
   './geotiffExport.js',
   './imageStream.js',
   './zoneBands.js',
+  './fileToMbtilesCore.js',
+  './fileToMbtiles.js',
 
   // SQL.js (WASM) — ÉCRITURE des MBTiles (carroyageToMbtiles.js / mbtilesCreator.js)
   './sql-wasm.js',
@@ -50,6 +52,12 @@ const ASSETS_TO_CACHE = [
   './vendor/wa-sqlite/sqlite-api.js',
   './vendor/wa-sqlite/sqlite-constants.js',
   './vendor/wa-sqlite/VFS.js',
+
+  // pdf.js, geotiff.js, proj4 — « Générer depuis un fichier » (fileToMbtiles.js)
+  './vendor/pdfjs/pdf.min.js',
+  './vendor/pdfjs/pdf.worker.min.js',
+  './vendor/geotiff/geotiff.js',
+  './vendor/proj4/proj4.js',
 
   // Librairies tierces
   './jszip.min.js',
