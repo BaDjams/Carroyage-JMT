@@ -920,7 +920,11 @@
                 <div class="lg:col-span-2 space-y-6">
                     <!-- Carte -->
                     <div class="card bg-white shadow-md rounded-lg p-4 md:p-6 dark:bg-gray-800 dark:border dark:border-gray-700">
-                        <h3 class="text-lg font-semibold mb-3 text-content">1. Définir la zone</h3>
+                        <div class="flex justify-between items-baseline gap-2 mb-3">
+                            <h3 class="text-lg font-semibold text-content">1. Définir la zone</h3>
+                            <!-- Plan PDF à l'échelle ou GeoTIFF → .mbtiles (fileToMbtiles.js, chargé à la demande) -->
+                            <button type="button" id="creator-from-file-btn" class="text-xs text-blue-600 dark:text-blue-400 hover:underline whitespace-nowrap" title="Créer le .mbtiles d'un plan PDF à l'échelle ou d'un GeoTIFF">📄 Générer depuis un fichier…</button>
+                        </div>
                         <div class="address-search-container">
                             <input type="text" id="creator-address-search" aria-label="Rechercher une ville" class="address-search-input input-field px-3 py-2 border rounded shadow-sm w-full dark:bg-gray-700 dark:text-white" placeholder="Rechercher une ville..." autocomplete="off">
                             <ul id="creator-suggestions" class="hidden absolute top-full z-50 bg-white dark:bg-gray-800 border w-full max-h-48 overflow-y-auto"></ul>

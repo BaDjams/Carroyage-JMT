@@ -326,6 +326,9 @@ function initCreatorMode() {
     setupCreatorAddressSearch();
 
     document.getElementById('creator-start-btn').addEventListener('click', startMbtilesJob);
+    document.getElementById('creator-from-file-btn')?.addEventListener('click', () => {
+        ensureFileToMbtilesModule().then(() => openFileToMbtiles()).catch(err => alert(err.message));
+    });
     document.getElementById('creator-select-all-zooms').addEventListener('click', () => toggleZooms(true));
     document.getElementById('creator-select-none-zooms').addEventListener('click', () => toggleZooms(false));
     // La case ne verrouille plus aucun niveau de fond (cf. FORMAT V2 en tête de

@@ -1,12 +1,22 @@
 // version.js
 
 // Source unique de vérité pour la version de l'application.
-const APP_VERSION = '23.33';
+const APP_VERSION = '23.34';
 
 // Une ligne courte par changement, telle que l'utilisateur la voit : ce qui change,
 // sans le pourquoi ni le comment. Guillemets doubles : les apostrophes françaises
 // s'écrivent telles quelles.
 const CHANGELOG = [
+  {
+    version: "23.34",
+    date: "2026-10-01",
+    changes: [
+      "Créer MBTiles : « Générer depuis un fichier » transforme un plan PDF à l'échelle ou un GeoTIFF en .mbtiles pour CadoTour",
+      "PDF : points d'appui importés d'un .points de CadoTour ou posés à la souris, sur le plan puis sur la carte ; deux suffisent pour un plan à l'échelle, l'écart de chaque point est affiché",
+      "GeoTIFF : position lue dans le fichier (Lambert 93, WGS84, Web Mercator, UTM…), rien à pointer",
+      "Zone à garder au rectangle ou à main levée, niveaux de zoom proposés d'après la finesse du fichier, aperçu posé sur la carte",
+    ],
+  },
   {
     version: "23.33",
     date: "2026-09-25",
