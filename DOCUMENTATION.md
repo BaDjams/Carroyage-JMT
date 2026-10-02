@@ -95,6 +95,8 @@ L'ordre dans `index.html` est important — plusieurs fichiers exposent des vari
 14. settingsManager.js → gestion icônes utilisateur
 15. imagetoprint.js    → export PNG haute résolution
 16. isobathes.js       → lignes de profondeur (chargé à la demande, cf. §7.9)
+17. fileToMbtilesCore.js / fileToMbtiles.js → « Générer depuis un fichier » (chargés à la demande,
+    puis vendor/pdfjs, vendor/geotiff, vendor/proj4 selon le fichier ouvert, cf. §5.4)
 ```
 
 ### 3.3 État global (variables `window`)
@@ -150,6 +152,8 @@ L'utilisateur dessine un rectangle (Leaflet.draw) ou importe un KML/KMZ existant
 Interface dédiée pour générer une base MBTiles (fond de carte tuilé hors-ligne) sur une zone et plage de zoom choisies. Utilise OPFS pour stocker > 100 000 tuiles sans saturer la RAM.
 
 **Fichier pivot** : `mbtilesCreator.js`.
+
+Le bouton discret **« 📄 Générer depuis un fichier… »** (en-tête de « 1. Définir la zone ») ouvre une fenêtre qui fabrique un MBTiles à partir d'un **plan PDF à l'échelle** (recalé par des points d'appui) ou d'un **GeoTIFF** (géoréférencement lu dans le fichier) — cf. §5.4, `fileToMbtiles.js`.
 
 ---
 
@@ -343,6 +347,44 @@ Interface Mode 3 (carte Leaflet + contrôles + barre de progression).
   ré-encodées, dans leur propre format ; les autres restent en passthrough.
 
 **Spécifique** : gestion projection EPSG:3395 pour Yandex (correction nécessaire), gestion QuadKey pour Bing.
+
+#### `fileToMbtilesCore.js` / `fileToMbtiles.js` — « Générer depuis un fichier »
+
+PDF à l'échelle ou GeoTIFF → `.mbtiles` lisible par CadoTour. Chargés au premier clic
+(`ensureFileToMbtilesModule`, utilities.js) ; pdf.js (`vendor/pdfjs`, module ES chargé par
+`import()`), geotiff.js et proj4 ne le sont qu'à l'ouverture d'un fichier qui en a besoin.
+
+- **Coordonnées « source »** : points PDF d'une page vue à l'échelle 1 (origine en haut à
+  gauche, y vers le bas), ou pixels du GeoTIFF. Tout le reste est en Web Mercator (EPSG:3857).
+- **Points d'appui (PDF)** : `.points` du Géoréférenceur QGIS, tel qu'exporté par CadoTour
+  (panneau Coordonnées) — `mapX` longitude, `mapY` latitude, `sourceX`/`sourceY` position sur
+  le plan, `sourceY` négatif ; une source (0, 0) = point à pointer sur le plan. Points aussi
+  posables à la souris (plan puis carte), désactivables, exportables complétés.
+- **Transformation** (`ftmFitTransform`, moindres carrés) : similitude (2 points, plan à
+  l'échelle ; le retournement y bas → Mercator haut est inclus) ou affine (3 points et plus).
+  Écart de chaque point au sol (`ftmResiduals`), échelle d'impression (1 pt = 0,3528 mm) et
+  rotation affichées.
+- **GeoTIFF** : `ModelTransformation` ou `ModelTiepoint` + `ModelPixelScale` (PixelIsPoint
+  décalé d'un demi-pixel), système `ProjectedCSTypeGeoKey` / `GeographicTypeGeoKey` ;
+  définitions proj4 intégrées (`ftmProjDefinition`) : 4326, 4171, 4258, 3857, 3395, 2154,
+  27572, CC42–CC50, UTM WGS84 et ETRS89, quelques UTM d'outre-mer. Valeur NoData rendue
+  transparente ; aperçus (overviews) utilisés pour l'affichage.
+- **Zones gardées** : rectangle ou main levée sur la visionneuse ; hors zones (et hors
+  fichier), transparent.
+- **Zooms proposés** (`ftmSuggestZooms`) : maximal = plus fin des deux critères — pixel de la
+  plus grande image du PDF (matrice courante suivie dans la liste d'opérateurs pdf.js) ou du
+  GeoTIFF, et texte vectoriel lisible (10e centile des hauteurs, pondéré par les caractères,
+  à 8 px) ; minimal = dernier zoom où la zone fait encore 512 px. Modifiables.
+- **Rendu** : au zoom maximal, par **blocs de 8 × 8 tuiles** (2 048 px) — un rendu pdf.js coûte
+  surtout un temps fixe (mesuré : 5 à 10 s pour un plan de 25 Mo et 335 000 tracés, quelle que
+  soit la taille du bloc). Matrice bloc = Mercator→bloc ∘ transformation ; pour un GeoTIFF
+  projeté, approximation affine locale sur l'emprise du bloc (`ftmLocalAffine`). Tuiles
+  entièrement transparentes omises ; niveaux inférieurs tirés des quatre tuiles filles.
+  Tuiles rangées en OPFS (mémoire à défaut), assemblées en SQLite (sql.js) à la fin.
+- **MBTiles** : WebP (si le navigateur l'encode), PNG ou JPEG (fond blanc) ; métadonnées
+  `name`, `format` (lu dans les octets), `type=baselayer`, `bounds`, `center`, `minzoom`,
+  `maxzoom`, `description`. Plafond : 400 000 tuiles estimées.
+- Tests : `node tools/test_file_to_mbtiles.mjs` (calculs purs de `fileToMbtilesCore.js`).
 
 #### `seedManager.js`
 

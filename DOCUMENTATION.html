@@ -251,6 +251,7 @@ em { font-style: italic; }
 </li>
 <li><a href="#54-mode-3-creation-mbtiles">5.4 Mode 3 — création MBTiles</a><ul>
 <li><a href="#mbtilescreatorjs-32-kb">mbtilesCreator.js (~32 KB)</a></li>
+<li><a href="#filetombtilescorejs-filetombtilesjs-generer-depuis-un-fichier">fileToMbtilesCore.js / fileToMbtiles.js — « Générer depuis un fichier »</a></li>
 <li><a href="#seedmanagerjs">seedManager.js</a></li>
 <li><a href="#tilesourcejs">tileSource.js</a></li>
 </ul>
@@ -486,7 +487,7 @@ em { font-style: italic; }
 5. icons.js / icons-catalog.js → ICON_LIBRARY, ICON_CATALOG
 6. carroyageCado.js    → générateur CADO + init Leaflet mode 1
 7. carroyageCFSI.js    → CFSI_UTILS
-7b. carroyageDFCI.js   → DFCI_UTILS, drawDfciGrid (s&#39;appuie sur CFSI_UTILS pour la projection)
+7b. carroyageDFCI.js   → DFCI_UTILS, drawDfciGrid (s'appuie sur CFSI_UTILS pour la projection)
 7c. adaptiveInk.js     → createGridInk, resolveStaticGridColor (couleur adaptative)
 8. carroyageUTM.js     → WGS84_to_UTM, WGS84_to_MGRS
 9. zoneDownloader.js   → orchestrateur mode 2
@@ -497,6 +498,8 @@ em { font-style: italic; }
 14. settingsManager.js → gestion icônes utilisateur
 15. imagetoprint.js    → export PNG haute résolution
 16. isobathes.js       → lignes de profondeur (chargé à la demande, cf. §7.9)
+17. fileToMbtilesCore.js / fileToMbtiles.js → « Générer depuis un fichier » (chargés à la demande,
+    puis vendor/pdfjs, vendor/geotiff, vendor/proj4 selon le fichier ouvert, cf. §5.4)
 </code></pre></div>
 <h3 id="33-etat-global-variables-window">3.3 État global (variables <code>window</code>)</h3>
 <table>
@@ -608,6 +611,7 @@ em { font-style: italic; }
 <h3 id="mode-3-creer-mbtiles">Mode 3 — Créer MBTiles</h3>
 <p>Interface dédiée pour générer une base MBTiles (fond de carte tuilé hors-ligne) sur une zone et plage de zoom choisies. Utilise OPFS pour stocker &gt; 100 000 tuiles sans saturer la RAM.</p>
 <p><strong>Fichier pivot</strong> : <code>mbtilesCreator.js</code>.</p>
+<p>Le bouton discret <strong>« 📄 Générer depuis un fichier… »</strong> (en-tête de « 1. Définir la zone ») ouvre une fenêtre qui fabrique un MBTiles à partir d'un <strong>plan PDF à l'échelle</strong> (recalé par des points d'appui) ou d'un <strong>GeoTIFF</strong> (géoréférencement lu dans le fichier) — cf. §5.4, <code>fileToMbtiles.js</code>.</p>
 <hr />
 <h2 id="5-reference-des-fichiers">5. Référence des fichiers</h2>
 <h3 id="51-scripts-metier">5.1 Scripts métier</h3>
@@ -635,7 +639,7 @@ em { font-style: italic; }
 <p>Toutes les rotations passent par cette fonction. Modifier les axes ou la convention demande beaucoup de précautions : les exports KML, l'aperçu Leaflet et le PNG haute résolution doivent rester cohérents.</p>
 </blockquote>
 <h4 id="versionjs"><code>version.js</code></h4>
-<div class="highlight"><pre><span></span><code><span class="kd">const</span><span class="w"> </span><span class="nx">APP_VERSION</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">&#39;22.12&#39;</span><span class="p">;</span>
+<div class="highlight"><pre><span></span><code><span class="kd">const</span><span class="w"> </span><span class="nx">APP_VERSION</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'22.12'</span><span class="p">;</span>
 </code></pre></div>
 <p><strong>Source unique</strong> de la version. Le <code>CACHE_NAME</code> du Service Worker (<code>cado-cache-vXX</code>) est en revanche <strong>manuellement</strong> synchronisé.</p>
 <h3 id="52-systemes-de-carroyage">5.2 Systèmes de carroyage</h3>
@@ -783,6 +787,43 @@ em { font-style: italic; }
   ré-encodées, dans leur propre format ; les autres restent en passthrough.</li>
 </ul>
 <p><strong>Spécifique</strong> : gestion projection EPSG:3395 pour Yandex (correction nécessaire), gestion QuadKey pour Bing.</p>
+<h4 id="filetombtilescorejs-filetombtilesjs-generer-depuis-un-fichier"><code>fileToMbtilesCore.js</code> / <code>fileToMbtiles.js</code> — « Générer depuis un fichier »</h4>
+<p>PDF à l'échelle ou GeoTIFF → <code>.mbtiles</code> lisible par CadoTour. Chargés au premier clic
+(<code>ensureFileToMbtilesModule</code>, utilities.js) ; pdf.js (<code>vendor/pdfjs</code>, module ES chargé par
+<code>import()</code>), geotiff.js et proj4 ne le sont qu'à l'ouverture d'un fichier qui en a besoin.</p>
+<ul>
+<li><strong>Coordonnées « source »</strong> : points PDF d'une page vue à l'échelle 1 (origine en haut à
+  gauche, y vers le bas), ou pixels du GeoTIFF. Tout le reste est en Web Mercator (EPSG:3857).</li>
+<li><strong>Points d'appui (PDF)</strong> : <code>.points</code> du Géoréférenceur QGIS, tel qu'exporté par CadoTour
+  (panneau Coordonnées) — <code>mapX</code> longitude, <code>mapY</code> latitude, <code>sourceX</code>/<code>sourceY</code> position sur
+  le plan, <code>sourceY</code> négatif ; une source (0, 0) = point à pointer sur le plan. Points aussi
+  posables à la souris (plan puis carte), désactivables, exportables complétés.</li>
+<li><strong>Transformation</strong> (<code>ftmFitTransform</code>, moindres carrés) : similitude (2 points, plan à
+  l'échelle ; le retournement y bas → Mercator haut est inclus) ou affine (3 points et plus).
+  Écart de chaque point au sol (<code>ftmResiduals</code>), échelle d'impression (1 pt = 0,3528 mm) et
+  rotation affichées.</li>
+<li><strong>GeoTIFF</strong> : <code>ModelTransformation</code> ou <code>ModelTiepoint</code> + <code>ModelPixelScale</code> (PixelIsPoint
+  décalé d'un demi-pixel), système <code>ProjectedCSTypeGeoKey</code> / <code>GeographicTypeGeoKey</code> ;
+  définitions proj4 intégrées (<code>ftmProjDefinition</code>) : 4326, 4171, 4258, 3857, 3395, 2154,
+  27572, CC42–CC50, UTM WGS84 et ETRS89, quelques UTM d'outre-mer. Valeur NoData rendue
+  transparente ; aperçus (overviews) utilisés pour l'affichage.</li>
+<li><strong>Zones gardées</strong> : rectangle ou main levée sur la visionneuse ; hors zones (et hors
+  fichier), transparent.</li>
+<li><strong>Zooms proposés</strong> (<code>ftmSuggestZooms</code>) : maximal = plus fin des deux critères — pixel de la
+  plus grande image du PDF (matrice courante suivie dans la liste d'opérateurs pdf.js) ou du
+  GeoTIFF, et texte vectoriel lisible (10e centile des hauteurs, pondéré par les caractères,
+  à 8 px) ; minimal = dernier zoom où la zone fait encore 512 px. Modifiables.</li>
+<li><strong>Rendu</strong> : au zoom maximal, par <strong>blocs de 8 × 8 tuiles</strong> (2 048 px) — un rendu pdf.js coûte
+  surtout un temps fixe (mesuré : 5 à 10 s pour un plan de 25 Mo et 335 000 tracés, quelle que
+  soit la taille du bloc). Matrice bloc = Mercator→bloc ∘ transformation ; pour un GeoTIFF
+  projeté, approximation affine locale sur l'emprise du bloc (<code>ftmLocalAffine</code>). Tuiles
+  entièrement transparentes omises ; niveaux inférieurs tirés des quatre tuiles filles.
+  Tuiles rangées en OPFS (mémoire à défaut), assemblées en SQLite (sql.js) à la fin.</li>
+<li><strong>MBTiles</strong> : WebP (si le navigateur l'encode), PNG ou JPEG (fond blanc) ; métadonnées
+  <code>name</code>, <code>format</code> (lu dans les octets), <code>type=baselayer</code>, <code>bounds</code>, <code>center</code>, <code>minzoom</code>,
+  <code>maxzoom</code>, <code>description</code>. Plafond : 400 000 tuiles estimées.</li>
+<li>Tests : <code>node tools/test_file_to_mbtiles.mjs</code> (calculs purs de <code>fileToMbtilesCore.js</code>).</li>
+</ul>
 <h4 id="seedmanagerjs"><code>seedManager.js</code></h4>
 <p>Code de recréation : encodage, décodage et application dans les deux modes (cf. §8.6).</p>
 <ul>
@@ -846,10 +887,10 @@ em { font-style: italic; }
 <h3 id="58-pwa">5.8 PWA</h3>
 <h4 id="manifestjson"><code>manifest.json</code></h4>
 <div class="highlight"><pre><span></span><code><span class="p">{</span>
-<span class="w">  </span><span class="nt">&quot;start_url&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;./index.html&quot;</span><span class="p">,</span>
-<span class="w">  </span><span class="nt">&quot;display&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;standalone&quot;</span><span class="p">,</span>
-<span class="w">  </span><span class="nt">&quot;theme_color&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;#3b82f6&quot;</span><span class="p">,</span>
-<span class="w">  </span><span class="nt">&quot;icons&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="mi">192</span><span class="err">×</span><span class="mi">192</span><span class="p">,</span><span class="w"> </span><span class="mi">512</span><span class="err">×</span><span class="mi">512</span><span class="p">]</span>
+<span class="w">  </span><span class="nt">"start_url"</span><span class="p">:</span><span class="w"> </span><span class="s2">"./index.html"</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">"display"</span><span class="p">:</span><span class="w"> </span><span class="s2">"standalone"</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">"theme_color"</span><span class="p">:</span><span class="w"> </span><span class="s2">"#3b82f6"</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">"icons"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="mi">192</span><span class="err">×</span><span class="mi">192</span><span class="p">,</span><span class="w"> </span><span class="mi">512</span><span class="err">×</span><span class="mi">512</span><span class="p">]</span>
 <span class="p">}</span>
 </code></pre></div>
 <h4 id="swjs-service-worker"><code>sw.js</code> — Service Worker</h4>
@@ -904,12 +945,12 @@ em { font-style: italic; }
 <h2 id="7-couches-cartographiques-map-layersjs">7. Couches cartographiques (<code>map-layers.js</code>)</h2>
 <h3 id="71-structure">7.1 Structure</h3>
 <div class="highlight"><pre><span></span><code><span class="p">{</span>
-<span class="w">  </span><span class="nx">id</span><span class="o">:</span><span class="w"> </span><span class="s2">&quot;google_hybrid&quot;</span><span class="p">,</span><span class="w">          </span><span class="c1">// identifiant interne</span>
-<span class="w">  </span><span class="nx">name</span><span class="o">:</span><span class="w"> </span><span class="s2">&quot;Google Hybrid&quot;</span><span class="p">,</span><span class="w">        </span><span class="c1">// libellé UI</span>
+<span class="w">  </span><span class="nx">id</span><span class="o">:</span><span class="w"> </span><span class="s2">"google_hybrid"</span><span class="p">,</span><span class="w">          </span><span class="c1">// identifiant interne</span>
+<span class="w">  </span><span class="nx">name</span><span class="o">:</span><span class="w"> </span><span class="s2">"Google Hybrid"</span><span class="p">,</span><span class="w">        </span><span class="c1">// libellé UI</span>
 <span class="w">  </span><span class="nx">maxZoom</span><span class="o">:</span><span class="w"> </span><span class="mf">21</span><span class="p">,</span>
-<span class="w">  </span><span class="nx">requiresKey</span><span class="o">:</span><span class="w"> </span><span class="s2">&quot;GOOGLE_MAPS_API_KEY&quot;</span><span class="p">,</span><span class="w">  </span><span class="c1">// optionnel</span>
+<span class="w">  </span><span class="nx">requiresKey</span><span class="o">:</span><span class="w"> </span><span class="s2">"GOOGLE_MAPS_API_KEY"</span><span class="p">,</span><span class="w">  </span><span class="c1">// optionnel</span>
 <span class="w">  </span><span class="nx">layers</span><span class="o">:</span><span class="w"> </span><span class="p">[</span><span class="w">                     </span><span class="c1">// empilement de couches</span>
-<span class="w">    </span><span class="p">{</span><span class="w"> </span><span class="nx">url</span><span class="o">:</span><span class="w"> </span><span class="s2">&quot;...&quot;</span><span class="p">,</span><span class="w"> </span><span class="nx">type</span><span class="o">:</span><span class="w"> </span><span class="s2">&quot;xyz&quot;</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="s2">&quot;quadkey&quot;</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="s2">&quot;yandex&quot;</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="s2">&quot;wms&quot;</span><span class="w"> </span><span class="p">}</span>
+<span class="w">    </span><span class="p">{</span><span class="w"> </span><span class="nx">url</span><span class="o">:</span><span class="w"> </span><span class="s2">"..."</span><span class="p">,</span><span class="w"> </span><span class="nx">type</span><span class="o">:</span><span class="w"> </span><span class="s2">"xyz"</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="s2">"quadkey"</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="s2">"yandex"</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="s2">"wms"</span><span class="w"> </span><span class="p">}</span>
 <span class="w">    </span><span class="c1">// wms : + layers (obligatoire), styles, format, transparent, version</span>
 <span class="w">  </span><span class="p">]</span>
 <span class="p">}</span>
@@ -1035,7 +1076,7 @@ em { font-style: italic; }
 <h3 id="74-here-maps-differe">7.4 HERE Maps (différé)</h3>
 <p>Tâche en attente : ajout des couches HERE Maps dès qu'une clé sera obtenue sur platform.here.com.</p>
 <div class="highlight"><pre><span></span><code><span class="c1">// Ajout futur :</span>
-<span class="c1">// var HERE_API_KEY = &#39;&#39;;</span>
+<span class="c1">// var HERE_API_KEY = '';</span>
 <span class="c1">// Carto : https://maps.hereapi.com/v3/base/mc/{z}/{x}/{y}/png8?style=explore.day&amp;apiKey=${HERE_API_KEY}</span>
 <span class="c1">// Hybrid : https://maps.hereapi.com/v3/base/mc/{z}/{x}/{y}/png8?style=explore.satellite.day&amp;apiKey=${HERE_API_KEY}</span>
 </code></pre></div>
@@ -1069,7 +1110,7 @@ em { font-style: italic; }
 <p><strong>Même motif que la clé IGN privée</strong> (<code>IGN_PRIVATE_API_KEY</code>, couche <code>ign_scan_composite</code>) : un accès réservé au poste qui en dispose — clé pour l'IGN, licence de service local pour i-Boating —, déclaré dans <code>config.private.js</code> et jamais dans le dépôt.</p>
 <p>Le WMTS i-Boating (Windows/macOS) tourne <strong>sur le poste</strong> : l'application i-Boating télécharge au préalable les cellules couvrant la zone utile, puis le service expose un point d'entrée WMTS en local. L'application n'embarque <strong>aucune tuile ni donnée i-Boating</strong> : elle interroge ce service comme elle interroge l'IGN ou Google.</p>
 <div class="highlight"><pre><span></span><code><span class="c1">// config.private.js</span>
-<span class="kd">var</span><span class="w"> </span><span class="nx">IBOATING_WMTS_URL</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">&#39;http://127.0.0.1:8080/wmts/.../{z}/{x}/{y}.png&#39;</span><span class="p">;</span>
+<span class="kd">var</span><span class="w"> </span><span class="nx">IBOATING_WMTS_URL</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'http://127.0.0.1:8080/wmts/.../{z}/{x}/{y}.png'</span><span class="p">;</span>
 <span class="kd">var</span><span class="w"> </span><span class="nx">IBOATING_WMTS_MAXZOOM</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">17</span><span class="p">;</span><span class="w">   </span><span class="c1">// facultatif, 17 par défaut</span>
 </code></pre></div>
 <p>Le gabarit accepte les deux formes d'URL que sert un WMTS :</p>
@@ -1144,9 +1185,9 @@ em { font-style: italic; }
 <p><strong>Ne pas attendre d'isobathes du service libre.</strong> Le contenu exact du flux INSPIRE se relève avec <code>tools/ogc_layers.py</code> et n'a rien d'acquis : les lignes de profondeur relèvent selon toute vraisemblance des produits sous abonnement. Pour des isobathes libres de droits, voir la couche EMODnet en §7.7.</p>
 </blockquote>
 <div class="highlight"><pre><span></span><code><span class="c1">// config.private.js</span>
-<span class="kd">var</span><span class="w"> </span><span class="nx">SHOM_API_KEY</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">&#39;xxx&#39;</span><span class="p">;</span><span class="w">                              </span><span class="c1">// service sous abonnement</span>
-<span class="kd">var</span><span class="w"> </span><span class="nx">SHOM_RASTER_LAYER</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">&#39;RASTER_MARINE_3857_WMTS&#39;</span><span class="p">;</span><span class="w">     </span><span class="c1">// facultatif, valeur par défaut</span>
-<span class="kd">var</span><span class="w"> </span><span class="nx">SHOM_INSPIRE_LAYER</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">&#39;TCHR_3857_WMTS&#39;</span><span class="p">;</span><span class="w">             </span><span class="c1">// couche INSPIRE voulue</span>
+<span class="kd">var</span><span class="w"> </span><span class="nx">SHOM_API_KEY</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'xxx'</span><span class="p">;</span><span class="w">                              </span><span class="c1">// service sous abonnement</span>
+<span class="kd">var</span><span class="w"> </span><span class="nx">SHOM_RASTER_LAYER</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'RASTER_MARINE_3857_WMTS'</span><span class="p">;</span><span class="w">     </span><span class="c1">// facultatif, valeur par défaut</span>
+<span class="kd">var</span><span class="w"> </span><span class="nx">SHOM_INSPIRE_LAYER</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'TCHR_3857_WMTS'</span><span class="p">;</span><span class="w">             </span><span class="c1">// couche INSPIRE voulue</span>
 </code></pre></div>
 <p><strong>Relever les identifiants de couches</strong></p>
 <p>Ils ne se devinent pas et changent d'un service à l'autre. <code>tools/ogc_layers.py</code> les imprime depuis le <code>GetCapabilities</code>, avec leur <code>TileMatrixSet</code> et leur plage de zooms :</p>
@@ -1154,7 +1195,7 @@ em { font-style: italic; }
 python3<span class="w"> </span>tools/ogc_layers.py<span class="w"> </span>--cle<span class="w"> </span>MA_CLE<span class="w">         </span><span class="c1"># service sous abonnement</span>
 python3<span class="w"> </span>tools/ogc_layers.py<span class="w"> </span>--filtre<span class="w"> </span>raster<span class="w">      </span><span class="c1"># ne garde que ces couches</span>
 python3<span class="w"> </span>tools/ogc_layers.py<span class="w"> </span>--fichier<span class="w"> </span>capa.xml<span class="w">   </span><span class="c1"># parse un GetCapabilities déjà téléchargé</span>
-python3<span class="w"> </span>tools/ogc_layers.py<span class="w"> </span>--url<span class="w"> </span>&lt;service&gt;<span class="w">      </span><span class="c1"># n&#39;importe quel WMTS ou WMS</span>
+python3<span class="w"> </span>tools/ogc_layers.py<span class="w"> </span>--url<span class="w"> </span>&lt;service&gt;<span class="w">      </span><span class="c1"># n'importe quel WMTS ou WMS</span>
 python3<span class="w"> </span>tools/ogc_layers.py<span class="w"> </span>--version<span class="w"> </span><span class="m">1</span>.1.1<span class="w">      </span><span class="c1"># force la version du service</span>
 python3<span class="w"> </span>tools/ogc_layers.py<span class="w"> </span>--brut<span class="w"> </span>reponse.xml<span class="w">   </span><span class="c1"># enregistre la réponse telle quelle</span>
 </code></pre></div>
@@ -1162,7 +1203,7 @@ python3<span class="w"> </span>tools/ogc_layers.py<span class="w"> </span>--brut
 <p>L'outil ne se contente pas de parser : il classe ce qu'il a reçu, car une page HTML bien formée et une exception OGC se parsent l'une comme l'autre sans erreur. Selon le cas, il annonce une exception du service avec son message, une réponse qui n'est pas un <code>GetCapabilities</code> (portail d'authentification, proxy d'entreprise, URL inexacte), un corps vide, ou du contenu non XML — et il imprime à chaque fois le statut HTTP, le type MIME et le début du corps. Il décompresse au passage les réponses gzip non annoncées et retire un éventuel BOM, deux causes classiques d'un « illisible » sur du XML pourtant valide. En WMS, une version refusée déclenche un second essai en 1.1.1.</p>
 <div class="highlight"><pre><span></span><code>Reponse illisible : exception OGC — Layer not defined
   Statut  : 400   Type : text/xml   Taille : 157 octets
-  Debut   : &lt;?xml version=&quot;1.0&quot;?&gt;&lt;ServiceExceptionReport&gt;…
+  Debut   : &lt;?xml version="1.0"?&gt;&lt;ServiceExceptionReport&gt;…
   Cause probable : le service a rejete la requete : lire le message ci-dessus.
 </code></pre></div>
 <p>C'est pourquoi <code>SHOM_INSPIRE_LAYER</code> est <strong>vide par défaut</strong> : une couche absente du sélecteur vaut mieux qu'une couche qui ne renverrait que des tuiles vides. <code>SHOM_RASTER_LAYER</code> porte, lui, une valeur par défaut à confirmer au premier branchement.</p>
@@ -1173,8 +1214,8 @@ python3<span class="w"> </span>tools/ogc_layers.py<span class="w"> </span>--brut
 <h3 id="77-lignes-de-profondeur-emodnet-et-le-type-wms">7.7 Lignes de profondeur EMODnet, et le type <code>wms</code></h3>
 <p>Couche <code>emodnet_bathy</code> : fond OpenStreetMap surmonté des <strong>isobathes EMODnet</strong>, l'infrastructure bathymétrique européenne. Ces isobathes sont espacées de 50 m : pour des isobathes métriques, voir la case « lignes de profondeur » des trois modes (§7.9), ou l'outil hors ligne du §7.8 pour d'autres sources. Services OGC libres d'accès, donc exportables et rediffusables — contrairement au SHOM et à i-Boating. Couverture : mers européennes.</p>
 <p>Les isobathes ne sont pas servies en tuiles pré-calculées mais en <strong>WMS</strong>, d'où un quatrième type de couche.</p>
-<div class="highlight"><pre><span></span><code><span class="p">{</span><span class="w"> </span><span class="nx">url</span><span class="o">:</span><span class="w"> </span><span class="s2">&quot;https://ows.emodnet-bathymetry.eu/wms&quot;</span><span class="p">,</span><span class="w"> </span><span class="nx">type</span><span class="o">:</span><span class="w"> </span><span class="s2">&quot;wms&quot;</span><span class="p">,</span>
-<span class="w">  </span><span class="nx">layers</span><span class="o">:</span><span class="w"> </span><span class="s2">&quot;emodnet:contours&quot;</span><span class="p">,</span><span class="w"> </span><span class="nx">transparent</span><span class="o">:</span><span class="w"> </span><span class="kc">true</span><span class="w"> </span><span class="p">}</span>
+<div class="highlight"><pre><span></span><code><span class="p">{</span><span class="w"> </span><span class="nx">url</span><span class="o">:</span><span class="w"> </span><span class="s2">"https://ows.emodnet-bathymetry.eu/wms"</span><span class="p">,</span><span class="w"> </span><span class="nx">type</span><span class="o">:</span><span class="w"> </span><span class="s2">"wms"</span><span class="p">,</span>
+<span class="w">  </span><span class="nx">layers</span><span class="o">:</span><span class="w"> </span><span class="s2">"emodnet:contours"</span><span class="p">,</span><span class="w"> </span><span class="nx">transparent</span><span class="o">:</span><span class="w"> </span><span class="kc">true</span><span class="w"> </span><span class="p">}</span>
 </code></pre></div>
 <table>
 <thead>
@@ -1343,28 +1384,28 @@ python3<span class="w"> </span>tools/ogc_layers.py<span class="w"> </span>--brut
 </ul>
 <p><strong>Configuration</strong></p>
 <p>Fichier TOML (ou JSON). Exemple commenté complet : <code>tools/exemples/bathy.toml</code>.</p>
-<div class="highlight"><pre><span></span><code><span class="n">sortie</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;bathy_zone.mbtiles&quot;</span>
-<span class="n">reference</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;ZH&quot;</span>
+<div class="highlight"><pre><span></span><code><span class="n">sortie</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"bathy_zone.mbtiles"</span>
+<span class="n">reference</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"ZH"</span>
 <span class="n">intervalle</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span>
 <span class="n">emprise</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="mf">-4.80</span><span class="p">,</span><span class="w"> </span><span class="mf">48.25</span><span class="p">,</span><span class="w"> </span><span class="mf">-4.30</span><span class="p">,</span><span class="w"> </span><span class="mf">48.45</span><span class="p">]</span>
 
 <span class="k">[rendu]</span>
-<span class="n">fond</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;plan-ign&quot;</span><span class="w">            </span><span class="c1"># « aucun » : tuiles transparentes (drone, QGIS)</span>
+<span class="n">fond</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"plan-ign"</span><span class="w">            </span><span class="c1"># « aucun » : tuiles transparentes (drone, QGIS)</span>
 
 <span class="k">[[source]]</span>
-<span class="n">nom</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;Litto3D&quot;</span>
-<span class="n">fichiers</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;litto3d/**/*.asc&quot;</span>
-<span class="n">crs</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;EPSG:2154&quot;</span>
-<span class="n">reference</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;IGN69&quot;</span>
+<span class="n">nom</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"Litto3D"</span>
+<span class="n">fichiers</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"litto3d/**/*.asc"</span>
+<span class="n">crs</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"EPSG:2154"</span>
+<span class="n">reference</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"IGN69"</span>
 <span class="n">decalage</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">0.0</span><span class="w">               </span><span class="c1"># IGN69 -&gt; ZH, a relever dans les RAM du SHOM</span>
 
 <span class="k">[[source]]</span>
-<span class="n">nom</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;Leve du port&quot;</span>
-<span class="n">fichiers</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;leves/*.xyz&quot;</span>
-<span class="n">type</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;sondes&quot;</span>
-<span class="n">crs</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;EPSG:4326&quot;</span>
-<span class="n">valeurs</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;profondeur&quot;</span>
-<span class="n">reference</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;ZH&quot;</span>
+<span class="n">nom</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"Leve du port"</span>
+<span class="n">fichiers</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"leves/*.xyz"</span>
+<span class="n">type</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"sondes"</span>
+<span class="n">crs</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"EPSG:4326"</span>
+<span class="n">valeurs</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"profondeur"</span>
+<span class="n">reference</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"ZH"</span>
 </code></pre></div>
 <table>
 <thead>
@@ -1447,7 +1488,7 @@ python3<span class="w"> </span>tools/ogc_layers.py<span class="w"> </span>--brut
 <p>Une clé inconnue est une erreur, pour qu'une faute de frappe (<code>decallage</code>) ne passe pas en silence.</p>
 <p><strong>Utilisation</strong></p>
 <div class="highlight"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span>-r<span class="w"> </span>tools/requirements-bathy.txt
-python3<span class="w"> </span>tools/bathy_mbtiles.py<span class="w"> </span>bathy.toml<span class="w"> </span>--inventaire<span class="w">   </span><span class="c1"># sources, pas, zooms, volumes : rien n&#39;est produit</span>
+python3<span class="w"> </span>tools/bathy_mbtiles.py<span class="w"> </span>bathy.toml<span class="w"> </span>--inventaire<span class="w">   </span><span class="c1"># sources, pas, zooms, volumes : rien n'est produit</span>
 python3<span class="w"> </span>tools/bathy_mbtiles.py<span class="w"> </span>bathy.toml<span class="w">                </span><span class="c1"># produit le MBTiles</span>
 python3<span class="w"> </span>tools/bathy_mbtiles.py<span class="w"> </span>bathy.toml<span class="w"> </span>--zoom-max<span class="w"> </span><span class="m">16</span><span class="w"> </span>--processus<span class="w"> </span><span class="m">4</span><span class="w"> </span>--emprise<span class="w"> </span>-4.8,48.25,-4.3,48.45
 </code></pre></div>
@@ -1795,7 +1836,7 @@ python3<span class="w"> </span>tools/bathy_mbtiles.py<span class="w"> </span>bat
 - <code>data:</code>, <code>blob:</code></p>
 <h3 id="103-proxy-cors-yandex">10.3 Proxy CORS Yandex</h3>
 <p>Cas spécial : les tuiles Yandex sont relayées par le SW pour ajouter <code>Access-Control-Allow-Origin: *</code>. Sans ça, <code>canvas.drawImage()</code> les marque comme <strong>tainted</strong> et bloque les exports PNG/MBTiles.</p>
-<div class="highlight"><pre><span></span><code><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="nx">url</span><span class="p">.</span><span class="nx">includes</span><span class="p">(</span><span class="s1">&#39;maps.yandex.net&#39;</span><span class="p">))</span><span class="w"> </span><span class="p">{</span>
+<div class="highlight"><pre><span></span><code><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="nx">url</span><span class="p">.</span><span class="nx">includes</span><span class="p">(</span><span class="s1">'maps.yandex.net'</span><span class="p">))</span><span class="w"> </span><span class="p">{</span>
 <span class="w">  </span><span class="c1">// fetch + ré-emballage avec headers CORS permissifs</span>
 <span class="p">}</span>
 </code></pre></div>
@@ -1817,27 +1858,27 @@ python3<span class="w"> </span>tools/bathy_mbtiles.py<span class="w"> </span>bat
 <h2 id="11-configuration-secrets">11. Configuration &amp; secrets</h2>
 <h3 id="111-configprivatejs-gitignored">11.1 <code>config.private.js</code> (gitignored)</h3>
 <p>Fichier <strong>non commité</strong> (cf. <code>.gitignore</code>). Template type :</p>
-<div class="highlight"><pre><span></span><code><span class="kd">var</span><span class="w"> </span><span class="nx">IGN_PRIVATE_API_KEY</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">&#39;xxx&#39;</span><span class="p">;</span>
-<span class="kd">var</span><span class="w"> </span><span class="nx">MAPY_API_KEY</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">&#39;xxx&#39;</span><span class="p">;</span>
-<span class="kd">var</span><span class="w"> </span><span class="nx">GOOGLE_MAPS_API_KEY</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">&#39;xxx&#39;</span><span class="p">;</span>
+<div class="highlight"><pre><span></span><code><span class="kd">var</span><span class="w"> </span><span class="nx">IGN_PRIVATE_API_KEY</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'xxx'</span><span class="p">;</span>
+<span class="kd">var</span><span class="w"> </span><span class="nx">MAPY_API_KEY</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'xxx'</span><span class="p">;</span>
+<span class="kd">var</span><span class="w"> </span><span class="nx">GOOGLE_MAPS_API_KEY</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'xxx'</span><span class="p">;</span>
 
 <span class="c1">// Fond i-Boating : adresse du WMTS i-Boating lancé en local sur le poste.</span>
 <span class="c1">// Couche masquée si absente. Usage privé interne — cf. §7.5.</span>
-<span class="kd">var</span><span class="w"> </span><span class="nx">IBOATING_WMTS_URL</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">&#39;http://127.0.0.1:8080/wmts/.../{z}/{x}/{y}.png&#39;</span><span class="p">;</span>
+<span class="kd">var</span><span class="w"> </span><span class="nx">IBOATING_WMTS_URL</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'http://127.0.0.1:8080/wmts/.../{z}/{x}/{y}.png'</span><span class="p">;</span>
 <span class="kd">var</span><span class="w"> </span><span class="nx">IBOATING_WMTS_MAXZOOM</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">17</span><span class="p">;</span>
 
-<span class="c1">// Cartes marines SHOM : clé d&#39;abonnement ou de convention, et identifiants de</span>
+<span class="c1">// Cartes marines SHOM : clé d'abonnement ou de convention, et identifiants de</span>
 <span class="c1">// couches relevés avec tools/ogc_layers.py — cf. §7.6.</span>
-<span class="kd">var</span><span class="w"> </span><span class="nx">SHOM_API_KEY</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">&#39;xxx&#39;</span><span class="p">;</span>
-<span class="kd">var</span><span class="w"> </span><span class="nx">SHOM_RASTER_LAYER</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">&#39;RASTER_MARINE_3857_WMTS&#39;</span><span class="p">;</span>
-<span class="kd">var</span><span class="w"> </span><span class="nx">SHOM_INSPIRE_LAYER</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">&#39;TCHR_3857_WMTS&#39;</span><span class="p">;</span>
+<span class="kd">var</span><span class="w"> </span><span class="nx">SHOM_API_KEY</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'xxx'</span><span class="p">;</span>
+<span class="kd">var</span><span class="w"> </span><span class="nx">SHOM_RASTER_LAYER</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'RASTER_MARINE_3857_WMTS'</span><span class="p">;</span>
+<span class="kd">var</span><span class="w"> </span><span class="nx">SHOM_INSPIRE_LAYER</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'TCHR_3857_WMTS'</span><span class="p">;</span>
 
 <span class="c1">// Surcharges facultatives pour EMODnet (§7.7) : valeurs par defaut sinon.</span>
-<span class="kd">var</span><span class="w"> </span><span class="nx">EMODNET_WMS</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">&#39;https://ows.emodnet-bathymetry.eu/wms&#39;</span><span class="p">;</span>
-<span class="kd">var</span><span class="w"> </span><span class="nx">EMODNET_CONTOURS_LAYER</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">&#39;emodnet:contours&#39;</span><span class="p">;</span>
+<span class="kd">var</span><span class="w"> </span><span class="nx">EMODNET_WMS</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'https://ows.emodnet-bathymetry.eu/wms'</span><span class="p">;</span>
+<span class="kd">var</span><span class="w"> </span><span class="nx">EMODNET_CONTOURS_LAYER</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'emodnet:contours'</span><span class="p">;</span>
 </code></pre></div>
 <h3 id="112-chargement-gracieux">11.2 Chargement gracieux</h3>
-<div class="highlight"><pre><span></span><code><span class="p">&lt;</span><span class="nt">script</span> <span class="na">src</span><span class="o">=</span><span class="s">&quot;config.private.js&quot;</span> <span class="na">onerror</span><span class="o">=</span><span class="s">&quot;console.warn(&#39;config.private.js absent&#39;)&quot;</span><span class="p">&gt;&lt;/</span><span class="nt">script</span><span class="p">&gt;</span>
+<div class="highlight"><pre><span></span><code><span class="p">&lt;</span><span class="nt">script</span> <span class="na">src</span><span class="o">=</span><span class="s">"config.private.js"</span> <span class="na">onerror</span><span class="o">=</span><span class="s">"console.warn('config.private.js absent')"</span><span class="p">&gt;&lt;/</span><span class="nt">script</span><span class="p">&gt;</span>
 </code></pre></div>
 <p>Si le fichier est absent (ex: clone fraîche), l'app fonctionne en mode dégradé : les couches privées sont masquées, Street View bascule en iframe.</p>
 <h3 id="113-important-historique-purge">11.3 Important — historique purgé</h3>
