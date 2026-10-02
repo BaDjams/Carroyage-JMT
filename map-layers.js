@@ -48,104 +48,6 @@ const SHOM_WMTS = (base, layer) => `${base}?SERVICE=WMTS&VERSION=1.0.0&REQUEST=G
 if (typeof EMODNET_WMS === 'undefined') var EMODNET_WMS = 'https://ows.emodnet-bathymetry.eu/wms';
 if (typeof EMODNET_CONTOURS_LAYER === 'undefined') var EMODNET_CONTOURS_LAYER = 'emodnet:contours';
 
-// ─── Garmin Marine – token (expire ~4 min) ───────────────────────────────
-// Clé partagée fournie par Garmin pour l'accès MOBAC — à placer dans config.private.js.
-if (typeof GARMIN_MARINE_API_KEY === 'undefined') var GARMIN_MARINE_API_KEY = '';
-
-const _garminTok = { v: '', exp: 0, p: null };
-function _ensureGarminTok() {
-    if (Date.now() < _garminTok.exp) return Promise.resolve();
-    if (_garminTok.p) return _garminTok.p;
-    _garminTok.p = fetch('https://mcv.marine.garmin.com/api/token', { headers: {
-        'Origin': 'https://maps.garmin.com',
-        'x-api-key': GARMIN_MARINE_API_KEY
-    }}).then(r => r.ok ? r.text() : '').then(t => {
-        _garminTok.v = t.replace(/\s/g, '');
-        _garminTok.exp = Date.now() + 3.5 * 60000;
-    }).catch(() => {}).finally(() => { _garminTok.p = null; });
-    return _garminTok.p;
-}
-
-// ─── Navionics – tokens bearer + config (expirent ~2 h) ──────────────────
-const _navTok = { bearer: '', config: '', exp: 0, p: null };
-function _ensureNavTok() {
-    if (Date.now() < _navTok.exp) return Promise.resolve();
-    if (_navTok.p) return _navTok.p;
-    _navTok.p = fetch('https://maps.garmin.com/marine/api/getNavionicsTokens', { headers: {
-        'Origin': 'https://maps.garmin.com',
-        'Referer': 'https://maps.garmin.com/'
-    }}).then(r => r.ok ? r.json() : null).then(j => {
-        if (!j) return;
-        const c = s => String(s || '').replace(/[\x00-\x1F\x7F\s]/g, '');
-        _navTok.bearer = c(j.access_token);
-        _navTok.config = c(j.configuration_token);
-        _navTok.exp = Date.now() + 55 * 60000;
-    }).catch(() => {}).finally(() => { _navTok.p = null; });
-    return _navTok.p;
-}
-
-// ─── Couche Leaflet : Garmin Marine (fish / nav) ──────────────────────────
-// Le token est dans l'URL ; pas de header custom sur les tuiles.
-const L_GarminMarineLayer = L.TileLayer.extend({
-    initialize(url, options) {
-        L.TileLayer.prototype.initialize.call(this, url, options);
-        _ensureGarminTok().then(() => { if (this._map) this.redraw(); });
-    },
-    getTileUrl(coords) {
-        if (Date.now() >= _garminTok.exp)
-            _ensureGarminTok().then(() => { if (this._map) this.redraw(); });
-        return this._url
-            .replace('{s}', (coords.x % 4) + 1)
-            .replace('{z}', coords.z).replace('{x}', coords.x).replace('{y}', coords.y)
-            .replace('{token}', _garminTok.v);
-    }
-});
-
-// ─── Couche Leaflet : Navionics (nav / sonar) ─────────────────────────────
-// Le config token est dans l'URL. Le bearer token est injecté via fetch()
-// pour les serveurs qui l'exigent ; repli sur img.src en cas d'erreur CORS.
-// Note : Origin et Referer sont des headers interdits (RFC), ignorés par fetch().
-const L_NavionicsLayer = L.TileLayer.extend({
-    initialize(url, options) {
-        L.TileLayer.prototype.initialize.call(this, url, options);
-        _ensureNavTok().then(() => { if (this._map) this.redraw(); });
-    },
-    getTileUrl(coords) {
-        if (Date.now() >= _navTok.exp)
-            _ensureNavTok().then(() => { if (this._map) this.redraw(); });
-        return this._url
-            .replace('{s}', (coords.x % 4) + 1)
-            .replace('{z}', coords.z).replace('{x}', coords.x).replace('{y}', coords.y)
-            .replace('{token}', _navTok.config);
-    },
-    createTile(coords, done) {
-        const img = document.createElement('img');
-        img.setAttribute('role', 'presentation');
-        const url = this.getTileUrl(coords);
-        // Chargement direct via img.src (pas de restriction CORS pour l'affichage).
-        // Appelé aussi en repli si fetch() échoue (CORS ou serveur).
-        const loadDirect = () => {
-            img.onload  = () => done(null, img);
-            img.onerror = () => done(new Error('tile error'), img);
-            img.src = url;
-        };
-        if (_navTok.bearer) {
-            fetch(url, { headers: { 'Authorization': `Bearer ${_navTok.bearer}` } })
-                .then(r => r.ok ? r.blob() : Promise.reject())
-                .then(blob => {
-                    const burl = URL.createObjectURL(blob);
-                    img.onload  = () => { URL.revokeObjectURL(burl); done(null, img); };
-                    img.onerror = () => done(new Error('tile error'), img);
-                    img.src = burl;
-                })
-                .catch(loadDirect);
-        } else {
-            loadDirect();
-        }
-        return img;
-    }
-});
-
 // Demi-circonférence terrestre en EPSG:3857, borne du monde tuilé.
 const WEB_MERCATOR_R = 20037508.342789244;
 
@@ -198,16 +100,6 @@ function tileUrlFor(layer, z, x, y) {
         return layer.url.replace('{q}', quadKey).replace('{s}', (x + y) % 4);
     }
     if (layer.type === 'wms') return wmsTileUrl(layer, z, x, y);
-    if (layer.type === 'garmin_marine')
-        return layer.url
-            .replace('{s}', (x % 4) + 1)
-            .replace('{z}', z).replace('{x}', x).replace('{y}', y)
-            .replace('{token}', _garminTok.v);
-    if (layer.type === 'navionics')
-        return layer.url
-            .replace('{s}', (x % 4) + 1)
-            .replace('{z}', z).replace('{x}', x).replace('{y}', y)
-            .replace('{token}', _navTok.config);
     return layer.url.replace('{z}', z).replace('{x}', x).replace('{y}', y);
 }
 
@@ -479,72 +371,6 @@ const MAP_LAYERS = [
         ]
     },
     {
-        // Cartes marines Garmin (SonarChart bathymétrie + profondeurs) — fond de pêche.
-        // Token renouvelé automatiquement toutes les ~4 min depuis mcv.marine.garmin.com.
-        // Disponible à partir du zoom 7 ; export possible si le serveur autorise CORS.
-        "id": "garmin_marine_fish",
-        "name": "Cartes marines Garmin Fish (2m)",
-        "shortName": "Garmin Fish",
-        "requiresKey": "GARMIN_MARINE_API_KEY",
-        "attribution": "&copy; <a href='https://www.garmin.com/marine' target='_blank' rel='noopener'>Garmin</a> / <a href='https://www.navionics.com' target='_blank' rel='noopener'>Navionics</a>",
-        "maxZoom": 18,
-        "layers": [
-            {
-                "url": "https://mcv{s}.marine.garmin.com/api/tile/{z}/{x}/{y}.png?units=m&charttype=fish&safetydepth=2&token={token}",
-                "type": "garmin_marine",
-                "minZoom": 7
-            }
-        ]
-    },
-    {
-        // Cartes marines Garmin navigation — cartes nautiques standard.
-        "id": "garmin_marine_nav",
-        "name": "Cartes marines Garmin Nav (2m)",
-        "shortName": "Garmin Nav",
-        "requiresKey": "GARMIN_MARINE_API_KEY",
-        "attribution": "&copy; <a href='https://www.garmin.com/marine' target='_blank' rel='noopener'>Garmin</a> / <a href='https://www.navionics.com' target='_blank' rel='noopener'>Navionics</a>",
-        "maxZoom": 18,
-        "layers": [
-            {
-                "url": "https://mcv{s}.marine.garmin.com/api/tile/{z}/{x}/{y}.png?units=m&charttype=nav&safetydepth=2&token={token}",
-                "type": "garmin_marine",
-                "minZoom": 7
-            }
-        ]
-    },
-    {
-        // Cartes nautiques Navionics via Garmin — cartes vectorielles standard.
-        // Tokens bearer + config renouvelés automatiquement toutes les ~55 min.
-        // Les tuiles sont chargées via fetch() pour injecter l'en-tête Authorization.
-        "id": "garmin_navionics_nav",
-        "name": "Cartes marines Navionics Nav (2m)",
-        "shortName": "Navionics Nav",
-        "attribution": "&copy; <a href='https://www.navionics.com' target='_blank' rel='noopener'>Navionics</a>",
-        "maxZoom": 18,
-        "layers": [
-            {
-                "url": "https://tile{s}.navionics.com/viewer/api/v1/tile/{z}/{x}/{y}?config={token}&transparent=false&ugc=false&layer=0&du=1&sd=2&sa=true",
-                "type": "navionics",
-                "minZoom": 7
-            }
-        ]
-    },
-    {
-        // SonarChart Navionics via Garmin — bathymétrie participative haute résolution.
-        "id": "garmin_navionics_sonar",
-        "name": "Cartes marines Navionics Sonar (2m)",
-        "shortName": "Navionics Sonar",
-        "attribution": "&copy; <a href='https://www.navionics.com' target='_blank' rel='noopener'>Navionics</a>",
-        "maxZoom": 18,
-        "layers": [
-            {
-                "url": "https://tile{s}.navionics.com/viewer/api/v1/tile/{z}/{x}/{y}?config={token}&transparent=false&ugc=false&layer=1&du=1&sd=2&sa=true",
-                "type": "navionics",
-                "minZoom": 7
-            }
-        ]
-    },
-    {
         "id": "osm_standard",
         "name": "OpenStreetMap",
         "shortName": "OSM",
@@ -561,4 +387,4 @@ const MAP_LAYERS = [
 
 // Les modules d'export (imagetoprint.js, zoneDownloader.js, mbtilesCreator.js)
 // sont des scripts classiques : ils consomment ces helpers en global.
-Object.assign(window, { tileUrlFor, wmsTileUrl, tileBBox3857, L_GarminMarineLayer, L_NavionicsLayer });
+Object.assign(window, { tileUrlFor, wmsTileUrl, tileBBox3857 });
