@@ -1363,7 +1363,29 @@
             const defaultLayer = cadoBaseMaps["Ortho IGN + Routes Google"] || cadoBaseMaps["Google Hybrid"] || (Object.keys(cadoBaseMaps).length > 0 ? cadoBaseMaps[Object.keys(cadoBaseMaps)[0]] : null);
 
             addBaseLayerWhenLoaded(defaultLayer, cadoMap);
-            if(Object.keys(cadoBaseMaps).length > 0) L.control.layers(cadoBaseMaps).addTo(cadoMap);
+            if(Object.keys(cadoBaseMaps).length > 0) {
+                const cadoLayers = L.control.layers(cadoBaseMaps);
+                // La carte fait 200 % de la hauteur de son cadre (rotation) : Leaflet, qui
+                // mesure la carte, laisserait la liste des fonds déborder du cadre sans
+                // barre de défilement. On la borne au cadre visible. Posé avant addTo :
+                // Leaflet lie this.expand à l'ouverture de la liste.
+                cadoLayers.expand = function () {
+                    L.Control.Layers.prototype.expand.call(this);
+                    const frame = document.getElementById('map-viewport');
+                    const list = this._section;
+                    if (!frame || !list) return this;
+                    list.style.height = null;
+                    const room = frame.clientHeight - (this._container.offsetTop + 50);
+                    if (room < list.clientHeight) {
+                        L.DomUtil.addClass(list, 'leaflet-control-layers-scrollbar');
+                        list.style.height = room + 'px';
+                    } else {
+                        L.DomUtil.removeClass(list, 'leaflet-control-layers-scrollbar');
+                    }
+                    return this;
+                };
+                cadoLayers.addTo(cadoMap);
+            }
 
             // Initialise le zoom natif à partir du layer par défaut
             if (typeof MAP_LAYERS !== 'undefined') {
