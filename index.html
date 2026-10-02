@@ -1129,6 +1129,14 @@
         let cadoLayerNativeMax = 19;
         let zoneLayerNativeMax = 19;
 
+        // Choisir un fond referme la liste, sans clic à côté : la zone d'intérêt
+        // réapparaît aussitôt. Vaut pour les trois cartes (rapide, zone, MBTiles).
+        const _layersInputClick = L.Control.Layers.prototype._onInputClick;
+        L.Control.Layers.prototype._onInputClick = function (e) {
+            _layersInputClick.call(this, e);
+            this.collapse();
+        };
+
         // Fonction utilitaire pour la rotation
         window.updateDeviation = function(change) {
             const devInput = document.getElementById('deviation');
