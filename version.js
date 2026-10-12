@@ -1,12 +1,20 @@
 // version.js
 
 // Source unique de vérité pour la version de l'application.
-const APP_VERSION = '23.37';
+const APP_VERSION = '23.38';
 
 // Une ligne courte par changement, telle que l'utilisateur la voit : ce qui change,
 // sans le pourquoi ni le comment. Guillemets doubles : les apostrophes françaises
 // s'écrivent telles quelles.
 const CHANGELOG = [
+  {
+    version: "23.38",
+    date: "2026-10-12",
+    changes: [
+      "Créer MBTiles : images satellite JP2 avec J2W et XML, sélectionnés ensemble et traités directement dans le navigateur",
+      "Lecture JP2 par blocs, position du J2W prioritaire, projection lue dans le XML ou le JP2",
+    ],
+  },
   {
     version: "23.37",
     date: "2026-10-02",

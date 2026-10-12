@@ -1,6 +1,6 @@
 # Carroyage-JMT — Documentation technique
 
-**Version applicative** : 22.12
+**Version applicative** : 23.38
 **Public visé** : développeurs et mainteneurs du projet
 **Date de mise à jour** : 2026-05-05
 **Dépôt** : https://github.com/BaDjams/Carroyage-JMT — miroir GitLab : https://gitlab.example.com/org/Carroyage-JMT
@@ -153,7 +153,7 @@ Interface dédiée pour générer une base MBTiles (fond de carte tuilé hors-li
 
 **Fichier pivot** : `mbtilesCreator.js`.
 
-Le bouton discret **« 📄 Générer depuis un fichier… »** (en-tête de « 1. Définir la zone ») ouvre une fenêtre qui fabrique un MBTiles à partir d'un **plan PDF à l'échelle** (recalé par des points d'appui) ou d'un **GeoTIFF** (géoréférencement lu dans le fichier) — cf. §5.4, `fileToMbtiles.js`.
+Le bouton discret **« 📄 Générer depuis un fichier… »** (en-tête de « 1. Définir la zone ») ouvre une fenêtre qui fabrique un MBTiles à partir d'un **plan PDF à l'échelle** (recalé par des points d'appui), d'un **GeoTIFF** (géoréférencement lu dans le fichier) ou d'un **JP2 accompagné de son J2W et éventuellement de son XML** (traitement dans le navigateur) — cf. §5.4, `fileToMbtiles.js`.
 
 ---
 
@@ -350,7 +350,7 @@ Interface Mode 3 (carte Leaflet + contrôles + barre de progression).
 
 #### `fileToMbtilesCore.js` / `fileToMbtiles.js` — « Générer depuis un fichier »
 
-PDF à l'échelle ou GeoTIFF → `.mbtiles` lisible par CadoTour. Chargés au premier clic
+PDF à l'échelle, GeoTIFF ou JP2/J2W/XML → `.mbtiles` lisible par CadoTour. Chargés au premier clic
 (`ensureFileToMbtilesModule`, utilities.js) ; pdf.js (`vendor/pdfjs`, module ES chargé par
 `import()`), geotiff.js et proj4 ne le sont qu'à l'ouverture d'un fichier qui en a besoin.
 
@@ -385,6 +385,59 @@ PDF à l'échelle ou GeoTIFF → `.mbtiles` lisible par CadoTour. Chargés au pr
   `name`, `format` (lu dans les octets), `type=baselayer`, `bounds`, `center`, `minzoom`,
   `maxzoom`, `description`. Plafond : 400 000 tuiles estimées.
 - Tests : `node tools/test_file_to_mbtiles.mjs` (calculs purs de `fileToMbtilesCore.js`).
+
+**Images satellite JP2 (JPEG 2000)**
+
+Le JP2 contient l'image. Le J2W contient six nombres : taille et rotation des pixels,
+puis coordonnées du **centre** du pixel supérieur gauche. Il ne contient ni projection
+ni référence au nom du JP2. L'association se fait par le nom commun (`image.JP2`,
+`image.J2W`). Le navigateur ne peut pas lire un fichier voisin sans qu'il soit choisi :
+sélectionner **le JP2 et le J2W ensemble**, avec le XML s'il existe (Ctrl+clic).
+Un XML DIMAP est une fiche de métadonnées, même s'il s'affiche comme une page grâce à
+une feuille de style. Il peut préciser la projection et les valeurs sans données.
+
+Dans **Créer MBTiles → Générer depuis un fichier…**, choisir les fichiers ensemble ;
+sélectionner la zone à garder, vérifier les zooms proposés puis cliquer sur
+**Générer le .mbtiles**. Le traitement a lieu entièrement dans le navigateur,
+sur un hébergement statique comme en local : aucun serveur Python, aucune installation.
+
+- `jpeg2000Source.js` associe les métadonnées et adapte la source au convertisseur.
+  `jpeg2000Worker.js` décode les blocs avec **OpenJPEG WebAssembly**, fourni par
+  Mozilla PDF.js (`vendor/jpeg2000`, version 5.4.296 et licences incluses). Ces
+  composants sont chargés automatiquement et mis en cache pour la PWA.
+- `jpeg2000Core.js` indexe les boîtes JP2 et les parties SOT par petites lectures du
+  `File`. Chaque bloc est extrait avec son en-tête SIZ adapté en conservant les
+  coordonnées absolues de la grille (phase des ondelettes), puis décodé isolément.
+  Ni lecture intégrale du fichier, ni décompression complète de l'image en mémoire.
+  Les niveaux réduits du codestream servent pour l'aperçu. Cache de blocs : 32 Mo.
+- **Position** : J2W prioritaire, XML PAM `GeoTransform` à défaut, puis GeoJP2/GMLJP2
+  interne. Le décalage du centre vers le bord du pixel est appliqué, même en rotation.
+- **Projection** : code EPSG saisi dans les options JP2, puis CRS projeté du XML
+  DIMAP (ou géodésique en son absence), SRS PAM, puis CRS interne du JP2. Une
+  projection manquante est signalée ; elle n'est jamais devinée à partir du J2W.
+  Même liste de projections reconnues que le GeoTIFF.
+- **Couleurs** : canaux RVB déclarés dans le JP2, ou les trois premiers à défaut ;
+  une bande pour une image grise. Le champ « Bandes RVB » permet de les choisir.
+  Une quatrième bande indéfinie n'est pas traitée comme alpha (elle peut être
+  infrarouge). Les valeurs NoData DIMAP deviennent transparentes.
+- **Formats pris en charge** : JP2 tuilé ou mono-bloc, une, trois ou quatre bandes
+  non signées de 1 à 8 bits, sans sous-échantillonnage, espace RVB ou gris. Paquets
+  globaux PPM/PLM et plusieurs codestreams refusés avec un message explicite.
+  Limites par bloc : 128 Mo compressés, 16 millions de pixels décodés ; les blocs
+  plus grands nécessitent un niveau de zoom réduit. L'échantillon Pléiades local
+  de 18 864 × 12 128 px comporte 60 blocs de 2 048 px (bordures plus petites).
+- **MBTiles** : même sélection de zones, pyramide Web Mercator et choix PNG, JPEG
+  ou WebP que les autres sources. Les tuiles intermédiaires sont rangées en OPFS ;
+  l'assemblage final SQLite reste en mémoire. Le plafond des 400 000 tuiles et la
+  réduction de zone restent utiles pour les sorties volumineuses.
+- Les images ne sont pas envoyées à un service distant. `IMAGE_SAT/` et
+  `IMAGES_SAT/` sont ignorés par Git.
+- Tests : `node tools/test_file_to_mbtiles.mjs` ; décodeur et index JP2 :
+  `node tools/test_jpeg2000.mjs`, avec l'échantillon local :
+  `node tools/test_jpeg2000.mjs IMAGES_SAT`.
+  L'option `--gdal` compare les pixels décodés à GDAL/rasterio (Python requis pour
+  ce contrôle de développement seulement). Parcours complet dans un Chromium de test :
+  `node tools/test_jpeg2000_browser.mjs <module-playwright> [dossier-JP2] [--native]`.
 
 #### `seedManager.js`
 
