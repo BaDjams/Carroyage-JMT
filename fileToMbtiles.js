@@ -1,12 +1,14 @@
 // fileToMbtiles.js — « Générer un MBTiles depuis un fichier » (mode Créer MBTiles).
 //
-// Transforme un PDF à l'échelle ou un GeoTIFF en .mbtiles lisible par CadoTour :
+// Transforme un PDF à l'échelle, un GeoTIFF ou un JP2 en .mbtiles pour CadoTour :
 //   • PDF : des points d'appui relient le plan à la carte — un .points exporté
 //     par CadoTour (positions sur la carte), dont on pointe chaque repère sur le
 //     plan, ou des points posés ici, plan puis carte. Deux suffisent pour un plan
 //     à l'échelle (similitude) ; trois et plus permettent une transformation
 //     affine. L'écart de chaque point est affiché, en mètres.
 //   • GeoTIFF : le géoréférencement est lu dans le fichier, rien à pointer.
+//   • JP2 + J2W + XML : lecture par blocs dans un Web Worker avec OpenJPEG
+//     WebAssembly. Le J2W prime sur les axes internes du JP2.
 // Une sélection (rectangle, main levée) ne garde que les zones voulues. Les
 // niveaux de zoom sont proposés d'après la finesse du fichier (pixels d'image,
 // taille du texte vectoriel), puis le fichier est rendu par BLOCS de 8 × 8 tuiles
@@ -223,6 +225,16 @@ async function ftmOpenTiff(file) {
     return src;
 }
 
+// ===== Sources : JPEG 2000 (navigateur, Web Worker et OpenJPEG WASM) =====
+
+async function ftmOpenJp2(file, companions) {
+    await loadScriptOnce('jpeg2000Source.js');
+    return ftmOpenJpeg2000(file, companions, {
+        epsgText: ftmState.$('ftm-jp2-epsg').value.trim(),
+        bandsText: ftmState.$('ftm-jp2-bands').value.trim(),
+    });
+}
+
 // ===== Visionneuse du fichier (aperçu, zoom, pointage, sélection) =====
 
 class FtmViewer {
@@ -251,16 +263,16 @@ class FtmViewer {
     setStatus(t) { this.status.textContent = t || ''; this.status.hidden = !t; }
 
     async setSource(src) {
-        this.source = src; this.base = null; this.detail = null; this.polys = []; this.drawing = null;
-        this.resize(); this.fit();
         const s = Math.min(FTM_PREVIEW_MAX / src.width, FTM_PREVIEW_MAX / src.height, 4);
         const c = document.createElement('canvas');
         c.width = Math.max(1, Math.round(src.width * s)); c.height = Math.max(1, Math.round(src.height * s));
         this.setStatus('Rendu de l’aperçu…');
         const M = [s, 0, 0, s, 0, 0];
         await src.render(c.getContext('2d'), M, c.width, c.height);
-        if (this.source !== src) return;
+        this._renderTask?.cancel?.(); clearTimeout(this._detailTimer);
+        this.source = src; this.detail = null; this.polys = []; this.drawing = null;
         this.base = { canvas: c, M };
+        this.resize(); this.fit();
         this.setStatus('');
         this.draw();
         this.scheduleDetail();
@@ -458,15 +470,23 @@ function ftmBuildModal() {
     modal.innerHTML = `
       <div class="ftm-header">
         <strong>Générer un MBTiles depuis un fichier</strong>
-        <span class="ftm-sub">PDF à l'échelle ou GeoTIFF → .mbtiles lisible par CadoTour</span>
+        <span class="ftm-sub">PDF, GeoTIFF ou JP2 + J2W → .mbtiles lisible par CadoTour</span>
         <button type="button" class="ftm-close" data-act="close" aria-label="Fermer">✕</button>
       </div>
       <div class="ftm-body">
         <aside class="ftm-side">
           <section class="ftm-step">
             <h4>1. Fichier</h4>
-            <label class="ftm-btn ftm-btn-main">Choisir un PDF ou un GeoTIFF…
-              <input type="file" id="ftm-file" accept=".pdf,.tif,.tiff,application/pdf,image/tiff" hidden></label>
+            <label class="ftm-btn ftm-btn-main">Choisir les fichiers…
+              <input type="file" id="ftm-file" accept=".pdf,.tif,.tiff,.jp2,.j2w,.jp2w,.wld,.xml,application/pdf,image/tiff" multiple hidden></label>
+            <p class="ftm-note">Un PDF, un GeoTIFF, ou un JP2 avec son J2W et éventuellement son XML, sélectionnés ensemble.</p>
+            <details class="ftm-note">
+              <summary>Options JP2 (projection et bandes)</summary>
+              <p>Le JP2 est traité directement dans le navigateur, par blocs. Aucun logiciel à installer. Le J2W est prioritaire pour la position ; le XML ou le JP2 fournit la projection.</p>
+              <label class="ftm-row">EPSG <input id="ftm-jp2-epsg" class="ftm-input" inputmode="numeric" placeholder="Automatique (XML / JP2)"></label>
+              <label class="ftm-row">Bandes RVB <input id="ftm-jp2-bands" class="ftm-input" placeholder="Automatique, ou 1,2,3"></label>
+              <p>Le J2W donne la position, pas la projection. Si elle manque, saisir le code EPSG avant d'ouvrir les fichiers. Une bande infrarouge n'est pas utilisée comme transparence. Bandes : une bande grise ou trois numéros dans l'ordre rouge, vert, bleu.</p>
+            </details>
             <div id="ftm-file-info" class="ftm-note"></div>
             <label id="ftm-page-row" class="ftm-row" hidden>Page <select id="ftm-page"></select></label>
           </section>
@@ -546,7 +566,7 @@ async function openFileToMbtiles() {
     if (Object.keys(bases).length > 1) L.control.layers(bases, null, { collapsed: true }).addTo(st.map);
     st.markers = L.layerGroup().addTo(st.map);
     st.footprint = L.layerGroup().addTo(st.map);
-    st.preview = new FtmPreviewLayer(() => (st.source && st.viewer.base && (st.source.kind === 'tiff' || st.T)) ? { base: st.viewer.base, toMerc: (x, y) => st.source.toMerc(x, y) } : null);
+    st.preview = new FtmPreviewLayer(() => (st.source && st.viewer.base && (!st.source.needsPoints || st.T)) ? { base: st.viewer.base, toMerc: (x, y) => st.source.toMerc(x, y) } : null);
     st.preview.addTo(st.map);
     st.map.on('click', e => ftmPlaceOnMap(e.latlng.lng, e.latlng.lat));
 
@@ -561,7 +581,7 @@ async function openFileToMbtiles() {
         if (act === 'clear-zones') { st.viewer.polys = []; ftmSetTool('pan'); ftmRefresh(); }
         if (act === 'generate') ftmStartJob();
     });
-    $('ftm-file').addEventListener('change', e => { const f = e.target.files[0]; e.target.value = ''; if (f) ftmOpenFile(f); });
+    $('ftm-file').addEventListener('change', e => { const files = Array.from(e.target.files); e.target.value = ''; if (files.length) ftmOpenFile(files); });
     $('ftm-points-file').addEventListener('change', async e => {
         const f = e.target.files[0]; e.target.value = '';
         if (!f) return;
@@ -590,19 +610,38 @@ function ftmSetTool(tool) {
     st.modal.querySelectorAll('[data-tool]').forEach(b => b.classList.toggle('is-active', b.dataset.tool === tool));
 }
 
-async function ftmOpenFile(file) {
+async function ftmOpenFile(files) {
     const st = ftmState, $ = st.$;
+    if (st.opening) return;
+    let group;
+    try { group = ftmGroupInputFiles(files); } catch (err) { alert(err.message); return; }
+    const { file } = group;
     const isPdf = /\.pdf$/i.test(file.name) || file.type === 'application/pdf';
+    const previous = st.source;
+    let src;
+    st.opening = true;
+    $('ftm-file').disabled = true;
+    $('ftm-generate').disabled = true;
     $('ftm-file-info').textContent = 'Ouverture…';
     try {
-        st.source = isPdf ? await ftmOpenPdf(file) : await ftmOpenTiff(file);
+        src = isPdf ? await ftmOpenPdf(file) : /\.jp2$/i.test(file.name) ? await ftmOpenJp2(file, group) : await ftmOpenTiff(file);
+        $('ftm-file-info').textContent = 'Rendu de l’aperçu…';
+        await st.viewer.setSource(src);
     } catch (e) {
         console.error(e);
-        $('ftm-file-info').textContent = '';
+        src?.retire?.();
+        src = null;
+        st.viewer.setStatus('');
+        $('ftm-file-info').textContent = previous ? previous.info() : '';
         alert(`Impossible d'ouvrir ${file.name} : ${e.message}`);
         return;
+    } finally {
+        st.opening = false;
+        $('ftm-file').disabled = false;
+        if (!src && previous) ftmRefresh();
     }
-    const src = st.source;
+    previous?.retire?.();
+    st.source = src;
     st.points = []; st.selected = -1; st.awaiting = null; st.T = null; st.zoomTouched = false;
     $('ftm-name').value = file.name.replace(/\.[^.]+$/, '');
     $('ftm-page-row').hidden = !(src.kind === 'pdf' && src.pages > 1);
@@ -613,9 +652,8 @@ async function ftmOpenFile(file) {
     $('ftm-geo-step').hidden = src.needsPoints;
     $('ftm-file-info').textContent = src.info();
     ftmSetTool('pan');
-    await st.viewer.setSource(src);
-    if (src.kind === 'tiff') {
-        $('ftm-geo-info').textContent = 'Lu dans le fichier : ' + src.info() + '.';
+    if (!src.needsPoints) {
+        $('ftm-geo-info').textContent = (src.kind === 'jp2' ? 'Lu dans les fichiers sélectionnés : ' : 'Lu dans le fichier : ') + src.info() + '.';
         const b = ftmSourceBoundsLatLng(src);
         st.map.fitBounds(b, { maxZoom: 18 });
     }
@@ -760,7 +798,7 @@ function ftmRefresh() {
     $('ftm-zones').textContent = nz ? `${nz} zone(s) gardée(s) ; le reste devient transparent.` : 'Tout le fichier.';
     // Emprise sur la carte
     st.footprint.clearLayers();
-    const georef = src && (src.kind === 'tiff' || st.T);
+    const georef = src && (!src.needsPoints || st.T);
     if (georef) {
         const rings = nz ? st.viewer.polys : [[[0, 0], [src.width, 0], [src.width, src.height], [0, src.height]]];
         for (const ring of rings) {
@@ -774,7 +812,7 @@ function ftmRefresh() {
 
 async function ftmUpdateZooms() {
     const st = ftmState, src = st.source, $ = st.$;
-    const ready = src && (src.kind === 'tiff' || st.T);
+    const ready = !st.opening && src && (!src.needsPoints || st.T);
     $('ftm-generate').disabled = !ready;
     if (!ready) { $('ftm-zoom-why').textContent = ''; $('ftm-estimate').textContent = ''; return; }
     const polys = ftmMercPolygons();
@@ -784,6 +822,7 @@ async function ftmUpdateZooms() {
     const c = src.toMerc(src.width / 2, src.height / 2), d = src.toMerc(src.width / 2 + 1, src.height / 2);
     const metersPerUnit = Math.hypot(d[0] - c[0], d[1] - c[1]) * k;
     const an = await src.analyse();
+    if (st.source !== src || st.opening) return;
     const sug = ftmSuggestZooms({ metersPerUnit, lat, rasterPxPerUnit: an.rasterPxPerUnit, textSizes: an.textSizes, spanMeters: Math.max(b.x1 - b.x0, b.y1 - b.y0) * k });
     if (!st.zoomTouched) { $('ftm-zmin').value = sug.zmin; $('ftm-zmax').value = sug.zmax; }
     const why = sug.reasons.map(r => r.kind === 'raster' ? `image du fichier : pixel de ${ftmFormatMeters(r.res)} → zoom ${r.zoom}`
@@ -813,7 +852,7 @@ function ftmMercPolygons() {
 
 function ftmUpdateEstimate() {
     const st = ftmState, $ = st.$;
-    if (!st.source || $('ftm-generate').disabled && !(st.source.kind === 'tiff' || st.T)) return;
+    if (st.opening || !st.source || $('ftm-generate').disabled && !(!st.source.needsPoints || st.T)) return;
     let zmin = Number($('ftm-zmin').value), zmax = Number($('ftm-zmax').value);
     if (zmin > zmax) { [zmin, zmax] = [zmax, zmin]; $('ftm-zmin').value = zmin; $('ftm-zmax').value = zmax; }
     const polys = ftmMercPolygons();
@@ -846,6 +885,7 @@ function ftmStartJob() {
 class FtmJob {
     constructor(o) {
         Object.assign(this, o);
+        this.source.retain?.();
         this.cancelled = false; this.done = 0; this.total = 0; this.stored = 0;
         this.createUI();
     }
@@ -858,7 +898,7 @@ class FtmJob {
             <div class="flex justify-between items-center mb-2"><span class="font-bold truncate"></span><span class="text-xs font-mono ftm-job-status">PRÉPARATION</span></div>
             <div class="w-full bg-gray-200 rounded-full h-2.5 dark:bg-gray-600 mb-2"><div class="bg-blue-600 h-2.5 rounded-full ftm-job-bar" style="width:0%"></div></div>
             <div class="flex justify-between text-xs text-gray-500"><span class="ftm-job-count"></span><span class="ftm-job-eta italic"></span><span class="ftm-job-actions"><button type="button" class="hover:text-red-600">Annuler</button></span></div>`;
-        this.ui.querySelector('.font-bold').textContent = `${this.name}.mbtiles — ${this.source.kind === 'pdf' ? 'PDF' : 'GeoTIFF'}`;
+        this.ui.querySelector('.font-bold').textContent = `${this.name}.mbtiles — ${this.source.kind === 'pdf' ? 'PDF' : this.source.kind === 'jp2' ? 'JP2' : 'GeoTIFF'}`;
         this.ui.querySelector('.ftm-job-actions button').onclick = () => this.cancel();
         (list || document.body).prepend(this.ui);
     }
@@ -905,6 +945,8 @@ class FtmJob {
             this.status('ERREUR', 'text-red-600 font-bold');
             this.ui.querySelector('.ftm-job-eta').textContent = e.message;
             this.store?.clear();
+        } finally {
+            this.source.release?.();
         }
     }
 
@@ -1029,7 +1071,7 @@ class FtmJob {
             minzoom: String(this.zmin), maxzoom: String(this.zmax),
             bounds: [w, s, e, nn].map(v => v.toFixed(6)).join(','),
             center: `${((w + e) / 2).toFixed(6)},${((s + nn) / 2).toFixed(6)},${Math.min(this.zmax, Math.max(this.zmin, this.zmin + 2))}`,
-            description: `${this.source.name} — ${this.source.kind === 'pdf' ? `recalé par ${this.pointsUsed} points d'appui` : `GeoTIFF EPSG:${this.source.epsg}`} (Carroyage-JMT)`,
+            description: `${this.source.name} — ${this.source.kind === 'pdf' ? `recalé par ${this.pointsUsed} points d'appui` : `${this.source.kind === 'jp2' ? 'JP2' : 'GeoTIFF'} EPSG:${this.source.epsg}`} (Carroyage-JMT)`,
         };
         for (const [k, v] of Object.entries(meta)) db.run('INSERT INTO metadata VALUES (?, ?)', [k, v]);
         db.run('CREATE UNIQUE INDEX tile_index on tiles (zoom_level, tile_column, tile_row);');

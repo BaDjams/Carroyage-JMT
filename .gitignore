@@ -3,3 +3,7 @@ config.private.js
 
 # Python : caches de compilation (tools/)
 __pycache__/
+
+# Images satellite locales (sources volumineuses)
+/IMAGE_SAT/
+/IMAGES_SAT/

@@ -4,7 +4,7 @@
 // Un seul numéro à tenir à jour ici : la page lit le sien dans version.js, et
 // SW_APP_VERSION faisait doublon avec les deux — une occasion de plus de les
 // laisser diverger.
-const CACHE_NAME = 'cado-cache-23.37';
+const CACHE_NAME = 'cado-cache-23.38';
 
 // Liste EXACTE des fichiers à mettre en cache.
 // Si un seul fichier manque, la PWA ne s'installera pas.
@@ -41,6 +41,12 @@ const ASSETS_TO_CACHE = [
   './zoneBands.js',
   './fileToMbtilesCore.js',
   './fileToMbtiles.js',
+  './jpeg2000Source.js',
+  './jpeg2000Core.js',
+  './jpeg2000Worker.js',
+  './vendor/jpeg2000/pdf.image_decoders.mjs',
+  './vendor/jpeg2000/openjpeg.wasm',
+  './vendor/jpeg2000/openjpeg_nowasm_fallback.js',
 
   // SQL.js (WASM) — ÉCRITURE des MBTiles (carroyageToMbtiles.js / mbtilesCreator.js)
   './sql-wasm.js',

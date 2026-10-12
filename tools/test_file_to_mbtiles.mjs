@@ -19,7 +19,7 @@ vm.runInContext(readFileSync(`${ROOT}fileToMbtilesCore.js`, 'utf8') + `
   ftmDescribe, ftmZoomForResolution, ftmTextPercentile, ftmSuggestZooms, ftmClipPolygonToRect,
   ftmPolygonArea, ftmTilesForPolygons, ftmGroupBlocks, ftmMercToBlockMatrix, ftmParentTiles,
   ftmPyramidCounts, ftmLocalAffine, ftmGeoTiffPixelTransform, ftmGeoTiffEpsg, ftmProjDefinition,
-  ftmSniffImage, ftmPrintScale });`, context, { filename: 'fileToMbtilesCore.js' });
+  ftmSniffImage, ftmPrintScale, ftmGroupInputFiles, ftmParseWorldFile, ftmEpsgFromText });`, context, { filename: 'fileToMbtilesCore.js' });
 const C = context;
 const plain = x => JSON.parse(JSON.stringify(x));
 const near = (a, b, tol, msg) => assert.ok(Math.abs(a - b) <= tol, `${msg ?? ''} ${a} ≠ ${b} (±${tol})`);
@@ -161,6 +161,31 @@ test('GeoTIFF : tiepoint + taille de pixel, ModelTransformation, PixelIsPoint, E
     assert.match(C.ftmProjDefinition(32731), /south/);
     assert.match(C.ftmProjDefinition(3948), /lat_0=48 .*y_0=7200000/);
     assert.equal(C.ftmProjDefinition(9999), null);
+});
+
+test('JP2 : association explicite des fichiers, casse et noms communs', () => {
+    const jp2 = { name: 'IMAGE.JP2' }, world = { name: 'image.J2W' }, xml = { name: 'DIM_IMAGE.XML' };
+    const grouped = C.ftmGroupInputFiles([xml, world, jp2]);
+    assert.equal(grouped.file, jp2); assert.equal(grouped.world, world); assert.equal(grouped.xml, xml);
+    assert.equal(C.ftmGroupInputFiles([jp2]).world, null);
+    assert.equal(C.ftmGroupInputFiles([{ name: 'plan.pdf' }]).file.name, 'plan.pdf');
+    assert.throws(() => C.ftmGroupInputFiles([world]), /J2W seul/);
+    assert.throws(() => C.ftmGroupInputFiles([jp2, { name: 'autre.j2w' }]), /même nom/);
+    assert.throws(() => C.ftmGroupInputFiles([jp2, { name: 'autre.jp2' }]), /une seule/);
+    assert.throws(() => C.ftmGroupInputFiles([jp2, xml, { name: 'autre.xml' }]), /au plus un/);
+});
+
+test('J2W : centre du pixel, rotation, validation et projection explicite', () => {
+    assert.deepEqual(plain(C.ftmParseWorldFile('\uFEFF2\r\n0\r\n0\r\n-3\r\n100\r\n200')), [2, 0, 0, -3, 99, 201.5]);
+    const rotated = C.ftmParseWorldFile('2\n1\n3\n-4\n100\n200');
+    assert.deepEqual(plain(C.ftmApply(rotated, 0.5, 0.5)), [100, 200]);
+    assert.throws(() => C.ftmParseWorldFile('1 2 3 4 5'), /six nombres/);
+    assert.throws(() => C.ftmParseWorldFile('1 0 0 0 0 0'), /non inversible/);
+    assert.throws(() => C.ftmParseWorldFile('1 0 0 -1 Infinity 0'), /valides/);
+    assert.equal(C.ftmEpsgFromText('urn:ogc:def:crs:EPSG::4326'), 4326);
+    assert.equal(C.ftmEpsgFromText('http://www.opengis.net/def/crs/EPSG/0/2154'), 2154);
+    assert.equal(C.ftmEpsgFromText('PROJCS["Lambert",GEOGCS["RGF93",AUTHORITY["EPSG","4171"]],AUTHORITY["EPSG","2154"]]'), 2154);
+    assert.equal(C.ftmEpsgFromText('une page de présentation'), null);
 });
 
 test('format d’image et échelle d’impression', () => {

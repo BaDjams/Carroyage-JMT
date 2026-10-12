@@ -2,7 +2,7 @@
 // (fileToMbtiles.js) : ni DOM, ni Leaflet, ni pdf.js. Testé sous Node :
 // node tools/test_file_to_mbtiles.mjs
 //
-// Un fichier (PDF, GeoTIFF) a ses propres coordonnées « source » : points PDF
+// Un fichier (PDF, GeoTIFF, JP2) a ses propres coordonnées « source » : points PDF
 // d'une page vue à l'échelle 1 (origine en haut à gauche, y vers le bas), ou
 // pixels d'une image. Tout le reste se fait en Web Mercator (EPSG:3857, mètres),
 // le repère des tuiles : la transformation source → Mercator, les zones, les
@@ -388,6 +388,44 @@ function ftmProjDefinition(epsg) {
 }
 
 // ===== Divers =====
+
+// J2W : A,D,B,E,C,F, coordonnées du CENTRE du pixel haut-gauche.
+function ftmParseWorldFile(text) {
+    const values = String(text).replace(/^\uFEFF/, '').trim().split(/\s+/);
+    if (values.length !== 6 || values.some(v => !Number.isFinite(Number(v)))) throw new Error('Le J2W doit contenir exactement six nombres valides.');
+    const [a, b, c, d, e, f] = values.map(Number);
+    if (a * d === b * c) throw new Error('La transformation du J2W est non inversible.');
+    return [a, b, c, d, e - (a + c) / 2, f - (b + d) / 2];
+}
+
+function ftmEpsgFromText(text) {
+    const s = String(text || '').trim();
+    const direct = s.match(/EPSG(?::|\/)+(?:0\/)?(\d+)\s*$/i);
+    if (direct) return Number(direct[1]);
+    const wkt = [...s.matchAll(/(?:AUTHORITY|ID)\s*\[\s*["']EPSG["']\s*,\s*["']?(\d+)["']?\s*\]/gi)];
+    return wkt.length ? Number(wkt[wkt.length - 1][1]) : null;
+}
+
+// Un world file ne contient aucun nom d'image : association par nom commun.
+// Le navigateur doit recevoir explicitement les fichiers sélectionnés ensemble.
+function ftmGroupInputFiles(files) {
+    const list = Array.from(files);
+    const images = list.filter(f => /\.(pdf|tiff?|jp2)$/i.test(f.name) || ['application/pdf', 'image/tiff'].includes(f.type));
+    if (images.length !== 1) throw new Error(images.length
+        ? 'Sélectionner une seule image JP2, un PDF ou un GeoTIFF à la fois.'
+        : 'Sélectionner le JP2 avec son J2W : le J2W seul ne contient pas l’image.');
+    const file = images[0], jp2 = /\.jp2$/i.test(file.name);
+    const worlds = list.filter(f => /\.(j2w|jp2w|wld)$/i.test(f.name));
+    const xmls = list.filter(f => /\.xml$/i.test(f.name));
+    if (!jp2 && list.length > 1) throw new Error('Les fichiers J2W et XML accompagnent une image JP2.');
+    if (worlds.length > 1 || xmls.length > 1) throw new Error('Sélectionner au plus un J2W et un XML avec le JP2.');
+    if (worlds.length && worlds[0].name.replace(/\.(j2w|jp2w|wld)$/i, '').toLowerCase()
+        !== file.name.replace(/\.jp2$/i, '').toLowerCase()) {
+        throw new Error('Le JP2 et le J2W doivent porter le même nom avant leur extension.');
+    }
+    if (list.length !== 1 + worlds.length + xmls.length) throw new Error('Fichier non reconnu : choisir le JP2, son J2W et éventuellement son XML.');
+    return { file, world: worlds[0] || null, xml: xmls[0] || null };
+}
 
 function ftmSniffImage(b) {
     if (b.length >= 3 && b[0] === 0xFF && b[1] === 0xD8 && b[2] === 0xFF) return 'jpg';
