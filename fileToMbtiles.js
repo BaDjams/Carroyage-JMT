@@ -1040,7 +1040,7 @@ class FtmJob {
     constructor(o) {
         Object.assign(this, o);
         this.source.retain?.();
-        this.cancelled = false; this.done = 0; this.total = 0; this.stored = 0;
+        this.cancelled = false; this.total = 0; this.stored = 0;
         this.createUI();
     }
 
@@ -1050,8 +1050,9 @@ class FtmJob {
         this.ui = ftmEl('div', { class: 'bg-gray-50 dark:bg-gray-700 p-3 rounded border border-gray-200 dark:border-gray-600 text-sm' });
         this.ui.innerHTML = `
             <div class="flex justify-between items-center mb-2"><span class="font-bold truncate"></span><span class="text-xs font-mono ftm-job-status">PRÉPARATION</span></div>
-            <div class="w-full bg-gray-200 rounded-full h-2.5 dark:bg-gray-600 mb-2"><div class="bg-blue-600 h-2.5 rounded-full ftm-job-bar" style="width:0%"></div></div>
-            <div class="flex justify-between text-xs text-gray-500"><span class="ftm-job-count"></span><span class="ftm-job-eta italic"></span><span class="ftm-job-actions"><button type="button" class="hover:text-red-600">Annuler</button></span></div>`;
+            <div class="ftm-job-steps"></div>
+            <p class="ftm-job-message text-xs text-red-600 mt-1" hidden></p>
+            <div class="flex justify-end text-xs text-gray-500 mt-1"><span class="ftm-job-actions"><button type="button" class="hover:text-red-600">Annuler</button></span></div>`;
         this.ui.querySelector('.font-bold').textContent = `${this.name}.mbtiles — ${this.source.kind === 'pdf' ? 'PDF' : this.source.kind === 'jp2' ? 'JP2' : 'GeoTIFF'}`;
         this.ui.querySelector('.ftm-job-actions button').onclick = () => this.cancel();
         (list || document.body).prepend(this.ui);
@@ -1059,30 +1060,27 @@ class FtmJob {
 
     status(t, cls) { const s = this.ui.querySelector('.ftm-job-status'); s.textContent = t; if (cls) s.className = `text-xs font-mono ftm-job-status ${cls}`; }
 
-    progress(phase) {
-        const pct = this.total ? 100 * this.done / this.total : 0;
-        this.ui.querySelector('.ftm-job-bar').style.width = `${pct}%`;
-        this.ui.querySelector('.ftm-job-count').textContent = `${ftmNum(this.done)} / ${ftmNum(this.total)}`;
-        const el = this.ui.querySelector('.ftm-job-eta');
-        if (phase) { el.textContent = phase; return; }
-        const t = (Date.now() - this.t0) / 1000, rate = this.done / t;
-        if (this.done > 0 && rate > 0) {
-            const s = (this.total - this.done) / rate;
-            el.textContent = s < 60 ? `~${Math.ceil(s)} s` : s < 3600 ? `~${Math.floor(s / 60)} min` : `~${Math.floor(s / 3600)} h ${Math.round(s % 3600 / 60)} min`;
-        }
+    // Étapes annoncées dès que le nombre de tuiles de chaque niveau est connu (cf. jobSteps.js).
+    showSteps(counts) {
+        const plan = [{ id: 'render', label: `Rendu du fichier, zoom ${this.zmax}`, total: counts[this.zmax] }];
+        for (let z = this.zmax - 1; z >= this.zmin; z--) plan.push({ id: `z${z}`, label: `Zoom ${z}, réduit du zoom ${z + 1}`, total: counts[z] });
+        if (this.includeMnt) plan.push({ id: 'mnt', label: `Relief (MNT), zooms ${MNT_MIN_ZOOM} à ${MNT_MAX_ZOOM}`, total: this.terrainPlan.length });
+        plan.push({ id: 'asm', label: 'Assemblage du fichier', auto: false });
+        this.steps = new JobSteps(plan);
+        this.ui.querySelector('.ftm-job-steps').replaceChildren(this.steps.el);
     }
 
     cancel() {
         this.cancelled = true;
         this._task?.cancel?.();
         this._fetchController?.abort();
+        this.steps?.cancel();
         this.status('ANNULÉ', 'text-red-600 font-bold');
         this.ui.querySelector('.ftm-job-actions').textContent = '';
     }
 
     async run() {
         try {
-            this.t0 = Date.now();
             const { zmin, zmax } = this;
             const tiles = ftmTilesForPolygons(this.polysMerc, zmax, FTM_MAX_TILES);
             const counts = ftmPyramidCounts(tiles, zmin, zmax);
@@ -1098,8 +1096,9 @@ class FtmJob {
                 }
                 this.total += this.terrainPlan.length;
             }
+            this.showSteps(counts);
             this.store = await FtmTileStore.create(this.id);
-            this.status('RENDU', '');
+            this.status('EN COURS', '');
             await this.renderMaxZoom(tiles);
             for (let z = zmax - 1; z >= zmin && !this.cancelled; z--) await this.buildLevel(z);
             if (this.cancelled) return;
@@ -1111,7 +1110,9 @@ class FtmJob {
             if (this.cancelled) return;
             console.error(e);
             this.status('ERREUR', 'text-red-600 font-bold');
-            this.ui.querySelector('.ftm-job-eta').textContent = e.message;
+            this.steps?.fail();
+            const msg = this.ui.querySelector('.ftm-job-message');
+            msg.textContent = e.message; msg.hidden = false;
         } finally {
             await this.store?.clear();
             await this.terrainStore?.clear();
@@ -1120,7 +1121,7 @@ class FtmJob {
     }
 
     async downloadTerrain() {
-        this.status('RELIEF', '');
+        this.steps.start('mnt');
         this.terrainStore = await FtmTileStore.create(this.id + '_mnt');
         for (const t of this.terrainPlan) {
             if (this.cancelled) return;
@@ -1144,7 +1145,7 @@ class FtmJob {
             if (this.cancelled) return;
             if (!blob) throw new Error(`MNT indisponible (${t.z}/${t.x}/${t.y} : ${lastError?.message}). Vérifier la connexion et relancer, ou décocher le MNT.`);
             await this.terrainStore.put(t.z, t.x, t.y, blob);
-            this.done++; this.progress(`relief · zoom ${t.z}`);
+            this.steps.advance('mnt');
         }
     }
 
@@ -1200,11 +1201,11 @@ class FtmJob {
                 tctx.clearRect(0, 0, 256, 256);
                 tctx.drawImage(canvas, (t.x - block.x0) * 256, (t.y - block.y0) * 256, 256, 256, 0, 0, 256, 256);
                 await this.saveTile(this.zmax, t.x, t.y, tile, tctx);
-                this.done++;
+                this.steps.advance('render');
             }
-            this.progress();
             await new Promise(r => setTimeout(r, 0));
         }
+        if (!this.cancelled) this.steps.finish('render');
     }
 
     // Encode et range une tuile, sauf si elle est entièrement transparente.
@@ -1233,7 +1234,9 @@ class FtmJob {
         const canvas = document.createElement('canvas'); canvas.width = canvas.height = 256;
         const ctx = canvas.getContext('2d', { willReadFrequently: true });
         ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
-        this.progress(`zoom ${z}`);
+        const step = `z${z}`;
+        this.steps.start(step);
+        let n = 0;
         for (const p of parents) {
             if (this.cancelled) return;
             ctx.clearRect(0, 0, 256, 256);
@@ -1245,16 +1248,17 @@ class FtmJob {
                 bmp.close?.();
             }
             await this.saveTile(z, p.x, p.y, canvas, ctx);
-            this.done++;
-            if (this.done % 50 === 0) { this.progress(`zoom ${z}`); await new Promise(r => setTimeout(r, 0)); }
+            this.steps.advance(step);
+            if (++n % 50 === 0) await new Promise(r => setTimeout(r, 0));
         }
         // Les tuiles absentes (transparentes) d'un niveau comptent comme faites.
-        this.done = Math.max(this.done, 0);
+        this.steps.finish(step);
     }
 
     async assemble() {
-        this.status('ASSEMBLAGE', '');
-        this.progress('écriture du fichier');
+        this.steps.start('asm');
+        this.steps.setTotal('asm', this.stored + this.terrainPlan.length);
+        this.steps.setNote('asm', 'écriture des tuiles');
         await ensureSqlJs();
         const SQL = await window.initSqlJs({ locateFile: f => f });
         const db = new SQL.Database();
@@ -1270,6 +1274,7 @@ class FtmJob {
                     if (this.cancelled) return;
                     const blob = await this.store.get(z, t.x, t.y);
                     db.run('INSERT INTO tiles VALUES (?, ?, ?, ?)', [z, t.x, (1 << z) - 1 - t.y, new Uint8Array(await blob.arrayBuffer())]);
+                    this.steps.advance('asm');
                     if (++n % 200 === 0) await new Promise(r => setTimeout(r, 0));
                 }
             }
@@ -1278,6 +1283,7 @@ class FtmJob {
                     if (this.cancelled) return;
                     const blob = await this.terrainStore.get(t.z, t.x, t.y);
                     db.run('INSERT INTO terrain_tiles VALUES (?, ?, ?, ?)', [t.z, t.x, (1 << t.z) - 1 - t.y, new Uint8Array(await blob.arrayBuffer())]);
+                    this.steps.advance('asm');
                     if (++n % 200 === 0) await new Promise(r => setTimeout(r, 0));
                 }
                 db.run('CREATE UNIQUE INDEX terrain_tile_index ON terrain_tiles (zoom_level, tile_column, tile_row);');
@@ -1296,12 +1302,12 @@ class FtmJob {
                 attribution: 'Relief : Mapzen / AWS Terrain Tiles (sources : https://github.com/tilezen/joerd/blob/master/docs/attribution.md)' });
             for (const [k, v] of Object.entries(meta)) db.run('INSERT INTO metadata VALUES (?, ?)', [k, v]);
             db.run('CREATE UNIQUE INDEX tile_index on tiles (zoom_level, tile_column, tile_row);');
+            this.steps.setNote('asm', 'création du fichier');
             db.run('COMMIT;');
             data = db.export();
         } finally { db.close(); }
         if (this.cancelled) return;
-        this.done = this.total;
-        this.progress(`${ftmNum(data.length / 1048576, 1)} Mo`);
+        this.steps.finish('asm', `${ftmNum(data.length / 1048576, 1)} Mo`);
         this.status('TERMINÉ', 'text-green-600 font-bold');
         const fname = `${this.name}.mbtiles`;
         const save = () => ftmSaveBytes(data, fname);
