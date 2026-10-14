@@ -10,7 +10,9 @@ if (!Promise.withResolvers) Promise.withResolvers = () => {
 let index = null, library = null, chain = Promise.resolve();
 const cancelled = new Set(), cache = new Map();
 let cacheSize = 0;
-const CACHE_MAX = 32 * 1024 * 1024;
+// Au moins CACHE_TILES blocs décodés (une bande de rendu en croise jusqu'à 8),
+// entre 32 et 256 Mo : 160 Mo pour des blocs Pléiades de 2 048 px.
+const CACHE_TILES = 10, CACHE_MIN = 32 * 1024 * 1024, CACHE_MAX = 256 * 1024 * 1024;
 
 async function jp2DecodeTile(tile, reducePower, bands, alpha, nodata, excludeBlack) {
     const key = `${tile.index}/${reducePower}/${bands}/${alpha}/${nodata}/${excludeBlack}`;
@@ -42,8 +44,12 @@ async function jp2DecodeTile(tile, reducePower, bands, alpha, nodata, excludeBla
     const value = { rgba, width, height,
         x: Math.ceil(tile.x0 / divisor) * divisor - index.siz.x0,
         y: Math.ceil(tile.y0 / divisor) * divisor - index.siz.y0, divisor };
-    if (rgba.byteLength <= CACHE_MAX) {
-        while (cacheSize + rgba.byteLength > CACHE_MAX && cache.size) {
+    // Budget fixe pour un fichier, d'après le bloc nominal à pleine résolution : un
+    // bloc de bord ou un aperçu réduit, plus petits, ne vident pas le cache.
+    const nominal = index.siz.tw * index.siz.th * 4;
+    const budget = Math.min(CACHE_MAX, Math.max(CACHE_MIN, CACHE_TILES * nominal));
+    if (rgba.byteLength <= budget) {
+        while (cacheSize + rgba.byteLength > budget && cache.size) {
             const oldest = cache.keys().next().value;
             cacheSize -= cache.get(oldest).rgba.byteLength; cache.delete(oldest);
         }

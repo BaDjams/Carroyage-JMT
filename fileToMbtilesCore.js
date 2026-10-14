@@ -277,15 +277,19 @@ function ftmTilesForPolygons(polys, z, limit = Infinity) {
 
 // Regroupe des tuiles du zoom z en blocs de side × side tuiles, rendus d'un
 // seul tenant (un rendu de PDF coûte surtout un temps fixe : peu de grands
-// blocs plutôt que beaucoup de tuiles).
-function ftmGroupBlocks(tiles, side) {
+// blocs plutôt que beaucoup de tuiles). Ordre : bandes verticales de `strip`
+// blocs, parcourues de haut en bas. Les blocs consécutifs reprennent ainsi les
+// mêmes tuiles du fichier source, encore dans le cache du décodeur JP2 ; par
+// lignes entières, ce cache aurait été vidé avant de revenir sur une tuile.
+function ftmGroupBlocks(tiles, side, strip = 1) {
     const blocks = new Map();
     for (const t of tiles) {
         const bx = Math.floor(t.x / side), by = Math.floor(t.y / side), key = `${bx}/${by}`;
         if (!blocks.has(key)) blocks.set(key, { bx, by, x0: bx * side, y0: by * side, side, tiles: [] });
         blocks.get(key).tiles.push(t);
     }
-    return [...blocks.values()].sort((a, b) => a.by - b.by || a.bx - b.bx);
+    const band = b => Math.floor(b.bx / strip);
+    return [...blocks.values()].sort((a, b) => band(a) - band(b) || a.by - b.by || a.bx - b.bx);
 }
 
 // Matrice canevas Mercator → pixels d'un bloc dont la tuile haut-gauche est (x0, y0).
