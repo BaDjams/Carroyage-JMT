@@ -140,7 +140,7 @@ try {
     });
     await page.locator('#ftm-generate').click();
     await page.waitForFunction(() => window.__output || document.querySelector('.ftm-job-status')?.textContent === 'ERREUR', null, { timeout: 120000 });
-    assert.equal(await page.locator('.ftm-job-status').first().textContent(), 'TERMINÉ', await page.locator('.ftm-job-eta').first().textContent());
+    assert.equal(await page.locator('.ftm-job-status').first().textContent(), 'TERMINÉ', await page.locator('.ftm-job-message').first().textContent());
     const data = await page.evaluate(() => Array.from(window.__output));
     const SQL = await require(path.join(root, 'sql-wasm.js'))({ locateFile: f => path.join(root, f) });
     const db = new SQL.Database(new Uint8Array(data));
@@ -162,7 +162,7 @@ try {
     await page.evaluate(async () => { await window.__jobDone; window.__output = null; await openFileToMbtiles(); });
     await page.locator('#ftm-generate').click();
     await page.waitForFunction(() => window.__job?.ui.querySelector('.ftm-job-status').textContent === 'ERREUR');
-    assert.match(await page.locator('.ftm-job-eta').first().textContent(), /MNT indisponible/);
+    assert.match(await page.locator('.ftm-job-message').first().textContent(), /MNT indisponible/);
     assert.equal(await page.evaluate(() => window.__output), null);
     await page.evaluate(async () => { await window.__jobDone; });
     terrainFailure = false; holdTerrain = true;

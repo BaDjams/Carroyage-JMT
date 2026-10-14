@@ -12,6 +12,7 @@ const CHANGELOG = [
     date: "2026-10-14",
     changes: [
       "Créer MBTiles depuis des JP2 : génération jusqu'à 3 fois plus rapide sur les grandes images",
+      "Gestionnaire de tâches : étapes annoncées d'avance, une barre chacune, coche verte et durée à la fin",
     ],
   },
   {

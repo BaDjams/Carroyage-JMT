@@ -90,6 +90,7 @@ L'ordre dans `index.html` est important — plusieurs fichiers exposent des vari
 9. zoneDownloader.js   → orchestrateur mode 2
 10. carroyageToMbtiles.js / carroyageToCSV.js → exports
 11. seedManager.js     → code de recréation (§8.6)
+11b. jobSteps.js       → JobSteps : étapes des tâches du mode 3 (§5.4)
 12. tileSource.js      → abstraction MBTiles/online
 13. mbtilesCreator.js  → mode 3
 14. settingsManager.js → gestion icônes utilisateur
@@ -347,6 +348,21 @@ Interface Mode 3 (carte Leaflet + contrôles + barre de progression).
   ré-encodées, dans leur propre format ; les autres restent en passthrough.
 
 **Spécifique** : gestion projection EPSG:3395 pour Yandex (correction nécessaire), gestion QuadKey pour Bing.
+
+#### `jobSteps.js` — étapes du gestionnaire de tâches
+
+`JobSteps` affiche une tâche du mode 3 comme une liste d'étapes annoncées dès le
+départ, chacune avec sa barre : icône (attente, cercle tournant, coche verte, croix
+rouge, tiret si annulée ou non faite), compte `fait / total` et temps restant estimé
+pendant l'étape, durée une fois finie, puis durée totale. Les pauses ne comptent pas.
+Rendu groupé toutes les 150 ms, horloge à la seconde tant qu'une étape tourne.
+
+- Téléchargement (`MbtilesJob`) : une étape par zoom, relief (MNT) s'il est
+  demandé, assemblage. Les tuiles étant téléchargées en parallèle, deux zooms
+  voisins peuvent tourner un instant ensemble.
+- Fichier (`FtmJob`) : rendu au zoom maximal, chaque niveau réduit, relief, assemblage.
+- `advance(id)` termine l'étape à son total ; `auto: false` (assemblage) attend `finish(id)`,
+  appelé après l'écriture du fichier, avec sa taille en note.
 
 #### `fileToMbtilesCore.js` / `fileToMbtiles.js` — « Générer depuis un fichier »
 

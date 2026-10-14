@@ -33,6 +33,7 @@ const ASSETS_TO_CACHE = [
   './settingsManager.js',
   './version.js',
   './mbtilesCreator.js',
+  './jobSteps.js',
   './isobathes.js',
   './seedManager.js',
   './tileSource.js',
