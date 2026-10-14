@@ -118,6 +118,8 @@ test('découpe d’un polygone par un rectangle, et tuiles couvertes', () => {
     const sq = [[0, 0], [10, 0], [10, 10], [0, 10]];
     near(C.ftmPolygonArea(C.ftmClipPolygonToRect(sq, 5, 5, 20, 20)), 25, 1e-9);
     assert.equal(C.ftmClipPolygonToRect(sq, 20, 20, 30, 30).length, 0);
+    assert.equal(C.ftmTilesForPolygons([sq], 0).length, 1, 'une petite zone doit aussi avoir son MNT au zoom 0');
+    near(C.ftmPolygonArea(sq.map(([x, y]) => [x + 1e7, y + 1e7])), 100, 1e-9);
     // Triangle en Mercator au zoom 16 : seules les tuiles qu'il recoupe.
     const z = 16, r = C.ftmMercResolution(z) * 256;
     const X0 = -Math.PI * 6378137 + 1000 * r, Y0 = Math.PI * 6378137 - 1000 * r;
@@ -171,8 +173,38 @@ test('JP2 : association explicite des fichiers, casse et noms communs', () => {
     assert.equal(C.ftmGroupInputFiles([{ name: 'plan.pdf' }]).file.name, 'plan.pdf');
     assert.throws(() => C.ftmGroupInputFiles([world]), /J2W seul/);
     assert.throws(() => C.ftmGroupInputFiles([jp2, { name: 'autre.j2w' }]), /même nom/);
-    assert.throws(() => C.ftmGroupInputFiles([jp2, { name: 'autre.jp2' }]), /une seule/);
-    assert.throws(() => C.ftmGroupInputFiles([jp2, xml, { name: 'autre.xml' }]), /au plus un/);
+    const second = { name: 'autre.jp2' }, secondWorld = { name: 'autre.j2w' };
+    const multiple = C.ftmGroupInputFiles([jp2, xml, world, secondWorld, second]);
+    assert.equal(multiple.images.length, 2);
+    assert.equal(multiple.images[1].world, secondWorld);
+    assert.equal(multiple.xmls[0], xml);
+    assert.throws(() => C.ftmGroupInputFiles([jp2, { name: 'image.jp2' }]), /même nom/);
+    assert.throws(() => C.ftmGroupInputFiles([jp2, world, { name: 'IMAGE.wld' }]), /Plusieurs J2W/);
+    assert.throws(() => C.ftmGroupInputFiles([jp2, { name: 'plan.pdf' }]), /PDF.*seul/);
+});
+
+test('mosaïque : raccord, recouvrement, chaîne, rotation et erreurs de grille', () => {
+    const src = (name, x, y, extra = {}) => ({ name, width: 100, height: 80, epsg: 3857, P: [2, 0, 0, -2, x, y], ...extra });
+    const a = src('a', 1000, 2000), b = src('b', 1200, 2000), c = src('c', 1400, 2000);
+    const layout = C.ftmMosaicLayout([a, c, b]);
+    assert.equal(layout.width, 300); assert.equal(layout.height, 80); assert.equal(layout.overlap, false);
+    assert.deepEqual(plain(layout.offsets), [[0, 0], [200, 0], [100, 0]]);
+    assert.equal(C.ftmMosaicLayout([a, src('b', 1190, 2000)]).overlap, true);
+    assert.deepEqual(plain(C.ftmMosaicLayout([b, a]).offsets), [[100, 0], [0, 0]]);
+    const rotated = [2, 1, 1, -2, 1000, 2000];
+    assert.equal(C.ftmMosaicLayout([src('a', 0, 0, { P: rotated }), src('b', 0, 0, { P: C.ftmMultiply(rotated, [1, 0, 0, 1, 100, 0]) })]).width, 200);
+    assert.throws(() => C.ftmMosaicLayout([a, c]), /non jointives/);
+    assert.throws(() => C.ftmMosaicLayout([a, src('b', 1200, 1840)]), /seul coin/);
+    assert.throws(() => C.ftmMosaicLayout([a, { ...b, epsg: 4326 }]), /Projections différentes/);
+    assert.throws(() => C.ftmMosaicLayout([a, src('b', 1200.5, 2000)]), /décalées/);
+    assert.throws(() => C.ftmMosaicLayout([a, { ...b, P: [1, 0, 0, -1, 1200, 2000] }]), /Résolution ou orientation/);
+});
+
+test('sélection de polygone : intérieur et extérieur', () => {
+    const concave = [[0, 0], [10, 0], [10, 10], [5, 5], [0, 10]];
+    assert.equal(C.ftmPointInPolygon([5, 2], concave), true);
+    assert.equal(C.ftmPointInPolygon([5, 9], concave), false);
+    assert.equal(C.ftmPointInPolygon([11, 2], concave), false);
 });
 
 test('J2W : centre du pixel, rotation, validation et projection explicite', () => {

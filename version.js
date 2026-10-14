@@ -1,12 +1,21 @@
 // version.js
 
 // Source unique de vérité pour la version de l'application.
-const APP_VERSION = '23.38';
+const APP_VERSION = '23.39';
 
 // Une ligne courte par changement, telle que l'utilisateur la voit : ce qui change,
 // sans le pourquoi ni le comment. Guillemets doubles : les apostrophes françaises
 // s'écrivent telles quelles.
 const CHANGELOG = [
+  {
+    version: "23.39",
+    date: "2026-10-14",
+    changes: [
+      "Import MBTiles : polygones modifiables, ajout et suppression de sommets, déplacement et annulation",
+      "Assemblage de plusieurs JP2 jointifs avec contrôle des J2W et de la projection",
+      "Exclusion automatique du noir pur, désactivable, et ajout du relief MNT dans le même fichier",
+    ],
+  },
   {
     version: "23.38",
     date: "2026-10-12",

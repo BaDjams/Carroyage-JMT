@@ -239,8 +239,10 @@ function ftmClipPolygonToRect(poly, x0, y0, x1, y1) {
 }
 
 function ftmPolygonArea(poly) {
+    if (poly.length < 3) return 0;
+    const [x, y] = poly[0]; // éviter la perte de précision sur de petites zones en Mercator
     let s = 0;
-    for (let i = 0; i < poly.length; i++) { const a = poly[i], b = poly[(i + 1) % poly.length]; s += a[0] * b[1] - b[0] * a[1]; }
+    for (let i = 0; i < poly.length; i++) { const a = poly[i], b = poly[(i + 1) % poly.length]; s += (a[0] - x) * (b[1] - y) - (b[0] - x) * (a[1] - y); }
     return Math.abs(s) / 2;
 }
 
@@ -254,17 +256,20 @@ function ftmPolygonBounds(polys) {
 
 // Tuiles (x, y en XYZ) du zoom z qui recoupent au moins un des polygones
 // (coordonnées Mercator). Un simple contact de bord ne compte pas.
-function ftmTilesForPolygons(polys, z) {
+function ftmTilesForPolygons(polys, z, limit = Infinity) {
     const r = ftmMercResolution(z) * FTM_TILE, n = 2 ** z;
     const b = ftmPolygonBounds(polys);
     const tx0 = Math.max(0, Math.floor((b.x0 + FTM_HALF) / r)), tx1 = Math.min(n - 1, Math.floor((b.x1 + FTM_HALF) / r));
     const ty0 = Math.max(0, Math.floor((FTM_HALF - b.y1) / r)), ty1 = Math.min(n - 1, Math.floor((FTM_HALF - b.y0) / r));
     const tiles = [];
-    const minArea = r * r * 1e-6;
+    const minArea = polys.reduce((a, p) => Math.min(a, ftmPolygonArea(p) || a), r * r) * 1e-6;
     for (let x = tx0; x <= tx1; x++) {
         for (let y = ty0; y <= ty1; y++) {
             const X0 = -FTM_HALF + x * r, X1 = X0 + r, Y1 = FTM_HALF - y * r, Y0 = Y1 - r;
-            if (polys.some(p => ftmPolygonArea(ftmClipPolygonToRect(p, X0, Y0, X1, Y1)) > minArea)) tiles.push({ x, y });
+            if (polys.some(p => ftmPolygonArea(ftmClipPolygonToRect(p, X0, Y0, X1, Y1)) > minArea)) {
+                if (tiles.length >= limit) throw new Error('Trop de tuiles : réduire la zone ou le zoom maximal.');
+                tiles.push({ x, y });
+            }
         }
     }
     return tiles;
@@ -411,20 +416,70 @@ function ftmEpsgFromText(text) {
 function ftmGroupInputFiles(files) {
     const list = Array.from(files);
     const images = list.filter(f => /\.(pdf|tiff?|jp2)$/i.test(f.name) || ['application/pdf', 'image/tiff'].includes(f.type));
-    if (images.length !== 1) throw new Error(images.length
-        ? 'Sélectionner une seule image JP2, un PDF ou un GeoTIFF à la fois.'
-        : 'Sélectionner le JP2 avec son J2W : le J2W seul ne contient pas l’image.');
+    if (!images.length) throw new Error('Sélectionner le JP2 avec son J2W : le J2W seul ne contient pas l’image.');
     const file = images[0], jp2 = /\.jp2$/i.test(file.name);
     const worlds = list.filter(f => /\.(j2w|jp2w|wld)$/i.test(f.name));
     const xmls = list.filter(f => /\.xml$/i.test(f.name));
-    if (!jp2 && list.length > 1) throw new Error('Les fichiers J2W et XML accompagnent une image JP2.');
-    if (worlds.length > 1 || xmls.length > 1) throw new Error('Sélectionner au plus un J2W et un XML avec le JP2.');
-    if (worlds.length && worlds[0].name.replace(/\.(j2w|jp2w|wld)$/i, '').toLowerCase()
-        !== file.name.replace(/\.jp2$/i, '').toLowerCase()) {
-        throw new Error('Le JP2 et le J2W doivent porter le même nom avant leur extension.');
+    if (images.length > 1 && images.some(f => !/\.jp2$/i.test(f.name))) throw new Error('La mosaïque accepte plusieurs JP2 ; ouvrir un PDF ou un GeoTIFF seul.');
+    if (!jp2 && list.length > 1) throw new Error('Ouvrir un PDF ou un GeoTIFF seul. Les J2W et XML accompagnent les JP2.');
+    if (images.length > 16) throw new Error('Sélectionner au plus 16 images JP2 par mosaïque.');
+    const stem = f => f.name.replace(/\.(jp2|j2w|jp2w|wld)$/i, '').toLowerCase();
+    const names = new Set();
+    const groups = images.map(image => {
+        const name = stem(image);
+        if (names.has(name)) throw new Error('Deux images portent le même nom : ' + image.name);
+        names.add(name);
+        const matches = worlds.filter(w => stem(w) === name);
+        if (matches.length > 1) throw new Error('Plusieurs J2W correspondent à ' + image.name);
+        return { file: image, world: matches[0] || null, xml: null };
+    });
+    if (worlds.some(w => !names.has(stem(w)))) throw new Error('Chaque JP2 et son J2W doivent porter le même nom avant leur extension.');
+    if (list.length !== images.length + worlds.length + xmls.length) throw new Error('Fichier non reconnu : choisir les JP2, leurs J2W et éventuellement leurs XML.');
+    if (images.length === 1 && xmls.length === 1) groups[0].xml = xmls[0];
+    return { ...groups[0], images: groups, xmls };
+}
+
+// Assemblage sans rééchantillonnage intermédiaire : même CRS, mêmes axes et
+// résolution, origines sur la même grille à 0,05 pixel près. Les emprises
+// doivent former un ensemble connecté par un bord ou un recouvrement.
+function ftmMosaicLayout(sources) {
+    const first = sources[0], inverse = ftmInvert(first.P), tolerance = 0.05;
+    const rects = sources.map(src => {
+        if (src.epsg !== first.epsg) throw new Error(`Projections différentes : ${src.name} (EPSG:${src.epsg}). Reprojeter les images dans le même système avant assemblage.`);
+        const T = ftmMultiply(inverse, src.P);
+        if (Math.max(Math.abs(T[0] - 1), Math.abs(T[1]), Math.abs(T[2]), Math.abs(T[3] - 1)) > 1e-7) {
+            throw new Error(`Résolution ou orientation incompatible : ${src.name}. Les JP2 doivent utiliser la même grille de pixels.`);
+        }
+        const x = Math.round(T[4]), y = Math.round(T[5]);
+        if (Math.abs(x - T[4]) > tolerance || Math.abs(y - T[5]) > tolerance) throw new Error(`Grilles de pixels décalées : ${src.name}. Recaler les images avant assemblage.`);
+        return { x, y, w: src.width, h: src.height };
+    });
+    const connected = new Set([0]); let overlap = false;
+    const touches = (a, b) => {
+        const dx = Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x);
+        const dy = Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y);
+        if (dx > 0 && dy > 0) overlap = true;
+        return (dx >= 0 && dy > 0) || (dy >= 0 && dx > 0);
+    };
+    for (let pass = 0; pass < rects.length; pass++) {
+        for (let i = 0; i < rects.length; i++) for (const j of connected) {
+            if (i !== j && touches(rects[i], rects[j])) connected.add(i);
+        }
     }
-    if (list.length !== 1 + worlds.length + xmls.length) throw new Error('Fichier non reconnu : choisir le JP2, son J2W et éventuellement son XML.');
-    return { file, world: worlds[0] || null, xml: xmls[0] || null };
+    if (connected.size !== sources.length) throw new Error('Images non jointives : ' + sources.filter((s, i) => !connected.has(i)).map(s => s.name).join(', ') + '. Vérifier les J2W et la projection ; un contact par un seul coin ne suffit pas.');
+    const x0 = Math.min(...rects.map(r => r.x)), y0 = Math.min(...rects.map(r => r.y));
+    return { x0, y0, width: Math.max(...rects.map(r => r.x + r.w)) - x0,
+        height: Math.max(...rects.map(r => r.y + r.h)) - y0,
+        offsets: rects.map(r => [r.x - x0, r.y - y0]), overlap };
+}
+
+function ftmPointInPolygon(p, poly) {
+    let inside = false;
+    for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+        const a = poly[i], b = poly[j];
+        if ((a[1] > p[1]) !== (b[1] > p[1]) && p[0] < (b[0] - a[0]) * (p[1] - a[1]) / (b[1] - a[1]) + a[0]) inside = !inside;
+    }
+    return inside;
 }
 
 function ftmSniffImage(b) {
