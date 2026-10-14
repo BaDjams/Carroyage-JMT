@@ -661,3 +661,37 @@ body.ftm-open { overflow: hidden; }
   .ftm-panes { flex-direction: column; flex: none; }
   .ftm-pane { height: 60vh; flex: none; border-right: none; border-bottom: 1px solid var(--ftm-border); }
 }
+
+/* Étapes d'une tâche du gestionnaire (jobSteps.js) */
+.job-steps ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 7px; }
+.job-step { display: grid; grid-template-columns: 16px minmax(0, 1fr) auto; align-items: center; column-gap: 8px; row-gap: 3px; font-size: 12px; color: #374151; }
+.job-step-icon { width: 16px; height: 16px; box-sizing: border-box; border: 2px solid #d1d5db; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; line-height: 1; color: #fff; }
+.job-step-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.job-step-info { color: #6b7280; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.job-step-bar { grid-column: 2 / 4; height: 5px; background: #e5e7eb; border-radius: 3px; overflow: hidden; }
+.job-step-bar > span { display: block; height: 100%; width: 0; background: #2563eb; border-radius: 3px; transition: width .3s; }
+.job-step.is-pending, .job-step.is-skipped, .job-step.is-cancelled { color: #9ca3af; }
+.job-step.is-running .job-step-label { font-weight: 600; }
+.job-step.is-running .job-step-icon { border-color: #bfdbfe; border-top-color: #2563eb; animation: job-step-spin .9s linear infinite; }
+.job-step.is-done .job-step-icon { border-color: #16a34a; background: #16a34a; }
+.job-step.is-done .job-step-icon::before { content: '\2713'; }
+.job-step.is-done .job-step-info { color: #15803d; }
+.job-step.is-done .job-step-bar > span { background: #16a34a; }
+.job-step.is-error .job-step-icon { border-color: #dc2626; background: #dc2626; }
+.job-step.is-error .job-step-icon::before { content: '\2715'; }
+.job-step.is-error .job-step-info { color: #dc2626; white-space: normal; text-align: right; }
+.job-step.is-error .job-step-bar > span { background: #dc2626; }
+.job-step.is-cancelled .job-step-icon::before, .job-step.is-skipped .job-step-icon::before { content: '\2013'; color: #9ca3af; }
+.job-step.is-cancelled .job-step-bar > span { background: #9ca3af; }
+.job-steps-total { margin-top: 6px; font-size: 12px; color: #6b7280; font-variant-numeric: tabular-nums; }
+@keyframes job-step-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .job-step.is-running .job-step-icon { animation: none; border-color: #2563eb; } }
+.dark .job-step { color: #e5e7eb; }
+.dark .job-step.is-pending, .dark .job-step.is-skipped, .dark .job-step.is-cancelled { color: #6b7280; }
+.dark .job-step-icon { border-color: #4b5563; }
+.dark .job-step-bar { background: #4b5563; }
+.dark .job-step-info, .dark .job-steps-total { color: #9ca3af; }
+.dark .job-step.is-running .job-step-icon { border-color: #1e3a8a; border-top-color: #60a5fa; }
+.dark .job-step.is-running .job-step-bar > span { background: #3b82f6; }
+.dark .job-step.is-done .job-step-info { color: #4ade80; }
+.dark .job-step.is-error .job-step-info { color: #f87171; }

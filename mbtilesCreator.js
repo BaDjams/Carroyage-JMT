@@ -564,26 +564,33 @@ class MbtilesJob {
             : null;
 
         this.totalTiles = this.computeTotalTiles();
-        this._startTime = null;
-        this._pausedMs = 0;
-        this._pauseStart = null;
         this.createUI();
+    }
+
+    _tileCount(z) {
+        const range = getTileRange(this.bounds, z);
+        return (range.xMax - range.xMin + 1) * (Math.max(range.yMin, range.yMax) - Math.min(range.yMin, range.yMax) + 1);
     }
 
     computeTotalTiles() {
         let count = 0;
-        this.zooms.forEach(z => {
-            const range = getTileRange(this.bounds, z);
-            count += (range.xMax - range.xMin + 1) * (Math.max(range.yMin, range.yMax) - Math.min(range.yMin, range.yMax) + 1);
-        });
+        this.zooms.forEach(z => { count += this._tileCount(z); });
         if (this.includeMnt) {
-            for (let z = MNT_MIN_ZOOM; z <= MNT_MAX_ZOOM; z++) {
-                const range = getTileRange(this.bounds, z);
-                count += (range.xMax - range.xMin + 1)
-                    * (Math.max(range.yMin, range.yMax) - Math.min(range.yMin, range.yMax) + 1);
-            }
+            for (let z = MNT_MIN_ZOOM; z <= MNT_MAX_ZOOM; z++) count += this._tileCount(z);
         }
         return count;
+    }
+
+    // Étapes annoncées dans le gestionnaire de tâches (cf. jobSteps.js).
+    _stepPlan() {
+        const steps = this.zooms.map(z => ({ id: `z${z}`, label: `Téléchargement zoom ${z}`, total: this._tileCount(z) }));
+        if (this.includeMnt) {
+            let total = 0;
+            for (let z = MNT_MIN_ZOOM; z <= MNT_MAX_ZOOM; z++) total += this._tileCount(z);
+            steps.push({ id: 'mnt', label: `Relief (MNT), zooms ${MNT_MIN_ZOOM} à ${MNT_MAX_ZOOM}`, total });
+        }
+        steps.push({ id: 'asm', label: 'Assemblage du fichier', auto: false });
+        return steps;
     }
 
     *tileGenerator() {
@@ -623,65 +630,34 @@ class MbtilesJob {
         div.className = "bg-gray-50 dark:bg-gray-700 p-3 rounded border border-gray-200 dark:border-gray-600 text-sm";
         div.innerHTML = `
             <div class="flex justify-between items-center mb-2">
-                <span class="font-bold truncate" title="${this.filename}">${this.filename}</span>
-                <span class="text-xs font-mono" id="job-status-${this.id}">En attente</span>
+                <span class="font-bold truncate job-name"></span>
+                <span class="text-xs font-mono" id="job-status-${this.id}">EN ATTENTE</span>
             </div>
-            <div class="w-full bg-gray-200 rounded-full h-2.5 dark:bg-gray-600 mb-2">
-                <div id="job-bar-${this.id}" class="bg-blue-600 h-2.5 rounded-full" style="width: 0%"></div>
-            </div>
-            <div class="flex justify-between text-xs text-gray-500">
-                <span id="job-count-${this.id}">0 / ${this.totalTiles}</span>
-                <span id="job-eta-${this.id}" class="text-gray-400 italic"></span>
+            <div class="job-steps-slot"></div>
+            <div class="flex justify-end text-xs text-gray-500 mt-1">
                 <div class="space-x-2 btn-action-container">
                     <button id="job-pause-${this.id}" class="hover:text-blue-600">Pause</button>
                     <button id="job-cancel-${this.id}" class="hover:text-red-600">Annuler</button>
                 </div>
             </div>
         `;
+        const name = div.querySelector('.job-name');
+        name.textContent = name.title = this.filename;
+        this.steps = new JobSteps(this._stepPlan());
+        div.querySelector('.job-steps-slot').replaceWith(this.steps.el);
         container.prepend(div);
 
         div.querySelector(`#job-pause-${this.id}`).onclick = () => this.togglePause();
         div.querySelector(`#job-cancel-${this.id}`).onclick = () => this.cancel();
     }
 
-    _formatETA(seconds) {
-        if (seconds < 60) return `~${Math.ceil(seconds)}s`;
-        if (seconds < 3600) return `~${Math.floor(seconds / 60)}m${Math.ceil(seconds % 60).toString().padStart(2, '0')}s`;
-        const h = Math.floor(seconds / 3600);
-        const m = Math.ceil((seconds % 3600) / 60);
-        return `~${h}h${m.toString().padStart(2, '0')}m`;
-    }
-
+    // Avancement détaillé : étapes de jobSteps.js. Ici, le seul état global.
     updateUI() {
-        const bar = document.getElementById(`job-bar-${this.id}`);
-        const count = document.getElementById(`job-count-${this.id}`);
         const status = document.getElementById(`job-status-${this.id}`);
-        const eta = document.getElementById(`job-eta-${this.id}`);
-
-        if (!bar) return;
-
-        const pct = (this.processedTiles / this.totalTiles) * 100;
-        bar.style.width = `${pct}%`;
-        count.textContent = `${this.processedTiles} / ${this.totalTiles}`;
-        status.textContent = this.status.toUpperCase();
-
-        // ETA : basé sur la vitesse moyenne depuis le démarrage (hors pauses)
-        if (eta && this.status === 'running' && this.processedTiles > 0 && this._startTime) {
-            const elapsed = (Date.now() - this._startTime - this._pausedMs) / 1000;
-            const rate = this.processedTiles / elapsed; // tuiles/s
-            const remaining = (this.totalTiles - this.processedTiles) / rate;
-            eta.textContent = this._formatETA(remaining);
-        } else if (eta && this.status !== 'running') {
-            eta.textContent = '';
-        }
-        
-        if (this.status === 'done') {
-            status.className = "text-xs font-mono text-green-600 font-bold";
-            bar.className = "bg-green-500 h-2.5 rounded-full";
-        } else if (this.status === 'error') {
-            status.className = "text-xs font-mono text-red-600 font-bold";
-            bar.className = "bg-red-500 h-2.5 rounded-full";
-        }
+        if (!status) return;
+        status.textContent = { pending: 'EN ATTENTE', running: 'EN COURS', paused: 'EN PAUSE', done: 'TERMINÉ', error: 'ERREUR', cancelled: 'ANNULÉ' }[this.status] || '';
+        if (this.status === 'done') status.className = "text-xs font-mono text-green-600 font-bold";
+        else if (this.status === 'error' || this.status === 'cancelled') status.className = "text-xs font-mono text-red-600 font-bold";
     }
 
     async _initDb() {
@@ -738,6 +714,7 @@ class MbtilesJob {
             console.error(e);
             this.status = 'error';
             this.updateUI();
+            this.steps.fail(e.message);
             alert(`Erreur Job ${this.filename}: ${e.message}`);
         }
     }
@@ -946,6 +923,7 @@ class MbtilesJob {
         const tiles = [...this.tileGenerator()];  // on matérialise pour pouvoir gérer la pause
 
         let i = 0;
+        this.storedTiles = 0;
         const writeTile = async (tile, blob) => {
             const tmsY = (1 << tile.z) - 1 - tile.y;
             if (this.useOPFS) {
@@ -961,9 +939,8 @@ class MbtilesJob {
                 const table = tile.mnt ? 'terrain_tiles' : 'tiles';
                 this.db.run(`INSERT INTO ${table} VALUES (?, ?, ?, ?)`, [tile.z, tile.x, tmsY, u8]);
             }
+            this.storedTiles++;
         };
-
-        this._startTime = Date.now();
 
         // Pool de CONCURRENCY workers qui piochent dans la liste de tuiles
         const worker = async () => {
@@ -980,6 +957,8 @@ class MbtilesJob {
                 if (idx >= tiles.length) return;
 
                 const tile = tiles[idx];
+                const step = tile.mnt ? 'mnt' : `z${tile.z}`;
+                this.steps.start(step);
                 try {
                     const blob = await this._processTile(tile);
                     if (blob) await writeTile(tile, blob);
@@ -988,6 +967,7 @@ class MbtilesJob {
                 }
 
                 this.processedTiles++;
+                this.steps.advance(step);
                 if (this.processedTiles % CONCURRENCY === 0) {
                     this.updateUI();
                     await new Promise(r => setTimeout(r, 0)); // cède la main au rendu
@@ -999,6 +979,7 @@ class MbtilesJob {
         await Promise.all(Array.from({ length: CONCURRENCY }, worker));
 
         if (!this.isCancelled) {
+            this.steps.start('asm');
             if (this.useOPFS) {
                 await this.assembleFromOPFS();
             } else {
@@ -1012,11 +993,7 @@ class MbtilesJob {
 
     async assembleFromOPFS() {
         // Phase 2 : lecture OPFS → sql-wasm → export
-        const statusEl = document.getElementById(`job-status-${this.id}`);
-        const etaEl = document.getElementById(`job-eta-${this.id}`);
-        if (etaEl) etaEl.textContent = 'Phase finale en RAM navigateur';
-        if (statusEl) statusEl.textContent = 'ASSEMBLAGE…';
-
+        this.steps.setTotal('asm', this.storedTiles);
         await this._initDb();
         this.db.run("BEGIN TRANSACTION;");
 
@@ -1033,6 +1010,7 @@ class MbtilesJob {
             const u8 = new Uint8Array(await file.arrayBuffer());
             const table = kind === 'm' ? 'terrain_tiles' : 'tiles';
             this.db.run(`INSERT INTO ${table} VALUES (?, ?, ?, ?)`, [z, x, tmsY, u8]);
+            this.steps.advance('asm');
             count++;
             if (count % 100 === 0) await new Promise(r => setTimeout(r, 0));
         }
@@ -1062,13 +1040,13 @@ class MbtilesJob {
     }
 
     finish() {
-        this.status = 'done';
-        this.updateUI();
-
         try {
             const data = this.db.export();
             this.db.close();
             this.db = null;
+            this.status = 'done';
+            this.updateUI();
+            this.steps.finish('asm', `${(data.length / 1048576).toLocaleString('fr-FR', { maximumFractionDigits: 1 })} Mo`);
 
             const fname = `${this.filename}.mbtiles`;
 
@@ -1119,6 +1097,7 @@ class MbtilesJob {
             console.error(err);
             this.status = 'error';
             this.updateUI();
+            this.steps.fail('mémoire du navigateur insuffisante');
             const container = document.getElementById(`job-${this.id}`);
             const statusDiv = container.querySelector(`#job-status-${this.id}`);
             statusDiv.textContent = "ERREUR MÉMOIRE";
@@ -1131,11 +1110,11 @@ class MbtilesJob {
     togglePause() {
         if (this.status === 'running') {
             this.status = 'paused';
-            this._pauseStart = Date.now();
+            this.steps.pause();
             document.getElementById(`job-pause-${this.id}`).textContent = "Reprendre";
         } else if (this.status === 'paused') {
             this.status = 'running';
-            if (this._pauseStart) { this._pausedMs += Date.now() - this._pauseStart; this._pauseStart = null; }
+            this.steps.resume();
             document.getElementById(`job-pause-${this.id}`).textContent = "Pause";
         }
         this.updateUI();
@@ -1144,8 +1123,12 @@ class MbtilesJob {
     cancel() {
         this.isCancelled = true;
         this.isoAbort?.abort();
-        this.status = 'error';
-        document.getElementById(`job-status-${this.id}`).textContent = "ANNULÉ";
+        this.status = 'cancelled';
+        this.steps.cancel();
+        this.updateUI();
+        const actions = document.querySelector(`#job-${this.id} .btn-action-container`);
+        if (actions) actions.textContent = '';
+        activeJobs = activeJobs.filter(j => j.id !== this.id);
         // Nettoyage OPFS si utilisé
         if (this.opfsDir) {
             navigator.storage.getDirectory().then(root =>
