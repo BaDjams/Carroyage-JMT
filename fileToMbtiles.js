@@ -9,7 +9,7 @@
 //   • GeoTIFF : le géoréférencement est lu dans le fichier, rien à pointer.
 //   • JP2 + J2W + XML : lecture par blocs dans un Web Worker avec OpenJPEG
 //     WebAssembly. Le J2W prime sur les axes internes du JP2.
-// Une sélection (rectangle, main levée) ne garde que les zones voulues. Les
+// Une sélection (rectangle, polygone éditable) ne garde que les zones voulues. Les
 // niveaux de zoom sont proposés d'après la finesse du fichier (pixels d'image,
 // taille du texte vectoriel), puis le fichier est rendu par BLOCS de 8 × 8 tuiles
 // au zoom maximal — un rendu de PDF coûte surtout un temps fixe, quelle que soit
@@ -229,9 +229,10 @@ async function ftmOpenTiff(file) {
 
 async function ftmOpenJp2(file, companions) {
     await loadScriptOnce('jpeg2000Source.js');
-    return ftmOpenJpeg2000(file, companions, {
+    return ftmOpenJp2Mosaic(companions, {
         epsgText: ftmState.$('ftm-jp2-epsg').value.trim(),
         bandsText: ftmState.$('ftm-jp2-bands').value.trim(),
+        excludeBlack: ftmState.$('ftm-black').checked,
     });
 }
 
@@ -254,6 +255,9 @@ class FtmViewer {
         this.drawing = null;
         this.points = [];
         this.selected = -1;
+        this.selectedPoly = -1;
+        this.selectedVertex = -1;
+        this.history = [];
         this._detailTimer = null;
         this._renderTask = null;
         new ResizeObserver(() => this.resize()).observe(this.box);
@@ -262,7 +266,7 @@ class FtmViewer {
 
     setStatus(t) { this.status.textContent = t || ''; this.status.hidden = !t; }
 
-    async setSource(src) {
+    async setSource(src, preserveSelection = false) {
         const s = Math.min(FTM_PREVIEW_MAX / src.width, FTM_PREVIEW_MAX / src.height, 4);
         const c = document.createElement('canvas');
         c.width = Math.max(1, Math.round(src.width * s)); c.height = Math.max(1, Math.round(src.height * s));
@@ -270,9 +274,10 @@ class FtmViewer {
         const M = [s, 0, 0, s, 0, 0];
         await src.render(c.getContext('2d'), M, c.width, c.height);
         this._renderTask?.cancel?.(); clearTimeout(this._detailTimer);
-        this.source = src; this.detail = null; this.polys = []; this.drawing = null;
+        this.source = src; this.detail = null; this.drawing = null;
+        if (!preserveSelection) { this.polys = []; this.selectedPoly = this.selectedVertex = -1; this.history = []; }
         this.base = { canvas: c, M };
-        this.resize(); this.fit();
+        this.resize(); if (!preserveSelection) this.fit();
         this.setStatus('');
         this.draw();
         this.scheduleDetail();
@@ -353,6 +358,14 @@ class FtmViewer {
             path(this.drawing.pts); if (this.drawing.kind === 'rect') ctx.closePath();
             ctx.setLineDash([6 * this.dpr, 4 * this.dpr]); ctx.strokeStyle = '#2563eb'; ctx.lineWidth = 2 * this.dpr; ctx.stroke(); ctx.setLineDash([]);
         }
+        const handles = this.tool === 'edit' ? this.handles() : [];
+        if (this.drawing?.kind === 'polygon') this.drawing.pts.forEach((p, i) => handles.push({ p, kind: i ? 'vertex' : 'close' }));
+        for (const handle of handles) {
+            const [x, y] = ftmApply(V, ...handle.p), mid = handle.kind === 'mid';
+            ctx.beginPath(); ctx.arc(x, y, (mid ? 4 : 6) * this.dpr, 0, Math.PI * 2);
+            ctx.fillStyle = mid ? '#60a5fa' : handle.kind === 'close' || handle.i === this.selectedVertex ? '#fbbf24' : '#fff';
+            ctx.fill(); ctx.strokeStyle = '#2563eb'; ctx.lineWidth = 2 * this.dpr; ctx.stroke();
+        }
         // Points d'appui
         this.points.forEach((p, i) => {
             if (!Number.isFinite(p.x)) return;
@@ -375,51 +388,150 @@ class FtmViewer {
 
     setTool(t) { this.tool = t; this.drawing = null; this.canvas.dataset.tool = t; this.draw(); }
 
+    selectionChanged() { this.draw(); this.onSelectionChange?.(); }
+    copyPolys() { return this.polys.map(poly => poly.map(p => p.slice())); }
+    remember(polys = this.copyPolys()) { this.history.push(polys); if (this.history.length > 50) this.history.shift(); }
+    clampPoint(p) { return [Math.min(Math.max(p[0], 0), this.source.width), Math.min(Math.max(p[1], 0), this.source.height)]; }
+    handles() {
+        const poly = this.polys[this.selectedPoly];
+        if (!poly) return [];
+        return poly.map((p, i) => ({ p, i, kind: 'vertex' })).concat(poly.map((p, i) => {
+            const q = poly[(i + 1) % poly.length]; return { p: [(p[0] + q[0]) / 2, (p[1] + q[1]) / 2], i: i + 1, kind: 'mid' };
+        }));
+    }
+    hitHandle(x, y, touch = false) {
+        const radius = (touch ? 18 : 10) * this.dpr;
+        return this.handles().find(h => { const p = ftmApply(this.V(), ...h.p); return Math.hypot(p[0] - x, p[1] - y) <= radius; });
+    }
+    finishPolygon() {
+        const pts = this.drawing?.kind === 'polygon' && this.drawing.pts;
+        if (!pts || pts.length < 3 || ftmPolygonArea(pts) < 1e-8) return;
+        this.remember(); this.polys.push(pts.map(p => p.slice())); this.selectedPoly = this.polys.length - 1;
+        this.selectedVertex = -1;
+        ftmSetTool('edit'); this.selectionChanged();
+    }
+    removeVertex(index = this.selectedVertex) {
+        const poly = this.polys[this.selectedPoly];
+        if (!poly || poly.length <= 3 || index < 0 || index >= poly.length) return;
+        const next = poly.filter((p, i) => i !== index);
+        if (ftmPolygonArea(next) < 1e-8) return;
+        this.remember(); this.polys[this.selectedPoly] = next; this.selectedVertex = -1; this.selectionChanged();
+    }
+    removePolygon() {
+        if (!this.polys[this.selectedPoly]) return;
+        this.remember(); this.polys.splice(this.selectedPoly, 1); this.selectedPoly = this.selectedVertex = -1; this.selectionChanged();
+    }
+    undo() {
+        if (this.drawing?.kind === 'polygon') { this.drawing.pts.pop(); if (!this.drawing.pts.length) this.drawing = null; }
+        else if (this.history.length) { this.polys = this.history.pop(); this.selectedPoly = this.selectedVertex = -1; }
+        this.selectionChanged();
+    }
+
     _bind() {
         const c = this.canvas;
+        c.tabIndex = 0;
+        c.setAttribute('aria-label', 'Sélection sur le fichier : polygones et sommets modifiables');
         c.addEventListener('wheel', e => { e.preventDefault(); const [x, y] = this.eventPoint(e); this.zoomAt(x, y, Math.exp(-e.deltaY * 0.0015)); }, { passive: false });
-        let drag = null;
+        let drag = null, longPress, ignoreContextUntil = 0;
         c.addEventListener('pointerdown', e => {
-            if (!this.source) return;
+            if (!this.source || ftmState?.opening) return;
+            c.focus({ preventScroll: true });
             c.setPointerCapture(e.pointerId);
             const [x, y] = this.eventPoint(e);
-            const pan = e.button === 1 || e.button === 2 || this.tool === 'pan' || this.tool === 'place';
-            drag = { x, y, x0: x, y0: y, pan, moved: false };
-            if (!pan && (this.tool === 'rect' || this.tool === 'free')) this.drawing = { kind: this.tool, start: this.toSource(x, y), pts: [this.toSource(x, y)] };
+            const p = this.clampPoint(this.toSource(x, y));
+            const handle = this.tool === 'edit' && this.hitHandle(x, y, e.pointerType === 'touch');
+            if (e.button === 2 && handle) return;
+            drag = { x, y, x0: x, y0: y, p, kind: 'pan', moved: false, button: e.button };
+            if (e.button !== 0) return;
+            if (this.tool === 'polygon') drag.kind = 'polygon';
+            if (this.tool === 'rect') { drag.kind = 'rect'; this.drawing = { kind: 'rect', start: p, pts: [p] }; }
+            if (this.tool === 'edit') {
+                const before = this.copyPolys();
+                if (handle) {
+                    if (handle.kind === 'mid') this.polys[this.selectedPoly].splice(handle.i, 0, handle.p.slice());
+                    this.selectedVertex = handle.i; drag.kind = 'vertex'; drag.before = before;
+                    if (e.pointerType !== 'mouse' && handle.kind === 'vertex') longPress = setTimeout(() => {
+                        drag = null; ignoreContextUntil = Date.now() + 1000; this.removeVertex(handle.i);
+                    }, 550);
+                } else {
+                    this.selectedPoly = this.polys.findLastIndex(poly => ftmPointInPolygon(p, poly)); this.selectedVertex = -1;
+                    if (this.selectedPoly >= 0) { drag.kind = 'shape'; drag.before = before; }
+                }
+                this.selectionChanged();
+            }
         });
         c.addEventListener('pointermove', e => {
             if (!drag) return;
             const [x, y] = this.eventPoint(e);
-            if (Math.hypot(x - drag.x0, y - drag.y0) > 4 * this.dpr) drag.moved = true;
-            if (drag.pan) {
+            if (Math.hypot(x - drag.x0, y - drag.y0) > 4 * this.dpr) { drag.moved = true; clearTimeout(longPress); }
+            if (drag.kind === 'pan') {
                 this.view.ox += x - drag.x; this.view.oy += y - drag.y; drag.x = x; drag.y = y;
                 this.draw();
-            } else if (this.drawing) {
-                const p = this.toSource(x, y);
-                if (this.drawing.kind === 'rect') {
+            } else {
+                const p = this.clampPoint(this.toSource(x, y));
+                if (drag.kind === 'rect' && this.drawing) {
                     const [sx, sy] = this.drawing.start;
                     this.drawing.pts = [[sx, sy], [p[0], sy], [p[0], p[1]], [sx, p[1]]];
-                } else this.drawing.pts.push(p);
+                } else if (drag.kind === 'vertex') this.polys[this.selectedPoly][this.selectedVertex] = p;
+                else if (drag.kind === 'shape' && drag.moved) {
+                    const poly = drag.before[this.selectedPoly], b = ftmPolygonBounds([poly]);
+                    const dx = Math.max(-b.x0, Math.min(this.source.width - b.x1, p[0] - drag.p[0]));
+                    const dy = Math.max(-b.y0, Math.min(this.source.height - b.y1, p[1] - drag.p[1]));
+                    this.polys[this.selectedPoly] = poly.map(q => [q[0] + dx, q[1] + dy]);
+                }
                 this.draw();
             }
         });
         const end = e => {
+            clearTimeout(longPress);
             if (!drag) return;
             const [x, y] = this.eventPoint(e);
-            if (drag.pan && drag.moved) this.scheduleDetail();
-            if (!drag.moved && this.tool === 'place') this.onPlace?.(...this.toSource(x, y));
-            if (this.drawing) {
+            if (drag.kind === 'pan' && drag.moved) this.scheduleDetail();
+            if (!drag.moved && this.tool === 'place' && drag.button === 0) this.onPlace?.(...this.toSource(x, y));
+            if (drag.kind === 'polygon' && !drag.moved) {
+                const p = this.clampPoint(this.toSource(x, y));
+                if (!this.drawing) this.drawing = { kind: 'polygon', pts: [] };
+                const pts = this.drawing.pts, first = pts[0], last = pts.at(-1);
+                if (pts.length >= 3 && Math.hypot(p[0] - first[0], p[1] - first[1]) * this.view.s <= 10 * this.dpr) { this.finishPolygon(); this._justFinished = Date.now(); }
+                else if (!last || Math.hypot(p[0] - last[0], p[1] - last[1]) * this.view.s > 3 * this.dpr) pts.push(p);
+            }
+            if (drag.kind === 'rect' && this.drawing) {
                 const poly = this.drawing.pts.map(([px, py]) => [Math.min(Math.max(px, 0), this.source.width), Math.min(Math.max(py, 0), this.source.height)]);
                 if (poly.length >= 3 && ftmPolygonArea(poly) > 1e-6 * this.source.width * this.source.height) {
-                    this.polys.push(poly); this.onSelectionChange?.();
+                    this.remember(); this.polys.push(poly); this.selectedPoly = this.polys.length - 1; this.selectedVertex = -1;
+                    ftmSetTool('edit');
                 }
                 this.drawing = null; this.draw();
             }
+            if (drag.before && (drag.moved || JSON.stringify(drag.before) !== JSON.stringify(this.polys))) {
+                if (ftmPolygonArea(this.polys[this.selectedPoly]) < 1e-8) this.polys = drag.before;
+                else this.remember(drag.before);
+            }
             drag = null;
+            this.selectionChanged();
         };
         c.addEventListener('pointerup', end);
-        c.addEventListener('pointercancel', () => { drag = null; this.drawing = null; this.draw(); });
-        c.addEventListener('contextmenu', e => e.preventDefault());
+        c.addEventListener('pointercancel', () => { clearTimeout(longPress); if (drag?.before) this.polys = drag.before; drag = null; this.drawing = null; this.selectionChanged(); });
+        c.addEventListener('contextmenu', e => {
+            e.preventDefault(); clearTimeout(longPress); drag = null;
+            if (Date.now() < ignoreContextUntil) return;
+            if (this.tool === 'edit') { const h = this.hitHandle(...this.eventPoint(e)); if (h?.kind === 'vertex') this.removeVertex(h.i); }
+        });
+        c.addEventListener('dblclick', e => {
+            e.preventDefault();
+            if (this.tool === 'polygon') this.finishPolygon();
+            else if (this.tool === 'edit' && Date.now() - (this._justFinished || 0) > 400) {
+                const h = this.hitHandle(...this.eventPoint(e)); if (h?.kind === 'vertex') this.removeVertex(h.i);
+            }
+        });
+        c.addEventListener('keydown', e => {
+            if (e.key === 'Enter') this.finishPolygon();
+            else if (e.key === 'Escape') { this.drawing = null; this.selectionChanged(); }
+            else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z' || e.key === 'Backspace' && this.drawing) this.undo();
+            else if (e.key === 'Delete' || e.key === 'Backspace') this.selectedVertex >= 0 ? this.removeVertex() : this.removePolygon();
+            else return;
+            e.preventDefault();
+        });
     }
 }
 
@@ -479,7 +591,7 @@ function ftmBuildModal() {
             <h4>1. Fichier</h4>
             <label class="ftm-btn ftm-btn-main">Choisir les fichiers…
               <input type="file" id="ftm-file" accept=".pdf,.tif,.tiff,.jp2,.j2w,.jp2w,.wld,.xml,application/pdf,image/tiff" multiple hidden></label>
-            <p class="ftm-note">Un PDF, un GeoTIFF, ou un JP2 avec son J2W et éventuellement son XML, sélectionnés ensemble.</p>
+            <p class="ftm-note">Un PDF, un GeoTIFF, ou plusieurs JP2 jointifs avec leurs J2W et XML, sélectionnés ensemble. Les parties compatibles seront assemblées dans un seul MBTiles.</p>
             <details class="ftm-note">
               <summary>Options JP2 (projection et bandes)</summary>
               <p>Le JP2 est traité directement dans le navigateur, par blocs. Aucun logiciel à installer. Le J2W est prioritaire pour la position ; le XML ou le JP2 fournit la projection.</p>
@@ -488,6 +600,8 @@ function ftmBuildModal() {
               <p>Le J2W donne la position, pas la projection. Si elle manque, saisir le code EPSG avant d'ouvrir les fichiers. Une bande infrarouge n'est pas utilisée comme transparence. Bandes : une bande grise ou trois numéros dans l'ordre rouge, vert, bleu.</p>
             </details>
             <div id="ftm-file-info" class="ftm-note"></div>
+            <label class="ftm-note" id="ftm-black-row"><input type="checkbox" id="ftm-black" checked> Exclure le noir pur #000000 des JP2</label>
+            <p class="ftm-note">Les pixels noirs deviennent transparents, y compris au milieu d'une sélection. Décochez pour conserver les vrais éléments noirs. Les valeurs NoData déclarées restent exclues.</p>
             <label id="ftm-page-row" class="ftm-row" hidden>Page <select id="ftm-page"></select></label>
           </section>
           <section class="ftm-step" id="ftm-points-step" hidden>
@@ -513,9 +627,17 @@ function ftmBuildModal() {
             <div class="ftm-btns">
               <button type="button" class="ftm-btn" data-tool="pan">✋ Déplacer</button>
               <button type="button" class="ftm-btn" data-tool="rect">▭ Rectangle</button>
-              <button type="button" class="ftm-btn" data-tool="free">✎ Main levée</button>
+              <button type="button" class="ftm-btn" data-tool="polygon">⬡ Polygone</button>
+              <button type="button" class="ftm-btn" data-tool="edit">✎ Modifier</button>
               <button type="button" class="ftm-btn" data-act="clear-zones">Tout le fichier</button>
             </div>
+            <div class="ftm-btns">
+              <button type="button" class="ftm-btn" data-act="finish-polygon" id="ftm-finish" disabled>Terminer</button>
+              <button type="button" class="ftm-btn" data-act="undo-zone" id="ftm-undo" disabled>Annuler le dernier geste</button>
+              <button type="button" class="ftm-btn" data-act="delete-vertex" id="ftm-delete-vertex" disabled>Supprimer le sommet</button>
+              <button type="button" class="ftm-btn" data-act="delete-zone" id="ftm-delete-zone" disabled>Supprimer la zone</button>
+            </div>
+            <p class="ftm-note">Polygone : un clic par sommet, puis Terminer, double-clic ou clic sur le premier point. Modifier : glisser un sommet ou la zone ; les petites poignées ajoutent un sommet. Clic droit, double-clic ou appui long sur un sommet : supprimer (3 minimum).</p>
             <div id="ftm-zones" class="ftm-note">Tout le fichier.</div>
           </section>
           <section class="ftm-step">
@@ -524,6 +646,8 @@ function ftmBuildModal() {
             <div class="ftm-row">Zooms <select id="ftm-zmin"></select> à <select id="ftm-zmax"></select></div>
             <div id="ftm-zoom-why" class="ftm-note"></div>
             <label class="ftm-row">Format <select id="ftm-format"></select></label>
+            <label class="ftm-note"><input type="checkbox" id="ftm-mnt"> Inclure le MNT pour le relief 3D dans CadoTour</label>
+            <p class="ftm-note">Télécharge les altitudes Terrarium de la zone (connexion nécessaire), dans le même fichier. Résolution du relief indépendante de celle de la photo.</p>
             <div id="ftm-estimate" class="ftm-note"></div>
             <button type="button" class="ftm-btn ftm-btn-main" data-act="generate" id="ftm-generate" disabled>Générer le .mbtiles</button>
           </section>
@@ -573,12 +697,16 @@ async function openFileToMbtiles() {
     // Événements
     modal.addEventListener('click', e => {
         const act = e.target.closest('[data-act]')?.dataset.act;
-        const tool = e.target.closest('[data-tool]')?.dataset.tool;
+        const tool = e.target.closest('button[data-tool]')?.dataset.tool;
         if (tool) ftmSetTool(tool);
         if (act === 'close') { modal.hidden = true; document.body.classList.remove('ftm-open'); }
         if (act === 'add-point') ftmAddPoint();
         if (act === 'export-points') ftmExportPoints();
-        if (act === 'clear-zones') { st.viewer.polys = []; ftmSetTool('pan'); ftmRefresh(); }
+        if (act === 'clear-zones') { st.viewer.remember(); st.viewer.polys = []; st.viewer.selectedPoly = st.viewer.selectedVertex = -1; ftmSetTool('pan'); ftmRefresh(); }
+        if (act === 'finish-polygon') st.viewer.finishPolygon();
+        if (act === 'undo-zone') st.viewer.undo();
+        if (act === 'delete-vertex') st.viewer.removeVertex();
+        if (act === 'delete-zone') st.viewer.removePolygon();
         if (act === 'generate') ftmStartJob();
     });
     $('ftm-file').addEventListener('change', e => { const files = Array.from(e.target.files); e.target.value = ''; if (files.length) ftmOpenFile(files); });
@@ -594,7 +722,17 @@ async function openFileToMbtiles() {
     });
     $('ftm-kind').addEventListener('change', e => { st.kind = e.target.value; ftmRefresh(); });
     $('ftm-opacity').addEventListener('input', e => st.preview.setOpacity(e.target.value / 100));
-    for (const id of ['ftm-zmin', 'ftm-zmax', 'ftm-format']) $(id).addEventListener('change', () => ftmUpdateEstimate());
+    for (const id of ['ftm-zmin', 'ftm-zmax', 'ftm-format', 'ftm-mnt']) $(id).addEventListener('change', () => ftmUpdateEstimate());
+    $('ftm-black').addEventListener('change', async e => {
+        const src = st.source;
+        if (!src || src.kind !== 'jp2' || st.opening) return;
+        const previous = src.excludeBlack;
+        src.excludeBlack = e.target.checked; st.opening = true;
+        $('ftm-file').disabled = $('ftm-black').disabled = $('ftm-generate').disabled = true;
+        try { await st.viewer.setSource(src, true); }
+        catch (err) { src.excludeBlack = previous; e.target.checked = previous; st.viewer.setStatus(''); alert(err.message); }
+        finally { st.opening = false; $('ftm-file').disabled = $('ftm-black').disabled = false; ftmRefresh(); }
+    });
     const fmt = $('ftm-format');
     if (st.webp) fmt.append(new Option('WebP (léger, conseillé)', 'webp'));
     fmt.append(new Option('PNG (sans perte)', 'png'), new Option('JPEG (photos, sans transparence)', 'jpg'));
@@ -607,7 +745,8 @@ async function openFileToMbtiles() {
 function ftmSetTool(tool) {
     const st = ftmState;
     st.viewer.setTool(tool === 'pan' && st.awaiting === 'plan' ? 'place' : tool);
-    st.modal.querySelectorAll('[data-tool]').forEach(b => b.classList.toggle('is-active', b.dataset.tool === tool));
+    st.modal.querySelectorAll('button[data-tool]').forEach(b => b.classList.toggle('is-active', b.dataset.tool === tool));
+    ftmRefresh();
 }
 
 async function ftmOpenFile(files) {
@@ -621,6 +760,7 @@ async function ftmOpenFile(files) {
     let src;
     st.opening = true;
     $('ftm-file').disabled = true;
+    $('ftm-black').disabled = true;
     $('ftm-generate').disabled = true;
     $('ftm-file-info').textContent = 'Ouverture…';
     try {
@@ -638,12 +778,13 @@ async function ftmOpenFile(files) {
     } finally {
         st.opening = false;
         $('ftm-file').disabled = false;
+        $('ftm-black').disabled = false;
         if (!src && previous) ftmRefresh();
     }
     previous?.retire?.();
     st.source = src;
     st.points = []; st.selected = -1; st.awaiting = null; st.T = null; st.zoomTouched = false;
-    $('ftm-name').value = file.name.replace(/\.[^.]+$/, '');
+    $('ftm-name').value = file.name.replace(/\.[^.]+$/, '') + (group.images.length > 1 ? '-mosaique' : '');
     $('ftm-page-row').hidden = !(src.kind === 'pdf' && src.pages > 1);
     if (src.kind === 'pdf') {
         $('ftm-page').replaceChildren(...Array.from({ length: src.pages }, (_, i) => new Option(`${i + 1} / ${src.pages}`, i + 1)));
@@ -795,12 +936,20 @@ function ftmRefresh() {
     ftmRenderPoints(residuals);
     // Zones
     const nz = st.viewer.polys.length;
-    $('ftm-zones').textContent = nz ? `${nz} zone(s) gardée(s) ; le reste devient transparent.` : 'Tout le fichier.';
+    const drawing = st.viewer.drawing?.kind === 'polygon' && st.viewer.drawing.pts;
+    const poly = st.viewer.polys[st.viewer.selectedPoly];
+    $('ftm-finish').disabled = !drawing || drawing.length < 3;
+    $('ftm-undo').disabled = !drawing?.length && !st.viewer.history.length;
+    $('ftm-delete-vertex').disabled = !poly || poly.length <= 3 || st.viewer.selectedVertex < 0;
+    $('ftm-delete-zone').disabled = !poly;
+    $('ftm-zones').textContent = drawing ? `${drawing.length} sommet(s) posé(s) — terminer le polygone avant de générer.`
+        : (nz ? `${nz} zone(s) gardée(s) ; le reste devient transparent.` : 'Toute la couverture des fichiers.')
+        + (src?.kind === 'jp2' && src.excludeBlack ? ' Noir pur exclu.' : '');
     // Emprise sur la carte
     st.footprint.clearLayers();
     const georef = src && (!src.needsPoints || st.T);
     if (georef) {
-        const rings = nz ? st.viewer.polys : [[[0, 0], [src.width, 0], [src.width, src.height], [0, src.height]]];
+        const rings = nz ? st.viewer.polys : src.footprints || [[[0, 0], [src.width, 0], [src.width, src.height], [0, src.height]]];
         for (const ring of rings) {
             L.polygon(ring.map(([x, y]) => { const [lon, lat] = ftmMercToLonLat(...src.toMerc(x, y)); return [lat, lon]; }),
                 { color: '#2563eb', weight: 2, fill: false, interactive: false }).addTo(st.footprint);
@@ -812,7 +961,7 @@ function ftmRefresh() {
 
 async function ftmUpdateZooms() {
     const st = ftmState, src = st.source, $ = st.$;
-    const ready = !st.opening && src && (!src.needsPoints || st.T);
+    const ready = !st.opening && !st.viewer.drawing && src && (!src.needsPoints || st.T);
     $('ftm-generate').disabled = !ready;
     if (!ready) { $('ftm-zoom-why').textContent = ''; $('ftm-estimate').textContent = ''; return; }
     const polys = ftmMercPolygons();
@@ -838,7 +987,7 @@ async function ftmUpdateZooms() {
 
 function ftmMercPolygons() {
     const st = ftmState, src = st.source;
-    const rings = st.viewer.polys.length ? st.viewer.polys : [[[0, 0], [src.width, 0], [src.width, src.height], [0, src.height]]];
+    const rings = st.viewer.polys.length ? st.viewer.polys : src.footprints || [[[0, 0], [src.width, 0], [src.width, src.height], [0, src.height]]];
     // Côtés densifiés : un GeoTIFF projeté courbe légèrement les droites en Mercator.
     return rings.map(ring => {
         const out = [];
@@ -852,7 +1001,7 @@ function ftmMercPolygons() {
 
 function ftmUpdateEstimate() {
     const st = ftmState, $ = st.$;
-    if (st.opening || !st.source || $('ftm-generate').disabled && !(!st.source.needsPoints || st.T)) return;
+    if (st.opening || st.viewer.drawing || !st.source || (st.source.needsPoints && !st.T)) return;
     let zmin = Number($('ftm-zmin').value), zmax = Number($('ftm-zmax').value);
     if (zmin > zmax) { [zmin, zmax] = [zmax, zmin]; $('ftm-zmin').value = zmin; $('ftm-zmax').value = zmax; }
     const polys = ftmMercPolygons();
@@ -863,6 +1012,8 @@ function ftmUpdateEstimate() {
     const tooMany = approx > FTM_MAX_TILES;
     const blocks = Math.ceil(area / tileArea / (FTM_BLOCK_TILES * FTM_BLOCK_TILES)) + 1;
     $('ftm-estimate').innerHTML = `≈ <b>${ftmNum(Math.round(approx))}</b> tuiles, ≈ ${ftmNum(approx * kb / 1024, 0)} Mo · ${ftmNum(blocks)} rendus du fichier au zoom ${zmax}.`
+        + ($('ftm-mnt').checked ? '<br>Relief ajouté aux niveaux 0 à 12, dans le même MBTiles.' : '')
+        + (fmt === 'jpg' ? '<br>JPEG : les zones transparentes seront blanches. Choisir PNG ou WebP pour conserver la transparence.' : '')
         + (tooMany ? `<br><span class="ftm-warn">Trop de tuiles pour le navigateur (au-delà de ${ftmNum(FTM_MAX_TILES)}) : baissez le zoom maximal ou réduisez la zone.</span>` : '');
     $('ftm-generate').disabled = tooMany;
 }
@@ -871,12 +1022,14 @@ function ftmUpdateEstimate() {
 
 function ftmStartJob() {
     const st = ftmState, $ = st.$, src = st.source;
+    if (!src || st.opening || st.viewer.drawing || $('ftm-generate').disabled) return;
     const zmin = Number($('ftm-zmin').value), zmax = Number($('ftm-zmax').value);
     const job = new FtmJob({
-        id: ftmJobCounter++, source: src, polysSrc: st.viewer.polys.length ? st.viewer.polys.map(p => p.slice()) : null,
+        id: ftmJobCounter++, source: src, polysSrc: st.viewer.polys.length ? st.viewer.copyPolys() : null,
         polysMerc: ftmMercPolygons(), zmin, zmax, format: $('ftm-format').value,
         name: ($('ftm-name').value || 'Plan').trim(), T: st.T ? st.T.slice() : null,
         pointsUsed: ftmUsablePoints(st.points).length,
+        excludeBlack: src.excludeBlack, includeMnt: $('ftm-mnt').checked,
     });
     st.modal.hidden = true; document.body.classList.remove('ftm-open');
     job.run();
@@ -921,22 +1074,36 @@ class FtmJob {
     cancel() {
         this.cancelled = true;
         this._task?.cancel?.();
+        this._fetchController?.abort();
         this.status('ANNULÉ', 'text-red-600 font-bold');
         this.ui.querySelector('.ftm-job-actions').textContent = '';
-        this.store?.clear();
     }
 
     async run() {
         try {
             this.t0 = Date.now();
             const { zmin, zmax } = this;
-            const tiles = ftmTilesForPolygons(this.polysMerc, zmax);
+            const tiles = ftmTilesForPolygons(this.polysMerc, zmax, FTM_MAX_TILES);
             const counts = ftmPyramidCounts(tiles, zmin, zmax);
             this.total = Object.values(counts).reduce((a, b) => a + b, 0);
+            if (this.total > FTM_MAX_TILES) throw new Error('Trop de tuiles : réduire la zone ou le zoom maximal.');
+            this.terrainPlan = [];
+            if (this.includeMnt) {
+                await ensureMbtilesCreatorModule(); // source et convention MNT communes aux deux exports
+                if (this.cancelled) return;
+                for (let z = MNT_MIN_ZOOM; z <= MNT_MAX_ZOOM; z++) {
+                    const level = ftmTilesForPolygons(this.polysMerc, z, FTM_MAX_TILES - this.total - this.terrainPlan.length);
+                    for (const t of level) this.terrainPlan.push({ ...t, z });
+                }
+                this.total += this.terrainPlan.length;
+            }
             this.store = await FtmTileStore.create(this.id);
             this.status('RENDU', '');
             await this.renderMaxZoom(tiles);
             for (let z = zmax - 1; z >= zmin && !this.cancelled; z--) await this.buildLevel(z);
+            if (this.cancelled) return;
+            if (!this.stored) throw new Error('Aucun pixel conservé dans la sélection. Modifier la zone ou désactiver l’exclusion du noir.');
+            if (this.includeMnt) await this.downloadTerrain();
             if (this.cancelled) return;
             await this.assemble();
         } catch (e) {
@@ -944,9 +1111,39 @@ class FtmJob {
             console.error(e);
             this.status('ERREUR', 'text-red-600 font-bold');
             this.ui.querySelector('.ftm-job-eta').textContent = e.message;
-            this.store?.clear();
         } finally {
+            await this.store?.clear();
+            await this.terrainStore?.clear();
             this.source.release?.();
+        }
+    }
+
+    async downloadTerrain() {
+        this.status('RELIEF', '');
+        this.terrainStore = await FtmTileStore.create(this.id + '_mnt');
+        for (const t of this.terrainPlan) {
+            if (this.cancelled) return;
+            const url = MNT_TILE_URL.replace('{z}', t.z).replace('{x}', t.x).replace('{y}', t.y);
+            let blob, lastError;
+            for (let attempt = 0; attempt < 3 && !this.cancelled; attempt++) {
+                const controller = this._fetchController = new AbortController();
+                const timer = setTimeout(() => controller.abort(), 20000);
+                try {
+                    const response = await fetch(url, { signal: controller.signal });
+                    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                    const candidate = await response.blob();
+                    if (ftmSniffImage(new Uint8Array(await candidate.slice(0, 16).arrayBuffer())) !== 'png') throw new Error('réponse non PNG');
+                    const bmp = await createImageBitmap(candidate);
+                    const valid = bmp.width === 256 && bmp.height === 256; bmp.close();
+                    if (!valid) throw new Error('dimensions du relief incorrectes');
+                    blob = candidate; break;
+                } catch (err) { lastError = err; }
+                finally { clearTimeout(timer); this._fetchController = null; }
+            }
+            if (this.cancelled) return;
+            if (!blob) throw new Error(`MNT indisponible (${t.z}/${t.x}/${t.y} : ${lastError?.message}). Vérifier la connexion et relancer, ou décocher le MNT.`);
+            await this.terrainStore.put(t.z, t.x, t.y, blob);
+            this.done++; this.progress(`relief · zoom ${t.z}`);
         }
     }
 
@@ -979,15 +1176,19 @@ class FtmJob {
             ctx.setTransform(1, 0, 0, 1, 0, 0);
             ctx.globalCompositeOperation = 'source-over';
             ctx.clearRect(0, 0, side, side);
-            this._task = src.render(ctx, M, side, side);
+            this._task = src.render(ctx, M, side, side, { excludeBlack: this.excludeBlack });
             await this._task;
             if (this.cancelled) return;
             // Ne garder que les zones voulues, et rien hors du fichier.
             ctx.setTransform(...M);
             ctx.globalCompositeOperation = 'destination-in';
             ctx.beginPath();
-            for (const poly of (this.polysSrc || [pagePoly])) poly.forEach(([x, y], i) => i ? ctx.lineTo(x, y) : ctx.moveTo(x, y));
-            ctx.closePath();
+            for (const poly of (this.polysSrc || src.footprints || [pagePoly])) {
+                // Même orientation pour l'union de zones tracées dans les deux sens.
+                const signed = poly.reduce((s, p, i) => { const q = poly[(i + 1) % poly.length]; return s + p[0] * q[1] - q[0] * p[1]; }, 0);
+                const ring = signed < 0 ? poly.slice().reverse() : poly;
+                ring.forEach(([x, y], i) => i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)); ctx.closePath();
+            }
             ctx.fill('nonzero');
             ctx.setTransform(1, 0, 0, 1, 0, 0);
             ctx.globalCompositeOperation = 'source-over';
@@ -1053,32 +1254,48 @@ class FtmJob {
         await ensureSqlJs();
         const SQL = await window.initSqlJs({ locateFile: f => f });
         const db = new SQL.Database();
-        db.run('CREATE TABLE metadata (name text, value text);');
-        db.run('CREATE TABLE tiles (zoom_level integer, tile_column integer, tile_row integer, tile_data blob);');
-        db.run('BEGIN TRANSACTION;');
-        let n = 0;
-        for (let z = this.zmin; z <= this.zmax; z++) {
-            for (const t of await this.store.keys(z)) {
-                const blob = await this.store.get(z, t.x, t.y);
-                db.run('INSERT INTO tiles VALUES (?, ?, ?, ?)', [z, t.x, (1 << z) - 1 - t.y, new Uint8Array(await blob.arrayBuffer())]);
-                if (++n % 200 === 0) await new Promise(r => setTimeout(r, 0));
+        let data;
+        try {
+            db.run('CREATE TABLE metadata (name text, value text);');
+            db.run('CREATE TABLE tiles (zoom_level integer, tile_column integer, tile_row integer, tile_data blob);');
+            if (this.includeMnt) db.run('CREATE TABLE terrain_tiles (zoom_level integer, tile_column integer, tile_row integer, tile_data blob);');
+            db.run('BEGIN TRANSACTION;');
+            let n = 0;
+            for (let z = this.zmin; z <= this.zmax; z++) {
+                for (const t of await this.store.keys(z)) {
+                    if (this.cancelled) return;
+                    const blob = await this.store.get(z, t.x, t.y);
+                    db.run('INSERT INTO tiles VALUES (?, ?, ?, ?)', [z, t.x, (1 << z) - 1 - t.y, new Uint8Array(await blob.arrayBuffer())]);
+                    if (++n % 200 === 0) await new Promise(r => setTimeout(r, 0));
+                }
             }
-        }
-        const b = ftmPolygonBounds(this.polysMerc);
-        const [w, s] = ftmMercToLonLat(b.x0, b.y0), [e, nn] = ftmMercToLonLat(b.x1, b.y1);
-        const meta = {
-            name: this.name, format: this.realFormat || this.format, type: 'baselayer', version: '1.2',
-            minzoom: String(this.zmin), maxzoom: String(this.zmax),
-            bounds: [w, s, e, nn].map(v => v.toFixed(6)).join(','),
-            center: `${((w + e) / 2).toFixed(6)},${((s + nn) / 2).toFixed(6)},${Math.min(this.zmax, Math.max(this.zmin, this.zmin + 2))}`,
-            description: `${this.source.name} — ${this.source.kind === 'pdf' ? `recalé par ${this.pointsUsed} points d'appui` : `${this.source.kind === 'jp2' ? 'JP2' : 'GeoTIFF'} EPSG:${this.source.epsg}`} (Carroyage-JMT)`,
-        };
-        for (const [k, v] of Object.entries(meta)) db.run('INSERT INTO metadata VALUES (?, ?)', [k, v]);
-        db.run('CREATE UNIQUE INDEX tile_index on tiles (zoom_level, tile_column, tile_row);');
-        db.run('COMMIT;');
-        const data = db.export();
-        db.close();
-        await this.store.clear();
+            if (this.includeMnt) {
+                for (const t of this.terrainPlan) {
+                    if (this.cancelled) return;
+                    const blob = await this.terrainStore.get(t.z, t.x, t.y);
+                    db.run('INSERT INTO terrain_tiles VALUES (?, ?, ?, ?)', [t.z, t.x, (1 << t.z) - 1 - t.y, new Uint8Array(await blob.arrayBuffer())]);
+                    if (++n % 200 === 0) await new Promise(r => setTimeout(r, 0));
+                }
+                db.run('CREATE UNIQUE INDEX terrain_tile_index ON terrain_tiles (zoom_level, tile_column, tile_row);');
+            }
+            const b = ftmPolygonBounds(this.polysMerc);
+            const [w, s] = ftmMercToLonLat(b.x0, b.y0), [e, nn] = ftmMercToLonLat(b.x1, b.y1);
+            const meta = {
+                name: this.name, format: this.realFormat || this.format, type: 'baselayer', version: '1.2',
+                minzoom: String(this.zmin), maxzoom: String(this.zmax),
+                bounds: [w, s, e, nn].map(v => v.toFixed(6)).join(','),
+                center: `${((w + e) / 2).toFixed(6)},${((s + nn) / 2).toFixed(6)},${Math.min(this.zmax, Math.max(this.zmin, this.zmin + 2))}`,
+                description: `${this.source.name} — ${this.source.kind === 'pdf' ? `recalé par ${this.pointsUsed} points d'appui` : `${this.source.kind === 'jp2' ? 'JP2' : 'GeoTIFF'} EPSG:${this.source.epsg}`} (Carroyage-JMT)`,
+            };
+            if (this.includeMnt) Object.assign(meta, { mnt_storage: 'terrain_tiles', mnt_minzoom: String(MNT_MIN_ZOOM),
+                mnt_maxzoom: String(MNT_MAX_ZOOM), mnt_encoding: 'terrarium',
+                attribution: 'Relief : Mapzen / AWS Terrain Tiles (sources : https://github.com/tilezen/joerd/blob/master/docs/attribution.md)' });
+            for (const [k, v] of Object.entries(meta)) db.run('INSERT INTO metadata VALUES (?, ?)', [k, v]);
+            db.run('CREATE UNIQUE INDEX tile_index on tiles (zoom_level, tile_column, tile_row);');
+            db.run('COMMIT;');
+            data = db.export();
+        } finally { db.close(); }
+        if (this.cancelled) return;
         this.done = this.total;
         this.progress(`${ftmNum(data.length / 1048576, 1)} Mo`);
         this.status('TERMINÉ', 'text-green-600 font-bold');
@@ -1086,7 +1303,7 @@ class FtmJob {
         const save = () => ftmSaveBytes(data, fname);
         const act = this.ui.querySelector('.ftm-job-actions');
         act.replaceChildren(ftmEl('button', { type: 'button', class: 'text-green-600 font-bold hover:underline', onclick: save }, 'Télécharger'));
-        save();
+        await save();
     }
 }
 

@@ -12,8 +12,8 @@ const cancelled = new Set(), cache = new Map();
 let cacheSize = 0;
 const CACHE_MAX = 32 * 1024 * 1024;
 
-async function jp2DecodeTile(tile, reducePower, bands, alpha, nodata) {
-    const key = `${tile.index}/${reducePower}/${bands}/${alpha}/${nodata}`;
+async function jp2DecodeTile(tile, reducePower, bands, alpha, nodata, excludeBlack) {
+    const key = `${tile.index}/${reducePower}/${bands}/${alpha}/${nodata}/${excludeBlack}`;
     if (cache.has(key)) {
         const value = cache.get(key); cache.delete(key); cache.set(key, value); return value;
     }
@@ -37,6 +37,7 @@ async function jp2DecodeTile(tile, reducePower, bands, alpha, nodata) {
         rgba[k + 2] = raw[j + (bands[2] ?? bands[0])];
         rgba[k + 3] = alpha == null ? 255 : raw[j + alpha];
         if (nodata != null && bands.every(b => raw[j + b] === nodata)) rgba[k + 3] = 0;
+        if (excludeBlack && rgba[k] === 0 && rgba[k + 1] === 0 && rgba[k + 2] === 0) rgba[k + 3] = 0;
     }
     const value = { rgba, width, height,
         x: Math.ceil(tile.x0 / divisor) * divisor - index.siz.x0,
@@ -66,7 +67,7 @@ async function jp2Handle(data) {
             let done = 0;
             for (const tile of candidates) {
                 if (cancelled.has(id)) break;
-                const image = await jp2DecodeTile(tile, data.reducePower, data.bands, data.alpha, data.nodata);
+                const image = await jp2DecodeTile(tile, data.reducePower, data.bands, data.alpha, data.nodata, data.excludeBlack);
                 if (cancelled.has(id)) break;
                 const rgba = image.rgba.slice(); // le cache garde sa copie
                 self.postMessage({ id, type: 'tile', ...image, rgba, done: ++done, total: candidates.length }, [rgba.buffer]);

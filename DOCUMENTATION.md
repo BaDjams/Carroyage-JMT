@@ -1,8 +1,8 @@
 # Carroyage-JMT — Documentation technique
 
-**Version applicative** : 23.38
+**Version applicative** : 23.39
 **Public visé** : développeurs et mainteneurs du projet
-**Date de mise à jour** : 2026-05-05
+**Date de mise à jour** : 2026-10-14
 **Dépôt** : https://github.com/BaDjams/Carroyage-JMT — miroir GitLab : https://gitlab.example.com/org/Carroyage-JMT
 
 ---
@@ -369,8 +369,15 @@ PDF à l'échelle, GeoTIFF ou JP2/J2W/XML → `.mbtiles` lisible par CadoTour. C
   définitions proj4 intégrées (`ftmProjDefinition`) : 4326, 4171, 4258, 3857, 3395, 2154,
   27572, CC42–CC50, UTM WGS84 et ETRS89, quelques UTM d'outre-mer. Valeur NoData rendue
   transparente ; aperçus (overviews) utilisés pour l'affichage.
-- **Zones gardées** : rectangle ou main levée sur la visionneuse ; hors zones (et hors
-  fichier), transparent.
+- **Zones gardées** : rectangle ou polygone point par point. Terminer par le bouton,
+  Entrée, double-clic ou clic sur le premier sommet. En mode **Modifier**, glisser
+  un sommet ou l'intérieur de la zone ; saisir une petite poignée intermédiaire
+  pour insérer un sommet, y compris sur le côté qui ferme le polygone. Clic droit,
+  double-clic, appui long tactile ou bouton pour supprimer un sommet (3 minimum).
+  Suppression d'une zone, annulation des 50 derniers gestes et Ctrl+Z ; pendant
+  un tracé, Retour arrière retire le dernier point et Échap abandonne le tracé.
+  Le rendu conserve l'union des zones, même tracées dans des sens opposés ; hors
+  zones et hors couverture des fichiers, les pixels restent transparents.
 - **Zooms proposés** (`ftmSuggestZooms`) : maximal = plus fin des deux critères — pixel de la
   plus grande image du PDF (matrice courante suivie dans la liste d'opérateurs pdf.js) ou du
   GeoTIFF, et texte vectoriel lisible (10e centile des hauteurs, pondéré par les caractères,
@@ -384,6 +391,16 @@ PDF à l'échelle, GeoTIFF ou JP2/J2W/XML → `.mbtiles` lisible par CadoTour. C
 - **MBTiles** : WebP (si le navigateur l'encode), PNG ou JPEG (fond blanc) ; métadonnées
   `name`, `format` (lu dans les octets), `type=baselayer`, `bounds`, `center`, `minzoom`,
   `maxzoom`, `description`. Plafond : 400 000 tuiles estimées.
+- **MNT optionnel** : case « Inclure le MNT » pour les trois types de sources.
+  Téléchargement Terrarium de la zone sélectionnée, niveaux 0 à 12, en conservant
+  les PNG originaux. Connexion nécessaire, sans envoi des images. Le relief utilise
+  sa résolution propre, indépendante du zoom de la photo. Même convention V2 que
+  `mbtilesCreator.js` : table `terrain_tiles`, lignes TMS, métadonnées `mnt_storage`,
+  `mnt_encoding=terrarium`, `mnt_minzoom=0`, `mnt_maxzoom=12`, jamais `mnt_zoom`.
+  Le fond reste dans `tiles` et reste lisible par les lecteurs MBTiles classiques ;
+  l'altitude est exploitée par CadoTour. Une erreur réseau après trois essais
+  interrompt l'export avec un message, sans livrer un relief incomplet. Annulation
+  du téléchargement et nettoyage des deux espaces temporaires OPFS.
 - Tests : `node tools/test_file_to_mbtiles.mjs` (calculs purs de `fileToMbtilesCore.js`).
 
 **Images satellite JP2 (JPEG 2000)**
@@ -392,7 +409,7 @@ Le JP2 contient l'image. Le J2W contient six nombres : taille et rotation des pi
 puis coordonnées du **centre** du pixel supérieur gauche. Il ne contient ni projection
 ni référence au nom du JP2. L'association se fait par le nom commun (`image.JP2`,
 `image.J2W`). Le navigateur ne peut pas lire un fichier voisin sans qu'il soit choisi :
-sélectionner **le JP2 et le J2W ensemble**, avec le XML s'il existe (Ctrl+clic).
+sélectionner **les JP2 et leurs J2W ensemble**, avec les XML s'ils existent (Ctrl+clic).
 Un XML DIMAP est une fiche de métadonnées, même s'il s'affiche comme une page grâce à
 une feuille de style. Il peut préciser la projection et les valeurs sans données.
 
@@ -420,6 +437,28 @@ sur un hébergement statique comme en local : aucun serveur Python, aucune insta
   une bande pour une image grise. Le champ « Bandes RVB » permet de les choisir.
   Une quatrième bande indéfinie n'est pas traitée comme alpha (elle peut être
   infrarouge). Les valeurs NoData DIMAP deviennent transparentes.
+- **Mosaïque** : jusqu'à 16 JP2. Chaque J2W est associé par le nom commun ; un
+  DIMAP peut décrire plusieurs images via ses `DATA_FILE_PATH`. Les XML individuels
+  sans référence sont associés par nom (`image.xml` ou `image.jp2.aux.xml`). Les
+  fichiers sans correspondance et les associations ambiguës sont refusés.
+  `ftmMosaicLayout` vérifie le même EPSG, les mêmes axes et la même résolution
+  (tolérance relative 1e-7), puis des origines sur une grille commune à 0,05 pixel
+  près. Les positions acceptées sont alignées sur cette grille. Les emprises doivent
+  former un ensemble connecté par un bord ou un recouvrement ; un coin seul ou
+  un espace entre deux groupes est refusé. Ces contrôles portent sur les emprises
+  géoréférencées, pas sur une reconnaissance visuelle du contenu. Des acquisitions
+  de grilles différentes doivent être recalées avant import.
+  En recouvrement, le dernier nom de fichier dans l'ordre de tri l'emporte, sauf
+  pixels transparents. Les images restent décodées séparément par blocs, sans
+  création d'un immense canevas intermédiaire. Cache de 32 Mo par image.
+- **Noir pur** : option activée par défaut pour les JP2, modifiable après ouverture.
+  Les pixels dont les trois bandes affichées valent exactement zéro deviennent
+  transparents avant composition de la mosaïque ; aucune tolérance aux couleurs
+  voisines. Aperçu et export utilisent ce masque, en plus du NoData déclaré.
+  Les tuiles entièrement transparentes sont omises. Cette exclusion ne redessine
+  pas les contours vectoriels de la sélection. Désactiver si le noir appartient
+  à l'image utile. Choisir PNG ou WebP pour conserver la transparence : le JPEG
+  remplace les pixels transparents par du blanc.
 - **Formats pris en charge** : JP2 tuilé ou mono-bloc, une, trois ou quatre bandes
   non signées de 1 à 8 bits, sans sous-échantillonnage, espace RVB ou gris. Paquets
   globaux PPM/PLM et plusieurs codestreams refusés avec un message explicite.
@@ -438,6 +477,9 @@ sur un hébergement statique comme en local : aucun serveur Python, aucune insta
   L'option `--gdal` compare les pixels décodés à GDAL/rasterio (Python requis pour
   ce contrôle de développement seulement). Parcours complet dans un Chromium de test :
   `node tools/test_jpeg2000_browser.mjs <module-playwright> [dossier-JP2] [--native]`.
+  Mosaïque, contrôle des métadonnées, noir pur, édition souris/tactile, export MNT
+  (fournisseur simulé, vérification des octets et des lignes TMS), panne et annulation :
+  `node tools/test_file_import_browser.mjs <module-playwright>`.
 
 #### `seedManager.js`
 

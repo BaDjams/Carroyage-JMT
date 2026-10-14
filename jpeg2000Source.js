@@ -46,7 +46,7 @@ function ftmJp2Xml(text, filename) {
     return out;
 }
 
-async function ftmOpenJpeg2000(file, companions, { epsgText = '', bandsText = '' } = {}) {
+async function ftmOpenJpeg2000(file, companions, { epsgText = '', bandsText = '', excludeBlack = true } = {}) {
     if (epsgText && !/^\d+$/.test(epsgText)) throw new Error('Saisir un code EPSG entier, par exemple 4326 ou 2154.');
     if (bandsText && !/^\d+(\s*,\s*\d+){0,2}$/.test(bandsText)) throw new Error('Bandes : une bande grise (1) ou trois bandes RVB (1,2,3).');
     if (companions.xml?.size > 4 * 1024 * 1024 || companions.world?.size > 64 * 1024) throw new Error('Le fichier de métadonnées est trop volumineux (XML : 4 Mo, J2W : 64 Ko).');
@@ -111,7 +111,7 @@ async function ftmOpenJpeg2000(file, companions, { epsgText = '', bandsText = ''
         const alpha = info.channels.find(c => c.type === 1)?.index ?? null;
         const proj = proj4(def, ftmProjDefinition(3857)), Pi = ftmInvert(P);
         const src = {
-            kind: 'jp2', name: file.name, needsPoints: false, unit: 'px', affine: false, epsg,
+            kind: 'jp2', name: file.name, needsPoints: false, unit: 'px', affine: false, epsg, P, excludeBlack,
             width: info.width, height: info.height, users: 0, retired: false,
             toMerc(x, y) { return proj.forward(ftmApply(P, x, y)); },
             mercToSource(X, Y) { return ftmApply(Pi, ...proj.inverse([X, Y])); },
@@ -119,7 +119,7 @@ async function ftmOpenJpeg2000(file, companions, { epsgText = '', bandsText = ''
             release() { if (--this.users === 0 && this.retired) this.dispose(); },
             retire() { this.retired = true; if (!this.users) this.dispose(); },
             dispose() { failure = new DOMException('Source fermée.', 'AbortError'); fail(failure); worker.terminate(); },
-            render(ctx, M, w, h) {
+            render(ctx, M, w, h, options = {}) {
                 const Mi = ftmInvert(M);
                 const corners = [[0, 0], [w, 0], [0, h], [w, h]].map(c => ftmApply(Mi, ...c));
                 const window = [Math.max(0, Math.floor(Math.min(...corners.map(c => c[0])))), Math.max(0, Math.floor(Math.min(...corners.map(c => c[1])))),
@@ -127,7 +127,7 @@ async function ftmOpenJpeg2000(file, companions, { epsgText = '', bandsText = ''
                 if (window[0] >= window[2] || window[1] >= window[3]) return Promise.resolve();
                 const scale = Math.max(Math.hypot(M[0], M[1]), Math.hypot(M[2], M[3]));
                 const reducePower = Math.min(info.levels, Math.max(0, Math.floor(Math.log2(1 / scale))));
-                return request('render', { window, reducePower, bands, alpha, nodata: external.nodata ?? null }, image => {
+                return request('render', { window, reducePower, bands, alpha, nodata: external.nodata ?? null, excludeBlack: options.excludeBlack ?? this.excludeBlack }, image => {
                     const canvas = document.createElement('canvas'); canvas.width = image.width; canvas.height = image.height;
                     canvas.getContext('2d').putImageData(new ImageData(image.rgba, image.width, image.height), 0, 0);
                     ctx.save();
@@ -143,4 +143,64 @@ async function ftmOpenJpeg2000(file, companions, { epsgText = '', bandsText = ''
         };
         return src;
     } catch (err) { worker.terminate(); throw err; }
+}
+
+// Les DIMAP peuvent décrire plusieurs parties d'une même acquisition. Un XML
+// est associé par ses DATA_FILE_PATH, ou par son nom pour les fichiers PAM.
+async function ftmOpenJp2Mosaic(group, options) {
+    const groups = group.images.map(g => ({ ...g, xml: null }));
+    const used = new Set();
+    for (const xml of group.xmls) {
+        if (xml.size > 4 * 1024 * 1024) throw new Error('Le XML dépasse 4 Mo : ' + xml.name);
+        const text = await xml.text();
+        if (/<!DOCTYPE|<!ENTITY/i.test(text)) throw new Error('Le XML ne doit pas contenir de DTD ou d’entités.');
+        const doc = new DOMParser().parseFromString(text, 'application/xml');
+        if (doc.getElementsByTagName('parsererror').length) throw new Error('XML illisible : ' + xml.name);
+        const paths = Array.from(doc.getElementsByTagNameNS('*', 'DATA_FILE_PATH')).map(el => (el.getAttribute('href') || '').replace(/\\/g, '/').split('/').pop().toLowerCase());
+        for (const g of groups) {
+            const filename = g.file.name.toLowerCase();
+            const named = [filename + '.aux.xml', filename.replace(/\.jp2$/, '.xml')].includes(xml.name.toLowerCase());
+            if (paths.length ? paths.includes(filename) : named || groups.length === 1 && group.xmls.length === 1) {
+                if (g.xml) throw new Error('Plusieurs XML décrivent ' + g.file.name + '. Garder le XML de géoréférencement.');
+                g.xml = xml; used.add(xml);
+            }
+        }
+    }
+    if (used.size !== group.xmls.length) throw new Error('XML sans image correspondante : ' + group.xmls.filter(x => !used.has(x)).map(x => x.name).join(', '));
+    const sources = [];
+    try {
+        // Ordre stable : en recouvrement, le dernier nom l'emporte, sauf pixels
+        // transparents qui laissent apparaître l'image précédente.
+        groups.sort((a, b) => a.file.name.localeCompare(b.file.name));
+        for (const g of groups) sources.push(await ftmOpenJpeg2000(g.file, g, options));
+        if (sources.length === 1) return sources[0];
+        const layout = ftmMosaicLayout(sources), first = sources[0];
+        return {
+            kind: 'jp2', name: sources.map(s => s.name).join(' + '), needsPoints: false, unit: 'px', affine: false,
+            epsg: first.epsg, width: layout.width, height: layout.height, excludeBlack: options.excludeBlack,
+            sources, layout,
+            toMerc(x, y) { return first.toMerc(x + layout.x0, y + layout.y0); },
+            mercToSource(X, Y) { const p = first.mercToSource(X, Y); return [p[0] - layout.x0, p[1] - layout.y0]; },
+            footprints: sources.map((s, i) => { const [x, y] = layout.offsets[i]; return [[x, y], [x + s.width, y], [x + s.width, y + s.height], [x, y + s.height]]; }),
+            retain() { sources.forEach(s => s.retain()); },
+            release() { sources.forEach(s => s.release()); },
+            retire() { sources.forEach(s => s.retire()); },
+            render(ctx, M, w, h, renderOptions = {}) {
+                let task, cancelled = false;
+                const excludeBlack = renderOptions.excludeBlack ?? this.excludeBlack;
+                const result = (async () => {
+                    for (let i = 0; i < sources.length; i++) {
+                        if (cancelled) throw new DOMException('Rendu annulé.', 'AbortError');
+                        const [x, y] = layout.offsets[i];
+                        task = sources[i].render(ctx, ftmMultiply(M, [1, 0, 0, 1, x, y]), w, h, { excludeBlack });
+                        await task;
+                    }
+                })();
+                result.cancel = () => { cancelled = true; task?.cancel?.(); };
+                return result;
+            },
+            async analyse() { return { textSizes: [], rasterPxPerUnit: 1 }; },
+            info() { return `${sources.length} JP2 assemblés · EPSG:${this.epsg} · ${ftmNum(this.width)} × ${ftmNum(this.height)} px · ${layout.overlap ? 'recouvrement : priorité au dernier nom de fichier' : 'images jointives'} · grille commune vérifiée`; },
+        };
+    } catch (err) { sources.forEach(s => s.retire()); throw err; }
 }
