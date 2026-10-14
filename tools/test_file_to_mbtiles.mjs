@@ -132,6 +132,11 @@ test('blocs, matrice Mercator → bloc, pyramide', () => {
     const tiles = [{ x: 0, y: 0 }, { x: 7, y: 7 }, { x: 8, y: 0 }, { x: 9, y: 9 }];
     const blocks = plain(C.ftmGroupBlocks(tiles, 8));
     assert.deepEqual(blocks.map(b => [b.bx, b.by, b.tiles.length]), [[0, 0, 2], [1, 0, 1], [1, 1, 1]]);
+    // Bandes verticales de deux blocs, chacune parcourue de haut en bas.
+    const grid = [];
+    for (let by = 0; by < 2; by++) for (let bx = 0; bx < 4; bx++) grid.push({ x: bx * 8, y: by * 8 });
+    assert.deepEqual(plain(C.ftmGroupBlocks(grid, 8, 2)).map(b => `${b.bx},${b.by}`),
+        ['0,0', '1,0', '0,1', '1,1', '2,0', '3,0', '2,1', '3,1']);
     // Le coin haut-gauche de la tuile (x0, y0) tombe au pixel (0, 0) du bloc.
     const z = 18, M = C.ftmMercToBlockMatrix(z, 1234, 5678), r = C.ftmMercResolution(z) * 256;
     const [u, v] = C.ftmApply(M, -Math.PI * 6378137 + 1234 * r, Math.PI * 6378137 - 5678 * r);

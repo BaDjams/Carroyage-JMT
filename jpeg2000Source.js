@@ -119,9 +119,10 @@ async function ftmOpenJpeg2000(file, companions, { epsgText = '', bandsText = ''
             release() { if (--this.users === 0 && this.retired) this.dispose(); },
             retire() { this.retired = true; if (!this.users) this.dispose(); },
             dispose() { failure = new DOMException('Source fermée.', 'AbortError'); fail(failure); worker.terminate(); },
+            // options.region [u0, v0, u1, v1] : seule partie du canevas à peindre.
             render(ctx, M, w, h, options = {}) {
-                const Mi = ftmInvert(M);
-                const corners = [[0, 0], [w, 0], [0, h], [w, h]].map(c => ftmApply(Mi, ...c));
+                const Mi = ftmInvert(M), [u0, v0, u1, v1] = options.region || [0, 0, w, h];
+                const corners = [[u0, v0], [u1, v0], [u0, v1], [u1, v1]].map(c => ftmApply(Mi, ...c));
                 const window = [Math.max(0, Math.floor(Math.min(...corners.map(c => c[0])))), Math.max(0, Math.floor(Math.min(...corners.map(c => c[1])))),
                     Math.min(this.width, Math.ceil(Math.max(...corners.map(c => c[0])))), Math.min(this.height, Math.ceil(Math.max(...corners.map(c => c[1]))))];
                 if (window[0] >= window[2] || window[1] >= window[3]) return Promise.resolve();
@@ -192,7 +193,7 @@ async function ftmOpenJp2Mosaic(group, options) {
                     for (let i = 0; i < sources.length; i++) {
                         if (cancelled) throw new DOMException('Rendu annulé.', 'AbortError');
                         const [x, y] = layout.offsets[i];
-                        task = sources[i].render(ctx, ftmMultiply(M, [1, 0, 0, 1, x, y]), w, h, { excludeBlack });
+                        task = sources[i].render(ctx, ftmMultiply(M, [1, 0, 0, 1, x, y]), w, h, { excludeBlack, region: renderOptions.region });
                         await task;
                     }
                 })();

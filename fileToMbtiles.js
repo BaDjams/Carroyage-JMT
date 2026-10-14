@@ -20,6 +20,7 @@
 // geotiff.js et proj4 ne le sont qu'à l'ouverture d'un fichier qui en a besoin.
 
 const FTM_BLOCK_TILES = 8;                 // côté d'un bloc rendu d'un seul tenant, en tuiles
+const FTM_STRIP_BLOCKS = 3;                // largeur des bandes verticales de blocs, rendues l'une après l'autre
 const FTM_PREVIEW_MAX = 3000;              // aperçu du fichier : plus grand côté, en pixels
 const FTM_MAX_TILES = 400000;              // au-delà, le fichier final dépasse ce que le navigateur assemble
 
@@ -173,11 +174,11 @@ async function ftmOpenTiff(file) {
         width: image.getWidth(), height: image.getHeight(),
         toMerc(x, y) { const [cx, cy] = ftmApply(P, x, y); const r = fwd([cx, cy]); return [r[0], r[1]]; },
         mercToSource(X, Y) { const r = inv([X, Y]); return ftmApply(Pi, r[0], r[1]); },
-        render(ctx, M, w, h) {
+        render(ctx, M, w, h, options = {}) {
             let cancelled = false;
             const p = (async () => {
-                const Mi = ftmInvert(M);
-                const cs = [[0, 0], [w, 0], [0, h], [w, h]].map(([u, v]) => ftmApply(Mi, u, v));
+                const Mi = ftmInvert(M), [u0, v0, u1, v1] = options.region || [0, 0, w, h];
+                const cs = [[u0, v0], [u1, v0], [u0, v1], [u1, v1]].map(([u, v]) => ftmApply(Mi, u, v));
                 const x0 = Math.max(0, Math.floor(Math.min(...cs.map(c => c[0])))), x1 = Math.min(this.width, Math.ceil(Math.max(...cs.map(c => c[0]))));
                 const y0 = Math.max(0, Math.floor(Math.min(...cs.map(c => c[1])))), y1 = Math.min(this.height, Math.ceil(Math.max(...cs.map(c => c[1]))));
                 if (x1 <= x0 || y1 <= y0) return;
@@ -1167,7 +1168,7 @@ class FtmJob {
         const ctx = canvas.getContext('2d', { willReadFrequently: true });
         const tile = document.createElement('canvas'); tile.width = tile.height = 256;
         const tctx = tile.getContext('2d', { willReadFrequently: true });
-        const blocks = ftmGroupBlocks(tiles, FTM_BLOCK_TILES);
+        const blocks = ftmGroupBlocks(tiles, FTM_BLOCK_TILES, FTM_STRIP_BLOCKS);
         const src = this.source;
         const pagePoly = [[0, 0], [src.width, 0], [src.width, src.height], [0, src.height]];
         for (const block of blocks) {
@@ -1176,7 +1177,10 @@ class FtmJob {
             ctx.setTransform(1, 0, 0, 1, 0, 0);
             ctx.globalCompositeOperation = 'source-over';
             ctx.clearRect(0, 0, side, side);
-            this._task = src.render(ctx, M, side, side, { excludeBlack: this.excludeBlack });
+            // Lecture du fichier limitée aux tuiles demandées du bloc (bord de sélection).
+            const xs = block.tiles.map(t => t.x - block.x0), ys = block.tiles.map(t => t.y - block.y0);
+            const region = [Math.min(...xs) * 256, Math.min(...ys) * 256, (Math.max(...xs) + 1) * 256, (Math.max(...ys) + 1) * 256];
+            this._task = src.render(ctx, M, side, side, { excludeBlack: this.excludeBlack, region });
             await this._task;
             if (this.cancelled) return;
             // Ne garder que les zones voulues, et rien hors du fichier.

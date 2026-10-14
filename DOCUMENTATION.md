@@ -387,6 +387,10 @@ PDF à l'échelle, GeoTIFF ou JP2/J2W/XML → `.mbtiles` lisible par CadoTour. C
   soit la taille du bloc). Matrice bloc = Mercator→bloc ∘ transformation ; pour un GeoTIFF
   projeté, approximation affine locale sur l'emprise du bloc (`ftmLocalAffine`). Tuiles
   entièrement transparentes omises ; niveaux inférieurs tirés des quatre tuiles filles.
+  Blocs parcourus par **bandes verticales de 3 blocs**, chacune de haut en bas, et lecture du
+  fichier limitée aux tuiles demandées du bloc (`region`) : un JP2 Pléiades (blocs de 2 048 px,
+  ~2 s de décodage chacun) n'est ainsi décodé qu'environ une fois par bloc, contre 3 à 4 fois
+  par lignes entières (mesuré : 223 s → 69 s au zoom 18 sur 8 192 × 6 144 px, tuiles identiques).
   Tuiles rangées en OPFS (mémoire à défaut), assemblées en SQLite (sql.js) à la fin.
 - **MBTiles** : WebP (si le navigateur l'encode), PNG ou JPEG (fond blanc) ; métadonnées
   `name`, `format` (lu dans les octets), `type=baselayer`, `bounds`, `center`, `minzoom`,
@@ -426,7 +430,8 @@ sur un hébergement statique comme en local : aucun serveur Python, aucune insta
   `File`. Chaque bloc est extrait avec son en-tête SIZ adapté en conservant les
   coordonnées absolues de la grille (phase des ondelettes), puis décodé isolément.
   Ni lecture intégrale du fichier, ni décompression complète de l'image en mémoire.
-  Les niveaux réduits du codestream servent pour l'aperçu. Cache de blocs : 32 Mo.
+  Les niveaux réduits du codestream servent pour l'aperçu. Cache de blocs décodés :
+  10 blocs nominaux, entre 32 et 256 Mo par fichier (160 Mo pour des blocs de 2 048 px).
 - **Position** : J2W prioritaire, XML PAM `GeoTransform` à défaut, puis GeoJP2/GMLJP2
   interne. Le décalage du centre vers le bord du pixel est appliqué, même en rotation.
 - **Projection** : code EPSG saisi dans les options JP2, puis CRS projeté du XML
