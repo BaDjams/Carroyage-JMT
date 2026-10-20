@@ -3,7 +3,8 @@
 //
 // Lecture/écriture des .points de CadoTour, transformation source → Mercator
 // (similitude et affine) et ses écarts, niveaux de zoom proposés, tuiles
-// couvrant une zone, blocs, géoréférencement d'un GeoTIFF.
+// couvrant une zone, blocs, géoréférencement d'un GeoTIFF ; traces GPX/KML/GeoJSON
+// et couloir autour d'une trace (« Créer MBTiles »).
 
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -19,7 +20,8 @@ vm.runInContext(readFileSync(`${ROOT}fileToMbtilesCore.js`, 'utf8') + `
   ftmDescribe, ftmZoomForResolution, ftmTextPercentile, ftmSuggestZooms, ftmClipPolygonToRect,
   ftmPolygonArea, ftmTilesForPolygons, ftmGroupBlocks, ftmMercToBlockMatrix, ftmParentTiles,
   ftmPyramidCounts, ftmLocalAffine, ftmGeoTiffPixelTransform, ftmGeoTiffEpsg, ftmProjDefinition,
-  ftmSniffImage, ftmPrintScale, ftmGroupInputFiles, ftmParseWorldFile, ftmEpsgFromText });`, context, { filename: 'fileToMbtilesCore.js' });
+  ftmSniffImage, ftmPrintScale, ftmGroupInputFiles, ftmParseWorldFile, ftmEpsgFromText,
+  ftmParseTrackText, ftmCorridorPolygons, ftmTilesForZone });`, context, { filename: 'fileToMbtilesCore.js' });
 const C = context;
 const plain = x => JSON.parse(JSON.stringify(x));
 const near = (a, b, tol, msg) => assert.ok(Math.abs(a - b) <= tol, `${msg ?? ''} ${a} ≠ ${b} (±${tol})`);
@@ -230,6 +232,66 @@ test('format d’image et échelle d’impression', () => {
     assert.equal(C.ftmSniffImage([0xFF, 0xD8, 0xFF]), 'jpg');
     assert.equal(C.ftmSniffImage([0x52, 0x49, 0x46, 0x46, 0, 0, 0, 0, 0x57, 0x45, 0x42, 0x50]), 'webp');
     near(C.ftmPrintScale(0.3528), 1000, 0.1);
+});
+
+test('traces : GPX (segments, routes), KML (lignes, surfaces), GeoJSON', () => {
+    const gpx = `<?xml version="1.0"?><gpx version="1.1"><trk><name>a</name>
+        <trkseg><trkpt lat="48.1" lon="-4.5"><ele>3</ele></trkpt><trkpt lon="-4.4" lat="48.2"/></trkseg>
+        <trkseg><trkpt lat='48.3' lon='-4.3'/></trkseg></trk>
+        <rte><rtept lat="47" lon="2"/><rtept lat="47.1" lon="2.1"/></rte><wpt lat="1" lon="1"/></gpx>`;
+    assert.deepEqual(plain(C.ftmParseTrackText(gpx)), { lines: [[[-4.5, 48.1], [-4.4, 48.2]], [[-4.3, 48.3]], [[2, 47], [2.1, 47.1]]], polygons: [] });
+    const kml = `<kml><Document><Placemark><LineString><coordinates> 2,45,0 2.1,45.1,0
+        2.2,45.2 </coordinates></LineString></Placemark><Placemark><Polygon><outerBoundaryIs><LinearRing>
+        <coordinates>1,1 2,1 2,2 1,1</coordinates></LinearRing></outerBoundaryIs></Polygon></Placemark></Document></kml>`;
+    assert.deepEqual(plain(C.ftmParseTrackText(kml)), { lines: [[[2, 45, 0], [2.1, 45.1, 0], [2.2, 45.2]]], polygons: [[[1, 1], [2, 1], [2, 2], [1, 1]]] });
+    const gj = JSON.stringify({ type: 'FeatureCollection', features: [
+        { type: 'Feature', geometry: { type: 'MultiLineString', coordinates: [[[0, 0], [1, 1]], [[2, 2], [3, 3]]] } },
+        { type: 'Feature', geometry: { type: 'Polygon', coordinates: [[[0, 0], [1, 0], [1, 1], [0, 0]], [[0.1, 0.1], [0.2, 0.1], [0.2, 0.2]]] } },
+        { type: 'Feature', geometry: { type: 'Point', coordinates: [5, 5] } }] });
+    assert.deepEqual(plain(C.ftmParseTrackText(gj)), { lines: [[[0, 0], [1, 1]], [[2, 2], [3, 3]]], polygons: [[[0, 0], [1, 0], [1, 1], [0, 0]]] });
+    assert.throws(() => C.ftmParseTrackText('lat;lon\n1;2'), /non reconnu/);
+    assert.throws(() => C.ftmParseTrackText('{ pas du json'), /GeoJSON illisible/);
+});
+
+// Distance AU SOL (mètres, approchée localement) entre une tuile et un segment.
+function distanceTuileSegment(z, x, y, a, b) {
+    const n = 2 ** z, lon = v => v / n * 360 - 180, lat = v => Math.atan(Math.sinh(Math.PI * (1 - 2 * v / n))) * 180 / Math.PI;
+    const lat0 = (a[1] + b[1]) / 2, kx = 111320 * Math.cos(lat0 * Math.PI / 180), ky = 110574;
+    const P = ([lo, la]) => [lo * kx, la * ky];
+    const r = { x0: lon(x) * kx, x1: lon(x + 1) * kx, y0: lat(y + 1) * ky, y1: lat(y) * ky };
+    const [A, B] = [P(a), P(b)];
+    const dPointRect = ([px, py]) => Math.hypot(Math.max(r.x0 - px, 0, px - r.x1), Math.max(r.y0 - py, 0, py - r.y1));
+    const dPointSeg = ([px, py]) => {
+        const dx = B[0] - A[0], dy = B[1] - A[1], t = Math.max(0, Math.min(1, ((px - A[0]) * dx + (py - A[1]) * dy) / (dx * dx + dy * dy || 1)));
+        return Math.hypot(px - A[0] - t * dx, py - A[1] - t * dy);
+    };
+    // Le segment traverse-t-il la tuile ? Échantillonnage fin : assez pour ce test.
+    for (let i = 0; i <= 200; i++) { const t = i / 200; if (dPointRect([A[0] + t * (B[0] - A[0]), A[1] + t * (B[1] - A[1])]) === 0) return 0; }
+    return Math.min(dPointRect(A), dPointRect(B), ...[[r.x0, r.y0], [r.x0, r.y1], [r.x1, r.y0], [r.x1, r.y1]].map(dPointSeg));
+}
+
+test('couloir autour d’une trace : toutes les tuiles à portée, aucune au-delà', () => {
+    // Trace en coude, en Bretagne, couloir de 500 m de part et d'autre, zoom 15.
+    const trace = [[-4.50, 48.38], [-4.42, 48.40], [-4.40, 48.46]];
+    const z = 15, d = 500;
+    const tuiles = plain(C.ftmTilesForZone(C.ftmCorridorPolygons(trace, d), z));
+    const cles = new Set(tuiles.map(t => `${t.x},${t.y}`));
+    assert.equal(cles.size, tuiles.length, 'chaque tuile une seule fois');
+    const n = 2 ** z, col = lon => Math.floor((lon + 180) / 360 * n);
+    const rang = lat => Math.floor((1 - Math.log(Math.tan(Math.PI / 4 + lat * Math.PI / 360)) / Math.PI) / 2 * n);
+    let dedans = 0;
+    for (let x = col(-4.53); x <= col(-4.37); x++) {
+        for (let y = rang(48.49); y <= rang(48.35); y++) {
+            const dist = Math.min(...trace.slice(1).map((b, i) => distanceTuileSegment(z, x, y, trace[i], b)));
+            if (dist <= d * 0.98) { assert.ok(cles.has(`${x},${y}`), `tuile ${x},${y} à ${dist.toFixed(0)} m omise`); dedans++; }
+            if (dist >= d * 1.05) assert.ok(!cles.has(`${x},${y}`), `tuile ${x},${y} à ${dist.toFixed(0)} m retenue`);
+        }
+    }
+    assert.ok(dedans > 30, `assez de tuiles examinées (${dedans})`);
+    // Un point seul : un disque ; aucune distance : rien.
+    assert.ok(C.ftmTilesForZone(C.ftmCorridorPolygons([[-4.5, 48.4]], 300), 16).length >= 4);
+    assert.equal(C.ftmCorridorPolygons(trace, 0).length, 0);
+    assert.throws(() => C.ftmTilesForZone(C.ftmCorridorPolygons(trace, d), z, 10), /Trop de tuiles/);
 });
 
 let failed = 0;
