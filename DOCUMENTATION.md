@@ -721,8 +721,9 @@ Voir §10 pour la stratégie complète.
   maxZoom: 21,
   requiresKey: "GOOGLE_MAPS_API_KEY",  // optionnel
   layers: [                     // empilement de couches
-    { url: "...", type: "xyz" | "quadkey" | "yandex" | "wms" }
+    { url: "...", type: "xyz" | "quadkey" | "yandex" | "wms" | "arcgis-cache" }
     // wms : + layers (obligatoire), styles, format, transparent, version
+    // arcgis-cache : url du MapServer ; + crs, origin, resolution0, levels (§7.10)
   ]
 }
 ```
@@ -744,6 +745,7 @@ Voir §10 pour la stratégie complète.
 | `shom_raster` | Cartes marines SHOM (privé) | services.data.shom.fr (abonnement) | 18 | `SHOM_API_KEY` |
 | `shom_inspire` | SHOM INSPIRE (libre) | services.data.shom.fr/INSPIRE | 18 | `SHOM_INSPIRE_LAYER` |
 | `emodnet_bathy` | Lignes de profondeur (EMODnet) | OSM + WMS EMODnet | 19 | non |
+| `igc_carrieres` | Carrières souterraines de Paris (atlas IGC) | OSM + MapServer IGC (Ville de Paris, §7.10) | 19 | non |
 | `osm_standard` | OpenStreetMap | tile.openstreetmap.org | 19 | non |
 
 ### 7.3 Ajout d'une couche
@@ -1098,6 +1100,64 @@ Les altitudes voyagent en flottants non compressés : environ **1,5 Mo par km²*
 - Référence verticale : voir plus haut. C'est le premier point à vérifier devant une carte produite.
 - Les fonds bougent (bancs, chenaux) et le levé Litto3D date de plusieurs années selon les secteurs : ces lignes aident au repérage, elles ne remplacent pas les cartes marines pour naviguer.
 - Connexion requise à l'export ; le MBTiles produit s'utilise ensuite hors ligne.
+
+### 7.10 Carrières souterraines de Paris (atlas IGC), et le type `arcgis-cache`
+
+Couche `igc_carrieres` : fond OpenStreetMap surmonté de l'**atlas des anciennes carrières** de l'Inspection générale des carrières (Ville de Paris). Ce sont les 458 planches au 1/1000 (révisions de 1955 à 2025), que l'IGC a déjà assemblées et géoréférencées. On y lit les galeries étage par étage, les consolidations, les fontis, les puits et les cotes. Couverture : Paris et les communes limitrophes sous-minées. Hors des zones de carrières, l'atlas est transparent et seul le fond OSM reste visible.
+
+**Source.** MapServer public de la Ville, `https://capgeo2.paris.fr/public/rest/services/IGC/IGC_Atlas/MapServer` :
+
+- son cache de tuiles est en Lambert 93 : 13 niveaux, de 306 m à 7,5 cm par pixel ;
+- il ne publie pas de WMS ;
+- son export REST (`…/export?bboxSR=3857&imageSR=3857`) sait reprojeter, mais il n'est pas fiable. Le 2026-10-20, la même requête rendait une image vide une fois sur deux, alors que le cache répondait à chaque fois.
+
+L'index des planches, avec leur emprise et le lien vers leur PDF, est servi par `IGC/IGC_TA_Externe/MapServer/0`. Il n'est pas utilisé ici, mais c'est lui qui donne la date de révision d'une planche.
+
+**Le type `arcgis-cache`** (`arcgisCache.js`) lit le cache et le reprojette dans le navigateur :
+
+```js
+{ url: "https://…/MapServer", type: "arcgis-cache", crs: 2154,
+  origin: [-35597500, 48953100], resolution0: 305.7480111760223, levels: 13,
+  extent: [637827, 6849420, 670591, 6874798] }
+// schéma relevé sur …/MapServer?f=json (tileInfo, fullExtent) ; tuiles lues en …/tile/{niveau}/{ligne}/{colonne}
+```
+
+Le serveur renvoie les en-têtes CORS pour toute origine (site, application installée, poste local). Une tuile absente du cache répond 404. Hors de `extent`, rien n'est demandé : à petite échelle, la carte en réclamerait sinon des milliers.
+
+Pour chaque tuile XYZ, `agcTilePlan()` :
+
+1. projette ses quatre coins en Lambert 93 (`agcLambert93`, identique à proj4 au millimètre) ;
+2. choisit le niveau le plus grossier dont le pixel reste plus fin que celui de la tuile (zoom 18 → niveau 10, zoom 19 → niveau 11) ;
+3. liste les 2 à 9 tuiles du cache qui la recouvrent, et la matrice qui pose leur assemblage sur la tuile.
+
+`agcDrawTile()` assemble ces tuiles bord à bord sur un canevas intermédiaire, sans couture, puis le dessine d'un seul tenant avec cette matrice. L'approximation affine reste sous le demi-pixel à tous les zooms, et sous le centimètre au sol dès le zoom 17. La rotation d'environ 0,5° entre les deux projections est prise en compte.
+
+Une tuile du cache absente (hors couverture) laisse la tuile transparente. Les tuiles du cache sont partagées entre tuiles voisines par `agcImageCache()`.
+
+Branchements :
+
+- affichage : `agcLeafletLayer()`, une `L.GridLayer` dont chaque tuile est un canevas ;
+- Créer MBTiles : `agcDrawTile()` dans la composition. `layerNeedsCanvas()` range ce type avec Yandex : il n'est jamais copié octet pour octet ;
+- impression et export de zone : `agcDrawTiles()`.
+
+`tileUrlFor()` refuse ce type, qui n'a pas d'URL par tuile XYZ.
+
+**Précision.** Deux contrôles, place Denfert-Rochereau :
+
+- Les tuiles reprojetées ont été comparées à l'image que le serveur reprojette lui-même pour la même emprise. Écart mesuré : 0,13 m au zoom 18, moins d'un demi-pixel.
+- Les points d'adresse de la Ville (`DU/DU_Adresses`), superposés à l'atlas, tombent sur les numéros imprimés des planches, à 1 ou 2 m près. C'est le calage de l'IGC lui-même.
+
+**Tests.**
+
+- `node tools/test_arcgis_cache.mjs` : projection, plan, emprise, sans réseau.
+- `node tools/test_atlas_igc_browser.mjs <playwright>` : un cache simulé porte un repère à une coordonnée Lambert 93 connue. Le parcours le retrouve à moins de 0,4 px dans le MBTiles (zooms 17 et 18) et à l'impression, et à moins de 0,75 px dans l'export de zone, où les tuiles sont posées au pixel entier.
+
+**Pour CadoTour.** Créer MBTiles, couche « Carrières souterraines de Paris (atlas IGC) », zoom maximal 19 (pixel d'environ 0,2 m au sol, la finesse des scans). Le `.mbtiles` produit se charge dans CadoTour comme tout fond hors ligne. Ordre de grandeur, mesuré à Denfert-Rochereau : un rectangle de 400 × 330 m pèse 0,9 Mo au zoom 18 en WebP (20 tuiles). Chaque zoom de plus compte quatre fois plus de tuiles.
+
+**Limites**
+
+- Les planches donnent la géométrie relevée à leur date de révision. Elles ne disent pas si une galerie est praticable, noyée ou murée depuis. Les zones blanches à l'intérieur d'une carrière connue ne prouvent pas l'absence de vide : ce sont des zones comblées, ou non levées.
+- Documents de la Ville de Paris (« Reproduction interdite ») publiés pour consultation. Le MBTiles est fabriqué sur le poste qui l'utilise : rien n'est embarqué dans l'application.
 
 ---
 
