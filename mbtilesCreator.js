@@ -676,6 +676,10 @@ class MbtilesJob {
         // Le 'format' est inséré juste avant le COMMIT (cf. _insertFormatMetadata),
         // une fois le format réel des tuiles connu en mode passthrough mono-couche.
         this.db.run("INSERT INTO metadata VALUES (?, ?)", ["bounds", boundsStr]);
+        // Niveaux extrêmes choisis (spécification MBTiles 1.3) : un lecteur les
+        // trouve sans parcourir les tuiles.
+        this.db.run("INSERT INTO metadata VALUES (?, ?)", ["minzoom", String(Math.min(...this.zooms))]);
+        this.db.run("INSERT INTO metadata VALUES (?, ?)", ["maxzoom", String(Math.max(...this.zooms))]);
         this.db.run("INSERT INTO metadata VALUES (?, ?)", ["type", "overlay"]);
         this.db.run("INSERT INTO metadata VALUES (?, ?)", ["version", "1.2"]);
         // Convention lue par CadoTour (tileSource.js) : le relief vit dans

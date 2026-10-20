@@ -164,6 +164,17 @@ async function tileSourceLoad(file) {
             throw new Error('MBTiles invalide.');
         }
     }
+    // minzoom/maxzoom taisent les niveaux sautés : un atlas MOBAC en 10, 13 et 16
+    // les annonce de 10 à 16. Chaque niveau est vérifié par une lecture directe
+    // dans l'index (zoom_level, …), sans parcours ; un niveau vide est retiré, et
+    // tileSourceGetBestZoom ne le choisit plus pour une impression ou un export.
+    const present = [];
+    for (const z of _tsZooms) {
+        try {
+            if ((await _all(`SELECT 1 FROM tiles WHERE zoom_level=${z | 0} LIMIT 1`)).length) present.push(z);
+        } catch (e) { present.push(z); }
+    }
+    _tsZooms = present;
     if (_tsZooms.length === 0) { await tileSourceClear(); throw new Error('MBTiles vide : aucune tuile.'); }
 
     return { name: _tsName, zooms: _tsZooms, bounds: _tsBounds };

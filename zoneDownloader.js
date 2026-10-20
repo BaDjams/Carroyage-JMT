@@ -1750,11 +1750,14 @@ async function zdPaintTiles(tempCtx, dlNwPx, dlSePx, actualZoom, mapConfig, cach
                     await new Promise(resolve => {
                         const img = new Image();
                         img.onload = () => {
-                            // Taille native : positions entières, tuiles jointives, aucun
-                            // rééchantillonnage (un 257 px étirait et floutait chaque tuile).
+                            // Positions entières, tuiles jointives, 256 px exactement :
+                            // aucun rééchantillonnage d'une tuile de 256 px (un 257 px
+                            // étirait et floutait chaque tuile), et une tuile de 512 px
+                            // (MOBAC 2.4, même zone au même zoom) ramenée à sa place au
+                            // lieu de déborder sur ses voisines.
                             const destX = Math.floor((x * ZD_TILE_SIZE) - dlNwPx.x);
                             const destY = Math.floor((y * ZD_TILE_SIZE) - dlNwPx.y);
-                            tempCtx.drawImage(img, destX, destY);
+                            tempCtx.drawImage(img, destX, destY, ZD_TILE_SIZE, ZD_TILE_SIZE);
                             URL.revokeObjectURL(blobUrl);
                             resolve();
                         };

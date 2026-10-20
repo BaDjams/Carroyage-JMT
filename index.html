@@ -1584,6 +1584,16 @@
 
         // Calque Leaflet lisant les tuiles depuis le MBTiles actif (tileSource.js)
         const MbtilesLeafletLayer = L.TileLayer.extend({
+            // Niveau de tuiles d'un zoom de carte : Leaflet ne ramène qu'aux bornes
+            // min/maxNativeZoom. Un niveau absent ENTRE deux niveaux du fichier
+            // (atlas MOBAC en 10, 13, 16) prend le plus proche en dessous, agrandi,
+            // au lieu de laisser la carte vide.
+            _clampZoom: function(zoom) {
+                const z = L.TileLayer.prototype._clampZoom.call(this, zoom);
+                const zooms = (typeof tileSourceGetZooms === 'function') ? tileSourceGetZooms() : [];
+                if (!zooms.length || zooms.includes(z)) return z;
+                return tileSourceGetBestZoom(z);
+            },
             createTile: function(coords, done) {
                 const tile = document.createElement('img');
                 // tileSourceReadTile est asynchrone (lecture paresseuse du MBTiles par plages).

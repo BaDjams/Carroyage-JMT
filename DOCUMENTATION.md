@@ -517,8 +517,16 @@ Code de recréation : encodage, décodage et application dans les deux modes (cf
 Abstraction unifiée pour les tuiles : MBTiles vs en ligne.
 
 - `tileSourceLoad(file)` — parse MBTiles (sql.js), extrait métadonnées + niveaux de zoom
+  réellement présents : `minzoom`/`maxzoom` taisent les niveaux sautés (atlas MOBAC en 10,
+  13, 16), chacun est donc vérifié par une lecture directe dans l'index, sans parcours
 - `tileSourceReadTile(x, y, z)` — query SQL → blob URL
 - `tileSourceIsActive()`, `tileSourceGetZooms()`, `tileSourceGetBestZoom(targetZoom)`
+
+Fichiers MOBAC 2.4 (Mobile Atlas Creator) : un niveau absent entre deux niveaux du fichier
+est affiché par le niveau inférieur agrandi (`_clampZoom` de la couche, `index.html`) ; une
+tuile de 512 px couvre la même zone qu'une tuile de 256 px au même zoom, l'impression et
+l'export de zone la ramènent donc à 256 px. Test : `node tools/test_mbtiles_mobac_browser.mjs
+<module-playwright>` (atlas écrit comme MOBAC, sans réseau).
 
 Cache la base SQLite en variable de module `_tsDB`. Met à jour `.mbtiles-status-badge` et masque le sélecteur de provider en ligne quand un MBTiles est actif.
 

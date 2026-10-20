@@ -646,7 +646,11 @@ async function createFinalCanvasWithLayers(boundingBox, zoom, mapConfig, onProgr
                     await new Promise(resolve => {
                         const img = new Image();
                         img.onload = () => {
-                            tempCtx.drawImage(img, x * TILE_SIZE - originX, y * TILE_SIZE - originY);
+                            // Taille imposée : une tuile de 512 px (MOBAC 2.4, fonds
+                            // « haute définition ») couvre la même zone qu'une tuile de
+                            // 256 px au même zoom. Posée à sa taille, elle débordait sur
+                            // ses voisines. À 256 px, rien ne change.
+                            tempCtx.drawImage(img, x * TILE_SIZE - originX, y * TILE_SIZE - originY, TILE_SIZE, TILE_SIZE);
                             URL.revokeObjectURL(blobUrl);
                             resolve();
                         };
