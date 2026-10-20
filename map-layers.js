@@ -100,6 +100,9 @@ function tileUrlFor(layer, z, x, y) {
         return layer.url.replace('{q}', quadKey).replace('{s}', (x + y) % 4);
     }
     if (layer.type === 'wms') return wmsTileUrl(layer, z, x, y);
+    // « arcgis-cache » n'a pas d'URL par tuile XYZ : chaque tuile se compose de
+    // plusieurs tuiles du cache, reprojetées (cf. arcgisCache.js).
+    if (layer.type === 'arcgis-cache') throw new Error('arcgis-cache : passer par agcDrawTile (arcgisCache.js)');
     return layer.url.replace('{z}', z).replace('{x}', x).replace('{y}', y);
 }
 
@@ -367,6 +370,38 @@ const MAP_LAYERS = [
                 "type": "wms",
                 "layers": EMODNET_CONTOURS_LAYER,
                 "transparent": true
+            }
+        ]
+    },
+    {
+        // Atlas des anciennes carrières de l'Inspection générale des carrières
+        // (Ville de Paris) : les planches au 1/1000, déjà assemblées et
+        // géoréférencées par l'IGC, servies par le MapServer public de la Ville.
+        // Son cache est en Lambert 93 : reprojeté dans le navigateur
+        // (arcgisCache.js). Hors des zones de carrières, l'atlas est transparent
+        // et le fond OSM reste. Couverture : Paris et communes limitrophes sous-minées.
+        "id": "igc_carrieres",
+        "name": "Carrières souterraines de Paris (atlas IGC)",
+        "shortName": "Atlas IGC",
+        "attribution": "&copy; les <a href='https://www.openstreetmap.org/copyright' target='_blank' rel='noopener'>contributeurs OpenStreetMap</a> &mdash; carri&egrave;res <a href='https://www.paris.fr/pages/tout-savoir-sur-les-sous-sols-2317' target='_blank' rel='noopener'>Ville de Paris &ndash; IGC</a>",
+        "maxZoom": 19,
+        "layers": [
+            {
+                "url": "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+                "type": "xyz",
+                "maxZoom": 19
+            },
+            {
+                // Schéma du cache, relevé sur …/MapServer?f=json (tileInfo et
+                // fullExtent) : origine, résolution du niveau 0, 13 niveaux (de
+                // 306 m à 7,5 cm), emprise en Lambert 93.
+                "url": "https://capgeo2.paris.fr/public/rest/services/IGC/IGC_Atlas/MapServer",
+                "type": "arcgis-cache",
+                "crs": 2154,
+                "origin": [-35597500, 48953100],
+                "resolution0": 305.7480111760223,
+                "levels": 13,
+                "extent": [637827, 6849420, 670591, 6874798]
             }
         ]
     },

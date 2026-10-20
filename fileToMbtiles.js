@@ -806,7 +806,7 @@ async function openFileToMbtiles() {
         onPlace: (x, y) => ftmPlaceOnPlan(x, y),
         onSelectionChange: () => ftmRefresh(),
     });
-    // Carte : fonds de map-layers.js (couches simples et WMS).
+    // Carte : fonds de map-layers.js (couches simples, WMS et ArcGIS).
     st.map = L.map($('ftm-map'), { zoomControl: true }).setView([46.6, 2.4], 6);
     const bases = {};
     (typeof MAP_LAYERS !== 'undefined' ? MAP_LAYERS : []).forEach(cfg => {
@@ -814,6 +814,8 @@ async function openFileToMbtiles() {
         if (cfg.layers.some(l => l.type === 'yandex' || l.type === 'quadkey')) return;
         const mk = l => l.type === 'wms'
             ? L.tileLayer.wms(l.url, { layers: l.layers, styles: l.styles || '', format: l.format || 'image/png', transparent: l.transparent !== false, version: l.version || '1.3.0', maxZoom: 22, maxNativeZoom: l.maxZoom ?? cfg.maxZoom ?? 19 })
+            : l.type === 'arcgis-cache'
+            ? agcLeafletLayer(l, { maxZoom: 22, maxNativeZoom: l.maxZoom ?? cfg.maxZoom ?? 19 })
             : L.tileLayer(l.url, { maxZoom: 22, maxNativeZoom: l.maxZoom ?? cfg.maxZoom ?? 19, subdomains: l.subdomains || 'abc' });
         bases[cfg.name] = cfg.layers.length > 1 ? L.layerGroup(cfg.layers.map(mk)) : mk(cfg.layers[0]);
     });

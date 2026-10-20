@@ -4,7 +4,7 @@
 // Un seul numéro à tenir à jour ici : la page lit le sien dans version.js, et
 // SW_APP_VERSION faisait doublon avec les deux — une occasion de plus de les
 // laisser diverger.
-const CACHE_NAME = 'cado-cache-23.46';
+const CACHE_NAME = 'cado-cache-23.47';
 
 // Liste EXACTE des fichiers à mettre en cache.
 // Si un seul fichier manque, la PWA ne s'installera pas.
@@ -28,6 +28,7 @@ const ASSETS_TO_CACHE = [
   './imagetoprint.js',
   './zoneDownloader.js',
   './map-layers.js',
+  './arcgisCache.js',
   './icons.js',
   './icons-catalog.js',
   './settingsManager.js',
@@ -181,12 +182,13 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // On ignore les requêtes vers les tuiles de cartes (Google/IGN/Bing) pour ne pas saturer le cache
+  // On ignore les requêtes vers les tuiles de cartes (Google/IGN/Bing/atlas IGC) pour ne pas saturer le cache
   // et on ignore les requêtes data: et blob:
   if (url.includes('google.com') ||
       url.includes('geopf.fr') ||
       url.includes('openstreetmap') ||
       url.includes('virtualearth') ||
+      url.includes('capgeo2.paris.fr') ||
       url.startsWith('data:') ||
       url.startsWith('blob:')) {
     return; // On laisse le réseau gérer normalement

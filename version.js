@@ -1,12 +1,19 @@
 // version.js
 
 // Source unique de vérité pour la version de l'application.
-const APP_VERSION = '23.46';
+const APP_VERSION = '23.47';
 
 // Une ligne courte par changement, telle que l'utilisateur la voit : ce qui change,
 // sans le pourquoi ni le comment. Guillemets doubles : les apostrophes françaises
 // s'écrivent telles quelles.
 const CHANGELOG = [
+  {
+    version: "23.47",
+    date: "2026-10-20",
+    changes: [
+      "Nouveau fond « Carrières souterraines de Paris (atlas IGC) » : les planches de l'Inspection générale des carrières, déjà calées par l'IGC, sur fond OpenStreetMap — à l'écran, à l'impression et dans Créer MBTiles pour CadoTour",
+    ],
+  },
   {
     version: "23.46",
     date: "2026-10-20",

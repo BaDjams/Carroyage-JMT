@@ -40,6 +40,7 @@
 <script src="vendor/leaflet-draw/leaflet.draw.js" defer></script>
 <script src="config.private.js" defer onerror="console.warn('config.private.js absent : layers privés désactivés.')"></script>
 <script src="map-layers.js" defer></script>
+<script src="arcgisCache.js" defer></script>
 <script src="icons.js" defer></script>
 <script src="settingsManager.js" defer></script>
 <script src="utilities.js"></script>
@@ -1365,6 +1366,8 @@
                             format: layerData.format || 'image/png',
                             transparent: layerData.transparent !== false,
                             version: layerData.version || '1.3.0' });
+                        // Cache ArcGIS hors Web Mercator : reprojete tuile par tuile (arcgisCache.js).
+                        if (layerData.type === 'arcgis-cache') return agcLeafletLayer(layerData, opts);
 
                         return L.tileLayer(layerData.url, opts);
                     };

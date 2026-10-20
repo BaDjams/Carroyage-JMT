@@ -1772,7 +1772,10 @@ async function zdPaintTiles(tempCtx, dlNwPx, dlSePx, actualZoom, mapConfig, cach
         // --- Mode en ligne ---
         for (const layer of mapConfig.layers) {
             const tileJobs = [];
-            if (layer.type === 'yandex') {
+            if (layer.type === 'arcgis-cache') {
+                // Cache ArcGIS hors Web Mercator : chaque tuile est recomposée (arcgisCache.js).
+                await agcDrawTiles(layer, tempCtx, actualZoom, nwTile.x, nwTile.y, seTile.x, seTile.y, dlNwPx.x, dlNwPx.y);
+            } else if (layer.type === 'yandex') {
                 console.error('[YANDEX-v26] NEW CODE RUNNING - 3395 iterate approach');
                 // Tuiles Yandex (EPSG:3395) : on itère sur les tuiles 3395 qui couvrent la zone,
                 // puis on place chaque tuile à la position exacte de ses bords nord/sud en 3857.

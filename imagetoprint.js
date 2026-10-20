@@ -671,7 +671,11 @@ async function createFinalCanvasWithLayers(boundingBox, zoom, mapConfig, onProgr
 
         for (const layer of mapConfig.layers) {
             const tileJobs = [];
-            if (layer.type === 'yandex') {
+            if (layer.type === 'arcgis-cache') {
+                // Cache ArcGIS hors Web Mercator : chaque tuile est recomposée (arcgisCache.js).
+                await agcDrawTiles(layer, tempCtx, actualZoom, nwTile.x, nwTile.y, seTile.x, seTile.y, originX, originY,
+                    () => { downloadedCount++; if (onProgress) onProgress(downloadedCount * progressFactor); });
+            } else if (layer.type === 'yandex') {
                 // Tuiles Yandex (EPSG:3395) : même algo que zoneDownloader
                 const nwLL = _worldPixels3857ToLatLon(nwPixel, actualZoom);
                 const seLL = _worldPixels3857ToLatLon(sePixel, actualZoom);

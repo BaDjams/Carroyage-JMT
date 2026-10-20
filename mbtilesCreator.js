@@ -201,6 +201,7 @@ function initCreatorMode() {
                     const nativeZ = l.maxZoom ?? layerConfig.maxZoom ?? (l.type === 'yandex' ? 18 : 19);
                     if (l.type === 'yandex') return new L_YandexLayerCreator(l.url, { maxZoom: nativeZ, attribution: layerConfig.attribution || layerConfig.name, layerName: layerConfig.name, keepBuffer: 0, updateWhenZooming: false });
                     if (l.type === 'wms') return L.tileLayer.wms(l.url, { maxZoom: nativeZ, layers: l.layers, styles: l.styles || '', format: l.format || 'image/png', transparent: l.transparent !== false, version: l.version || '1.3.0', attribution: layerConfig.attribution || layerConfig.name, layerName: layerConfig.name, keepBuffer: 0, updateWhenZooming: false });
+                    if (l.type === 'arcgis-cache') return agcLeafletLayer(l, { maxZoom: nativeZ, attribution: layerConfig.attribution || layerConfig.name, layerName: layerConfig.name, keepBuffer: 0, updateWhenZooming: false });
                     return L.tileLayer(l.url, { maxZoom: nativeZ, attribution: layerConfig.attribution || layerConfig.name, layerName: layerConfig.name, keepBuffer: 0, updateWhenZooming: false });
                 });
                 leafletLayer = L.layerGroup(groupLayers);
@@ -210,6 +211,7 @@ function initCreatorMode() {
                 if (l.type === 'quadkey') leafletLayer = new L_QuadKeyLayer(l.url, { maxZoom: nativeZ, attribution: layerConfig.attribution || layerConfig.name, layerName: layerConfig.name });
                 else if (l.type === 'yandex') leafletLayer = new L_YandexLayerCreator(l.url, { maxZoom: nativeZ, attribution: layerConfig.attribution || layerConfig.name, layerName: layerConfig.name, keepBuffer: 0, updateWhenZooming: false });
                 else if (l.type === 'wms') leafletLayer = L.tileLayer.wms(l.url, { maxZoom: nativeZ, layers: l.layers, styles: l.styles || '', format: l.format || 'image/png', transparent: l.transparent !== false, version: l.version || '1.3.0', attribution: layerConfig.attribution || layerConfig.name, layerName: layerConfig.name, keepBuffer: 0, updateWhenZooming: false });
+                else if (l.type === 'arcgis-cache') leafletLayer = agcLeafletLayer(l, { maxZoom: nativeZ, attribution: layerConfig.attribution || layerConfig.name, layerName: layerConfig.name, keepBuffer: 0, updateWhenZooming: false });
                 else leafletLayer = L.tileLayer(l.url, { maxZoom: nativeZ, attribution: layerConfig.attribution || layerConfig.name, layerName: layerConfig.name, keepBuffer: 0, updateWhenZooming: false });
             }
             if (leafletLayer) creatorBaseMaps[layerConfig.name] = leafletLayer;
@@ -724,7 +726,8 @@ class MbtilesJob {
         this.outputFormat = CREATOR_TILE_FORMATS.includes(outputFormat) && (outputFormat !== 'webp' || webp)
             ? outputFormat : 'origine';
         this.composeFormat = this.outputFormat !== 'origine' ? this.outputFormat : (webp ? 'webp' : 'jpg');
-        const hasYandexLayer = layerConfig.layers.some(l => l.type === 'yandex');
+        // Yandex et cache ArcGIS hors Web Mercator : reprojetés par canvas.
+        const hasYandexLayer = layerConfig.layers.some(layerNeedsCanvas);
         const composite = layerConfig.layers.length > 1 || hasYandexLayer;
         this.tileFormat = this.outputFormat !== 'origine' ? this.outputFormat
             : composite ? this.composeFormat : null;
@@ -971,7 +974,7 @@ class MbtilesJob {
             );
         }
 
-        const hasYandex = this.layerConfig.layers.some(l => l.type === 'yandex');
+        const hasYandex = this.layerConfig.layers.some(layerNeedsCanvas);   // Yandex ou cache ArcGIS
 
         // Isobathes : demandées en même temps que le fond, pour ne pas allonger
         // l'attente de chaque tuile. null = rien à tracer sur cette tuile.
@@ -1014,6 +1017,8 @@ class MbtilesJob {
         for (const layer of this.layerConfig.layers) {
             const ok = layer.type === 'yandex'
                 ? await this._drawYandexLayer(canvas, ctx, layer, tile)
+                : layer.type === 'arcgis-cache'
+                ? await agcDrawTile(layer, ctx, tile.z, tile.x, tile.y, 0, 0, this._agcLoad ??= agcImageCache(256))
                 : await this.fetchAndDrawLayer(this._layerUrl(layer, tile), canvas, ctx);
             if (ok) hasContent = true;
         }
