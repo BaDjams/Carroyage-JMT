@@ -1,12 +1,21 @@
 // version.js
 
 // Source unique de vérité pour la version de l'application.
-const APP_VERSION = '23.41';
+const APP_VERSION = '23.42';
 
 // Une ligne courte par changement, telle que l'utilisateur la voit : ce qui change,
 // sans le pourquoi ni le comment. Guillemets doubles : les apostrophes françaises
 // s'écrivent telles quelles.
 const CHANGELOG = [
+  {
+    version: "23.42",
+    date: "2026-10-20",
+    changes: [
+      "MBTiles faits avec MOBAC : les tuiles haute définition (512 px) s'impriment et s'exportent à leur place, au lieu de se chevaucher",
+      "MBTiles aux zooms non consécutifs (10, 13, 16…) : entre deux zooms, la carte montre le zoom inférieur agrandi au lieu de rester vide, et l'impression n'en choisit plus un absent",
+      "Créer MBTiles : le fichier annonce ses zooms minimal et maximal",
+    ],
+  },
   {
     version: "23.41",
     date: "2026-10-14",
