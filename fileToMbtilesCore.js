@@ -279,10 +279,17 @@ function ftmTilesForPolygons(polys, z, limit = Infinity) {
 
 // Traces et surfaces d'un fichier GPX, KML ou GeoJSON, en [lon, lat] :
 // { lines: [[[lon, lat], …], …], polygons: [[[lon, lat], …], …] }. GPX : chaque
-// segment de trace (trkseg) et chaque route ; KML : LineString et contour
-// extérieur des Polygon ; GeoJSON : LineString, MultiLineString, Polygon,
-// MultiPolygon. Lecture par le texte, sans DOM : testable sous Node.
+// segment de trace (trkseg) et chaque route ; KML : LineString, gx:Track (traces
+// enregistrées de Google Earth et des traceurs GPS) et contour extérieur des
+// Polygon ; GeoJSON : LineString, MultiLineString, Polygon, MultiPolygon. Les
+// pointes de flèche exportées par CadoTour rejoignent leur trait
+// (ftmJoinArrowHeads). Lecture par le texte, sans DOM : testable sous Node. Un
+// KMZ est ouvert par l'appelant, qui passe ici chacun de ses .kml.
 function ftmParseTrackText(text) {
+    return ftmJoinArrowHeads(ftmReadTrackText(text));
+}
+
+function ftmReadTrackText(text) {
     const lines = [], polygons = [];
     const src = String(text || '').replace(/^﻿/, '');
     const num = v => (v == null || v === '' ? NaN : Number(v));
@@ -319,10 +326,43 @@ function ftmParseTrackText(text) {
             return m ? m[1].trim().split(/\s+/).filter(Boolean).map(t => t.split(',').map(num)) : [];
         };
         for (const m of src.matchAll(/<(?:\w+:)?LineString\b[^>]*>([\s\S]*?)<\/(?:\w+:)?LineString>/g)) keep(lines, coords(m[1]), 1);
+        // gx:Track : un point par <gx:coord>lon lat alt</gx:coord> (séparés par des espaces).
+        for (const m of src.matchAll(/<gx:Track\b[^>]*>([\s\S]*?)<\/gx:Track>/g)) {
+            keep(lines, [...m[1].matchAll(/<gx:coord>([^<]*)<\/gx:coord>/g)].map(c => c[1].trim().split(/\s+/).map(num)), 1);
+        }
         for (const m of src.matchAll(/<(?:\w+:)?outerBoundaryIs\b[^>]*>([\s\S]*?)<\/(?:\w+:)?outerBoundaryIs>/g)) keep(polygons, coords(m[1]), 3);
         return { lines, polygons };
     }
     throw new Error('Format non reconnu : GPX, KML ou GeoJSON attendu.');
+}
+
+// Flèches de CadoTour (« Fichier › Exporter en KMZ… », kmzExport.js) : un KML ne
+// connaît pas la flèche, elle y part en DEUX objets — le trait, qui s'arrête à la
+// base de la pointe, et la pointe, un triangle plein [sommet, gauche, droite]
+// dont le milieu de la base est le bout du trait. Pour une zone le long de la
+// flèche, la pointe rejoint son trait : le trait est prolongé jusqu'au sommet, et
+// le triangle n'est plus une surface à part. Une flèche à deux pointes en a une à
+// chaque bout. Un triangle qui ne touche aucun bout de trait reste une surface.
+function ftmJoinArrowHeads({ lines, polygons }) {
+    lines = lines.map(l => l.slice());
+    const kept = [];
+    const near = (a, b, tol) => Math.hypot(a[0] - b[0], (a[1] - b[1])) <= tol;
+    for (const poly of polygons) {
+        const ring = near(poly[0], poly[poly.length - 1], 0) ? poly.slice(0, -1) : poly;
+        let joined = false;
+        if (ring.length === 3) {
+            const [tip, l, r] = ring;
+            const base = [(l[0] + r[0]) / 2, (l[1] + r[1]) / 2];
+            // Tolérance : 2 % de la hauteur de la pointe (arrondis du KML).
+            const tol = Math.hypot(tip[0] - base[0], tip[1] - base[1]) * 0.02;
+            for (const line of lines) {
+                if (near(line[line.length - 1], base, tol)) { line.push(tip); joined = true; break; }
+                if (near(line[0], base, tol)) { line.unshift(tip); joined = true; break; }
+            }
+        }
+        if (!joined) kept.push(poly);
+    }
+    return { lines, polygons: kept };
 }
 
 // Couloir de `distM` mètres AU SOL de part et d'autre d'une trace [[lon, lat], …],

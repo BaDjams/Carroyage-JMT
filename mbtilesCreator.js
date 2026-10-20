@@ -503,10 +503,30 @@ function clearCreatorTrack() {
     if (info) info.textContent = '';
 }
 
+// Traces d'un fichier : GPX, KML, GeoJSON, ou KMZ (ZIP) — dont ceux de CadoTour
+// (« Fichier › Exporter en KMZ… » : flèches, polylignes, traces enregistrées ou
+// modifiées, itinéraires). Tous les .kml du KMZ sont lus, puis les pointes de
+// flèche rejoignent leur trait (ftmJoinArrowHeads).
+async function readCreatorTrackFile(file) {
+    const head = new Uint8Array(await file.slice(0, 4).arrayBuffer());
+    if (head[0] !== 0x50 || head[1] !== 0x4B) return ftmParseTrackText(await file.text());
+    await ensureJSZip();
+    const zip = await JSZip.loadAsync(file);
+    const kmls = Object.values(zip.files).filter(f => !f.dir && /\.kml$/i.test(f.name));
+    if (!kmls.length) throw new Error('KMZ sans fichier .kml.');
+    const merged = { lines: [], polygons: [] };
+    for (const entry of kmls) {
+        const r = ftmReadTrackText(await entry.async('string'));
+        merged.lines.push(...r.lines);
+        merged.polygons.push(...r.polygons);
+    }
+    return ftmJoinArrowHeads(merged);
+}
+
 async function loadCreatorTrack(file) {
     let parsed;
     try {
-        parsed = ftmParseTrackText(await file.text());
+        parsed = await readCreatorTrackFile(file);
     } catch (err) {
         alert(`${file.name} : ${err.message}`);
         return;
