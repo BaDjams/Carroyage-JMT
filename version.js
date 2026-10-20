@@ -1,12 +1,20 @@
 // version.js
 
 // Source unique de vérité pour la version de l'application.
-const APP_VERSION = '23.47';
+const APP_VERSION = '23.48';
 
 // Une ligne courte par changement, telle que l'utilisateur la voit : ce qui change,
 // sans le pourquoi ni le comment. Guillemets doubles : les apostrophes françaises
 // s'écrivent telles quelles.
 const CHANGELOG = [
+  {
+    version: "23.48",
+    date: "2026-10-20",
+    changes: [
+      "Générer depuis un fichier : un plan en plusieurs feuilles (PDF ou images) s'assemble en un seul MBTiles ou GeoTIFF — chaque feuille recalée et découpée, toutes affichées ensemble sur la carte, ordre et affichage réglables",
+      "Repère commun à deux feuilles : sa position sur la carte se reprend d'un clic",
+    ],
+  },
   {
     version: "23.47",
     date: "2026-10-20",

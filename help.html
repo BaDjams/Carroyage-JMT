@@ -252,6 +252,16 @@
                 <li><strong>Zone à garder :</strong> rectangle ou main levée pour ne garder que le plan (sans cartouche ni légende). Le reste devient transparent.</li>
                 <li><strong>Fichier produit :</strong> MBTiles pour CadoTour, ou GeoTIFF (Web Mercator, nord en haut, calé tout seul dans QGIS). Les niveaux de zoom sont proposés d'après la finesse du fichier (pixels des images, taille du plus petit texte) ; pour le GeoTIFF, le zoom choisi fixe la taille de ses pixels. Le nombre de tuiles, ou la taille de l'image, est estimé avant de lancer.</li>
             </ol>
+            <h4 class="font-semibold mb-2 text-gray-900 dark:text-white">Plan en plusieurs feuilles</h4>
+            <p class="text-sm mb-2">Un plan livré en plusieurs feuilles qui se recouvrent (nord, nord-est, est… avec chacune son cadre et sa légende) s'assemble en un seul fichier :</p>
+            <ul class="list-disc pl-5 space-y-1 text-sm mb-3">
+                <li>choisissez tous les PDF ou images ensemble, ou ajoutez-les un à un avec <strong>« ＋ Ajouter une feuille… »</strong>. Pour un PDF de plusieurs pages, <strong>« ＋ Autre page en nouvelle feuille »</strong> ;</li>
+                <li>cliquez une feuille dans la liste pour la rendre active, puis recalez-la (points d'appui) et découpez sa zone utile, sans cadre ni légende. Chaque feuille garde ses points et ses zones ;</li>
+                <li>un repère visible sur deux feuilles n'a qu'une position sur la carte : une fois pointé pour une feuille, il apparaît en rond gris pour les autres. Cliquez ce rond pour reprendre sa position exacte ;</li>
+                <li>toutes les feuilles calées s'affichent sur la carte, déjà découpées : vous suivez la continuité d'une feuille à l'autre ;</li>
+                <li>dans les recouvrements, la feuille du haut de la liste passe devant (↑ ↓ pour changer l'ordre). Décochez une feuille pour la laisser hors de l'assemblage ;</li>
+                <li>« Générer » produit un seul MBTiles (ou GeoTIFF) avec toutes les feuilles cochées.</li>
+            </ul>
             <p class="text-sm mb-4">La fabrication suit dans le gestionnaire de tâches. Un très gros PDF vectoriel est lent à dessiner (plusieurs secondes par bloc de 64 tuiles) : réduisez la zone ou le zoom maximal pour aller plus vite. L'aperçu posé sur la carte (curseur « aperçu ») permet de vérifier le calage avant de lancer.</p>
         </section>
 

@@ -726,6 +726,35 @@ function ftmIsPlainImage(f) {
         || (/^image\//.test(f.type || '') && !/tiff|jp2|jpx/.test(f.type) && !/\.(tiff?|jp2|j2w|jp2w|wld|xml|pdf)$/i.test(f.name));
 }
 
+// ===== Feuilles (plusieurs fichiers assemblés) =====
+//
+// Fichiers choisis ensemble → une liste de groupes, un par feuille. Plusieurs
+// PDF ou images (rien d'autre) font chacun leur feuille : les 8 feuilles d'un plan
+// découpé en secteurs. Tout autre choix (un fichier, des JP2 avec leurs J2W et
+// XML) reste un seul groupe, lu par ftmGroupInputFiles comme avant.
+function ftmSplitSheetFiles(files) {
+    const list = Array.from(files);
+    const isPdf = f => /\.pdf$/i.test(f.name) || f.type === 'application/pdf';
+    if (list.length > 1 && list.every(f => isPdf(f) || ftmIsPlainImage(f))) return list.map(f => [f]);
+    return [list];
+}
+
+// Zooms proposés pour plusieurs feuilles : du plus petit zoom minimal au plus
+// grand zoom maximal, pour que la feuille la plus fine reste lisible et la plus
+// étendue tienne d'un coup d'œil. Les raisons sont celles de la feuille qui
+// fixe le zoom maximal.
+function ftmCombineZoomSuggestions(list) {
+    const valid = list.filter(Boolean);
+    if (!valid.length) return null;
+    const top = valid.reduce((a, b) => (b.zmax > a.zmax ? b : a));
+    return { zmin: Math.min(...valid.map(s => s.zmin)), zmax: top.zmax, reasons: top.reasons, from: valid.indexOf(top) };
+}
+
+// Les emprises Mercator { x0, y0, x1, y1 } a et b se recouvrent-elles ?
+function ftmBoundsOverlap(a, b) {
+    return a.x1 > b.x0 && a.x0 < b.x1 && a.y1 > b.y0 && a.y0 < b.y1;
+}
+
 // Un world file ne contient aucun nom d'image : association par nom commun.
 // Le navigateur doit recevoir explicitement les fichiers sélectionnés ensemble.
 function ftmGroupInputFiles(files) {

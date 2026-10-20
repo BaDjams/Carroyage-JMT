@@ -440,6 +440,40 @@ CadoTour, ou GeoTIFF Web Mercator. Chargés au premier clic
   un tracé, Retour arrière retire le dernier point et Échap abandonne le tracé.
   Le rendu conserve l'union des zones, même tracées dans des sens opposés ; hors
   zones et hors couverture des fichiers, les pixels restent transparents.
+- **Feuilles (plan en plusieurs fichiers)** : un plan découpé en secteurs (nord, nord-est…) qui
+  se recouvrent, assemblé en un seul fichier.
+  - *Ouverture* : plusieurs PDF ou images choisis ensemble font chacun une feuille
+    (`ftmSplitSheetFiles`). « Choisir les fichiers… » repart d'un document neuf ;
+    « ＋ Ajouter une feuille… » ajoute sans rien retirer ; « ＋ Autre page en nouvelle
+    feuille » ouvre une autre page du même PDF (la première qu'aucune feuille n'utilise).
+  - *Feuille active* : chaque feuille a son fichier, sa page, ses points, sa transformation
+    et ses zones gardées. `st.source`, `st.points`, `st.T`, `st.warp`, `st.kind`… sont des
+    accesseurs vers la feuille active (`FTM_SHEET_KEYS`) : le recalage s'écrit comme pour un
+    fichier seul. Changer de feuille (`ftmActivateSheet`) range la sélection, l'historique et
+    le cadrage de la visionneuse dans la feuille quittée (`ftmStashActive`), puis rend le
+    fichier de l'autre. Une feuille inactive ne garde qu'un aperçu réduit (1 600 px, `ftmThumb`).
+  - *Liste* : affichée dès la deuxième feuille. Elle montre l'état de chaque feuille
+    (calée, nombre de points et de zones, ou « à caler ») et la case d'affichage. ↑ ↓ règlent
+    l'ordre : la feuille du haut passe devant dans les recouvrements. ✕ retire la feuille.
+  - *Carte* : toutes les feuilles calées et affichées y sont posées, découpées à leurs zones
+    gardées (`ftmSheetPreview`, clip de `FtmPreviewLayer`), empilées dans l'ordre de la liste.
+    La feuille active a son emprise en trait plein, les autres en tirets. Les repères des autres
+    feuilles apparaissent en ronds gris : quand un point attend sa position sur la carte, un clic
+    sur l'un d'eux la reprend exactement. C'est le repère commun à deux feuilles qui se recouvrent.
+  - *Génération* : toutes les feuilles affichées doivent être calées (`ftmJobReadiness`, qui
+    nomme celles qui manquent). `FtmJob` reçoit une couche par feuille, de celle du dessous à celle
+    du dessus. Pour chaque bloc, `drawRegion` rend chaque couche dont les zones touchent le bloc
+    (`ftmBoundsOverlap` ; les autres ne coûtent rien) sur un canevas de travail, la découpe à ses
+    zones (`drawLayer`), puis la pose sur le bloc. Zooms proposés (`ftmCombineZoomSuggestions`) :
+    le maximal de la feuille la plus fine, le minimal où tout l'assemblage tient en 512 px.
+    Description du fichier : « N feuilles assemblées : nom (recalage) ; … », du dessus vers le dessous.
+  - Tests : `node tools/test_file_sheets_browser.mjs <playwright>`. Deux feuilles se recouvrent,
+    l'une tournée de 4°, chacune avec cadre et légende. Le parcours vérifie :
+    - repères à leur place, cadre et légende absents ;
+    - feuille du haut devant, puis l'autre une fois l'ordre inversé ;
+    - feuille masquée absente ;
+    - sortie GeoTIFF ;
+    - PDF de deux pages (autre page en nouvelle feuille), retrait d'une feuille, document neuf.
 - **Zooms proposés** (`ftmSuggestZooms`) : maximal = plus fin des deux critères — pixel de la
   plus grande image du PDF (matrice courante suivie dans la liste d'opérateurs pdf.js) ou du
   GeoTIFF, et texte vectoriel lisible (10e centile des hauteurs, pondéré par les caractères,

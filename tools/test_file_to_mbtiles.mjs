@@ -25,7 +25,7 @@ vm.runInContext(readFileSync(`${ROOT}fileToMbtilesCore.js`, 'utf8') + `
   ftmSniffImage, ftmPrintScale, ftmGroupInputFiles, ftmParseWorldFile, ftmEpsgFromText,
   ftmParseTrackText, ftmCorridorPolygons, ftmTilesForZone, ftmJoinArrowHeads,
   ftmFitTpsPairs, ftmFitWarp, ftmWarpResiduals, ftmWarpGrid, ftmWarpSample, ftmIsPlainImage, ftmGeoTiffGrid,
-  ftmMinPoints, ftmPolygonBounds });`, context, { filename: 'fileToMbtilesCore.js' });
+  ftmMinPoints, ftmPolygonBounds, ftmSplitSheetFiles, ftmCombineZoomSuggestions, ftmBoundsOverlap });`, context, { filename: 'fileToMbtilesCore.js' });
 const C = context;
 const plain = x => JSON.parse(JSON.stringify(x));
 const near = (a, b, tol, msg) => assert.ok(Math.abs(a - b) <= tol, `${msg ?? ''} ${a} ≠ ${b} (±${tol})`);
@@ -424,6 +424,31 @@ test('images ordinaires et sortie GeoTIFF', () => {
     const B = C.ftmMercToBlockMatrix(18, g.px0 / 256, g.py0 / 256), o = C.ftmApply(B, g.originX, g.originY);
     near(o[0], 0, 1e-6); near(o[1], 0, 1e-6);
     near(g.width, Math.ceil(1000.4 / g.res) + 1, 1);
+});
+
+test('feuilles : fichiers choisis ensemble, zooms proposés, emprises', () => {
+    const f = (name, type = '') => ({ name, type });
+    const split = files => plain(C.ftmSplitSheetFiles(files).map(g => g.map(x => x.name)));
+    // Plusieurs PDF ou images : une feuille chacun.
+    assert.deepEqual(split([f('nord.pdf'), f('est.PDF'), f('sud.png', 'image/png')]), [['nord.pdf'], ['est.PDF'], ['sud.png']]);
+    // Un seul fichier, ou des JP2 avec leurs J2W : un seul groupe, comme avant.
+    assert.deepEqual(split([f('plan.pdf')]), [['plan.pdf']]);
+    assert.deepEqual(split([f('a.jp2'), f('a.j2w'), f('b.jp2'), f('b.j2w')]), [['a.jp2', 'a.j2w', 'b.jp2', 'b.j2w']]);
+    // Un mélange avec un GeoTIFF reste un groupe : ftmGroupInputFiles en dit l'erreur.
+    assert.deepEqual(split([f('plan.pdf'), f('ortho.tif')]), [['plan.pdf', 'ortho.tif']]);
+    // Zooms : du plus petit minimum au plus grand maximum ; raisons de la feuille la plus fine.
+    const s = C.ftmCombineZoomSuggestions([
+        { zmin: 14, zmax: 18, reasons: [{ kind: 'raster', zoom: 18 }] },
+        null,
+        { zmin: 12, zmax: 20, reasons: [{ kind: 'text', zoom: 20 }] },
+    ]);
+    assert.deepEqual(plain(s), { zmin: 12, zmax: 20, reasons: [{ kind: 'text', zoom: 20 }], from: 1 });
+    assert.equal(C.ftmCombineZoomSuggestions([null]), null);
+    // Emprises : recouvrement strict (un bord commun ne suffit pas).
+    const box = (x0, y0, x1, y1) => ({ x0, y0, x1, y1 });
+    assert.equal(C.ftmBoundsOverlap(box(0, 0, 10, 10), box(5, 5, 15, 15)), true);
+    assert.equal(C.ftmBoundsOverlap(box(0, 0, 10, 10), box(10, 0, 20, 10)), false);
+    assert.equal(C.ftmBoundsOverlap(box(0, 0, 10, 10), box(0, 11, 10, 20)), false);
 });
 
 let failed = 0;
