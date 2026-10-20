@@ -70,7 +70,7 @@ async function ftmOpenPdf(file) {
     const data = new Uint8Array(await file.arrayBuffer());
     const doc = await pdfjs.getDocument({ data, useSystemFonts: true }).promise;
     const src = {
-        kind: 'pdf', name: file.name, doc, pages: doc.numPages, page: null, pageNo: 1,
+        kind: 'pdf', name: file.name, file, doc, pages: doc.numPages, page: null, pageNo: 1,
         needsPoints: true, unit: 'pt', width: 0, height: 0, affine: true, T: null,
         async setPage(n) {
             this.pageNo = n;
@@ -332,6 +332,14 @@ class FtmViewer {
         this.scheduleDetail();
     }
 
+    // Plus aucune feuille : visionneuse vide.
+    clear() {
+        this._renderTask?.cancel?.(); clearTimeout(this._detailTimer);
+        this.source = null; this.base = null; this.detail = null; this.drawing = null;
+        this.polys = []; this.history = []; this.points = []; this.selectedPoly = this.selectedVertex = -1;
+        this.draw();
+    }
+
     resize() {
         const r = this.box.getBoundingClientRect(), dpr = window.devicePixelRatio || 1;
         this.canvas.width = Math.max(1, Math.round(r.width * dpr)); this.canvas.height = Math.max(1, Math.round(r.height * dpr));
@@ -589,6 +597,18 @@ class FtmViewer {
 // L'image d'aperçu, placée par une matrice CSS calculée à partir de trois de
 // ses coins : exacte pour un PDF (transformation affine), très proche pour un
 // GeoTIFF projeté (la déformation sur l'emprise d'un aperçu reste minime).
+// Une feuille découpée n'y montre que ses zones gardées (clip) : bordures et
+// légendes disparaissent de la carte comme du fichier produit.
+
+// Trace sur ctx l'union des anneaux, tous ramenés au même sens de parcours.
+function ftmTraceRings(ctx, rings) {
+    ctx.beginPath();
+    for (const poly of rings) {
+        const signed = poly.reduce((s, p, i) => { const q = poly[(i + 1) % poly.length]; return s + p[0] * q[1] - q[0] * p[1]; }, 0);
+        const ring = signed < 0 ? poly.slice().reverse() : poly;
+        ring.forEach(([x, y], i) => i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)); ctx.closePath();
+    }
+}
 
 const FtmPreviewLayer = (typeof L !== 'undefined') ? L.Layer.extend({
     initialize(getState) { this._get = getState; this._opacity = 0.6; },
@@ -607,9 +627,18 @@ const FtmPreviewLayer = (typeof L !== 'undefined') ? L.Layer.extend({
         const st = this._get();
         if (!this._map || !st?.base || !st.toMerc) { if (this._img) this._img.style.display = 'none'; return; }
         const { canvas: bc, M } = st.base;
-        if (this._img.width !== bc.width || this._img.height !== bc.height || this._img._src !== bc) {
-            this._img.width = bc.width; this._img.height = bc.height; this._img._src = bc;
-            this._img.getContext('2d').drawImage(bc, 0, 0);
+        const key = st.clip ? st.clipKey : '';
+        if (this._img.width !== bc.width || this._img.height !== bc.height || this._img._src !== bc || this._img._key !== key) {
+            this._img.width = bc.width; this._img.height = bc.height; this._img._src = bc; this._img._key = key;
+            const ctx = this._img.getContext('2d');
+            if (st.clip) {
+                // Zones gardées (unités de st.base.M), puis l'aperçu à l'intérieur seulement.
+                ctx.setTransform(...M); ftmTraceRings(ctx, st.clip); ctx.fill('nonzero');
+                ctx.setTransform(1, 0, 0, 1, 0, 0);
+                ctx.globalCompositeOperation = 'source-in';
+                ctx.drawImage(bc, 0, 0);
+                ctx.globalCompositeOperation = 'source-over';
+            } else ctx.drawImage(bc, 0, 0);
         }
         const Mi = ftmInvert(M);
         const lp = (u, v) => {
@@ -679,8 +708,9 @@ function ftmRenderWarped(src, warp, ctx, B, region) {
 // Aperçu déformé posé sur la carte : l'aperçu du fichier, redressé dans un
 // canevas Mercator nord en haut (2 048 px au plus), que FtmPreviewLayer place
 // ensuite comme une image ordinaire. Recalculé seulement si la spline change.
-function ftmWarpedPreview(st) {
-    const src = st.source, base = st.viewer.base, warp = src.warp;
+// sheet : la feuille (cache du résultat), base : son aperçu { canvas, M }.
+function ftmWarpedPreview(sheet, base) {
+    const src = sheet.source, warp = src.warp, st = sheet;
     if (st._warpPreview?.warp === warp && st._warpPreview.base === base) return st._warpPreview.out;
     const page = [[0, 0], [src.width, 0], [src.width, src.height], [0, src.height]], ring = [];
     page.forEach((p, i) => { const q = page[(i + 1) % 4]; for (let t = 0; t < 32; t++) ring.push(warp.fwd(p[0] + (q[0] - p[0]) * t / 32, p[1] + (q[1] - p[1]) * t / 32)); });
@@ -716,9 +746,18 @@ function ftmBuildModal() {
         <aside class="ftm-side">
           <section class="ftm-step">
             <h4>1. Fichier</h4>
-            <label class="ftm-btn ftm-btn-main">Choisir les fichiers…
-              <input type="file" id="ftm-file" accept=".pdf,.jpg,.jpeg,.jfif,.png,.webp,.gif,.bmp,.avif,.tif,.tiff,.jp2,.j2w,.jp2w,.wld,.xml,application/pdf,image/jpeg,image/png,image/webp,image/tiff" multiple hidden></label>
+            <div class="ftm-btns">
+              <label class="ftm-btn ftm-btn-main">Choisir les fichiers…
+                <input type="file" id="ftm-file" accept=".pdf,.jpg,.jpeg,.jfif,.png,.webp,.gif,.bmp,.avif,.tif,.tiff,.jp2,.j2w,.jp2w,.wld,.xml,application/pdf,image/jpeg,image/png,image/webp,image/tiff" multiple hidden></label>
+              <label class="ftm-btn" id="ftm-add-row" hidden title="Ajouter un fichier à l'assemblage, sans retirer les feuilles déjà ouvertes">＋ Ajouter une feuille…
+                <input type="file" id="ftm-add-file" accept=".pdf,.jpg,.jpeg,.jfif,.png,.webp,.gif,.bmp,.avif,.tif,.tiff,.jp2,.j2w,.jp2w,.wld,.xml,application/pdf,image/jpeg,image/png,image/webp,image/tiff" multiple hidden></label>
+            </div>
             <p class="ftm-note">Un PDF, une image (JPEG, PNG, WebP : capture, assemblage de photos de drone…), un GeoTIFF, ou plusieurs JP2 jointifs avec leurs J2W et XML, sélectionnés ensemble. Les parties compatibles seront assemblées dans un seul fichier.</p>
+            <p class="ftm-note">Plan découpé en plusieurs feuilles (nord, nord-est, est…) : choisir tous les PDF ou images ensemble, ou les ajouter un à un. Chaque feuille se recale par ses points et se découpe par ses zones (étapes 2 et 3), puis toutes sont assemblées dans un seul fichier.</p>
+            <div id="ftm-sheets-wrap" hidden>
+              <div id="ftm-sheets" class="ftm-sheets" role="list" aria-label="Feuilles de l'assemblage"></div>
+              <p class="ftm-note">Cliquer une feuille pour la recaler ou la découper. Dans les recouvrements, la feuille du haut passe devant. Une feuille masquée n'est pas assemblée.</p>
+            </div>
             <details class="ftm-note">
               <summary>Options JP2 (projection et bandes)</summary>
               <p>Le JP2 est traité directement dans le navigateur, par blocs. Aucun logiciel à installer. Le J2W est prioritaire pour la position ; le XML ou le JP2 fournit la projection.</p>
@@ -729,7 +768,10 @@ function ftmBuildModal() {
             <div id="ftm-file-info" class="ftm-note"></div>
             <label class="ftm-note" id="ftm-black-row"><input type="checkbox" id="ftm-black" checked> Exclure le noir pur #000000 des JP2</label>
             <p class="ftm-note">Les pixels noirs deviennent transparents, y compris au milieu d'une sélection. Décochez pour conserver les vrais éléments noirs. Les valeurs NoData déclarées restent exclues.</p>
-            <label id="ftm-page-row" class="ftm-row" hidden>Page <select id="ftm-page"></select></label>
+            <div id="ftm-page-row" hidden>
+              <label class="ftm-row">Page <select id="ftm-page"></select></label>
+              <button type="button" class="ftm-btn" data-act="page-sheet" id="ftm-page-sheet" title="Ouvrir une autre page de ce PDF comme feuille supplémentaire">＋ Autre page en nouvelle feuille</button>
+            </div>
           </section>
           <section class="ftm-step" id="ftm-points-step" hidden>
             <h4>2. Points d'appui</h4>
@@ -799,9 +841,18 @@ async function openFileToMbtiles() {
     document.body.classList.add('ftm-open');
     const $ = id => modal.querySelector('#' + id);
     const st = ftmState = {
-        modal, $, source: null, points: [], selected: -1, awaiting: null, T: null,
-        kind: 'similarity', webp: canEncodeWebp(),
+        modal, $, awaiting: null, webp: canEncodeWebp(),
+        sheets: [], active: -1, _kind: 'similarity',
     };
+    // Une feuille par fichier ouvert. Le fichier, ses points, sa transformation et
+    // sa spline sont ceux de la feuille ACTIVE : st.source, st.points… y mènent,
+    // si bien que le recalage s'écrit comme pour un fichier seul.
+    for (const key of FTM_SHEET_KEYS) {
+        Object.defineProperty(st, key, {
+            get() { const s = st.sheets[st.active]; return s ? s[key] : FTM_SHEET_EMPTY[key](st); },
+            set(v) { const s = st.sheets[st.active]; if (s) s[key] = v; else if (key === 'kind') st._kind = v; },
+        });
+    }
     st.viewer = new FtmViewer($('ftm-viewer'), {
         onPlace: (x, y) => ftmPlaceOnPlan(x, y),
         onSelectionChange: () => ftmRefresh(),
@@ -824,12 +875,7 @@ async function openFileToMbtiles() {
     if (Object.keys(bases).length > 1) L.control.layers(bases, null, { collapsed: true }).addTo(st.map);
     st.markers = L.layerGroup().addTo(st.map);
     st.footprint = L.layerGroup().addTo(st.map);
-    st.preview = new FtmPreviewLayer(() => {
-        if (!(st.source && st.viewer.base && (!st.source.needsPoints || st.T))) return null;
-        if (st.source.warp) return { base: ftmWarpedPreview(st), toMerc: (x, y) => [x, y] };
-        return { base: st.viewer.base, toMerc: (x, y) => st.source.toMerc(x, y) };
-    });
-    st.preview.addTo(st.map);
+    st.opacity = 0.6;
     st.map.on('click', e => ftmPlaceOnMap(e.latlng.lng, e.latlng.lat));
 
     // Événements
@@ -846,20 +892,33 @@ async function openFileToMbtiles() {
         if (act === 'delete-vertex') st.viewer.removeVertex();
         if (act === 'delete-zone') st.viewer.removePolygon();
         if (act === 'generate') ftmStartJob();
+        if (act === 'page-sheet') ftmAddPageSheet();
+        const row = e.target.closest('[data-sheet]');
+        if (row) {
+            const i = Number(row.dataset.sheet), sheetAct = e.target.closest('[data-sheet-act]')?.dataset.sheetAct;
+            if (sheetAct === 'up') ftmMoveSheet(i, -1);
+            else if (sheetAct === 'down') ftmMoveSheet(i, 1);
+            else if (sheetAct === 'remove') ftmRemoveSheet(i);
+            else if (sheetAct === 'visible') ftmToggleSheet(i, e.target.checked);
+            else if (!sheetAct) ftmActivateSheet(i);
+        }
     });
     $('ftm-file').addEventListener('change', e => { const files = Array.from(e.target.files); e.target.value = ''; if (files.length) ftmOpenFile(files); });
+    $('ftm-add-file').addEventListener('change', e => { const files = Array.from(e.target.files); e.target.value = ''; if (files.length) ftmOpenFile(files, false); });
     $('ftm-points-file').addEventListener('change', async e => {
         const f = e.target.files[0]; e.target.value = '';
         if (!f) return;
         try { ftmImportPoints(ftmParsePoints(await f.text())); } catch (err) { alert(err.message); }
     });
     $('ftm-page').addEventListener('change', async e => {
+        const sheet = st.sheets[st.active];
         await st.source.setPage(Number(e.target.value));
         await st.viewer.setSource(st.source);
+        sheet.thumb = ftmThumb(st.viewer.base);
         ftmRefresh();
     });
     $('ftm-kind').addEventListener('change', e => { st.kind = e.target.value; ftmRefresh(); });
-    $('ftm-opacity').addEventListener('input', e => st.preview.setOpacity(e.target.value / 100));
+    $('ftm-opacity').addEventListener('input', e => { st.opacity = e.target.value / 100; st.sheets.forEach(s => s.layer?.setOpacity(st.opacity)); });
     for (const id of ['ftm-zmin', 'ftm-zmax', 'ftm-format', 'ftm-mnt']) $(id).addEventListener('change', () => ftmUpdateEstimate());
     $('ftm-output').addEventListener('change', () => { ftmSetOutput(); ftmUpdateZooms(); });
     $('ftm-black').addEventListener('change', async e => {
@@ -868,7 +927,7 @@ async function openFileToMbtiles() {
         const previous = src.excludeBlack;
         src.excludeBlack = e.target.checked; st.opening = true;
         $('ftm-file').disabled = $('ftm-black').disabled = $('ftm-generate').disabled = true;
-        try { await st.viewer.setSource(src, true); }
+        try { await st.viewer.setSource(src, true); st.sheets[st.active].thumb = ftmThumb(st.viewer.base); }
         catch (err) { src.excludeBlack = previous; e.target.checked = previous; st.viewer.setStatus(''); alert(err.message); }
         finally { st.opening = false; $('ftm-file').disabled = $('ftm-black').disabled = false; ftmRefresh(); }
     });
@@ -906,57 +965,286 @@ function ftmSetTool(tool) {
     ftmRefresh();
 }
 
-async function ftmOpenFile(files) {
+// ----- Feuilles -----
+//
+// Une feuille : un fichier ouvert, avec ses points d'appui, sa transformation
+// et ses zones gardées. Les champs de FTM_SHEET_KEYS sont lus et écrits par
+// st.source, st.points… (feuille active) ; polys, history et view gardent la
+// sélection et le cadrage de la visionneuse quand la feuille n'est pas active,
+// thumb un aperçu réduit pour la carte.
+
+const FTM_SHEET_KEYS = ['source', 'points', 'selected', 'T', 'warp', 'kind', '_warpFit', '_warpPreview', '_warpPreviewData'];
+// Valeurs lues quand aucune feuille n'est ouverte.
+const FTM_SHEET_EMPTY = {
+    source: () => null, points: () => [], selected: () => -1, T: () => null, warp: () => null,
+    kind: st => st._kind, _warpFit: () => null, _warpPreview: () => null, _warpPreviewData: () => null,
+};
+const FTM_THUMB_MAX = 1600;                 // aperçu gardé pour une feuille inactive, plus grand côté
+let ftmSheetCounter = 0;
+
+function ftmNewSheet(src, file) {
+    return {
+        id: ++ftmSheetCounter, source: src, file, points: [], selected: -1, T: null, warp: null,
+        kind: ftmState.$('ftm-kind').value || 'similarity', _warpFit: null, _warpPreview: null, _warpPreviewData: null,
+        polys: [], history: [], view: null, thumb: null, visible: true, layer: null,
+    };
+}
+
+// Aperçu réduit { canvas, M } d'un aperçu de la visionneuse.
+function ftmThumb(base) {
+    if (!base) return null;
+    const k = Math.min(1, FTM_THUMB_MAX / Math.max(base.canvas.width, base.canvas.height));
+    if (k === 1) return base;
+    const c = document.createElement('canvas');
+    c.width = Math.max(1, Math.round(base.canvas.width * k)); c.height = Math.max(1, Math.round(base.canvas.height * k));
+    const ctx = c.getContext('2d'); ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(base.canvas, 0, 0, c.width, c.height);
+    return { canvas: c, M: ftmMultiply([c.width / base.canvas.width, 0, 0, c.height / base.canvas.height, 0, 0], base.M) };
+}
+
+const ftmActiveSheet = () => ftmState.sheets[ftmState.active] || null;
+// Zones gardées d'une feuille : celles de la visionneuse pour la feuille active.
+const ftmSheetPolys = sheet => (sheet === ftmActiveSheet() ? ftmState.viewer.polys : sheet.polys);
+const ftmSheetGeoref = sheet => !!sheet?.source && (!sheet.source.needsPoints || !!sheet.T);
+function ftmSheetLabel(sheet) {
+    const src = sheet.source;
+    return src.kind === 'pdf' && src.pages > 1 ? `${src.name}, page ${src.pageNo}` : src.name;
+}
+// Feuilles assemblées, de celle du dessous à celle du dessus.
+const ftmJobSheets = () => ftmState.sheets.filter(s => s.visible).reverse();
+
+// Sélection et cadrage de la feuille active rangés dans la feuille, avant d'en
+// changer ; son aperçu réduit sert ensuite à la carte.
+function ftmStashActive() {
+    const st = ftmState, s = ftmActiveSheet();
+    if (!s) return;
+    s.polys = st.viewer.copyPolys(); s.history = st.viewer.history.slice(); s.view = { ...st.viewer.view };
+    if (st.viewer.source === s.source && st.viewer.base && s._thumbOf !== st.viewer.base) { s.thumb = ftmThumb(st.viewer.base); s._thumbOf = st.viewer.base; }
+}
+
+function ftmSetBusy(busy) {
+    const st = ftmState, $ = st.$;
+    st.opening = busy;
+    for (const id of ['ftm-file', 'ftm-add-file', 'ftm-black', 'ftm-page', 'ftm-page-sheet']) $(id).disabled = busy;
+    if (busy) $('ftm-generate').disabled = true;
+    $('ftm-sheets').classList.toggle('is-busy', busy);
+}
+
+// Rend une feuille active : sa sélection et son cadrage reviennent dans la
+// visionneuse, ses points dans le tableau. rendered : la visionneuse montre
+// déjà son fichier (il vient d'être ouvert).
+async function ftmActivateSheet(i, { rendered = false } = {}) {
+    const st = ftmState, s = st.sheets[i];
+    if (!s || (st.opening && !rendered) || (i === st.active && !rendered)) return;
+    ftmStashActive();
+    st.active = i; st.awaiting = null;
+    const viewer = st.viewer;
+    viewer.polys = s.polys.map(p => p.map(q => q.slice())); viewer.history = s.history.slice();
+    viewer.selectedPoly = viewer.selectedVertex = -1; viewer.drawing = null;
+    if (!rendered) {
+        ftmSetBusy(true);
+        try { await viewer.setSource(s.source, true); }
+        catch (e) { console.error(e); alert(`Impossible d'afficher ${s.source.name} : ${e.message}`); }
+        finally { ftmSetBusy(false); }
+    }
+    if (s.view) { viewer.view = { ...s.view }; viewer.draw(); viewer.scheduleDetail(); }
+    else if (!rendered) viewer.fit();
+    if (viewer.base && s._thumbOf !== viewer.base) { s.thumb = ftmThumb(viewer.base); s._thumbOf = viewer.base; }
+    ftmShowSheetUi(s);
+    ftmSetTool('pan');
+}
+
+// Étapes 1 à 3 aux couleurs de la feuille active.
+function ftmShowSheetUi(s) {
+    const $ = ftmState.$, src = s?.source;
+    $('ftm-page-row').hidden = !(src?.kind === 'pdf' && src.pages > 1);
+    if (src?.kind === 'pdf') {
+        $('ftm-page').replaceChildren(...Array.from({ length: src.pages }, (_, i) => new Option(`${i + 1} / ${src.pages}`, i + 1)));
+        $('ftm-page').value = String(src.pageNo);
+    }
+    $('ftm-points-step').hidden = !src?.needsPoints;
+    $('ftm-geo-step').hidden = !src || src.needsPoints;
+    $('ftm-file-info').textContent = src ? (ftmState.sheets.length > 1 ? `Feuille ${ftmState.active + 1} : ` : '') + src.info() : '';
+    if (src && !src.needsPoints) $('ftm-geo-info').textContent = (src.kind === 'jp2' ? 'Lu dans les fichiers sélectionnés : ' : 'Lu dans le fichier : ') + src.info() + '.';
+    if (src) $('ftm-kind').value = s.kind;
+    if (src?.kind === 'jp2') $('ftm-black').checked = src.excludeBlack !== false;
+}
+
+// Ouvre les fichiers choisis. replace : nouveau document (les feuilles ouvertes
+// sont retirées) ; sinon, les fichiers s'ajoutent comme feuilles. Plusieurs PDF
+// ou images choisis ensemble font chacun leur feuille.
+async function ftmOpenFile(files, replace = true) {
     const st = ftmState, $ = st.$;
     if (st.opening) return;
-    let group;
-    try { group = ftmGroupInputFiles(files); } catch (err) { alert(err.message); return; }
-    const { file } = group;
-    const isPdf = /\.pdf$/i.test(file.name) || file.type === 'application/pdf';
-    const previous = st.source;
-    let src;
-    st.opening = true;
-    $('ftm-file').disabled = true;
-    $('ftm-black').disabled = true;
-    $('ftm-generate').disabled = true;
-    $('ftm-file-info').textContent = 'Ouverture…';
+    let groups;
+    try { groups = ftmSplitSheetFiles(files).map(g => ftmGroupInputFiles(g)); } catch (err) { alert(err.message); return; }
+    ftmStashActive();
+    const before = $('ftm-file-info').textContent;
+    const opened = [];
+    ftmSetBusy(true);
     try {
-        src = isPdf ? await ftmOpenPdf(file) : ftmIsPlainImage(file) ? await ftmOpenImage(file)
-            : /\.jp2$/i.test(file.name) ? await ftmOpenJp2(file, group) : await ftmOpenTiff(file);
-        $('ftm-file-info').textContent = 'Rendu de l’aperçu…';
+        for (const group of groups) {
+            const { file } = group;
+            const isPdf = /\.pdf$/i.test(file.name) || file.type === 'application/pdf';
+            let src;
+            $('ftm-file-info').textContent = `Ouverture de ${file.name}…`;
+            try {
+                src = isPdf ? await ftmOpenPdf(file) : ftmIsPlainImage(file) ? await ftmOpenImage(file)
+                    : /\.jp2$/i.test(file.name) ? await ftmOpenJp2(file, group) : await ftmOpenTiff(file);
+                $('ftm-file-info').textContent = `Rendu de l’aperçu de ${file.name}…`;
+                await st.viewer.setSource(src);
+                opened.push({ src, group, thumb: ftmThumb(st.viewer.base), base: st.viewer.base });
+            } catch (e) {
+                console.error(e);
+                src?.retire?.();
+                st.viewer.setStatus('');
+                alert(`Impossible d'ouvrir ${file.name} : ${e.message}`);
+            }
+        }
+    } finally { ftmSetBusy(false); }
+    if (!opened.length) {
+        // Rien d'ouvert : la feuille active revient dans la visionneuse.
+        $('ftm-file-info').textContent = before;
+        const s = ftmActiveSheet();
+        if (s && st.viewer.source !== s.source) { const i = st.active; st.active = -1; await ftmActivateSheet(i); }
+        ftmRefresh();
+        return;
+    }
+    if (replace) {
+        for (const s of st.sheets) { s.layer?.remove(); s.source.retire?.(); }
+        st.sheets = []; st.active = -1; st.zoomTouched = false;
+        const { group } = opened[0];
+        $('ftm-name').value = opened.length > 1 ? 'Assemblage' : group.file.name.replace(/\.[^.]+$/, '') + (group.images.length > 1 ? '-mosaique' : '');
+    } else if (!$('ftm-name').value) $('ftm-name').value = 'Assemblage';
+    for (const o of opened) {
+        const s = ftmNewSheet(o.src, o.group.file);
+        s.thumb = o.thumb; s._thumbOf = o.base;
+        st.sheets.push(s);
+    }
+    // La dernière ouverte est déjà dans la visionneuse.
+    st.active = -1;
+    await ftmActivateSheet(st.sheets.length - 1, { rendered: true });
+    const last = opened.at(-1).src;
+    if (!last.needsPoints) st.map.fitBounds(ftmSourceBoundsLatLng(last), { maxZoom: 18 });
+    else if (!replace) {
+        // Les feuilles déjà calées montrent où pointer la nouvelle.
+        const b = ftmSheetsBoundsLatLng();
+        if (b) st.map.fitBounds(b.pad(0.1), { maxZoom: 18 });
+    }
+}
+
+// Une autre page du PDF de la feuille active, en feuille supplémentaire : la
+// première page qu'aucune feuille de ce fichier n'utilise encore.
+async function ftmAddPageSheet() {
+    const st = ftmState, s = ftmActiveSheet();
+    if (!s || s.source.kind !== 'pdf' || st.opening) return;
+    const used = new Set(st.sheets.filter(o => o.source.kind === 'pdf' && o.file === s.file).map(o => o.source.pageNo));
+    let page = 1;
+    while (used.has(page) && page < s.source.pages) page++;
+    if (used.has(page)) page = s.source.pageNo % s.source.pages + 1;
+    ftmStashActive();
+    ftmSetBusy(true);
+    let src;
+    try {
+        src = await ftmOpenPdf(s.file);
+        await src.setPage(page);
         await st.viewer.setSource(src);
     } catch (e) {
-        console.error(e);
-        src?.retire?.();
-        src = null;
-        st.viewer.setStatus('');
-        $('ftm-file-info').textContent = previous ? previous.info() : '';
-        alert(`Impossible d'ouvrir ${file.name} : ${e.message}`);
+        console.error(e); src?.retire?.(); src = null;
+        alert(`Impossible d'ouvrir la page ${page} : ${e.message}`);
+    } finally { ftmSetBusy(false); }
+    if (!src) { const i = st.active; st.active = -1; await ftmActivateSheet(i); return; }
+    const sheet = ftmNewSheet(src, s.file);
+    sheet.thumb = ftmThumb(st.viewer.base); sheet._thumbOf = st.viewer.base;
+    st.sheets.push(sheet);
+    st.active = -1;
+    await ftmActivateSheet(st.sheets.length - 1, { rendered: true });
+}
+
+async function ftmRemoveSheet(i) {
+    const st = ftmState, s = st.sheets[i];
+    if (!s || st.opening) return;
+    s.layer?.remove(); s.source.retire?.();
+    const wasActive = i === st.active;
+    st.sheets.splice(i, 1);
+    if (!st.sheets.length) {
+        st.active = -1; st.awaiting = null;
+        st.viewer.clear();
+        ftmShowSheetUi(null);
+        ftmRefresh();
         return;
-    } finally {
-        st.opening = false;
-        $('ftm-file').disabled = false;
-        $('ftm-black').disabled = false;
-        if (!src && previous) ftmRefresh();
     }
-    previous?.retire?.();
-    st.source = src;
-    st.points = []; st.selected = -1; st.awaiting = null; st.T = null; st.warp = null; st.zoomTouched = false;
-    $('ftm-name').value = file.name.replace(/\.[^.]+$/, '') + (group.images.length > 1 ? '-mosaique' : '');
-    $('ftm-page-row').hidden = !(src.kind === 'pdf' && src.pages > 1);
-    if (src.kind === 'pdf') {
-        $('ftm-page').replaceChildren(...Array.from({ length: src.pages }, (_, i) => new Option(`${i + 1} / ${src.pages}`, i + 1)));
-    }
-    $('ftm-points-step').hidden = !src.needsPoints;
-    $('ftm-geo-step').hidden = src.needsPoints;
-    $('ftm-file-info').textContent = src.info();
-    ftmSetTool('pan');
-    if (!src.needsPoints) {
-        $('ftm-geo-info').textContent = (src.kind === 'jp2' ? 'Lu dans les fichiers sélectionnés : ' : 'Lu dans le fichier : ') + src.info() + '.';
-        const b = ftmSourceBoundsLatLng(src);
-        st.map.fitBounds(b, { maxZoom: 18 });
-    }
+    if (wasActive) { st.active = -1; await ftmActivateSheet(Math.min(i, st.sheets.length - 1)); }
+    else { if (i < st.active) st.active--; ftmRefresh(); }
+}
+
+// Feuille déplacée d'un cran vers le haut (d = -1, passe devant) ou le bas.
+function ftmMoveSheet(i, d) {
+    const st = ftmState, j = i + d;
+    if (j < 0 || j >= st.sheets.length || st.opening) return;
+    [st.sheets[i], st.sheets[j]] = [st.sheets[j], st.sheets[i]];
+    if (st.active === i) st.active = j; else if (st.active === j) st.active = i;
     ftmRefresh();
+}
+
+function ftmToggleSheet(i, visible) {
+    const s = ftmState.sheets[i];
+    if (!s) return;
+    s.visible = visible;
+    ftmRefresh();
+}
+
+// Liste des feuilles (affichée dès la deuxième).
+function ftmRenderSheets() {
+    const st = ftmState, $ = st.$, n = st.sheets.length;
+    $('ftm-add-row').hidden = !n;
+    $('ftm-sheets-wrap').hidden = n < 2;
+    const list = $('ftm-sheets');
+    list.replaceChildren(...st.sheets.map((s, i) => {
+        const src = s.source, usable = src.needsPoints ? ftmUsablePoints(s.points).length : 0;
+        const state = !src.needsPoints ? 'géoréférencée' : s.T ? `calée, ${usable} points` : 'à caler';
+        const zones = ftmSheetPolys(s).length;
+        return ftmEl('div', { class: 'ftm-sheet' + (i === st.active ? ' is-active' : '') + (s.visible ? '' : ' is-hidden'), role: 'listitem', 'data-sheet': i },
+            ftmEl('input', { type: 'checkbox', checked: s.visible, 'data-sheet-act': 'visible', title: s.visible ? 'Masquer (non assemblée)' : 'Afficher (assemblée)' }),
+            ftmEl('button', { type: 'button', class: 'ftm-sheet-name', title: 'Recaler ou découper cette feuille' }, `${i + 1}. ${ftmSheetLabel(s)}`),
+            ftmEl('span', { class: 'ftm-sheet-state' + (ftmSheetGeoref(s) ? ' is-ok' : '') }, state + (zones ? ` · ${zones} zone${zones > 1 ? 's' : ''}` : '')),
+            ftmEl('button', { type: 'button', class: 'ftm-mini', 'data-sheet-act': 'up', title: 'Monter : passe devant', disabled: i === 0 }, '↑'),
+            ftmEl('button', { type: 'button', class: 'ftm-mini', 'data-sheet-act': 'down', title: 'Descendre : passe derrière', disabled: i === n - 1 }, '↓'),
+            ftmEl('button', { type: 'button', class: 'ftm-mini', 'data-sheet-act': 'remove', title: 'Retirer cette feuille' }, '✕'));
+    }));
+}
+
+// Aperçu d'une feuille sur la carte : découpé à ses zones gardées.
+function ftmSheetPreview(sheet) {
+    const st = ftmState, src = sheet.source;
+    if (!sheet.visible || !ftmSheetGeoref(sheet)) return null;
+    const active = sheet === ftmActiveSheet();
+    const base = active && st.viewer.source === src ? st.viewer.base : sheet.thumb;
+    if (!base) return null;
+    const polys = ftmSheetPolys(sheet);
+    const clipKey = JSON.stringify(polys) + (src.warp ? sheet._warpFit?.key : '');
+    if (src.warp) {
+        return { base: ftmWarpedPreview(sheet, base), toMerc: (x, y) => [x, y], clip: polys.length ? ftmMercPolygons(sheet) : null, clipKey };
+    }
+    return { base, toMerc: (x, y) => src.toMerc(x, y), clip: polys.length ? polys : null, clipKey };
+}
+
+// Aperçus de toutes les feuilles, empilés comme elles le seront : celle du haut
+// de la liste au-dessus.
+function ftmSyncPreviews() {
+    const st = ftmState;
+    for (const s of [...st.sheets].reverse()) {
+        if (!s.layer) { s.layer = new FtmPreviewLayer(() => ftmSheetPreview(s)); s.layer.setOpacity(st.opacity); s.layer.addTo(st.map); }
+        s.layer.update();
+        if (s.layer._img) s.layer._img.parentNode?.appendChild(s.layer._img);
+    }
+}
+
+// Emprise des feuilles calées, en LatLng (null s'il n'y en a pas).
+function ftmSheetsBoundsLatLng() {
+    const rings = ftmState.sheets.filter(ftmSheetGeoref).flatMap(s => ftmMercPolygons(s));
+    if (!rings.length) return null;
+    return L.latLngBounds(rings.flat().map(([X, Y]) => { const [lon, lat] = ftmMercToLonLat(X, Y); return [lat, lon]; }));
 }
 
 // Emprise du fichier (ou des zones gardées) en LatLng, pour la carte.
@@ -1020,7 +1308,10 @@ function ftmExportPoints() {
     const st = ftmState;
     if (!st.points.length) return;
     const blob = new Blob([ftmWritePoints(st.points)], { type: 'text/plain' });
-    const a = ftmEl('a', { href: URL.createObjectURL(blob), download: `${st.$('ftm-name').value || 'points'}.points` });
+    // Plusieurs feuilles : un .points par feuille, au nom de son fichier.
+    const stem = st.sheets.length > 1 ? ftmSheetLabel(ftmActiveSheet()).replace(/\.[^.]+(, page (\d+))?$/, (m, p, n) => (n ? `-p${n}` : ''))
+        : st.$('ftm-name').value || 'points';
+    const a = ftmEl('a', { href: URL.createObjectURL(blob), download: `${stem}.points` });
     a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 10000);
 }
 
@@ -1056,7 +1347,9 @@ function ftmRenderPoints(residuals) {
     const n = st.selected + 1;
     const onFile = st.source?.kind === 'image' ? "l'IMAGE" : 'le PLAN';
     hint.textContent = !st.source ? '' : st.awaiting === 'plan' ? `Point ${n} : cliquez sa position sur ${onFile} (Échap pour annuler).`
-        : st.awaiting === 'map' ? `Point ${n} : cliquez sa position sur la CARTE (Échap pour annuler).` : '';
+        : st.awaiting === 'map' ? `Point ${n} : cliquez sa position sur la CARTE (Échap pour annuler).`
+            + (st.sheets.some((s, k) => k !== st.active && s.points.some(p => Number.isFinite(p.lat))) ? ' Repère commun à une autre feuille : cliquer son rond gris reprend sa position exacte.' : '')
+        : '';
     st.$('ftm-map').classList.toggle('is-picking', st.awaiting === 'map');
     // Marqueurs carte
     st.markers.clearLayers();
@@ -1069,6 +1362,19 @@ function ftmRenderPoints(residuals) {
         m.on('dragend', () => { const ll = m.getLatLng(); p.lat = ll.lat; p.lon = ll.lng; ftmRefresh(); });
         m.on('click', () => { st.selected = i; st.awaiting = null; ftmRefresh(); });
         m.addTo(st.markers);
+    });
+    // Repères des autres feuilles : un repère vu sur deux feuilles qui se
+    // recouvrent n'a qu'une position sur la carte. Un clic dessus, quand le point
+    // attend sa position sur la carte, la reprend exactement.
+    st.sheets.forEach((s, k) => {
+        if (k === st.active) return;
+        s.points.forEach((p, i) => {
+            if (!Number.isFinite(p.lat)) return;
+            const m = L.circleMarker([p.lat, p.lon], { radius: 5, color: '#475569', weight: 2, fillColor: '#fff', fillOpacity: 1, bubblingMouseEvents: false, className: 'ftm-other-point' });
+            m.bindTooltip(`Feuille ${k + 1}, point ${i + 1}${st.awaiting === 'map' ? ' — cliquer pour reprendre sa position' : ''}`);
+            m.on('click', () => ftmPlaceOnMap(p.lon, p.lat));
+            m.addTo(st.markers);
+        });
     });
     st.viewer.points = st.points; st.viewer.selected = st.selected; st.viewer.draw();
 }
@@ -1122,41 +1428,70 @@ function ftmRefresh() {
     $('ftm-delete-vertex').disabled = !poly || poly.length <= 3 || st.viewer.selectedVertex < 0;
     $('ftm-delete-zone').disabled = !poly;
     $('ftm-zones').textContent = drawing ? `${drawing.length} sommet(s) posé(s) — terminer le polygone avant de générer.`
-        : (nz ? `${nz} zone(s) gardée(s) ; le reste devient transparent.` : 'Toute la couverture des fichiers.')
+        : (nz ? `${nz} zone(s) gardée(s) ; le reste devient transparent.`
+            : st.sheets.length > 1 ? 'Toute la feuille : bordures et légendes comprises. Tracer la zone utile pour les retirer.' : 'Toute la couverture des fichiers.')
         + (src?.kind === 'jp2' && src.excludeBlack ? ' Noir pur exclu.' : '');
-    // Emprise sur la carte
+    // Emprises sur la carte : la feuille active en trait plein, les autres en tirets.
     st.footprint.clearLayers();
-    const georef = src && (!src.needsPoints || st.T);
-    if (georef) {
-        for (const ring of ftmMercPolygons()) {
+    st.sheets.forEach((s, k) => {
+        if (!ftmSheetGeoref(s) || (!s.visible && k !== st.active)) return;
+        const active = k === st.active;
+        for (const ring of ftmMercPolygons(s)) {
             L.polygon(ring.map(([X, Y]) => { const [lon, lat] = ftmMercToLonLat(X, Y); return [lat, lon]; }),
-                { color: '#2563eb', weight: 2, fill: false, interactive: false }).addTo(st.footprint);
+                { color: active ? '#2563eb' : '#64748b', weight: active ? 2 : 1.5, dashArray: active ? null : '6 4', fill: false, interactive: false }).addTo(st.footprint);
         }
-    }
-    st.preview.update();
+    });
+    ftmSyncPreviews();
+    ftmRenderSheets();
     ftmUpdateZooms();
 }
 
+// Feuilles prêtes à assembler, ou la raison pour laquelle on ne peut pas encore.
+function ftmJobReadiness() {
+    const st = ftmState, sheets = ftmJobSheets();
+    if (!st.sheets.length) return { ok: false, why: '' };
+    if (!sheets.length) return { ok: false, why: 'Toutes les feuilles sont masquées : en afficher au moins une.' };
+    const late = st.sheets.map((s, i) => ({ s, i })).filter(({ s }) => s.visible && !ftmSheetGeoref(s));
+    if (late.length) {
+        if (st.sheets.length === 1) return { ok: false, why: '' };
+        return { ok: false, why: `À caler avant d'assembler : ${late.map(({ s, i }) => `feuille ${i + 1} (${ftmSheetLabel(s)})`).join(', ')}. Ou la masquer.` };
+    }
+    return { ok: true, sheets };
+}
+
 async function ftmUpdateZooms() {
-    const st = ftmState, src = st.source, $ = st.$;
-    const ready = !st.opening && !st.viewer.drawing && src && (!src.needsPoints || st.T);
-    $('ftm-generate').disabled = !ready;
-    if (!ready) { $('ftm-zoom-why').textContent = ''; $('ftm-estimate').textContent = ''; return; }
-    const polys = ftmMercPolygons();
-    const b = ftmPolygonBounds(polys);
+    const st = ftmState, $ = st.$;
+    const ready = ftmJobReadiness();
+    const ok = !st.opening && !st.viewer.drawing && ready.ok;
+    $('ftm-generate').disabled = !ok;
+    if (!ok) { $('ftm-zoom-why').textContent = ready.why || ''; $('ftm-estimate').textContent = ''; return; }
+    const suggestions = [];
+    for (const sheet of ready.sheets) {
+        const src = sheet.source, polys = ftmMercPolygons(sheet);
+        const b = ftmPolygonBounds(polys);
+        const [, lat] = ftmMercToLonLat((b.x0 + b.x1) / 2, (b.y0 + b.y1) / 2);
+        const k = Math.cos(lat * Math.PI / 180);
+        const c = src.toMerc(src.width / 2, src.height / 2), d = src.toMerc(src.width / 2 + 1, src.height / 2);
+        const metersPerUnit = Math.hypot(d[0] - c[0], d[1] - c[1]) * k;
+        const an = await src.analyse();
+        if (!st.sheets.includes(sheet) || st.opening) return;
+        const sug = ftmSuggestZooms({ metersPerUnit, lat, rasterPxPerUnit: an.rasterPxPerUnit, textSizes: an.textSizes, spanMeters: Math.max(b.x1 - b.x0, b.y1 - b.y0) * k });
+        sug.unit = src.unit;
+        suggestions.push(sug);
+    }
+    const sug = ftmCombineZoomSuggestions(suggestions);
+    // Toute la zone assemblée doit tenir d'un coup d'œil au zoom minimal.
+    const all = ftmAllMercPolygons(), b = ftmPolygonBounds(all);
     const [, lat] = ftmMercToLonLat((b.x0 + b.x1) / 2, (b.y0 + b.y1) / 2);
-    const k = Math.cos(lat * Math.PI / 180);
-    const c = src.toMerc(src.width / 2, src.height / 2), d = src.toMerc(src.width / 2 + 1, src.height / 2);
-    const metersPerUnit = Math.hypot(d[0] - c[0], d[1] - c[1]) * k;
-    const an = await src.analyse();
-    if (st.source !== src || st.opening) return;
-    const sug = ftmSuggestZooms({ metersPerUnit, lat, rasterPxPerUnit: an.rasterPxPerUnit, textSizes: an.textSizes, spanMeters: Math.max(b.x1 - b.x0, b.y1 - b.y0) * k });
+    const span = Math.max(b.x1 - b.x0, b.y1 - b.y0) * Math.cos(lat * Math.PI / 180);
+    while (sug.zmin > 0 && span / ftmGroundResolution(sug.zmin - 1, lat) >= FTM_MIN_SPAN_PX) sug.zmin--;
     if (!st.zoomTouched) { $('ftm-zmin').value = sug.zmin; $('ftm-zmax').value = sug.zmax; }
+    const unit = suggestions[sug.from].unit;
     const why = sug.reasons.map(r => r.kind === 'raster' ? `image du fichier : pixel de ${ftmFormatMeters(r.res)} → zoom ${r.zoom}`
-        : r.kind === 'text' ? `texte vectoriel (${ftmNum(r.textSize, 1)} ${src.unit}) lisible à ${FTM_TEXT_PX} px → zoom ${r.zoom}`
+        : r.kind === 'text' ? `texte vectoriel (${ftmNum(r.textSize, 1)} ${unit}) lisible à ${FTM_TEXT_PX} px → zoom ${r.zoom}`
         : `dessin vectoriel sans texte → zoom ${r.zoom}`);
-    $('ftm-zoom-why').textContent = $('ftm-output').value === 'geotiff' ? `Proposé : ${sug.zmax} (${why.join(' ; ')}).`
-        : `Proposés : ${sug.zmin} à ${sug.zmax} (${why.join(' ; ')}).`;
+    const sheetNote = ready.sheets.length > 1 ? ` — ${ready.sheets.length} feuilles, la plus fine fixe le zoom maximal` : '';
+    $('ftm-zoom-why').textContent = ($('ftm-output').value === 'geotiff' ? `Proposé : ${sug.zmax} (${why.join(' ; ')})` : `Proposés : ${sug.zmin} à ${sug.zmax} (${why.join(' ; ')})`) + sheetNote + '.';
     if (!$('ftm-zmin').dataset.bound) {
         $('ftm-zmin').dataset.bound = '1';
         for (const id of ['ftm-zmin', 'ftm-zmax']) $(id).addEventListener('change', () => { st.zoomTouched = true; });
@@ -1164,9 +1499,10 @@ async function ftmUpdateZooms() {
     ftmUpdateEstimate();
 }
 
-function ftmMercPolygons() {
-    const st = ftmState, src = st.source;
-    const rings = st.viewer.polys.length ? st.viewer.polys : src.footprints || [[[0, 0], [src.width, 0], [src.width, src.height], [0, src.height]]];
+// Zones gardées d'une feuille (la feuille active par défaut), en Mercator.
+function ftmMercPolygons(sheet = ftmActiveSheet()) {
+    const src = sheet.source, polys = ftmSheetPolys(sheet);
+    const rings = polys.length ? polys : src.footprints || [[[0, 0], [src.width, 0], [src.width, src.height], [0, src.height]]];
     // Côtés densifiés : un GeoTIFF projeté courbe légèrement les droites en
     // Mercator, une spline davantage.
     const n = src.warp ? 24 : src.affine ? 1 : 8;
@@ -1180,20 +1516,27 @@ function ftmMercPolygons() {
     });
 }
 
+// Zones de toutes les feuilles assemblées, en Mercator.
+const ftmAllMercPolygons = () => ftmJobSheets().flatMap(s => ftmMercPolygons(s));
+
 function ftmUpdateEstimate() {
     const st = ftmState, $ = st.$;
-    if (st.opening || st.viewer.drawing || !st.source || (st.source.needsPoints && !st.T)) return;
+    if (st.opening || st.viewer.drawing || !ftmJobReadiness().ok) return;
     let zmin = Number($('ftm-zmin').value), zmax = Number($('ftm-zmax').value);
     if ($('ftm-output').value === 'geotiff') { ftmUpdateGeoTiffEstimate(zmax); return; }
     if (zmin > zmax) { [zmin, zmax] = [zmax, zmin]; $('ftm-zmin').value = zmin; $('ftm-zmax').value = zmax; }
-    const polys = ftmMercPolygons();
-    const area = polys.reduce((s, p) => s + ftmPolygonArea(p), 0);
+    const sheets = ftmJobSheets();
+    const polys = ftmAllMercPolygons();
+    // Surface couverte : les recouvrements entre feuilles comptent une fois de
+    // trop ; l'emprise totale borne l'estimation.
+    const b = ftmPolygonBounds(polys);
+    const area = Math.min(polys.reduce((s, p) => s + ftmPolygonArea(p), 0), (b.x1 - b.x0) * (b.y1 - b.y0));
     const tileArea = (ftmMercResolution(zmax) * 256) ** 2;
     const approx = area / tileArea * 4 / 3;
     const fmt = $('ftm-format').value, kb = fmt === 'png' ? 25 : fmt === 'jpg' ? 18 : 10;
     const tooMany = approx > FTM_MAX_TILES;
-    const blocks = Math.ceil(area / tileArea / (FTM_BLOCK_TILES * FTM_BLOCK_TILES)) + 1;
-    $('ftm-estimate').innerHTML = `≈ <b>${ftmNum(Math.round(approx))}</b> tuiles, ≈ ${ftmNum(approx * kb / 1024, 0)} Mo · ${ftmNum(blocks)} rendus du fichier au zoom ${zmax}.`
+    const blocks = Math.ceil(area / tileArea / (FTM_BLOCK_TILES * FTM_BLOCK_TILES)) + sheets.length;
+    $('ftm-estimate').innerHTML = `≈ <b>${ftmNum(Math.round(approx))}</b> tuiles, ≈ ${ftmNum(approx * kb / 1024, 0)} Mo · ${ftmNum(blocks)} rendus ${sheets.length > 1 ? `de ${sheets.length} feuilles` : 'du fichier'} au zoom ${zmax}.`
         + ($('ftm-mnt').checked ? '<br>Relief ajouté aux niveaux 0 à 12, dans le même MBTiles.' : '')
         + (fmt === 'jpg' ? '<br>JPEG : les zones transparentes seront blanches. Choisir PNG ou WebP pour conserver la transparence.' : '')
         + (tooMany ? `<br><span class="ftm-warn">Trop de tuiles pour le navigateur (au-delà de ${ftmNum(FTM_MAX_TILES)}) : baissez le zoom maximal ou réduisez la zone.</span>` : '');
@@ -1205,7 +1548,7 @@ const FTM_TIFF_MAX_PX = { 'geotiff-jpeg': 1.2e9, geotiff: 2.5e8 };   // fichier 
 
 function ftmUpdateGeoTiffEstimate(z) {
     const st = ftmState, $ = st.$;
-    const g = ftmGeoTiffGrid(ftmMercPolygons(), z);
+    const g = ftmGeoTiffGrid(ftmAllMercPolygons(), z);
     const lat = ftmMercToLonLat(0, g.originY - g.height * g.res / 2)[1];
     const fmt = $('ftm-format').value, px = g.width * g.height;
     const bytes = px * (fmt === 'geotiff' ? 3 : 0.35);
@@ -1218,17 +1561,28 @@ function ftmUpdateGeoTiffEstimate(z) {
 // ===== Génération =====
 
 function ftmStartJob() {
-    const st = ftmState, $ = st.$, src = st.source;
-    if (!src || st.opening || st.viewer.drawing || $('ftm-generate').disabled) return;
+    const st = ftmState, $ = st.$;
+    if (st.opening || st.viewer.drawing || $('ftm-generate').disabled) return;
+    const ready = ftmJobReadiness();
+    if (!ready.ok) return;
     const zmin = Number($('ftm-zmin').value), zmax = Number($('ftm-zmax').value);
     const geotiff = $('ftm-output').value === 'geotiff';
+    // Une couche par feuille assemblée, de celle du dessous à celle du dessus.
+    const layers = ready.sheets.map(sheet => {
+        const src = sheet.source, polys = ftmSheetPolys(sheet);
+        return {
+            source: src, label: ftmSheetLabel(sheet), T: sheet.T ? sheet.T.slice() : null,
+            warp: src.needsPoints ? sheet.warp : null,
+            polysSrc: polys.length ? polys.map(poly => poly.map(p => p.slice())) : null,
+            polysMerc: ftmMercPolygons(sheet),
+            pointsUsed: ftmUsablePoints(sheet.points).length,
+            excludeBlack: src.excludeBlack,
+        };
+    });
     const job = new FtmJob({
-        id: ftmJobCounter++, source: src, polysSrc: st.viewer.polys.length ? st.viewer.copyPolys() : null,
-        polysMerc: ftmMercPolygons(), zmin: geotiff ? zmax : zmin, zmax, format: $('ftm-format').value, geotiff,
-        name: ($('ftm-name').value || 'Plan').trim(), T: st.T ? st.T.slice() : null,
-        warp: src.needsPoints ? st.warp : null,
-        pointsUsed: ftmUsablePoints(st.points).length,
-        excludeBlack: src.excludeBlack, includeMnt: !geotiff && $('ftm-mnt').checked,
+        id: ftmJobCounter++, layers, polysMerc: layers.flatMap(l => l.polysMerc),
+        zmin: geotiff ? zmax : zmin, zmax, format: $('ftm-format').value, geotiff,
+        name: ($('ftm-name').value || 'Plan').trim(), includeMnt: !geotiff && $('ftm-mnt').checked,
     });
     st.modal.hidden = true; document.body.classList.remove('ftm-open');
     job.run();
@@ -1237,7 +1591,7 @@ function ftmStartJob() {
 class FtmJob {
     constructor(o) {
         Object.assign(this, o);
-        this.source.retain?.();
+        this.layers.forEach(l => l.source.retain?.());
         this.cancelled = false; this.total = 0; this.stored = 0;
         this.createUI();
     }
@@ -1251,7 +1605,9 @@ class FtmJob {
             <div class="ftm-job-steps"></div>
             <p class="ftm-job-message text-xs text-red-600 mt-1" hidden></p>
             <div class="flex justify-end text-xs text-gray-500 mt-1"><span class="ftm-job-actions"><button type="button" class="hover:text-red-600">Annuler</button></span></div>`;
-        this.ui.querySelector('.font-bold').textContent = `${this.name}.${this.geotiff ? 'tif' : 'mbtiles'} — ${ftmKindLabel(this.source)}${this.warp ? ', déformable' : ''}`;
+        const one = this.layers.length === 1 && this.layers[0];
+        this.ui.querySelector('.font-bold').textContent = `${this.name}.${this.geotiff ? 'tif' : 'mbtiles'} — `
+            + (one ? `${ftmKindLabel(one.source)}${one.warp ? ', déformable' : ''}` : `${this.layers.length} feuilles assemblées`);
         this.ui.querySelector('.ftm-job-actions button').onclick = () => this.cancel();
         (list || document.body).prepend(this.ui);
     }
@@ -1315,7 +1671,7 @@ class FtmJob {
         } finally {
             await this.store?.clear();
             await this.terrainStore?.clear();
-            this.source.release?.();
+            this.layers.forEach(l => l.source.release?.());
         }
     }
 
@@ -1348,48 +1704,64 @@ class FtmJob {
         }
     }
 
-    // Matrice « unités source → pixels du canevas » (w × h), B : Mercator → canevas.
-    sourceMatrix(B, w, h) {
-        if (this.source.affine) return ftmMultiply(B, this.T);
+    // Matrice « unités source → pixels du canevas » (w × h) d'une couche, B : Mercator → canevas.
+    sourceMatrix(layer, B, w, h) {
+        const src = layer.source;
+        if (src.affine) return ftmMultiply(B, layer.T);
         // Source projetée : approximation affine sur l'emprise du canevas (écart
         // de l'ordre du centimètre sur quelques centaines de mètres).
         const Bi = ftmInvert(B);
-        const cs = [[0, 0], [w, 0], [0, h], [w, h]].map(([u, v]) => this.source.mercToSource(...ftmApply(Bi, u, v)));
+        const cs = [[0, 0], [w, 0], [0, h], [w, h]].map(([u, v]) => src.mercToSource(...ftmApply(Bi, u, v)));
         const xs = cs.map(c => c[0]), ys = cs.map(c => c[1]);
-        const { T } = ftmLocalAffine((x, y) => this.source.toMerc(x, y), Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys));
+        const { T } = ftmLocalAffine((x, y) => src.toMerc(x, y), Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys));
         return ftmMultiply(B, T);
     }
 
-    // Dessine les zones gardées du fichier sur ctx (w × h px, effacé d'abord),
-    // B : Mercator → canevas ; lecture limitée à region [u0, v0, u1, v1].
+    // Dessine les zones gardées de toutes les couches sur ctx (w × h px, effacé
+    // d'abord), de celle du dessous à celle du dessus. B : Mercator → canevas ;
+    // lecture limitée à region [u0, v0, u1, v1]. Une couche dont les zones ne
+    // touchent pas region n'est pas rendue (un rendu de PDF coûte un temps fixe).
     async drawRegion(ctx, B, w, h, region) {
-        const src = this.source;
         ctx.setTransform(1, 0, 0, 1, 0, 0);
         ctx.globalCompositeOperation = 'source-over';
         ctx.clearRect(0, 0, w, h);
+        const Bi = ftmInvert(B), [u0, v0, u1, v1] = region;
+        const corners = [[u0, v0], [u1, v0], [u0, v1], [u1, v1]].map(([u, v]) => ftmApply(Bi, u, v));
+        const zone = ftmPolygonBounds([corners]);
+        const layers = this.layers.filter(l => ftmBoundsOverlap(l.bounds ??= ftmPolygonBounds(l.polysMerc), zone));
+        if (layers.length === 1 && this.layers.length === 1) { await this.drawLayer(layers[0], ctx, B, w, h, region); return; }
+        if (!this._scratch || this._scratch.width !== w || this._scratch.height !== h) {
+            this._scratch = document.createElement('canvas'); this._scratch.width = w; this._scratch.height = h;
+        }
+        const sctx = this._scratch.getContext('2d', { willReadFrequently: true });
+        for (const layer of layers) {
+            sctx.setTransform(1, 0, 0, 1, 0, 0); sctx.globalCompositeOperation = 'source-over'; sctx.clearRect(0, 0, w, h);
+            await this.drawLayer(layer, sctx, B, w, h, region);
+            if (this.cancelled) return;
+            ctx.drawImage(this._scratch, 0, 0);
+        }
+    }
+
+    // Une couche sur ctx (vide), découpée à ses zones gardées.
+    async drawLayer(layer, ctx, B, w, h, region) {
+        const src = layer.source;
         let M, polys;
-        if (this.warp) {
+        if (layer.warp) {
             // Spline : rendu pixel par pixel, zones découpées dans leur tracé
             // Mercator (côtés densifiés, courbés par la spline).
-            this._task = ftmRenderWarped(src, this.warp, ctx, B, region);
-            M = B; polys = this.polysMerc;
+            this._task = ftmRenderWarped(src, layer.warp, ctx, B, region);
+            M = B; polys = layer.polysMerc;
         } else {
-            M = this.sourceMatrix(B, w, h);
-            this._task = src.render(ctx, M, w, h, { excludeBlack: this.excludeBlack, region });
-            polys = this.polysSrc || src.footprints || [[[0, 0], [src.width, 0], [src.width, src.height], [0, src.height]]];
+            M = this.sourceMatrix(layer, B, w, h);
+            this._task = src.render(ctx, M, w, h, { excludeBlack: layer.excludeBlack, region });
+            polys = layer.polysSrc || src.footprints || [[[0, 0], [src.width, 0], [src.width, src.height], [0, src.height]]];
         }
         await this._task;
         if (this.cancelled) return;
         // Ne garder que les zones voulues, et rien hors du fichier.
         ctx.setTransform(...M);
         ctx.globalCompositeOperation = 'destination-in';
-        ctx.beginPath();
-        for (const poly of polys) {
-            // Même orientation pour l'union de zones tracées dans les deux sens.
-            const signed = poly.reduce((s, p, i) => { const q = poly[(i + 1) % poly.length]; return s + p[0] * q[1] - q[0] * p[1]; }, 0);
-            const ring = signed < 0 ? poly.slice().reverse() : poly;
-            ring.forEach(([x, y], i) => i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)); ctx.closePath();
-        }
+        ftmTraceRings(ctx, polys);
         ctx.fill('nonzero');
         ctx.setTransform(1, 0, 0, 1, 0, 0);
         ctx.globalCompositeOperation = 'source-over';
@@ -1468,8 +1840,16 @@ class FtmJob {
     }
 
     georefText() {
-        return this.source.needsPoints ? `recalé par ${this.pointsUsed} points d'appui${this.warp ? ' (déformable)' : ''}`
-            : `${ftmKindLabel(this.source)} EPSG:${this.source.epsg}`;
+        const one = l => l.source.needsPoints ? `recalé par ${l.pointsUsed} points d'appui${l.warp ? ' (déformable)' : ''}`
+            : `${ftmKindLabel(l.source)} EPSG:${l.source.epsg}`;
+        if (this.layers.length === 1) return one(this.layers[0]);
+        // Du dessus vers le dessous, comme la liste des feuilles.
+        return `${this.layers.length} feuilles assemblées : ` + [...this.layers].reverse().map(l => `${l.label} (${one(l)})`).join(' ; ');
+    }
+
+    // Nom des fichiers sources, pour les métadonnées.
+    sourceText() {
+        return this.layers.length === 1 ? this.layers[0].source.name : `${this.name}`;
     }
 
     // GeoTIFF : raster Web Mercator sur la grille de pixels du zoom maximal, rendu
@@ -1493,7 +1873,7 @@ class FtmJob {
             const tif = createGeoTiffStream({
                 width: W, height: H, jpeg: this.format === 'geotiff-jpeg', quality: 0.9, epsg: 3857,
                 originX: g.originX, originY: g.originY, pixelScaleX: g.res, pixelScaleY: g.res,
-                description: ascii(`${this.source.name} - ${this.georefText()} (Carroyage-JMT)`),
+                description: ascii(`${this.sourceText()} - ${this.georefText()} (Carroyage-JMT)`),
             });
             const canvas = document.createElement('canvas'); canvas.width = CW; canvas.height = BH;
             const ctx = canvas.getContext('2d', { willReadFrequently: true });
@@ -1550,7 +1930,7 @@ class FtmJob {
             const msg = this.ui.querySelector('.ftm-job-message');
             msg.textContent = e.message; msg.hidden = false;
         } finally {
-            this.source.release?.();
+            this.layers.forEach(l => l.source.release?.());
         }
     }
 
@@ -1594,7 +1974,7 @@ class FtmJob {
                 minzoom: String(this.zmin), maxzoom: String(this.zmax),
                 bounds: [w, s, e, nn].map(v => v.toFixed(6)).join(','),
                 center: `${((w + e) / 2).toFixed(6)},${((s + nn) / 2).toFixed(6)},${Math.min(this.zmax, Math.max(this.zmin, this.zmin + 2))}`,
-                description: `${this.source.name} — ${this.georefText()} (Carroyage-JMT)`,
+                description: `${this.sourceText()} — ${this.georefText()} (Carroyage-JMT)`,
             };
             if (this.includeMnt) Object.assign(meta, { mnt_storage: 'terrain_tiles', mnt_minzoom: String(MNT_MIN_ZOOM),
                 mnt_maxzoom: String(MNT_MAX_ZOOM), mnt_encoding: 'terrarium',
