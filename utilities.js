@@ -272,6 +272,9 @@ async function ensureMbtilesOverlayModule() {
 async function ensureMbtilesCreatorModule() {
     await ensureSqlJs();
     if (typeof window.initCreatorMode !== 'function') {
+        // Calculs de zone (polygone, couloir d'une trace), partagés avec
+        // « Générer depuis un fichier ».
+        await loadScriptOnce('fileToMbtilesCore.js');
         await loadScriptOnce('mbtilesCreator.js');
     }
     if (typeof window.initCreatorMode !== 'function') {

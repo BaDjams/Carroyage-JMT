@@ -275,6 +275,108 @@ function ftmTilesForPolygons(polys, z, limit = Infinity) {
     return tiles;
 }
 
+// ===== Zone le long d'une trace (« Créer MBTiles ») =====
+
+// Traces et surfaces d'un fichier GPX, KML ou GeoJSON, en [lon, lat] :
+// { lines: [[[lon, lat], …], …], polygons: [[[lon, lat], …], …] }. GPX : chaque
+// segment de trace (trkseg) et chaque route ; KML : LineString et contour
+// extérieur des Polygon ; GeoJSON : LineString, MultiLineString, Polygon,
+// MultiPolygon. Lecture par le texte, sans DOM : testable sous Node.
+function ftmParseTrackText(text) {
+    const lines = [], polygons = [];
+    const src = String(text || '').replace(/^﻿/, '');
+    const num = v => (v == null || v === '' ? NaN : Number(v));
+    const ok = p => Number.isFinite(p[0]) && Number.isFinite(p[1]) && Math.abs(p[1]) <= 90 && Math.abs(p[0]) <= 180;
+    const keep = (list, pts, min) => { const clean = pts.filter(ok); if (clean.length >= min) list.push(clean); };
+    if (/^\s*[{[]/.test(src)) {
+        let gj;
+        try { gj = JSON.parse(src); } catch (e) { throw new Error('GeoJSON illisible.'); }
+        const pt = c => [num(c?.[0]), num(c?.[1])];
+        const visit = g => {
+            if (!g) return;
+            if (g.type === 'FeatureCollection') return (g.features || []).forEach(visit);
+            if (g.type === 'Feature') return visit(g.geometry);
+            if (g.type === 'GeometryCollection') return (g.geometries || []).forEach(visit);
+            if (g.type === 'LineString') keep(lines, (g.coordinates || []).map(pt), 1);
+            if (g.type === 'MultiLineString') (g.coordinates || []).forEach(l => keep(lines, l.map(pt), 1));
+            if (g.type === 'Polygon') keep(polygons, (g.coordinates?.[0] || []).map(pt), 3);
+            if (g.type === 'MultiPolygon') (g.coordinates || []).forEach(p => keep(polygons, (p?.[0] || []).map(pt), 3));
+        };
+        visit(gj);
+        return { lines, polygons };
+    }
+    const attr = (tag, name) => { const m = new RegExp(`\\b${name}\\s*=\\s*["']([^"']*)["']`).exec(tag); return m ? num(m[1]) : NaN; };
+    const points = (block, tag) => [...block.matchAll(new RegExp(`<(?:\\w+:)?${tag}\\b[^>]*>`, 'g'))]
+        .map(m => [attr(m[0], 'lon'), attr(m[0], 'lat')]);
+    if (/<(?:\w+:)?gpx\b/.test(src)) {
+        for (const m of src.matchAll(/<(?:\w+:)?trkseg\b[^>]*>([\s\S]*?)<\/(?:\w+:)?trkseg>/g)) keep(lines, points(m[1], 'trkpt'), 1);
+        for (const m of src.matchAll(/<(?:\w+:)?rte\b[^>]*>([\s\S]*?)<\/(?:\w+:)?rte>/g)) keep(lines, points(m[1], 'rtept'), 1);
+        return { lines, polygons };
+    }
+    if (/<(?:\w+:)?kml\b/.test(src) || /<(?:\w+:)?coordinates\b/.test(src)) {
+        const coords = block => {
+            const m = /<(?:\w+:)?coordinates\b[^>]*>([\s\S]*?)<\/(?:\w+:)?coordinates>/.exec(block);
+            return m ? m[1].trim().split(/\s+/).filter(Boolean).map(t => t.split(',').map(num)) : [];
+        };
+        for (const m of src.matchAll(/<(?:\w+:)?LineString\b[^>]*>([\s\S]*?)<\/(?:\w+:)?LineString>/g)) keep(lines, coords(m[1]), 1);
+        for (const m of src.matchAll(/<(?:\w+:)?outerBoundaryIs\b[^>]*>([\s\S]*?)<\/(?:\w+:)?outerBoundaryIs>/g)) keep(polygons, coords(m[1]), 3);
+        return { lines, polygons };
+    }
+    throw new Error('Format non reconnu : GPX, KML ou GeoJSON attendu.');
+}
+
+// Couloir de `distM` mètres AU SOL de part et d'autre d'une trace [[lon, lat], …],
+// en polygones Mercator : un quadrilatère par segment, un disque par sommet (leur
+// réunion est le couloir, extrémités arrondies). En Mercator, une longueur au sol
+// vaut longueur / cos(latitude) : chaque extrémité prend l'échelle de sa latitude.
+// Disque à `sides` côtés, CIRCONSCRIT au cercle : il le contient, rien ne manque.
+// Tous les polygones tournent dans le même sens (trigonométrique) : affichés en
+// un seul tracé « nonzero », leurs recouvrements ne font pas de trous.
+function ftmCorridorPolygons(track, distM, sides = 16) {
+    const polys = [];
+    if (!(distM > 0) || !track?.length) return polys;
+    const pts = track.map(([lon, lat]) => ({ m: ftmLonLatToMerc(lon, lat), w: distM / Math.cos(lat * Math.PI / 180) }));
+    const ccw = poly => (ftmSignedArea(poly) < 0 ? poly.reverse() : poly);
+    const k = 1 / Math.cos(Math.PI / sides);
+    for (const { m: [x, y], w } of pts) {
+        const disc = [];
+        for (let i = 0; i < sides; i++) { const a = 2 * Math.PI * i / sides; disc.push([x + w * k * Math.cos(a), y + w * k * Math.sin(a)]); }
+        polys.push(disc);
+    }
+    for (let i = 1; i < pts.length; i++) {
+        const a = pts[i - 1], b = pts[i];
+        const dx = b.m[0] - a.m[0], dy = b.m[1] - a.m[1], len = Math.hypot(dx, dy);
+        if (!len) continue;
+        const nx = -dy / len, ny = dx / len;
+        polys.push(ccw([[a.m[0] + nx * a.w, a.m[1] + ny * a.w], [a.m[0] - nx * a.w, a.m[1] - ny * a.w],
+            [b.m[0] - nx * b.w, b.m[1] - ny * b.w], [b.m[0] + nx * b.w, b.m[1] + ny * b.w]]));
+    }
+    return polys;
+}
+
+function ftmSignedArea(poly) {
+    const [x, y] = poly[0];
+    let s = 0;
+    for (let i = 0; i < poly.length; i++) { const a = poly[i], b = poly[(i + 1) % poly.length]; s += (a[0] - x) * (b[1] - y) - (b[0] - x) * (a[1] - y); }
+    return s / 2;
+}
+
+// Tuiles (x, y en XYZ) du zoom z que recoupe une zone faite de nombreux petits
+// polygones (couloir d'une trace) : chacun n'examine que les tuiles de sa propre
+// emprise, au lieu de tester tous les polygones sur toute l'emprise de la zone.
+function ftmTilesForZone(polys, z, limit = Infinity) {
+    const seen = new Set(), tiles = [], n = 2 ** z;
+    for (const poly of polys) {
+        for (const t of ftmTilesForPolygons([poly], z)) {
+            const key = t.y * n + t.x;
+            if (seen.has(key)) continue;
+            if (tiles.length >= limit) throw new Error('Trop de tuiles : réduire la zone ou le zoom maximal.');
+            seen.add(key); tiles.push(t);
+        }
+    }
+    return tiles;
+}
+
 // Regroupe des tuiles du zoom z en blocs de side × side tuiles, rendus d'un
 // seul tenant (un rendu de PDF coûte surtout un temps fixe : peu de grands
 // blocs plutôt que beaucoup de tuiles). Ordre : bandes verticales de `strip`

@@ -342,6 +342,16 @@ Interface Mode 3 (carte Leaflet + contrôles + barre de progression).
   plus écrit, mais reste lu par CadoTour ; il n'est délibérément plus annoncé pour
   qu'une version ancienne ne prenne pas une tuile de fond du niveau 12 pour une
   carte d'altitude.
+- Zone : rectangle, carré autour d'un point, **polygone** (Leaflet Draw) ou **couloir le
+  long d'une trace** (bouton « 📍 Trace GPX / KML… », `#creator-track-file`, largeur de
+  part et d'autre `#creator-track-width`). Une zone qui n'est pas un rectangle est un jeu de
+  polygones Mercator (`currentCreatorZone`) : le couloir d'une ligne réunit un quadrilatère
+  par segment et un disque circonscrit par sommet (`ftmCorridorPolygons`), les surfaces
+  KML/GeoJSON sont prises telles quelles (`ftmParseTrackText`). Seules les tuiles qui le
+  recoupent sont comptées et téléchargées (`ftmTilesForZone`, chaque polygone n'examinant que
+  sa propre emprise), fond et MNT ; `bounds` des métadonnées = emprise de la zone. Calculs
+  dans `fileToMbtilesCore.js`, chargé avec le créateur. Tests : `node
+  tools/test_file_to_mbtiles.mjs`, `node tools/test_mbtiles_zone_browser.mjs <module-playwright>`.
 - Choix « Format des tuiles » (`#creator-tile-format`) : **WebP** (conseillé, proposé
   si le navigateur sait l'écrire), **format d'origine**, **JPEG** ou **PNG**. Format
   imposé : une tuile reçue déjà dans ce format est gardée octet pour octet ; les autres

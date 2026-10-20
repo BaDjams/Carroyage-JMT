@@ -8,6 +8,12 @@ let creatorDrawnItems = null;
 let renderCreatorMeasures = null;   // fourni par attachEdgeMeasures (utilities.js)
 let currentCreatorBounds = null;
 let currentCreatorCenter = null;
+// Zone qui n'est pas un rectangle (polygone tracé, couloir d'une trace) :
+// { polys: polygones Mercator, cache: Map zoom → tuiles }. null : le rectangle
+// currentCreatorBounds fait la zone. currentCreatorBounds reste son emprise.
+let currentCreatorZone = null;
+let creatorTrack = null;        // { lines, polygons, name } lus dans le fichier
+let creatorTrackLayer = null;   // affichage de la trace et de son couloir
 let activeJobs = [];
 let jobIdCounter = 1;
 let creatorBaseMaps = {};
@@ -247,6 +253,7 @@ function initCreatorMode() {
 
     creatorDrawnItems = new L.FeatureGroup();
     creatorMap.addLayer(creatorDrawnItems);
+    creatorTrackLayer = L.layerGroup().addTo(creatorMap);
 
     // Cotes sur les aretes, partagees avec l'export de zone (cf. utilities.js).
     renderCreatorMeasures = attachEdgeMeasures(creatorMap);
@@ -259,10 +266,12 @@ function initCreatorMode() {
     const drawControl = new L.Control.Draw({
         draw: {
             rectangle: { shapeOptions: { color: '#8b5cf6' } },
+            // Polygone : seules les tuiles qu'il recoupe sont téléchargées.
+            polygon: { shapeOptions: { color: '#8b5cf6' }, allowIntersection: false },
             // Le marqueur Leaflet Draw sert ici d'outil « zone autour d'un point » :
             // le point posé est remplacé immédiatement par le rectangle de sélection.
             marker: true,
-            polyline: false, polygon: false, circle: false, circlemarker: false
+            polyline: false, circle: false, circlemarker: false
         },
         edit: { featureGroup: creatorDrawnItems }
     });
@@ -270,46 +279,57 @@ function initCreatorMode() {
 
     creatorMap.on(L.Draw.Event.CREATED, (e) => {
         creatorDrawnItems.clearLayers();
+        clearCreatorTrack();
         if (e.layerType === 'marker') {
             currentCreatorCenter = e.layer.getLatLng();
             currentCreatorBounds = boundsAroundPoint(currentCreatorCenter, getCreatorPointRadius());
+            currentCreatorZone = null;
             creatorDrawnItems.addLayer(L.rectangle(currentCreatorBounds, { color: '#8b5cf6' }));
             // Le rectangle doit rester entièrement lisible juste après le pointage.
             creatorMap.fitBounds(currentCreatorBounds, { padding: [24, 24], maxZoom: 18 });
         } else {
             creatorDrawnItems.addLayer(e.layer);
-            currentCreatorBounds = e.layer.getBounds();
-            currentCreatorCenter = currentCreatorBounds.getCenter();
+            syncCreatorZoneFromLayer(e.layer);
         }
         updateCreatorUI();
     });
     creatorMap.on(L.Draw.Event.EDITED, (e) => e.layers.eachLayer(l => {
-        currentCreatorBounds = l.getBounds();
-        currentCreatorCenter = currentCreatorBounds.getCenter();
+        syncCreatorZoneFromLayer(l);
         updateCreatorUI();
     }));
     creatorMap.on(L.Draw.Event.DELETED, () => {
         currentCreatorBounds = null;
         currentCreatorCenter = null;
+        currentCreatorZone = null;
         updateCreatorUI();
+    });
+    document.getElementById('creator-track-btn')?.addEventListener('click', () => document.getElementById('creator-track-file').click());
+    document.getElementById('creator-track-file')?.addEventListener('change', async (e) => {
+        const file = e.target.files?.[0];
+        e.target.value = '';
+        if (file) await loadCreatorTrack(file);
+    });
+    document.getElementById('creator-track-width')?.addEventListener('input', () => {
+        if (creatorTrack) { applyCreatorTrack(false); updateCreatorUI(); }
     });
 
     // Retouche EN COURS : Leaflet Draw emet editmove/editresize a chaque deplacement
     // de poignee, bien avant le clic sur « Save ». Le panneau et les cotes suivent
     // donc le rectangle en direct plutot qu'a la validation.
-    creatorMap.on(`${L.Draw.Event.EDITMOVE} ${L.Draw.Event.EDITRESIZE}`, (e) => {
-        if (typeof e.layer?.getBounds !== "function") return;
-        currentCreatorBounds = e.layer.getBounds();
-        currentCreatorCenter = currentCreatorBounds.getCenter();
+    creatorMap.on(`${L.Draw.Event.EDITMOVE} ${L.Draw.Event.EDITRESIZE} ${L.Draw.Event.EDITVERTEX}`, (e) => {
+        const layer = e.layer?.getBounds ? e.layer : (e.poly || creatorDrawnItems.getLayers()[0]);
+        if (typeof layer?.getBounds !== "function") return;
+        syncCreatorZoneFromLayer(layer);
         updateCreatorUI();
     });
     // Sortie du mode edition : « Cancel » restaure la geometrie d'origine sans emettre
     // EDITED. On relit donc la couche reellement presente, qu'elle ait ete validee ou
     // annulee, pour que le panneau ne reste pas sur une emprise abandonnee.
     creatorMap.on(L.Draw.Event.EDITSTOP, () => {
+        if (creatorTrack) return;   // la zone est celle de la trace, hors des formes tracées
         const layer = creatorDrawnItems.getLayers()[0];
-        currentCreatorBounds = layer?.getBounds ? layer.getBounds() : null;
-        currentCreatorCenter = currentCreatorBounds ? currentCreatorBounds.getCenter() : null;
+        if (layer?.getBounds) syncCreatorZoneFromLayer(layer);
+        else { currentCreatorBounds = null; currentCreatorCenter = null; currentCreatorZone = null; }
         updateCreatorUI();
     });
 
@@ -432,6 +452,102 @@ function getSelectedZooms() {
     return zooms.sort((a,b) => a-b);
 }
 
+// ===== Zones qui ne sont pas des rectangles =====
+
+// Emprise (LatLngBounds) de polygones Mercator.
+function creatorBoundsOfPolys(polys) {
+    const b = ftmPolygonBounds(polys);
+    const [w, s] = ftmMercToLonLat(b.x0, b.y0), [e, n] = ftmMercToLonLat(b.x1, b.y1);
+    return L.latLngBounds([s, w], [n, e]);
+}
+
+function setCreatorZone(polys) {
+    currentCreatorZone = polys?.length ? { polys, cache: new Map() } : null;
+    currentCreatorBounds = currentCreatorZone ? creatorBoundsOfPolys(polys) : null;
+    currentCreatorCenter = currentCreatorBounds ? currentCreatorBounds.getCenter() : null;
+}
+
+// Rectangle : la zone est son emprise ; polygone : seules les tuiles qu'il recoupe.
+function syncCreatorZoneFromLayer(layer) {
+    if (layer instanceof L.Polygon && !(layer instanceof L.Rectangle)) {
+        const ring = layer.getLatLngs()[0] || [];
+        setCreatorZone(ring.length >= 3 ? [ring.map(ll => ftmLonLatToMerc(ll.lng, ll.lat))] : null);
+    } else {
+        currentCreatorZone = null;
+        currentCreatorBounds = layer.getBounds();
+        currentCreatorCenter = currentCreatorBounds.getCenter();
+    }
+}
+
+// Tuiles de la zone au zoom z, calculées une fois par zoom. `limit` : au-delà,
+// une erreur « Trop de tuiles » plutôt qu'une page figée.
+function creatorZoneTiles(zone, z, limit = Infinity) {
+    if (!zone.cache.has(z)) {
+        try { zone.cache.set(z, ftmTilesForZone(zone.polys, z, limit)); }
+        catch (e) { zone.cache.set(z, null); throw e; }   // retenu : pas de nouveau calcul à chaque rafraîchissement
+    }
+    const tiles = zone.cache.get(z);
+    if (!tiles) throw new Error('Trop de tuiles : réduire la zone ou le zoom maximal.');
+    return tiles;
+}
+
+function getCreatorTrackWidth() {
+    const v = Number(document.getElementById('creator-track-width')?.value);
+    return Number.isFinite(v) && v > 0 ? v : 500;
+}
+
+function clearCreatorTrack() {
+    creatorTrack = null;
+    creatorTrackLayer?.clearLayers();
+    const info = document.getElementById('creator-track-info');
+    if (info) info.textContent = '';
+}
+
+async function loadCreatorTrack(file) {
+    let parsed;
+    try {
+        parsed = ftmParseTrackText(await file.text());
+    } catch (err) {
+        alert(`${file.name} : ${err.message}`);
+        return;
+    }
+    if (!parsed.lines.length && !parsed.polygons.length) {
+        alert(`${file.name} : aucune trace, route ni surface trouvée.`);
+        return;
+    }
+    creatorDrawnItems.clearLayers();
+    creatorTrack = { ...parsed, name: file.name };
+    applyCreatorTrack(true);
+    updateCreatorUI();
+}
+
+// Zone de la trace : couloir de la largeur choisie autour des lignes, et les
+// surfaces telles quelles. Affichée d'un seul tenant (fillRule nonzero : les
+// morceaux du couloir, tous dans le même sens, ne se creusent pas l'un l'autre).
+function applyCreatorTrack(fit) {
+    const width = getCreatorTrackWidth();
+    const ccw = poly => (ftmSignedArea(poly) < 0 ? poly.slice().reverse() : poly);
+    const polys = [
+        ...creatorTrack.lines.flatMap(line => ftmCorridorPolygons(line, width)),
+        ...creatorTrack.polygons.map(p => ccw(p.map(([lon, lat]) => ftmLonLatToMerc(lon, lat)))),
+    ];
+    setCreatorZone(polys);
+    creatorTrackLayer.clearLayers();
+    const toLatLng = ([x, y]) => { const [lon, lat] = ftmMercToLonLat(x, y); return [lat, lon]; };
+    L.polygon(polys.map(p => [p.map(toLatLng)]), {
+        stroke: false, fillColor: '#8b5cf6', fillOpacity: 0.25, fillRule: 'nonzero', interactive: false,
+    }).addTo(creatorTrackLayer);
+    for (const line of creatorTrack.lines) {
+        L.polyline(line.map(([lon, lat]) => [lat, lon]), { color: '#6d28d9', weight: 2, interactive: false }).addTo(creatorTrackLayer);
+    }
+    const parts = [];
+    if (creatorTrack.lines.length) parts.push(`${creatorTrack.lines.length} trace(s), ${width} m de part et d'autre`);
+    if (creatorTrack.polygons.length) parts.push(`${creatorTrack.polygons.length} surface(s)`);
+    const info = document.getElementById('creator-track-info');
+    if (info) info.textContent = `${creatorTrack.name} : ${parts.join(' ; ')}`;
+    if (fit && currentCreatorBounds) creatorMap.fitBounds(currentCreatorBounds, { padding: [24, 24], maxZoom: 18 });
+}
+
 function getCreatorPointRadius() {
     const input = document.getElementById('creator-point-radius');
     const radius = Number(input?.value);
@@ -447,7 +563,8 @@ function updateCreatorUI() {
     const startBtn = document.getElementById('creator-start-btn');
     const coordsDiv = document.getElementById('creator-zone-coords');
 
-    renderCreatorMeasures?.(currentCreatorBounds);
+    // Cotes des côtés : celles d'un rectangle ; un polygone ou un couloir n'en a pas.
+    renderCreatorMeasures?.(currentCreatorZone ? null : currentCreatorBounds);
 
     if (!currentCreatorBounds) {
         coordsDiv.textContent = "Aucune zone définie";
@@ -462,21 +579,25 @@ function updateCreatorUI() {
 
     const zooms = getSelectedZooms();
     let totalTiles = 0;
-
-    zooms.forEach(z => {
-        const tiles = getTileRange(currentCreatorBounds, z);
-        totalTiles += (tiles.xMax - tiles.xMin + 1) * (tiles.yMax - tiles.yMin + 1);
-    });
-
-    if (document.getElementById('creator-include-mnt')?.checked) {
-        for (let z = MNT_MIN_ZOOM; z <= MNT_MAX_ZOOM; z++) {
-            const mntTiles = getTileRange(currentCreatorBounds, z);
-            totalTiles += (mntTiles.xMax - mntTiles.xMin + 1)
-                * (Math.max(mntTiles.yMin, mntTiles.yMax) - Math.min(mntTiles.yMin, mntTiles.yMax) + 1);
+    // Polygone ou couloir : les tuiles réellement recoupées, comptées une à une
+    // (et gardées pour le téléchargement) ; au-delà de la limite, on s'arrête.
+    const countAt = z => {
+        if (currentCreatorZone) return creatorZoneTiles(currentCreatorZone, z, MAX_SAFE_TILES_OPFS).length;
+        const t = getTileRange(currentCreatorBounds, z);
+        return (t.xMax - t.xMin + 1) * (Math.max(t.yMin, t.yMax) - Math.min(t.yMin, t.yMax) + 1);
+    };
+    let tooMany = false;
+    try {
+        zooms.forEach(z => { totalTiles += countAt(z); });
+        if (document.getElementById('creator-include-mnt')?.checked) {
+            for (let z = MNT_MIN_ZOOM; z <= MNT_MAX_ZOOM; z++) totalTiles += countAt(z);
         }
+    } catch (e) {
+        tooMany = true;
+        totalTiles = MAX_SAFE_TILES_OPFS + 1;
     }
 
-    infoTiles.textContent = totalTiles.toLocaleString() + " tuiles";
+    infoTiles.textContent = (tooMany ? 'plus de ' : '') + totalTiles.toLocaleString() + " tuiles";
     const sizeMb = (totalTiles * TILE_SIZE_ESTIMATE_KB) / 1024;
     infoSize.textContent = `~ ${sizeMb.toFixed(1)} Mo`;
     // Les isobathes ne grossissent guère le fichier, mais chaque tuile de zoom 11
@@ -528,7 +649,7 @@ function updateCreatorUI() {
         infoTiles.classList.remove('text-red-600');
     }
 
-    startBtn.disabled = (totalTiles === 0);
+    startBtn.disabled = (totalTiles === 0) || tooMany;
 }
 
 function getTileRange(bounds, zoom) {
@@ -548,7 +669,10 @@ function getTileRange(bounds, zoom) {
 // --- JOB MANAGEMENT ---
 
 class MbtilesJob {
-    constructor(id, bounds, zooms, layerConfig, filename, includeMnt = false, isobaths = null, outputFormat = 'origine') {
+    constructor(id, bounds, zooms, layerConfig, filename, includeMnt = false, isobaths = null, outputFormat = 'origine', zone = null) {
+        // Polygone ou couloir d'une trace : seules ses tuiles (creatorZoneTiles) ;
+        // null : tout le rectangle `bounds`.
+        this.zone = zone;
         this.id = id;
         this.bounds = bounds;
         this.zooms = zooms;
@@ -590,6 +714,7 @@ class MbtilesJob {
     }
 
     _tileCount(z) {
+        if (this.zone) return creatorZoneTiles(this.zone, z).length;
         const range = getTileRange(this.bounds, z);
         return (range.xMax - range.xMin + 1) * (Math.max(range.yMin, range.yMax) - Math.min(range.yMin, range.yMax) + 1);
     }
@@ -617,6 +742,10 @@ class MbtilesJob {
 
     *tileGenerator() {
         for (const z of this.zooms) {
+            if (this.zone) {
+                for (const { x, y } of creatorZoneTiles(this.zone, z)) yield { x, y, z, mnt: false };
+                continue;
+            }
             const range = getTileRange(this.bounds, z);
             const yStart = Math.min(range.yMin, range.yMax);
             const yEnd = Math.max(range.yMin, range.yMax);
@@ -630,6 +759,10 @@ class MbtilesJob {
         // le format passthrough, cf. _fetchRawTile) reste une tuile de fond.
         if (this.includeMnt) {
             for (let z = MNT_MIN_ZOOM; z <= MNT_MAX_ZOOM; z++) {
+                if (this.zone) {
+                    for (const { x, y } of creatorZoneTiles(this.zone, z)) yield { x, y, z, mnt: true };
+                    continue;
+                }
                 const range = getTileRange(this.bounds, z);
                 const yStart = Math.min(range.yMin, range.yMax);
                 const yEnd = Math.max(range.yMin, range.yMax);
@@ -1199,7 +1332,7 @@ async function startMbtilesJob() {
         return;
     }
 
-    const job = new MbtilesJob(jobIdCounter++, currentCreatorBounds, zooms, layerConfig, filename, includeMnt, isobaths, outputFormat);
+    const job = new MbtilesJob(jobIdCounter++, currentCreatorBounds, zooms, layerConfig, filename, includeMnt, isobaths, outputFormat, currentCreatorZone);
     activeJobs.push(job);
     job.start();
 }

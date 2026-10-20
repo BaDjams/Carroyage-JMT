@@ -945,7 +945,7 @@
                             <ul id="creator-suggestions" class="hidden absolute top-full z-50 bg-white dark:bg-gray-800 border w-full max-h-48 overflow-y-auto"></ul>
                         </div>
                         <div class="flex flex-wrap items-center gap-3 mb-3 text-sm text-secondary">
-                            <span>Tracez un rectangle ou utilisez l'outil point pour créer un carré autour d'une position.</span>
+                            <span>Tracez un rectangle ou un polygone, ou utilisez l'outil point pour créer un carré autour d'une position.</span>
                             <label for="creator-point-radius" class="font-medium whitespace-nowrap">Rayon autour du point</label>
                             <div class="flex items-center">
                                 <input id="creator-point-radius" type="number" min="1" step="1000" value="10000" inputmode="numeric" class="input-field px-2 py-1 border rounded shadow-sm w-28 dark:bg-gray-700 dark:text-white" aria-describedby="creator-point-radius-help">
@@ -953,10 +953,21 @@
                             </div>
                             <span id="creator-point-radius-help" class="text-xs">soit un carré de 20 × 20 km par défaut</span>
                         </div>
+                        <div class="flex flex-wrap items-center gap-3 mb-3 text-sm text-secondary">
+                            <span>Ou le long d'un itinéraire :</span>
+                            <input type="file" id="creator-track-file" accept=".gpx,.kml,.geojson,.json" class="hidden">
+                            <button type="button" id="creator-track-btn" class="px-2 py-1 border rounded text-sm button-outline" title="Trace ou route GPX, lignes et surfaces KML ou GeoJSON">📍 Trace GPX / KML…</button>
+                            <label for="creator-track-width" class="font-medium whitespace-nowrap">Largeur de part et d'autre</label>
+                            <div class="flex items-center">
+                                <input id="creator-track-width" type="number" min="10" step="100" value="500" inputmode="numeric" class="input-field px-2 py-1 border rounded shadow-sm w-24 dark:bg-gray-700 dark:text-white" aria-label="Largeur du couloir de part et d'autre de la trace, en mètres">
+                                <span class="ml-1">m</span>
+                            </div>
+                            <span id="creator-track-info" class="text-xs"></span>
+                        </div>
                         <div id="creator-interactive-map"></div> <!-- CSS géré par style.css -->
                         <div class="flex justify-between items-center mt-2 text-sm text-secondary">
                         <div>
-                            <span>Dessinez un rectangle ou placez un point.</span>
+                            <span>Dessinez un rectangle, un polygone, ou placez un point.</span>
                             <span class="ml-3 font-bold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-gray-700 px-2 py-0.5 rounded border border-blue-100 dark:border-gray-600">
                                 Zoom carte : <span id="creator-current-map-zoom">--</span>
                             </span>
