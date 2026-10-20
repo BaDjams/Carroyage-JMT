@@ -1,12 +1,21 @@
 // version.js
 
 // Source unique de vérité pour la version de l'application.
-const APP_VERSION = '23.45';
+const APP_VERSION = '23.46';
 
 // Une ligne courte par changement, telle que l'utilisateur la voit : ce qui change,
 // sans le pourquoi ni le comment. Guillemets doubles : les apostrophes françaises
 // s'écrivent telles quelles.
 const CHANGELOG = [
+  {
+    version: "23.46",
+    date: "2026-10-20",
+    changes: [
+      "Générer depuis un fichier : les images ordinaires (JPEG, PNG, WebP…) se recalent par points d'appui, comme un PDF",
+      "Transformation « Déformable » : le fichier passe exactement par chaque point et se plie entre eux, pour redresser un assemblage de photos de drone ou un scan gondolé",
+      "Générer depuis un fichier : sortie GeoTIFF (Web Mercator, JPEG ou sans compression), en plus du MBTiles",
+    ],
+  },
   {
     version: "23.45",
     date: "2026-10-20",

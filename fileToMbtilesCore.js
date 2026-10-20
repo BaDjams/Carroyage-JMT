@@ -81,7 +81,7 @@ function ftmUsablePoints(points) {
         && Number.isFinite(p.lon) && Number.isFinite(p.lat));
 }
 
-function ftmMinPoints(kind) { return kind === 'affine' ? 3 : 2; }
+function ftmMinPoints(kind) { return kind === 'affine' || kind === 'tps' ? 3 : 2; }
 
 function ftmFitTransform(points, kind = 'similarity') {
     const pts = ftmUsablePoints(points);
@@ -149,6 +149,157 @@ function ftmDescribe(T, lat) {
     const sx = Math.hypot(T[0], T[1]), sy = Math.hypot(T[2], T[3]);
     const rot = Math.atan2(T[1], T[0]) * 180 / Math.PI;
     return { metersPerUnit: (sx + sy) / 2 * k, rotation: -rot, anisotropy: sx / sy };
+}
+
+// ===== Transformation déformable (spline de plaque mince) =====
+//
+// Pour une image déformée — assemblage de photos de drone, scan gondolé : la
+// transformation passe EXACTEMENT par chaque point d'appui et se courbe en
+// douceur entre eux (« Thin Plate Spline » du Géoréférenceur QGIS et de GDAL).
+// Loin des points, elle tend vers l'affine des moindres carrés. Deux splines
+// sont ajustées sur les mêmes points : source → Mercator (positions, emprise)
+// et Mercator → source (rendu, pixel par pixel).
+
+function ftmTpsKernel(r2) { return r2 > 0 ? r2 * Math.log(r2) : 0; }
+
+// Spline (x, y) → (X, Y) passant par chaque couple [x, y, X, Y]. null si le
+// système est singulier : points confondus, ou tous alignés.
+function ftmFitTpsPairs(pairs) {
+    const n = pairs.length;
+    if (n < 3) return null;
+    // Coordonnées centrées et réduites (conditionnement du système).
+    const frame = (i, j) => {
+        const cx = pairs.reduce((s, p) => s + p[i], 0) / n, cy = pairs.reduce((s, p) => s + p[j], 0) / n;
+        const s = Math.sqrt(pairs.reduce((t, p) => t + (p[i] - cx) ** 2 + (p[j] - cy) ** 2, 0) / n) || 1;
+        return { cx, cy, s };
+    };
+    const fs = frame(0, 1), ft = frame(2, 3);
+    const u = pairs.map(p => (p[0] - fs.cx) / fs.s), v = pairs.map(p => (p[1] - fs.cy) / fs.s);
+    const m = n + 3, A = new Float64Array(m * m), B = new Float64Array(m * 2);
+    for (let i = 0; i < n; i++) {
+        for (let j = 0; j < n; j++) A[i * m + j] = ftmTpsKernel((u[i] - u[j]) ** 2 + (v[i] - v[j]) ** 2);
+        const P = [1, u[i], v[i]];
+        for (let k = 0; k < 3; k++) { A[i * m + n + k] = P[k]; A[(n + k) * m + i] = P[k]; }
+        B[i * 2] = (pairs[i][2] - ft.cx) / ft.s; B[i * 2 + 1] = (pairs[i][3] - ft.cy) / ft.s;
+    }
+    // Gauss avec pivot partiel, deux seconds membres.
+    let big = 0;
+    for (let i = 0; i < A.length; i++) big = Math.max(big, Math.abs(A[i]));
+    for (let c = 0; c < m; c++) {
+        let r = c;
+        for (let k = c + 1; k < m; k++) if (Math.abs(A[k * m + c]) > Math.abs(A[r * m + c])) r = k;
+        if (!(Math.abs(A[r * m + c]) > 1e-10 * Math.max(1, big))) return null;
+        if (r !== c) {
+            for (let k = 0; k < m; k++) { const t = A[c * m + k]; A[c * m + k] = A[r * m + k]; A[r * m + k] = t; }
+            for (let k = 0; k < 2; k++) { const t = B[c * 2 + k]; B[c * 2 + k] = B[r * 2 + k]; B[r * 2 + k] = t; }
+        }
+        for (let k = c + 1; k < m; k++) {
+            const f = A[k * m + c] / A[c * m + c];
+            if (!f) continue;
+            for (let l = c; l < m; l++) A[k * m + l] -= f * A[c * m + l];
+            B[k * 2] -= f * B[c * 2]; B[k * 2 + 1] -= f * B[c * 2 + 1];
+        }
+    }
+    const W = new Float64Array(m * 2);
+    for (let c = m - 1; c >= 0; c--) {
+        for (let k = 0; k < 2; k++) {
+            let s = B[c * 2 + k];
+            for (let l = c + 1; l < m; l++) s -= A[c * m + l] * W[l * 2 + k];
+            W[c * 2 + k] = s / A[c * m + c];
+        }
+    }
+    if (!W.every(Number.isFinite)) return null;
+    return (x, y) => {
+        const a = (x - fs.cx) / fs.s, b = (y - fs.cy) / fs.s;
+        let X = W[n * 2] + W[(n + 1) * 2] * a + W[(n + 2) * 2] * b;
+        let Y = W[n * 2 + 1] + W[(n + 1) * 2 + 1] * a + W[(n + 2) * 2 + 1] * b;
+        for (let i = 0; i < n; i++) {
+            const k = ftmTpsKernel((a - u[i]) ** 2 + (b - v[i]) ** 2);
+            X += W[i * 2] * k; Y += W[i * 2 + 1] * k;
+        }
+        return [ft.cx + X * ft.s, ft.cy + Y * ft.s];
+    };
+}
+
+// Les deux splines des points d'appui utilisables : { fwd: source → Mercator,
+// inv: Mercator → source }, ou null.
+function ftmFitWarp(points) {
+    const pts = ftmUsablePoints(points);
+    if (pts.length < ftmMinPoints('tps')) return null;
+    const pairs = pts.map(p => [p.x, p.y, ...ftmLonLatToMerc(p.lon, p.lat)]);
+    const fwd = ftmFitTpsPairs(pairs), inv = fwd && ftmFitTpsPairs(pairs.map(([x, y, X, Y]) => [X, Y, x, y]));
+    return inv ? { fwd, inv } : null;
+}
+
+// La spline passe par chaque point : son écart y est nul. On mesure donc chaque
+// point SANS lui (validation croisée) : écart au sol (m) entre sa position sur la
+// carte et celle que donnent les autres points. Un point mal pointé se détache.
+// Il faut 4 points utilisables au moins ; sinon, aucun écart.
+function ftmWarpResiduals(points) {
+    const usable = new Set(ftmUsablePoints(points));
+    const out = [];
+    let s2 = 0, n = 0;
+    for (const p of points) {
+        if (!usable.has(p) || usable.size < 4) { out.push(null); continue; }
+        const others = [...usable].filter(q => q !== p).map(q => [q.x, q.y, ...ftmLonLatToMerc(q.lon, q.lat)]);
+        const f = ftmFitTpsPairs(others);
+        if (!f) { out.push(null); continue; }
+        const [X, Y] = f(p.x, p.y), [MX, MY] = ftmLonLatToMerc(p.lon, p.lat);
+        const r = Math.hypot(X - MX, Y - MY) * Math.cos(p.lat * Math.PI / 180);
+        out.push(r); s2 += r * r; n++;
+    }
+    return { each: out, rms: n ? Math.sqrt(s2 / n) : null };
+}
+
+// ===== Rééchantillonnage par une correspondance quelconque =====
+//
+// Grille des positions lues : map(u, v) → [x, y] calculé tous les `step` pixels
+// de la sortie (coordonnées continues, coin haut-gauche du pixel en 0), puis
+// interpolé entre les nœuds. Une spline est lisse : à 16 px, l'écart reste
+// très inférieur au pixel.
+function ftmWarpGrid(map, ow, oh, step = 16) {
+    const cols = Math.ceil(ow / step) + 1, rows = Math.ceil(oh / step) + 1;
+    const gx = new Float64Array(cols * rows), gy = new Float64Array(cols * rows);
+    for (let j = 0; j < rows; j++) for (let i = 0; i < cols; i++) {
+        const [x, y] = map(i * step, j * step);
+        gx[j * cols + i] = x; gy[j * cols + i] = y;
+    }
+    return { gx, gy, cols, rows, step };
+}
+
+// Remplit `out` (RGBA, ow × oh) en lisant `src` (RGBA, sw × sh) aux positions
+// de la grille. Lecture bilinéaire pondérée par l'alpha (pas de liseré sombre
+// au bord) ; hors de l'image lue, transparent.
+function ftmWarpSample(src, sw, sh, out, ow, oh, grid) {
+    const { gx, gy, cols, step } = grid;
+    for (let v = 0; v < oh; v++) {
+        const fy = (v + 0.5) / step, j = Math.min(Math.floor(fy), grid.rows - 2), ty = fy - j;
+        for (let u = 0; u < ow; u++) {
+            const fx = (u + 0.5) / step, i = Math.min(Math.floor(fx), cols - 2), tx = fx - i;
+            const k = j * cols + i;
+            const w00 = (1 - tx) * (1 - ty), w10 = tx * (1 - ty), w01 = (1 - tx) * ty, w11 = tx * ty;
+            const x = gx[k] * w00 + gx[k + 1] * w10 + gx[k + cols] * w01 + gx[k + cols + 1] * w11 - 0.5;
+            const y = gy[k] * w00 + gy[k + 1] * w10 + gy[k + cols] * w01 + gy[k + cols + 1] * w11 - 0.5;
+            const o = (v * ow + u) * 4;
+            const x0 = Math.floor(x), y0 = Math.floor(y);
+            if (!(x0 >= -1 && y0 >= -1 && x0 < sw && y0 < sh)) { out[o] = out[o + 1] = out[o + 2] = out[o + 3] = 0; continue; }
+            const ax = x - x0, ay = y - y0;
+            let r = 0, g = 0, b = 0, a = 0;
+            for (let dy = 0; dy < 2; dy++) {
+                const yy = y0 + dy;
+                if (yy < 0 || yy >= sh) continue;
+                const wy = dy ? ay : 1 - ay;
+                for (let dx = 0; dx < 2; dx++) {
+                    const xx = x0 + dx;
+                    if (xx < 0 || xx >= sw) continue;
+                    const p = (yy * sw + xx) * 4, w = (dx ? ax : 1 - ax) * wy * src[p + 3];
+                    r += w * src[p]; g += w * src[p + 1]; b += w * src[p + 2]; a += w;
+                }
+            }
+            if (a > 0) { out[o] = r / a; out[o + 1] = g / a; out[o + 2] = b / a; out[o + 3] = a; }
+            else out[o] = out[o + 1] = out[o + 2] = out[o + 3] = 0;
+        }
+    }
 }
 
 // ===== Niveaux de zoom =====
@@ -441,6 +592,17 @@ function ftmMercToBlockMatrix(z, x0, y0) {
     return [1 / r, 0, 0, -1 / r, -X0 / r, Y0 / r];
 }
 
+// Sortie GeoTIFF (EPSG:3857, nord en haut) : le rectangle de pixels du zoom z qui
+// couvre la zone, calé sur la grille des tuiles de ce zoom — mêmes pixels que le
+// MBTiles. px0, py0 : premier pixel dans le monde ; origine = son coin haut-gauche.
+function ftmGeoTiffGrid(polys, z) {
+    const b = ftmPolygonBounds(polys), res = ftmMercResolution(z);
+    const px0 = Math.floor((b.x0 + FTM_HALF) / res), px1 = Math.ceil((b.x1 + FTM_HALF) / res);
+    const py0 = Math.floor((FTM_HALF - b.y1) / res), py1 = Math.ceil((FTM_HALF - b.y0) / res);
+    return { px0, py0, width: Math.max(1, px1 - px0), height: Math.max(1, py1 - py0), res,
+        originX: -FTM_HALF + px0 * res, originY: FTM_HALF - py0 * res };
+}
+
 // Tuiles parentes (zoom z − 1) d'un ensemble de tuiles du zoom z.
 function ftmParentTiles(tiles) {
     const seen = new Map();
@@ -557,17 +719,24 @@ function ftmEpsgFromText(text) {
     return wkt.length ? Number(wkt[wkt.length - 1][1]) : null;
 }
 
+// Image ordinaire (JPEG, PNG, WebP…) : sans position, à recaler par des points
+// d'appui comme un PDF. Le TIFF n'en est pas : il passe par geotiff.js.
+function ftmIsPlainImage(f) {
+    return /\.(jpe?g|jfif|png|webp|gif|bmp|avif)$/i.test(f.name)
+        || (/^image\//.test(f.type || '') && !/tiff|jp2|jpx/.test(f.type) && !/\.(tiff?|jp2|j2w|jp2w|wld|xml|pdf)$/i.test(f.name));
+}
+
 // Un world file ne contient aucun nom d'image : association par nom commun.
 // Le navigateur doit recevoir explicitement les fichiers sélectionnés ensemble.
 function ftmGroupInputFiles(files) {
     const list = Array.from(files);
-    const images = list.filter(f => /\.(pdf|tiff?|jp2)$/i.test(f.name) || ['application/pdf', 'image/tiff'].includes(f.type));
+    const images = list.filter(f => /\.(pdf|tiff?|jp2)$/i.test(f.name) || ftmIsPlainImage(f) || ['application/pdf', 'image/tiff'].includes(f.type));
     if (!images.length) throw new Error('Sélectionner le JP2 avec son J2W : le J2W seul ne contient pas l’image.');
     const file = images[0], jp2 = /\.jp2$/i.test(file.name);
     const worlds = list.filter(f => /\.(j2w|jp2w|wld)$/i.test(f.name));
     const xmls = list.filter(f => /\.xml$/i.test(f.name));
-    if (images.length > 1 && images.some(f => !/\.jp2$/i.test(f.name))) throw new Error('La mosaïque accepte plusieurs JP2 ; ouvrir un PDF ou un GeoTIFF seul.');
-    if (!jp2 && list.length > 1) throw new Error('Ouvrir un PDF ou un GeoTIFF seul. Les J2W et XML accompagnent les JP2.');
+    if (images.length > 1 && images.some(f => !/\.jp2$/i.test(f.name))) throw new Error('La mosaïque accepte plusieurs JP2 ; ouvrir un PDF, une image ou un GeoTIFF seul.');
+    if (!jp2 && list.length > 1) throw new Error('Ouvrir un PDF, une image ou un GeoTIFF seul. Les J2W et XML accompagnent les JP2.');
     if (images.length > 16) throw new Error('Sélectionner au plus 16 images JP2 par mosaïque.');
     const stem = f => f.name.replace(/\.(jp2|j2w|jp2w|wld)$/i, '').toLowerCase();
     const names = new Set();
