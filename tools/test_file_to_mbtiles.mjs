@@ -4,7 +4,8 @@
 // Lecture/écriture des .points de CadoTour, transformation source → Mercator
 // (similitude et affine) et ses écarts, niveaux de zoom proposés, tuiles
 // couvrant une zone, blocs, géoréférencement d'un GeoTIFF ; traces GPX/KML/GeoJSON
-// et couloir autour d'une trace (« Créer MBTiles »).
+// et couloir autour d'une trace (« Créer MBTiles ») ; spline de déformation,
+// rééchantillonnage et grille de la sortie GeoTIFF.
 
 import { readFileSync } from 'node:fs';
 import zlib from 'node:zlib';
@@ -13,7 +14,7 @@ import vm from 'node:vm';
 import assert from 'node:assert/strict';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
-const context = { Math, Error, Array, Object, Number, String, Map, Set, Infinity, JSON };
+const context = { Math, Error, Array, Object, Number, String, Map, Set, Infinity, JSON, Float64Array, Uint8ClampedArray };
 vm.createContext(context);
 vm.runInContext(readFileSync(`${ROOT}fileToMbtilesCore.js`, 'utf8') + `
 ;Object.assign(globalThis, { ftmLonLatToMerc, ftmMercToLonLat, ftmGroundResolution, ftmMercResolution,
@@ -22,7 +23,9 @@ vm.runInContext(readFileSync(`${ROOT}fileToMbtilesCore.js`, 'utf8') + `
   ftmPolygonArea, ftmTilesForPolygons, ftmGroupBlocks, ftmMercToBlockMatrix, ftmParentTiles,
   ftmPyramidCounts, ftmLocalAffine, ftmGeoTiffPixelTransform, ftmGeoTiffEpsg, ftmProjDefinition,
   ftmSniffImage, ftmPrintScale, ftmGroupInputFiles, ftmParseWorldFile, ftmEpsgFromText,
-  ftmParseTrackText, ftmCorridorPolygons, ftmTilesForZone, ftmJoinArrowHeads });`, context, { filename: 'fileToMbtilesCore.js' });
+  ftmParseTrackText, ftmCorridorPolygons, ftmTilesForZone, ftmJoinArrowHeads,
+  ftmFitTpsPairs, ftmFitWarp, ftmWarpResiduals, ftmWarpGrid, ftmWarpSample, ftmIsPlainImage, ftmGeoTiffGrid,
+  ftmMinPoints, ftmPolygonBounds });`, context, { filename: 'fileToMbtilesCore.js' });
 const C = context;
 const plain = x => JSON.parse(JSON.stringify(x));
 const near = (a, b, tol, msg) => assert.ok(Math.abs(a - b) <= tol, `${msg ?? ''} ${a} ≠ ${b} (±${tol})`);
@@ -342,6 +345,85 @@ test('couloir autour d’une trace : toutes les tuiles à portée, aucune au-del
     assert.ok(C.ftmTilesForZone(C.ftmCorridorPolygons([[-4.5, 48.4]], 300), 16).length >= 4);
     assert.equal(C.ftmCorridorPolygons(trace, 0).length, 0);
     assert.throws(() => C.ftmTilesForZone(C.ftmCorridorPolygons(trace, d), z, 10), /Trop de tuiles/);
+});
+
+test('spline : passe par chaque point, affine retrouvée, inverse cohérente', () => {
+    // Une transformation affine pure : la spline la reproduit partout.
+    const T = [0.5, 0.1, -0.2, -0.6, 300000, 6250000];
+    const src = [[0, 0], [1000, 0], [0, 800], [1000, 800], [400, 300], [700, 650]];
+    const pairs = src.map(([x, y]) => [x, y, ...C.ftmApply(T, x, y)]);
+    const f = C.ftmFitTpsPairs(pairs);
+    for (const [x, y] of [[123, 456], [999, 1], [-200, 900]]) {
+        const [X, Y] = f(x, y), [EX, EY] = C.ftmApply(T, x, y);
+        near(X, EX, 1e-5); near(Y, EY, 1e-5);
+    }
+    // Une déformation : chaque point est respecté exactement.
+    const bent = pairs.map(([x, y, X, Y], i) => [x, y, X + (i % 2 ? 7 : -5), Y + (i === 4 ? 12 : 0)]);
+    const g = C.ftmFitTpsPairs(bent);
+    for (const [x, y, X, Y] of bent) { const r = g(x, y); near(r[0], X, 1e-6); near(r[1], Y, 1e-6); }
+    // Points confondus ou alignés : pas de spline.
+    assert.equal(C.ftmFitTpsPairs([pairs[0], pairs[1], pairs[0].slice()]), null);
+    assert.equal(C.ftmFitTpsPairs([[0, 0, 0, 0], [1, 1, 1, 1], [2, 2, 2, 2], [3, 3, 3, 3]]), null);
+    assert.equal(C.ftmFitTpsPairs(pairs.slice(0, 2)), null);
+});
+
+test('spline des points d\'appui : aller-retour, minimum, validation croisée', () => {
+    assert.equal(C.ftmMinPoints('tps'), 3);
+    const pt = (x, y, lon, lat) => ({ x, y, lon, lat, enabled: true });
+    const points = [pt(0, 0, 2.30, 48.90), pt(4000, 0, 2.36, 48.90), pt(0, 3000, 2.30, 48.87),
+        pt(4000, 3000, 2.36, 48.87), pt(2000, 1500, 2.3312, 48.8851)];          // centre décalé : image gondolée
+    const w = C.ftmFitWarp(points);
+    for (const p of points) {
+        const [lon, lat] = C.ftmMercToLonLat(...w.fwd(p.x, p.y));
+        near(lon, p.lon, 1e-9); near(lat, p.lat, 1e-9);
+        const [x, y] = w.inv(...C.ftmLonLatToMerc(p.lon, p.lat));
+        near(x, p.x, 1e-6); near(y, p.y, 1e-6);
+    }
+    // Entre les points, les deux splines restent inverses l'une de l'autre au pixel près.
+    const [x, y] = w.inv(...w.fwd(1000, 2200));
+    near(x, 1000, 1); near(y, 2200, 1);
+    assert.equal(C.ftmFitWarp(points.slice(0, 2)), null);
+    // Validation croisée : le point central, déplacé, se détache.
+    const r = C.ftmWarpResiduals(points);
+    assert.equal(r.each.length, 5);
+    assert.ok(r.each[4] > 50 && r.each.slice(0, 4).every(v => v < r.each[4]), JSON.stringify(plain(r.each)));
+    const off = { ...points[4], enabled: false };
+    const r2 = C.ftmWarpResiduals([...points.slice(0, 4), off]);
+    assert.equal(r2.each[4], null);
+    assert.ok(r2.each.slice(0, 4).every(v => v < 1), 'quatre coins cohérents');
+    assert.equal(C.ftmWarpResiduals(points.slice(0, 3)).rms, null);
+});
+
+test('rééchantillonnage : identité, décalage, bord transparent', () => {
+    const sw = 8, sh = 6, src = new Uint8ClampedArray(sw * sh * 4);
+    for (let i = 0; i < sw * sh; i++) { src[4 * i] = i; src[4 * i + 1] = 2 * i; src[4 * i + 2] = 50; src[4 * i + 3] = 255; }
+    const out = new Uint8ClampedArray(sw * sh * 4);
+    C.ftmWarpSample(src, sw, sh, out, sw, sh, C.ftmWarpGrid((u, v) => [u, v], sw, sh, 4));
+    assert.deepEqual([...out], [...src]);
+    // Décalage d'un pixel vers la droite : la colonne lue hors de l'image est transparente.
+    C.ftmWarpSample(src, sw, sh, out, sw, sh, C.ftmWarpGrid((u, v) => [u + 1, v], sw, sh, 4));
+    assert.equal(out[(2 * sw + 3) * 4], src[(2 * sw + 4) * 4]);
+    assert.equal(out[(2 * sw + sw - 1) * 4 + 3], 0);
+    // Demi-pixel : moyenne des deux voisins.
+    C.ftmWarpSample(src, sw, sh, out, sw, sh, C.ftmWarpGrid((u, v) => [u + 0.5, v], sw, sh, 4));
+    near(out[(sw + 2) * 4], (src[(sw + 2) * 4] + src[(sw + 3) * 4]) / 2, 0.5);
+});
+
+test('images ordinaires et sortie GeoTIFF', () => {
+    for (const name of ['assemblage.jpg', 'ICE.JPEG', 'pano.png', 'x.webp']) assert.ok(C.ftmIsPlainImage({ name }), name);
+    for (const name of ['carte.tif', 'ortho.jp2', 'plan.pdf', 'image.j2w']) assert.ok(!C.ftmIsPlainImage({ name }), name);
+    assert.ok(C.ftmIsPlainImage({ name: 'capture', type: 'image/png' }));
+    assert.equal(C.ftmGroupInputFiles([{ name: 'stitch.jpg' }]).file.name, 'stitch.jpg');
+    assert.throws(() => C.ftmGroupInputFiles([{ name: 'a.jpg' }, { name: 'b.png' }]), /seul/);
+    const poly = [[261000.3, 6250000.2], [262000.7, 6250000.2], [262000.7, 6251000.9], [261000.3, 6251000.9]];
+    const g = C.ftmGeoTiffGrid([poly], 18);
+    near(g.res, C.ftmMercResolution(18), 1e-12);
+    assert.ok(g.originX <= 261000.3 && g.originX + g.width * g.res >= 262000.7);
+    assert.ok(g.originY >= 6251000.9 && g.originY - g.height * g.res <= 6250000.2);
+    // Calé sur la grille des tuiles : la matrice d'un bloc au premier pixel envoie l'origine en (0, 0).
+    const B = C.ftmMercToBlockMatrix(18, g.px0 / 256, g.py0 / 256), o = C.ftmApply(B, g.originX, g.originY);
+    near(o[0], 0, 1e-6); near(o[1], 0, 1e-6);
+    near(g.width, Math.ceil(1000.4 / g.res) + 1, 1);
 });
 
 let failed = 0;

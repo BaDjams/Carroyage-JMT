@@ -154,7 +154,7 @@ Interface dédiée pour générer une base MBTiles (fond de carte tuilé hors-li
 
 **Fichier pivot** : `mbtilesCreator.js`.
 
-Le bouton discret **« 📄 Générer depuis un fichier… »** (en-tête de « 1. Définir la zone ») ouvre une fenêtre qui fabrique un MBTiles à partir d'un **plan PDF à l'échelle** (recalé par des points d'appui), d'un **GeoTIFF** (géoréférencement lu dans le fichier) ou d'un **JP2 accompagné de son J2W et éventuellement de son XML** (traitement dans le navigateur) — cf. §5.4, `fileToMbtiles.js`.
+Le bouton discret **« 📄 Générer depuis un fichier… »** (en-tête de « 1. Définir la zone ») ouvre une fenêtre qui fabrique un MBTiles ou un GeoTIFF à partir d'un **plan PDF à l'échelle** ou d'une **image ordinaire** (JPEG, PNG, WebP — recalés par des points d'appui, au besoin en transformation « Déformable »), d'un **GeoTIFF** (géoréférencement lu dans le fichier) ou d'un **JP2 accompagné de son J2W et éventuellement de son XML** (traitement dans le navigateur) — cf. §5.4, `fileToMbtiles.js`.
 
 ---
 
@@ -391,20 +391,41 @@ Rendu groupé toutes les 150 ms, horloge à la seconde tant qu'une étape tourne
 
 #### `fileToMbtilesCore.js` / `fileToMbtiles.js` — « Générer depuis un fichier »
 
-PDF à l'échelle, GeoTIFF ou JP2/J2W/XML → `.mbtiles` lisible par CadoTour. Chargés au premier clic
+PDF à l'échelle, image ordinaire (JPEG, PNG, WebP…), GeoTIFF ou JP2/J2W/XML → `.mbtiles` lisible par
+CadoTour, ou GeoTIFF Web Mercator. Chargés au premier clic
 (`ensureFileToMbtilesModule`, utilities.js) ; pdf.js (`vendor/pdfjs`, module ES chargé par
 `import()`), geotiff.js et proj4 ne le sont qu'à l'ouverture d'un fichier qui en a besoin.
 
 - **Coordonnées « source »** : points PDF d'une page vue à l'échelle 1 (origine en haut à
-  gauche, y vers le bas), ou pixels du GeoTIFF. Tout le reste est en Web Mercator (EPSG:3857).
-- **Points d'appui (PDF)** : `.points` du Géoréférenceur QGIS, tel qu'exporté par CadoTour
+  gauche, y vers le bas), ou pixels de l'image ou du GeoTIFF. Tout le reste est en Web Mercator (EPSG:3857).
+- **Image ordinaire** (`ftmOpenImage`, `ftmIsPlainImage`) : JPEG, PNG, WebP, GIF, BMP, AVIF, décodée
+  une fois (`createImageBitmap`, orientation EXIF appliquée) ; chaque rendu n'en dessine que la
+  partie utile. Sans position : recalée par points d'appui comme un PDF, unité le pixel (le
+  `.points` de QGIS a la même convention, `sourceY` négatif). Le navigateur borne la taille
+  décodable (de l'ordre de 16 000 px de côté selon les navigateurs).
+- **Points d'appui (PDF, image)** : `.points` du Géoréférenceur QGIS, tel qu'exporté par CadoTour
   (panneau Coordonnées) — `mapX` longitude, `mapY` latitude, `sourceX`/`sourceY` position sur
   le plan, `sourceY` négatif ; une source (0, 0) = point à pointer sur le plan. Points aussi
   posables à la souris (plan puis carte), désactivables, exportables complétés.
 - **Transformation** (`ftmFitTransform`, moindres carrés) : similitude (2 points, plan à
   l'échelle ; le retournement y bas → Mercator haut est inclus) ou affine (3 points et plus).
   Écart de chaque point au sol (`ftmResiduals`), échelle d'impression (1 pt = 0,3528 mm) et
-  rotation affichées.
+  rotation affichées ; pour une image, taille du pixel au sol.
+- **Déformable** (`ftmFitWarp`, spline de plaque mince, « Thin Plate Spline » de QGIS/GDAL) : pour
+  une image déformée — assemblage de captures de vidéo de drone (Microsoft ICE…), scan gondolé.
+  La transformation passe exactement par chaque point et se plie en douceur entre eux ; loin des
+  points, elle tend vers l'affine. Deux splines sur les mêmes points (3 au moins) : source →
+  Mercator (emprise, marqueurs, zooms) et Mercator → source (rendu). Système (n + 3) résolu par
+  Gauss à pivot partiel en coordonnées centrées réduites ; points confondus ou tous alignés :
+  refus. Écart affiché = **validation croisée** (`ftmWarpResiduals`) : chaque point prédit par
+  les autres, sans lui (4 points au moins) — un point mal pointé se détache. Rendu
+  (`ftmRenderWarped`) : la partie utile du fichier est rendue sur un canevas intermédiaire
+  (4 096 px au plus, finesse d'un pixel de sortie, jamais au-delà du pixel d'une image), puis
+  chaque pixel de sortie y est lu à la position que donne la spline inverse, calculée tous les
+  16 px et interpolée entre les nœuds (`ftmWarpGrid`), lecture bilinéaire pondérée par l'alpha
+  (`ftmWarpSample`). Zones découpées dans leur tracé Mercator densifié (24 points par côté).
+  Aperçu sur la carte : l'aperçu du fichier redressé dans un canevas Mercator de 2 048 px
+  (`ftmWarpedPreview`), recalculé seulement quand les points changent.
 - **GeoTIFF** : `ModelTransformation` ou `ModelTiepoint` + `ModelPixelScale` (PixelIsPoint
   décalé d'un demi-pixel), système `ProjectedCSTypeGeoKey` / `GeographicTypeGeoKey` ;
   définitions proj4 intégrées (`ftmProjDefinition`) : 4326, 4171, 4258, 3857, 3395, 2154,
@@ -433,6 +454,12 @@ PDF à l'échelle, GeoTIFF ou JP2/J2W/XML → `.mbtiles` lisible par CadoTour. C
   ~2 s de décodage chacun) n'est ainsi décodé qu'environ une fois par bloc, contre 3 à 4 fois
   par lignes entières (mesuré : 223 s → 69 s au zoom 18 sur 8 192 × 6 144 px, tuiles identiques).
   Tuiles rangées en OPFS (mémoire à défaut), assemblées en SQLite (sql.js) à la fin.
+- **GeoTIFF** (sortie) : raster EPSG:3857 nord en haut, calé sur la grille des pixels du zoom
+  choisi (`ftmGeoTiffGrid`, mêmes pixels que les tuiles de ce zoom), écrit par bandes
+  (`createGeoTiffStream`, geotiffExport.js : JPEG dans le TIFF ou sans compression, BigTIFF
+  au-delà de 4 Go). Bandes de 1 024 lignes au plus (48 Mo), blocs de 2 048 px de large ; blocs
+  hors zone non rendus. Fond blanc hors des zones gardées. Plafonds : 1,2 milliard de pixels en
+  JPEG, 250 millions sans compression (fichier gardé en mémoire jusqu'à la fin). Pas de MNT.
 - **MBTiles** : WebP (si le navigateur l'encode), PNG ou JPEG (fond blanc) ; métadonnées
   `name`, `format` (lu dans les octets), `type=baselayer`, `bounds`, `center`, `minzoom`,
   `maxzoom`, `description`. Plafond : 400 000 tuiles estimées.
@@ -525,7 +552,9 @@ sur un hébergement statique comme en local : aucun serveur Python, aucune insta
   `node tools/test_jpeg2000_browser.mjs <module-playwright> [dossier-JP2] [--native]`.
   Mosaïque, contrôle des métadonnées, noir pur, édition souris/tactile, export MNT
   (fournisseur simulé, vérification des octets et des lignes TMS), panne et annulation :
-  `node tools/test_file_import_browser.mjs <module-playwright>`.
+  `node tools/test_file_import_browser.mjs <module-playwright>`. Image PNG gondolée recalée en
+  « Déformable », exports GeoTIFF (brut et JPEG) et MBTiles relus, chaque point et un repère
+  hors points à leur vraie place : `node tools/test_file_image_warp_browser.mjs <module-playwright>`.
 
 #### `seedManager.js`
 

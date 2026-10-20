@@ -1,11 +1,15 @@
 // fileToMbtiles.js — « Générer un MBTiles depuis un fichier » (mode Créer MBTiles).
 //
-// Transforme un PDF à l'échelle, un GeoTIFF ou un JP2 en .mbtiles pour CadoTour :
-//   • PDF : des points d'appui relient le plan à la carte — un .points exporté
-//     par CadoTour (positions sur la carte), dont on pointe chaque repère sur le
-//     plan, ou des points posés ici, plan puis carte. Deux suffisent pour un plan
-//     à l'échelle (similitude) ; trois et plus permettent une transformation
-//     affine. L'écart de chaque point est affiché, en mètres.
+// Transforme un PDF à l'échelle, une image, un GeoTIFF ou un JP2 en .mbtiles pour
+// CadoTour, ou en GeoTIFF (EPSG:3857) pour un SIG :
+//   • PDF ou image (JPEG, PNG, WebP…) : des points d'appui relient le fichier à
+//     la carte — un .points exporté par CadoTour (positions sur la carte), dont
+//     on pointe chaque repère sur le fichier, ou des points posés ici, fichier
+//     puis carte. Deux suffisent pour un plan à l'échelle (similitude) ; trois et
+//     plus permettent une transformation affine, ou « déformable » (spline de
+//     plaque mince) pour une image déformée — assemblage de photos de drone :
+//     elle passe par chaque point et se plie entre eux. L'écart de chaque point
+//     est affiché, en mètres.
 //   • GeoTIFF : le géoréférencement est lu dans le fichier, rien à pointer.
 //   • JP2 + J2W + XML : lecture par blocs dans un Web Worker avec OpenJPEG
 //     WebAssembly. Le J2W prime sur les axes internes du JP2.
@@ -82,8 +86,7 @@ async function ftmOpenPdf(file) {
             p.cancel = () => task.cancel();
             return p;
         },
-        toMerc(x, y) { return ftmApply(this.T, x, y); },
-        mercToSource(X, Y) { return ftmApply(ftmInvert(this.T), X, Y); },
+        ...FTM_POINT_SOURCE, warp: null,
         // Finesse du contenu : tailles du texte, densité des images (pixels par point).
         async analyse() {
             if (this._analysis) return this._analysis;
@@ -134,6 +137,56 @@ async function ftmPdfImageDensity(page, OPS, pageArea) {
         }
     }
     return best ? best.density : null;
+}
+
+// Position des sources recalées par points (PDF, image) : transformation affine
+// st.T, ou spline (warp) en mode déformable.
+const FTM_POINT_SOURCE = {
+    toMerc(x, y) { return this.warp ? this.warp.fwd(x, y) : ftmApply(this.T, x, y); },
+    mercToSource(X, Y) { return this.warp ? this.warp.inv(X, Y) : ftmApply(ftmInvert(this.T), X, Y); },
+};
+
+// ===== Sources : image ordinaire (JPEG, PNG, WebP…) =====
+//
+// Sans position : recalée par des points d'appui, comme un PDF. Unité : le pixel.
+// L'image est décodée une fois (ImageBitmap) ; chaque rendu n'en dessine que la
+// partie utile.
+
+async function ftmOpenImage(file) {
+    let bmp;
+    try { bmp = await createImageBitmap(file); }
+    catch { throw new Error("image illisible par le navigateur, ou trop grande pour lui. L'enregistrer en JPEG, ou la réduire (16 000 px de côté au plus)."); }
+    const label = ftmSniffImage(new Uint8Array(await file.slice(0, 16).arrayBuffer()))?.toUpperCase()
+        || (file.name.match(/\.([^.]+)$/)?.[1] || 'image').toUpperCase();
+    const src = {
+        ...FTM_POINT_SOURCE,
+        kind: 'image', name: file.name, needsPoints: true, unit: 'px', affine: true, T: null, warp: null,
+        width: bmp.width, height: bmp.height, users: 0, retired: false,
+        render(ctx, M, w, h, options = {}) {
+            const Mi = ftmInvert(M), [u0, v0, u1, v1] = options.region || [0, 0, w, h];
+            const cs = [[u0, v0], [u1, v0], [u0, v1], [u1, v1]].map(([u, v]) => ftmApply(Mi, u, v));
+            const x0 = Math.max(0, Math.floor(Math.min(...cs.map(c => c[0]))) - 1), x1 = Math.min(this.width, Math.ceil(Math.max(...cs.map(c => c[0]))) + 1);
+            const y0 = Math.max(0, Math.floor(Math.min(...cs.map(c => c[1]))) - 1), y1 = Math.min(this.height, Math.ceil(Math.max(...cs.map(c => c[1]))) + 1);
+            if (x1 > x0 && y1 > y0 && bmp) {
+                ctx.save();
+                ctx.setTransform(...M);
+                ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
+                ctx.drawImage(bmp, x0, y0, x1 - x0, y1 - y0, x0, y0, x1 - x0, y1 - y0);
+                ctx.restore();
+            }
+            const p = Promise.resolve();
+            p.cancel = () => {};
+            return p;
+        },
+        async analyse() { return { textSizes: [], rasterPxPerUnit: 1 }; },
+        info() { return `Image ${label} — ${ftmNum(this.width)} × ${ftmNum(this.height)} px`; },
+        // Mémoire de l'image libérée quand plus rien ne s'en sert (fenêtre, tâches).
+        retain() { this.users++; },
+        release() { if (--this.users === 0 && this.retired) this.dispose(); },
+        retire() { this.retired = true; if (!this.users) this.dispose(); },
+        dispose() { bmp?.close(); bmp = null; },
+    };
+    return src;
 }
 
 // ===== Sources : GeoTIFF =====
@@ -571,14 +624,92 @@ const FtmPreviewLayer = (typeof L !== 'undefined') ? L.Layer.extend({
     },
 }) : null;
 
+// ===== Rendu déformé (mode « Déformable ») =====
+//
+// Une spline ne se dessine pas d'une seule matrice : pour chaque pixel de sortie,
+// la spline inverse donne sa position dans le fichier (grille de nœuds tous les
+// 16 px, interpolée entre eux — ftmWarpGrid), où la couleur est lue. Le fichier
+// est d'abord rendu, à la finesse voulue, sur un canevas intermédiaire qui couvre
+// la partie utile ; ftmWarpSample fait le reste.
+
+const FTM_WARP_READ_MAX = 4096;             // côté maximal du canevas intermédiaire
+
+// Dessine la source sur ctx, B : Mercator → pixels de ctx, dans region [u0, v0, u1, v1].
+function ftmRenderWarped(src, warp, ctx, B, region) {
+    let inner = null, cancelled = false;
+    const p = (async () => {
+        const [u0, v0, u1, v1] = region, ow = u1 - u0, oh = v1 - v0;
+        const Bi = ftmInvert(B);
+        const grid = ftmWarpGrid((u, v) => warp.inv(...ftmApply(Bi, u0 + u, v0 + v)), ow, oh);
+        const { gx, gy, cols, rows, step } = grid;
+        // Partie utile du fichier, et sa finesse : unités source par pixel de sortie
+        // au plus serré.
+        let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity, fine = Infinity;
+        for (let j = 0; j < rows; j++) for (let i = 0; i < cols; i++) {
+            const k = j * cols + i, x = gx[k], y = gy[k];
+            if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y;
+            if (i + 1 < cols) fine = Math.min(fine, Math.hypot(gx[k + 1] - x, gy[k + 1] - y) / step);
+            if (j + 1 < rows) fine = Math.min(fine, Math.hypot(gx[k + cols] - x, gy[k + cols] - y) / step);
+        }
+        x0 = Math.max(0, Math.floor(x0) - 2); y0 = Math.max(0, Math.floor(y0) - 2);
+        x1 = Math.min(src.width, Math.ceil(x1) + 2); y1 = Math.min(src.height, Math.ceil(y1) + 2);
+        if (!(x1 > x0 && y1 > y0)) return;
+        // Échelle du canevas intermédiaire : un de ses pixels par pixel de sortie,
+        // sans dépasser la finesse propre d'une image (1 pixel par unité).
+        let k = 1 / Math.max(fine, 1e-9);
+        if (src.unit === 'px') k = Math.min(k, 1);
+        k = Math.min(k, FTM_WARP_READ_MAX / (x1 - x0), FTM_WARP_READ_MAX / (y1 - y0));
+        const tw = Math.max(1, Math.ceil((x1 - x0) * k)), th = Math.max(1, Math.ceil((y1 - y0) * k));
+        const tmp = document.createElement('canvas'); tmp.width = tw; tmp.height = th;
+        const tctx = tmp.getContext('2d', { willReadFrequently: true });
+        inner = src.render(tctx, [k, 0, 0, k, -x0 * k, -y0 * k], tw, th);
+        await inner;
+        if (cancelled) return;
+        const data = tctx.getImageData(0, 0, tw, th).data;
+        tmp.width = tmp.height = 0;
+        for (let i = 0; i < gx.length; i++) { gx[i] = (gx[i] - x0) * k; gy[i] = (gy[i] - y0) * k; }
+        const out = ctx.createImageData(ow, oh);
+        ftmWarpSample(data, tw, th, out.data, ow, oh, grid);
+        ctx.putImageData(out, u0, v0);
+    })();
+    p.cancel = () => { cancelled = true; inner?.cancel?.(); };
+    return p;
+}
+
+// Aperçu déformé posé sur la carte : l'aperçu du fichier, redressé dans un
+// canevas Mercator nord en haut (2 048 px au plus), que FtmPreviewLayer place
+// ensuite comme une image ordinaire. Recalculé seulement si la spline change.
+function ftmWarpedPreview(st) {
+    const src = st.source, base = st.viewer.base, warp = src.warp;
+    if (st._warpPreview?.warp === warp && st._warpPreview.base === base) return st._warpPreview.out;
+    const page = [[0, 0], [src.width, 0], [src.width, src.height], [0, src.height]], ring = [];
+    page.forEach((p, i) => { const q = page[(i + 1) % 4]; for (let t = 0; t < 32; t++) ring.push(warp.fwd(p[0] + (q[0] - p[0]) * t / 32, p[1] + (q[1] - p[1]) * t / 32)); });
+    const b = ftmPolygonBounds([ring]);
+    const r = Math.max(b.x1 - b.x0, b.y1 - b.y0) / 2048;
+    const ow = Math.max(1, Math.ceil((b.x1 - b.x0) / r)), oh = Math.max(1, Math.ceil((b.y1 - b.y0) / r));
+    const Bm = [1 / r, 0, 0, -1 / r, -b.x0 / r, b.y1 / r], Bmi = ftmInvert(Bm);
+    if (st._warpPreviewData?.base !== base) {
+        st._warpPreviewData = { base, data: base.canvas.getContext('2d').getImageData(0, 0, base.canvas.width, base.canvas.height).data };
+    }
+    const grid = ftmWarpGrid((u, v) => ftmApply(base.M, ...warp.inv(...ftmApply(Bmi, u, v))), ow, oh);
+    const canvas = document.createElement('canvas'); canvas.width = ow; canvas.height = oh;
+    const ctx = canvas.getContext('2d');
+    const img = ctx.createImageData(ow, oh);
+    ftmWarpSample(st._warpPreviewData.data, base.canvas.width, base.canvas.height, img.data, ow, oh, grid);
+    ctx.putImageData(img, 0, 0);
+    const out = { canvas, M: Bm };
+    st._warpPreview = { warp, base, out };
+    return out;
+}
+
 // ===== Fenêtre =====
 
 function ftmBuildModal() {
-    const modal = ftmEl('div', { id: 'ftm-modal', class: 'ftm-modal', role: 'dialog', 'aria-modal': 'true', 'aria-label': 'Générer un MBTiles depuis un fichier' });
+    const modal = ftmEl('div', { id: 'ftm-modal', class: 'ftm-modal', role: 'dialog', 'aria-modal': 'true', 'aria-label': 'Générer un MBTiles ou un GeoTIFF depuis un fichier' });
     modal.innerHTML = `
       <div class="ftm-header">
-        <strong>Générer un MBTiles depuis un fichier</strong>
-        <span class="ftm-sub">PDF, GeoTIFF ou JP2 + J2W → .mbtiles lisible par CadoTour</span>
+        <strong>Générer un MBTiles ou un GeoTIFF depuis un fichier</strong>
+        <span class="ftm-sub">PDF, image (JPEG, PNG, WebP), GeoTIFF ou JP2 + J2W → .mbtiles pour CadoTour, ou GeoTIFF</span>
         <button type="button" class="ftm-close" data-act="close" aria-label="Fermer">✕</button>
       </div>
       <div class="ftm-body">
@@ -586,8 +717,8 @@ function ftmBuildModal() {
           <section class="ftm-step">
             <h4>1. Fichier</h4>
             <label class="ftm-btn ftm-btn-main">Choisir les fichiers…
-              <input type="file" id="ftm-file" accept=".pdf,.tif,.tiff,.jp2,.j2w,.jp2w,.wld,.xml,application/pdf,image/tiff" multiple hidden></label>
-            <p class="ftm-note">Un PDF, un GeoTIFF, ou plusieurs JP2 jointifs avec leurs J2W et XML, sélectionnés ensemble. Les parties compatibles seront assemblées dans un seul MBTiles.</p>
+              <input type="file" id="ftm-file" accept=".pdf,.jpg,.jpeg,.jfif,.png,.webp,.gif,.bmp,.avif,.tif,.tiff,.jp2,.j2w,.jp2w,.wld,.xml,application/pdf,image/jpeg,image/png,image/webp,image/tiff" multiple hidden></label>
+            <p class="ftm-note">Un PDF, une image (JPEG, PNG, WebP : capture, assemblage de photos de drone…), un GeoTIFF, ou plusieurs JP2 jointifs avec leurs J2W et XML, sélectionnés ensemble. Les parties compatibles seront assemblées dans un seul fichier.</p>
             <details class="ftm-note">
               <summary>Options JP2 (projection et bandes)</summary>
               <p>Le JP2 est traité directement dans le navigateur, par blocs. Aucun logiciel à installer. Le J2W est prioritaire pour la position ; le XML ou le JP2 fournit la projection.</p>
@@ -602,16 +733,17 @@ function ftmBuildModal() {
           </section>
           <section class="ftm-step" id="ftm-points-step" hidden>
             <h4>2. Points d'appui</h4>
-            <p class="ftm-note">Un repère visible sur le plan ET sur la carte. Importez le <b>.points</b> relevé dans CadoTour puis pointez chaque repère sur le plan, ou ajoutez des points : clic sur le plan, puis sur la carte.</p>
+            <p class="ftm-note">Un repère visible sur le fichier ET sur la carte. Importez le <b>.points</b> relevé dans CadoTour puis pointez chaque repère sur le fichier, ou ajoutez des points : clic sur le fichier, puis sur la carte.</p>
             <div class="ftm-btns">
               <label class="ftm-btn">Importer .points<input type="file" id="ftm-points-file" accept=".points,.txt,.csv" hidden></label>
               <button type="button" class="ftm-btn" data-act="add-point">＋ Point</button>
               <button type="button" class="ftm-btn" data-act="export-points" title="Points complétés (positions sur le plan), relisibles ici ou par QGIS">Exporter .points</button>
             </div>
             <div id="ftm-hint" class="ftm-hint"></div>
-            <table class="ftm-table"><thead><tr><th>N°</th><th title="Position sur le plan">Plan</th><th title="Position sur la carte">Carte</th><th>Écart</th><th></th></tr></thead><tbody id="ftm-points"></tbody></table>
+            <table class="ftm-table"><thead><tr><th>N°</th><th title="Position sur le fichier">Fichier</th><th title="Position sur la carte">Carte</th><th>Écart</th><th></th></tr></thead><tbody id="ftm-points"></tbody></table>
             <label class="ftm-row">Transformation
-              <select id="ftm-kind"><option value="similarity">Similitude (plan à l'échelle)</option><option value="affine">Affine (3 points et plus)</option></select></label>
+              <select id="ftm-kind"><option value="similarity">Similitude (plan à l'échelle)</option><option value="affine">Affine (3 points et plus)</option><option value="tps">Déformable (3 points et plus)</option></select></label>
+            <p class="ftm-note" id="ftm-tps-note" hidden>Déformable : le fichier passe exactement par chaque point et se plie entre eux. Pour un assemblage de photos (Microsoft ICE…) ou un scan gondolé. Répartir les points sur toute l'image, bords et coins compris, plus serrés là où elle est tordue. L'écart d'un point est celui que prédisent les autres sans lui : un écart isolé trahit un point mal placé.</p>
             <div id="ftm-fit" class="ftm-note"></div>
           </section>
           <section class="ftm-step" id="ftm-geo-step" hidden>
@@ -637,13 +769,17 @@ function ftmBuildModal() {
             <div id="ftm-zones" class="ftm-note">Tout le fichier.</div>
           </section>
           <section class="ftm-step">
-            <h4>4. Fichier .mbtiles</h4>
+            <h4>4. Fichier produit</h4>
+            <label class="ftm-row">Sortie <select id="ftm-output"><option value="mbtiles">MBTiles (CadoTour)</option><option value="geotiff">GeoTIFF (QGIS, SIG)</option></select></label>
             <label class="ftm-row">Nom <input type="text" id="ftm-name" class="ftm-input"></label>
-            <div class="ftm-row">Zooms <select id="ftm-zmin"></select> à <select id="ftm-zmax"></select></div>
+            <div class="ftm-row"><span id="ftm-zoom-label">Zooms</span> <span id="ftm-zmin-wrap"><select id="ftm-zmin"></select> à</span> <select id="ftm-zmax"></select></div>
             <div id="ftm-zoom-why" class="ftm-note"></div>
             <label class="ftm-row">Format <select id="ftm-format"></select></label>
-            <label class="ftm-note"><input type="checkbox" id="ftm-mnt"> Inclure le MNT pour le relief 3D dans CadoTour</label>
-            <p class="ftm-note">Télécharge les altitudes Terrarium de la zone (connexion nécessaire), dans le même fichier. Résolution du relief indépendante de celle de la photo.</p>
+            <div id="ftm-mnt-wrap">
+              <label class="ftm-note"><input type="checkbox" id="ftm-mnt"> Inclure le MNT pour le relief 3D dans CadoTour</label>
+              <p class="ftm-note">Télécharge les altitudes Terrarium de la zone (connexion nécessaire), dans le même fichier. Résolution du relief indépendante de celle de la photo.</p>
+            </div>
+            <p class="ftm-note" id="ftm-geotiff-note" hidden>GeoTIFF en Web Mercator (EPSG:3857), nord en haut, pixel du zoom choisi : il se cale tout seul dans QGIS. Hors de la zone gardée, le fond est blanc.</p>
             <div id="ftm-estimate" class="ftm-note"></div>
             <button type="button" class="ftm-btn ftm-btn-main" data-act="generate" id="ftm-generate" disabled>Générer le .mbtiles</button>
           </section>
@@ -686,7 +822,11 @@ async function openFileToMbtiles() {
     if (Object.keys(bases).length > 1) L.control.layers(bases, null, { collapsed: true }).addTo(st.map);
     st.markers = L.layerGroup().addTo(st.map);
     st.footprint = L.layerGroup().addTo(st.map);
-    st.preview = new FtmPreviewLayer(() => (st.source && st.viewer.base && (!st.source.needsPoints || st.T)) ? { base: st.viewer.base, toMerc: (x, y) => st.source.toMerc(x, y) } : null);
+    st.preview = new FtmPreviewLayer(() => {
+        if (!(st.source && st.viewer.base && (!st.source.needsPoints || st.T))) return null;
+        if (st.source.warp) return { base: ftmWarpedPreview(st), toMerc: (x, y) => [x, y] };
+        return { base: st.viewer.base, toMerc: (x, y) => st.source.toMerc(x, y) };
+    });
     st.preview.addTo(st.map);
     st.map.on('click', e => ftmPlaceOnMap(e.latlng.lng, e.latlng.lat));
 
@@ -719,6 +859,7 @@ async function openFileToMbtiles() {
     $('ftm-kind').addEventListener('change', e => { st.kind = e.target.value; ftmRefresh(); });
     $('ftm-opacity').addEventListener('input', e => st.preview.setOpacity(e.target.value / 100));
     for (const id of ['ftm-zmin', 'ftm-zmax', 'ftm-format', 'ftm-mnt']) $(id).addEventListener('change', () => ftmUpdateEstimate());
+    $('ftm-output').addEventListener('change', () => { ftmSetOutput(); ftmUpdateZooms(); });
     $('ftm-black').addEventListener('change', async e => {
         const src = st.source;
         if (!src || src.kind !== 'jp2' || st.opening) return;
@@ -729,13 +870,31 @@ async function openFileToMbtiles() {
         catch (err) { src.excludeBlack = previous; e.target.checked = previous; st.viewer.setStatus(''); alert(err.message); }
         finally { st.opening = false; $('ftm-file').disabled = $('ftm-black').disabled = false; ftmRefresh(); }
     });
-    const fmt = $('ftm-format');
-    if (st.webp) fmt.append(new Option('WebP (léger, conseillé)', 'webp'));
-    fmt.append(new Option('PNG (sans perte)', 'png'), new Option('JPEG (photos, sans transparence)', 'jpg'));
+    ftmSetOutput();
     for (let z = 0; z <= FTM_ZOOM_CEIL; z++) { $('ftm-zmin').append(new Option(z, z)); $('ftm-zmax').append(new Option(z, z)); }
     document.addEventListener('keydown', e => { if (e.key === 'Escape' && !modal.hidden && st.awaiting) { st.awaiting = null; ftmRenderPoints(); } });
     setTimeout(() => { st.map.invalidateSize(); st.viewer.resize(); }, 50);
     ftmRefresh();
+}
+
+// MBTiles ou GeoTIFF : formats, zooms (un seul pour le GeoTIFF : la finesse de
+// ses pixels), MNT et bouton.
+function ftmSetOutput() {
+    const st = ftmState, $ = st.$, tif = $('ftm-output').value === 'geotiff';
+    const fmt = $('ftm-format'), was = fmt.value;
+    fmt.replaceChildren();
+    if (tif) fmt.append(new Option('JPEG dans le TIFF (léger, conseillé)', 'geotiff-jpeg'), new Option('Sans compression (sans perte, lourd)', 'geotiff'));
+    else {
+        if (st.webp) fmt.append(new Option('WebP (léger, conseillé)', 'webp'));
+        fmt.append(new Option('PNG (sans perte)', 'png'), new Option('JPEG (photos, sans transparence)', 'jpg'));
+    }
+    if ([...fmt.options].some(o => o.value === was)) fmt.value = was;
+    $('ftm-zmin-wrap').hidden = tif;
+    $('ftm-zoom-label').textContent = tif ? 'Pixel du zoom' : 'Zooms';
+    $('ftm-mnt-wrap').hidden = tif;
+    $('ftm-geotiff-note').hidden = !tif;
+    $('ftm-generate').textContent = tif ? 'Générer le GeoTIFF' : 'Générer le .mbtiles';
+    ftmUpdateEstimate();
 }
 
 function ftmSetTool(tool) {
@@ -760,7 +919,8 @@ async function ftmOpenFile(files) {
     $('ftm-generate').disabled = true;
     $('ftm-file-info').textContent = 'Ouverture…';
     try {
-        src = isPdf ? await ftmOpenPdf(file) : /\.jp2$/i.test(file.name) ? await ftmOpenJp2(file, group) : await ftmOpenTiff(file);
+        src = isPdf ? await ftmOpenPdf(file) : ftmIsPlainImage(file) ? await ftmOpenImage(file)
+            : /\.jp2$/i.test(file.name) ? await ftmOpenJp2(file, group) : await ftmOpenTiff(file);
         $('ftm-file-info').textContent = 'Rendu de l’aperçu…';
         await st.viewer.setSource(src);
     } catch (e) {
@@ -779,7 +939,7 @@ async function ftmOpenFile(files) {
     }
     previous?.retire?.();
     st.source = src;
-    st.points = []; st.selected = -1; st.awaiting = null; st.T = null; st.zoomTouched = false;
+    st.points = []; st.selected = -1; st.awaiting = null; st.T = null; st.warp = null; st.zoomTouched = false;
     $('ftm-name').value = file.name.replace(/\.[^.]+$/, '') + (group.images.length > 1 ? '-mosaique' : '');
     $('ftm-page-row').hidden = !(src.kind === 'pdf' && src.pages > 1);
     if (src.kind === 'pdf') {
@@ -874,7 +1034,7 @@ function ftmRenderPoints(residuals) {
             } }, ok ? '✓' : '•'));
         tr.append(
             ftmEl('td', { text: String(i + 1) }),
-            place('plan', Number.isFinite(p.x), 'Pointer ce repère sur le plan'),
+            place('plan', Number.isFinite(p.x), 'Pointer ce repère sur le fichier'),
             place('map', Number.isFinite(p.lat), 'Pointer ce repère sur la carte'),
             ftmEl('td', { class: 'ftm-res', text: r == null ? '—' : ftmFormatMeters(r) }),
             ftmEl('td', {},
@@ -892,7 +1052,8 @@ function ftmRenderPoints(residuals) {
     // Consigne
     const hint = st.$('ftm-hint');
     const n = st.selected + 1;
-    hint.textContent = !st.source ? '' : st.awaiting === 'plan' ? `Point ${n} : cliquez sa position sur le PLAN (Échap pour annuler).`
+    const onFile = st.source?.kind === 'image' ? "l'IMAGE" : 'le PLAN';
+    hint.textContent = !st.source ? '' : st.awaiting === 'plan' ? `Point ${n} : cliquez sa position sur ${onFile} (Échap pour annuler).`
         : st.awaiting === 'map' ? `Point ${n} : cliquez sa position sur la CARTE (Échap pour annuler).` : '';
     st.$('ftm-map').classList.toggle('is-picking', st.awaiting === 'map');
     // Marqueurs carte
@@ -915,18 +1076,38 @@ function ftmRenderPoints(residuals) {
 function ftmRefresh() {
     const st = ftmState, src = st.source, $ = st.$;
     let residuals = null;
-    if (src?.kind === 'pdf') {
-        st.T = ftmFitTransform(st.points, st.kind);
-        src.T = st.T;
-        residuals = st.T ? ftmResiduals(st.points, st.T) : null;
+    if (src?.needsPoints) {
+        const tps = st.kind === 'tps';
+        // Déformable : l'affine des moindres carrés sert à décrire l'échelle et
+        // l'orientation ; la spline, recalculée seulement quand les points changent.
+        st.T = ftmFitTransform(st.points, tps ? 'affine' : st.kind);
+        st.warp = null;
+        if (tps && st.T) {
+            const key = JSON.stringify(st.points.map(p => [p.x, p.y, p.lon, p.lat, p.enabled !== false]));
+            if (st._warpFit?.key !== key) {
+                const warp = ftmFitWarp(st.points);
+                st._warpFit = { key, warp, residuals: warp ? ftmWarpResiduals(st.points) : null };
+            }
+            st.warp = st._warpFit.warp;
+            if (!st.warp) st.T = null;
+            // Écarts rangés dans l'ordre des points : la clé les couvre tous.
+            else residuals = st._warpFit.residuals;
+        } else if (st.T) residuals = ftmResiduals(st.points, st.T);
+        src.T = st.T; src.warp = st.warp;
+        st.$('ftm-tps-note').hidden = !tps;
         const need = ftmMinPoints(st.kind), have = ftmUsablePoints(st.points).length;
         if (!st.T) {
-            $('ftm-fit').textContent = have < need ? `${need - have} point(s) complet(s) de plus, placé(s) sur le plan ET sur la carte.` : 'Points alignés ou confondus : écartez-les.';
+            $('ftm-fit').textContent = have < need ? `${need - have} point(s) complet(s) de plus, placé(s) sur le fichier ET sur la carte.` : 'Points alignés ou confondus : écartez-les.';
         } else {
             const lat = ftmMercToLonLat(...st.T.slice(4))[1];
             const d = ftmDescribe(st.T, lat);
-            $('ftm-fit').innerHTML = `Échelle ≈ <b>1/${ftmNum(Math.round(ftmPrintScale(d.metersPerUnit)))}</b> (1 cm du papier = ${ftmFormatMeters(d.metersPerUnit * 72 / 2.54)}) · ${Math.abs(d.rotation) < 0.05 ? 'nord en haut' : `tourné de ${ftmNum(Math.abs(d.rotation), 1)}° ${d.rotation > 0 ? 'vers la droite' : 'vers la gauche'}`}`
-                + (have > need ? ` · écart moyen <b>${ftmFormatMeters(residuals.rms)}</b>` : ' · ajoutez un point de plus pour contrôler l’écart');
+            const scale = src.unit === 'px' ? `Pixel ≈ <b>${ftmFormatMeters(d.metersPerUnit)}</b> au sol`
+                : `Échelle ≈ <b>1/${ftmNum(Math.round(ftmPrintScale(d.metersPerUnit)))}</b> (1 cm du papier = ${ftmFormatMeters(d.metersPerUnit * 72 / 2.54)})`;
+            const orient = Math.abs(d.rotation) < 0.05 ? 'nord en haut' : `tourné de ${ftmNum(Math.abs(d.rotation), 1)}° ${d.rotation > 0 ? 'vers la droite' : 'vers la gauche'}`;
+            const control = tps
+                ? (residuals?.rms != null ? ` · écart de contrôle moyen <b>${ftmFormatMeters(residuals.rms)}</b> (chaque point prédit par les autres)` : ' · ajoutez un 4e point pour contrôler l’écart')
+                : (have > need ? ` · écart moyen <b>${ftmFormatMeters(residuals.rms)}</b>` : ' · ajoutez un point de plus pour contrôler l’écart');
+            $('ftm-fit').innerHTML = `${tps ? 'Déformable · ' : ''}${scale}${tps ? ' en moyenne' : ''} · ${orient}${control}`;
         }
     }
     ftmRenderPoints(residuals);
@@ -945,9 +1126,8 @@ function ftmRefresh() {
     st.footprint.clearLayers();
     const georef = src && (!src.needsPoints || st.T);
     if (georef) {
-        const rings = nz ? st.viewer.polys : src.footprints || [[[0, 0], [src.width, 0], [src.width, src.height], [0, src.height]]];
-        for (const ring of rings) {
-            L.polygon(ring.map(([x, y]) => { const [lon, lat] = ftmMercToLonLat(...src.toMerc(x, y)); return [lat, lon]; }),
+        for (const ring of ftmMercPolygons()) {
+            L.polygon(ring.map(([X, Y]) => { const [lon, lat] = ftmMercToLonLat(X, Y); return [lat, lon]; }),
                 { color: '#2563eb', weight: 2, fill: false, interactive: false }).addTo(st.footprint);
         }
     }
@@ -973,7 +1153,8 @@ async function ftmUpdateZooms() {
     const why = sug.reasons.map(r => r.kind === 'raster' ? `image du fichier : pixel de ${ftmFormatMeters(r.res)} → zoom ${r.zoom}`
         : r.kind === 'text' ? `texte vectoriel (${ftmNum(r.textSize, 1)} ${src.unit}) lisible à ${FTM_TEXT_PX} px → zoom ${r.zoom}`
         : `dessin vectoriel sans texte → zoom ${r.zoom}`);
-    $('ftm-zoom-why').textContent = `Proposés : ${sug.zmin} à ${sug.zmax} (${why.join(' ; ')}).`;
+    $('ftm-zoom-why').textContent = $('ftm-output').value === 'geotiff' ? `Proposé : ${sug.zmax} (${why.join(' ; ')}).`
+        : `Proposés : ${sug.zmin} à ${sug.zmax} (${why.join(' ; ')}).`;
     if (!$('ftm-zmin').dataset.bound) {
         $('ftm-zmin').dataset.bound = '1';
         for (const id of ['ftm-zmin', 'ftm-zmax']) $(id).addEventListener('change', () => { st.zoomTouched = true; });
@@ -984,11 +1165,13 @@ async function ftmUpdateZooms() {
 function ftmMercPolygons() {
     const st = ftmState, src = st.source;
     const rings = st.viewer.polys.length ? st.viewer.polys : src.footprints || [[[0, 0], [src.width, 0], [src.width, src.height], [0, src.height]]];
-    // Côtés densifiés : un GeoTIFF projeté courbe légèrement les droites en Mercator.
+    // Côtés densifiés : un GeoTIFF projeté courbe légèrement les droites en
+    // Mercator, une spline davantage.
+    const n = src.warp ? 24 : src.affine ? 1 : 8;
     return rings.map(ring => {
         const out = [];
         ring.forEach((p, i) => {
-            const q = ring[(i + 1) % ring.length], n = src.affine ? 1 : 8;
+            const q = ring[(i + 1) % ring.length];
             for (let k = 0; k < n; k++) out.push(src.toMerc(p[0] + (q[0] - p[0]) * k / n, p[1] + (q[1] - p[1]) * k / n));
         });
         return out;
@@ -999,6 +1182,7 @@ function ftmUpdateEstimate() {
     const st = ftmState, $ = st.$;
     if (st.opening || st.viewer.drawing || !st.source || (st.source.needsPoints && !st.T)) return;
     let zmin = Number($('ftm-zmin').value), zmax = Number($('ftm-zmax').value);
+    if ($('ftm-output').value === 'geotiff') { ftmUpdateGeoTiffEstimate(zmax); return; }
     if (zmin > zmax) { [zmin, zmax] = [zmax, zmin]; $('ftm-zmin').value = zmin; $('ftm-zmax').value = zmax; }
     const polys = ftmMercPolygons();
     const area = polys.reduce((s, p) => s + ftmPolygonArea(p), 0);
@@ -1014,18 +1198,35 @@ function ftmUpdateEstimate() {
     $('ftm-generate').disabled = tooMany;
 }
 
+// GeoTIFF : dimensions, taille au sol du pixel et poids approximatif.
+const FTM_TIFF_MAX_PX = { 'geotiff-jpeg': 1.2e9, geotiff: 2.5e8 };   // fichier gardé en mémoire jusqu'à la fin
+
+function ftmUpdateGeoTiffEstimate(z) {
+    const st = ftmState, $ = st.$;
+    const g = ftmGeoTiffGrid(ftmMercPolygons(), z);
+    const lat = ftmMercToLonLat(0, g.originY - g.height * g.res / 2)[1];
+    const fmt = $('ftm-format').value, px = g.width * g.height;
+    const bytes = px * (fmt === 'geotiff' ? 3 : 0.35);
+    const tooMany = px > FTM_TIFF_MAX_PX[fmt];
+    $('ftm-estimate').innerHTML = `<b>${ftmNum(g.width)} × ${ftmNum(g.height)}</b> px, pixel de ${ftmFormatMeters(ftmGroundResolution(z, lat))} au sol, ≈ ${ftmNum(bytes / 1048576, 0)} Mo.`
+        + (tooMany ? `<br><span class="ftm-warn">Trop grand pour le navigateur (au-delà de ${ftmNum(FTM_TIFF_MAX_PX[fmt] / 1e6)} millions de pixels${fmt === 'geotiff' ? ' sans compression' : ''}) : baissez le zoom, réduisez la zone${fmt === 'geotiff' ? ' ou choisissez JPEG' : ''}.</span>` : '');
+    $('ftm-generate').disabled = tooMany;
+}
+
 // ===== Génération =====
 
 function ftmStartJob() {
     const st = ftmState, $ = st.$, src = st.source;
     if (!src || st.opening || st.viewer.drawing || $('ftm-generate').disabled) return;
     const zmin = Number($('ftm-zmin').value), zmax = Number($('ftm-zmax').value);
+    const geotiff = $('ftm-output').value === 'geotiff';
     const job = new FtmJob({
         id: ftmJobCounter++, source: src, polysSrc: st.viewer.polys.length ? st.viewer.copyPolys() : null,
-        polysMerc: ftmMercPolygons(), zmin, zmax, format: $('ftm-format').value,
+        polysMerc: ftmMercPolygons(), zmin: geotiff ? zmax : zmin, zmax, format: $('ftm-format').value, geotiff,
         name: ($('ftm-name').value || 'Plan').trim(), T: st.T ? st.T.slice() : null,
+        warp: src.needsPoints ? st.warp : null,
         pointsUsed: ftmUsablePoints(st.points).length,
-        excludeBlack: src.excludeBlack, includeMnt: $('ftm-mnt').checked,
+        excludeBlack: src.excludeBlack, includeMnt: !geotiff && $('ftm-mnt').checked,
     });
     st.modal.hidden = true; document.body.classList.remove('ftm-open');
     job.run();
@@ -1048,7 +1249,7 @@ class FtmJob {
             <div class="ftm-job-steps"></div>
             <p class="ftm-job-message text-xs text-red-600 mt-1" hidden></p>
             <div class="flex justify-end text-xs text-gray-500 mt-1"><span class="ftm-job-actions"><button type="button" class="hover:text-red-600">Annuler</button></span></div>`;
-        this.ui.querySelector('.font-bold').textContent = `${this.name}.mbtiles — ${this.source.kind === 'pdf' ? 'PDF' : this.source.kind === 'jp2' ? 'JP2' : 'GeoTIFF'}`;
+        this.ui.querySelector('.font-bold').textContent = `${this.name}.${this.geotiff ? 'tif' : 'mbtiles'} — ${ftmKindLabel(this.source)}${this.warp ? ', déformable' : ''}`;
         this.ui.querySelector('.ftm-job-actions button').onclick = () => this.cancel();
         (list || document.body).prepend(this.ui);
     }
@@ -1075,6 +1276,7 @@ class FtmJob {
     }
 
     async run() {
+        if (this.geotiff) return this.runGeoTiff();
         try {
             const { zmin, zmax } = this;
             const tiles = ftmTilesForPolygons(this.polysMerc, zmax, FTM_MAX_TILES);
@@ -1144,18 +1346,51 @@ class FtmJob {
         }
     }
 
-    // Matrice « unités source → pixels du bloc ».
-    blockMatrix(block) {
-        const B = ftmMercToBlockMatrix(this.zmax, block.x0, block.y0);
+    // Matrice « unités source → pixels du canevas » (w × h), B : Mercator → canevas.
+    sourceMatrix(B, w, h) {
         if (this.source.affine) return ftmMultiply(B, this.T);
-        // Source projetée : approximation affine sur l'emprise du bloc (écart
+        // Source projetée : approximation affine sur l'emprise du canevas (écart
         // de l'ordre du centimètre sur quelques centaines de mètres).
-        const r = ftmMercResolution(this.zmax) * 256 * block.side;
-        const X0 = -FTM_HALF + block.x0 * 256 * ftmMercResolution(this.zmax), Y0 = FTM_HALF - block.y0 * 256 * ftmMercResolution(this.zmax);
-        const cs = [[X0, Y0], [X0 + r, Y0], [X0, Y0 - r], [X0 + r, Y0 - r]].map(([X, Y]) => this.source.mercToSource(X, Y));
+        const Bi = ftmInvert(B);
+        const cs = [[0, 0], [w, 0], [0, h], [w, h]].map(([u, v]) => this.source.mercToSource(...ftmApply(Bi, u, v)));
         const xs = cs.map(c => c[0]), ys = cs.map(c => c[1]);
         const { T } = ftmLocalAffine((x, y) => this.source.toMerc(x, y), Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys));
         return ftmMultiply(B, T);
+    }
+
+    // Dessine les zones gardées du fichier sur ctx (w × h px, effacé d'abord),
+    // B : Mercator → canevas ; lecture limitée à region [u0, v0, u1, v1].
+    async drawRegion(ctx, B, w, h, region) {
+        const src = this.source;
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        ctx.globalCompositeOperation = 'source-over';
+        ctx.clearRect(0, 0, w, h);
+        let M, polys;
+        if (this.warp) {
+            // Spline : rendu pixel par pixel, zones découpées dans leur tracé
+            // Mercator (côtés densifiés, courbés par la spline).
+            this._task = ftmRenderWarped(src, this.warp, ctx, B, region);
+            M = B; polys = this.polysMerc;
+        } else {
+            M = this.sourceMatrix(B, w, h);
+            this._task = src.render(ctx, M, w, h, { excludeBlack: this.excludeBlack, region });
+            polys = this.polysSrc || src.footprints || [[[0, 0], [src.width, 0], [src.width, src.height], [0, src.height]]];
+        }
+        await this._task;
+        if (this.cancelled) return;
+        // Ne garder que les zones voulues, et rien hors du fichier.
+        ctx.setTransform(...M);
+        ctx.globalCompositeOperation = 'destination-in';
+        ctx.beginPath();
+        for (const poly of polys) {
+            // Même orientation pour l'union de zones tracées dans les deux sens.
+            const signed = poly.reduce((s, p, i) => { const q = poly[(i + 1) % poly.length]; return s + p[0] * q[1] - q[0] * p[1]; }, 0);
+            const ring = signed < 0 ? poly.slice().reverse() : poly;
+            ring.forEach(([x, y], i) => i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)); ctx.closePath();
+        }
+        ctx.fill('nonzero');
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        ctx.globalCompositeOperation = 'source-over';
     }
 
     async renderMaxZoom(tiles) {
@@ -1165,33 +1400,13 @@ class FtmJob {
         const tile = document.createElement('canvas'); tile.width = tile.height = 256;
         const tctx = tile.getContext('2d', { willReadFrequently: true });
         const blocks = ftmGroupBlocks(tiles, FTM_BLOCK_TILES, FTM_STRIP_BLOCKS);
-        const src = this.source;
-        const pagePoly = [[0, 0], [src.width, 0], [src.width, src.height], [0, src.height]];
         for (const block of blocks) {
             if (this.cancelled) return;
-            const M = this.blockMatrix(block);
-            ctx.setTransform(1, 0, 0, 1, 0, 0);
-            ctx.globalCompositeOperation = 'source-over';
-            ctx.clearRect(0, 0, side, side);
             // Lecture du fichier limitée aux tuiles demandées du bloc (bord de sélection).
             const xs = block.tiles.map(t => t.x - block.x0), ys = block.tiles.map(t => t.y - block.y0);
             const region = [Math.min(...xs) * 256, Math.min(...ys) * 256, (Math.max(...xs) + 1) * 256, (Math.max(...ys) + 1) * 256];
-            this._task = src.render(ctx, M, side, side, { excludeBlack: this.excludeBlack, region });
-            await this._task;
+            await this.drawRegion(ctx, ftmMercToBlockMatrix(this.zmax, block.x0, block.y0), side, side, region);
             if (this.cancelled) return;
-            // Ne garder que les zones voulues, et rien hors du fichier.
-            ctx.setTransform(...M);
-            ctx.globalCompositeOperation = 'destination-in';
-            ctx.beginPath();
-            for (const poly of (this.polysSrc || src.footprints || [pagePoly])) {
-                // Même orientation pour l'union de zones tracées dans les deux sens.
-                const signed = poly.reduce((s, p, i) => { const q = poly[(i + 1) % poly.length]; return s + p[0] * q[1] - q[0] * p[1]; }, 0);
-                const ring = signed < 0 ? poly.slice().reverse() : poly;
-                ring.forEach(([x, y], i) => i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)); ctx.closePath();
-            }
-            ctx.fill('nonzero');
-            ctx.setTransform(1, 0, 0, 1, 0, 0);
-            ctx.globalCompositeOperation = 'source-over';
             for (const t of block.tiles) {
                 tctx.clearRect(0, 0, 256, 256);
                 tctx.drawImage(canvas, (t.x - block.x0) * 256, (t.y - block.y0) * 256, 256, 256, 0, 0, 256, 256);
@@ -1250,6 +1465,93 @@ class FtmJob {
         this.steps.finish(step);
     }
 
+    georefText() {
+        return this.source.needsPoints ? `recalé par ${this.pointsUsed} points d'appui${this.warp ? ' (déformable)' : ''}`
+            : `${ftmKindLabel(this.source)} EPSG:${this.source.epsg}`;
+    }
+
+    // GeoTIFF : raster Web Mercator sur la grille de pixels du zoom maximal, rendu
+    // par bandes (blocs de 2 048 px de large) et écrit au fil de l'eau
+    // (createGeoTiffStream, geotiffExport.js). Fond blanc hors des zones gardées.
+    async runGeoTiff() {
+        try {
+            const g = ftmGeoTiffGrid(this.polysMerc, this.zmax), W = g.width, H = g.height;
+            if (W * H > FTM_TIFF_MAX_PX[this.format]) throw new Error('Image trop grande : baisser le zoom ou réduire la zone.');
+            const CW = FTM_BLOCK_TILES * 256;
+            // Bande de 1 024 lignes au plus, et de 48 Mo au plus en mémoire.
+            const BH = Math.max(64, Math.min(1024, Math.floor(48e6 / (W * 4) / 64) * 64));
+            const bands = Math.ceil(H / BH), cols = Math.ceil(W / CW);
+            this.steps = new JobSteps([
+                { id: 'render', label: `Rendu du fichier, pixel du zoom ${this.zmax} (${ftmNum(W)} × ${ftmNum(H)} px)`, total: bands * cols },
+                { id: 'asm', label: 'Écriture du GeoTIFF', auto: false },
+            ]);
+            this.ui.querySelector('.ftm-job-steps').replaceChildren(this.steps.el);
+            this.status('EN COURS', '');
+            const ascii = t => t.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^\x20-\x7e]/g, '?');
+            const tif = createGeoTiffStream({
+                width: W, height: H, jpeg: this.format === 'geotiff-jpeg', quality: 0.9, epsg: 3857,
+                originX: g.originX, originY: g.originY, pixelScaleX: g.res, pixelScaleY: g.res,
+                description: ascii(`${this.source.name} - ${this.georefText()} (Carroyage-JMT)`),
+            });
+            const canvas = document.createElement('canvas'); canvas.width = CW; canvas.height = BH;
+            const ctx = canvas.getContext('2d', { willReadFrequently: true });
+            const bounds = this.polysMerc.map(p => ftmPolygonBounds([p]));
+            this.steps.start('render');
+            for (let y = 0; y < H; y += BH) {
+                const bh = Math.min(BH, H - y);
+                const rows = new Uint8ClampedArray(W * bh * 4).fill(255);
+                for (let x = 0; x < W; x += CW) {
+                    if (this.cancelled) return;
+                    const cw = Math.min(CW, W - x);
+                    // Bloc hors de toute zone : reste blanc, sans rendu.
+                    const X0 = g.originX + x * g.res, X1 = X0 + cw * g.res, Y1 = g.originY - y * g.res, Y0 = Y1 - bh * g.res;
+                    const hit = this.polysMerc.some((p, i) => bounds[i].x1 > X0 && bounds[i].x0 < X1 && bounds[i].y1 > Y0 && bounds[i].y0 < Y1
+                        && ftmPolygonArea(ftmClipPolygonToRect(p, X0, Y0, X1, Y1)) > 0);
+                    if (hit) {
+                        await this.drawRegion(ctx, ftmMercToBlockMatrix(this.zmax, (g.px0 + x) / 256, (g.py0 + y) / 256), CW, BH, [0, 0, cw, bh]);
+                        if (this.cancelled) return;
+                        const px = ctx.getImageData(0, 0, cw, bh).data;
+                        let any = false;
+                        for (let r = 0; r < bh; r++) {
+                            for (let i = r * cw * 4, o = (r * W + x) * 4, end = i + cw * 4; i < end; i += 4, o += 4) {
+                                const a = px[i + 3];
+                                if (!a) continue;
+                                any = true;
+                                const k = a / 255, w = 255 * (1 - k);    // sur fond blanc
+                                rows[o] = px[i] * k + w; rows[o + 1] = px[i + 1] * k + w; rows[o + 2] = px[i + 2] * k + w;
+                            }
+                        }
+                        if (any) this.stored++;
+                    }
+                    this.steps.advance('render');
+                    await new Promise(r => setTimeout(r, 0));
+                }
+                await tif.write(rows, bh);
+            }
+            if (this.cancelled) return;
+            if (!this.stored) throw new Error('Aucun pixel conservé dans la sélection. Modifier la zone ou désactiver l’exclusion du noir.');
+            this.steps.finish('render');
+            this.steps.start('asm');
+            const blob = await tif.finish();
+            if (this.cancelled) return;
+            this.steps.finish('asm', `${ftmNum(blob.size / 1048576, 1)} Mo`);
+            this.status('TERMINÉ', 'text-green-600 font-bold');
+            const fname = `${this.name}.tif`;
+            const save = () => ftmSaveBytes(blob, fname);
+            this.ui.querySelector('.ftm-job-actions').replaceChildren(ftmEl('button', { type: 'button', class: 'text-green-600 font-bold hover:underline', onclick: save }, 'Télécharger'));
+            await save();
+        } catch (e) {
+            if (this.cancelled) return;
+            console.error(e);
+            this.status('ERREUR', 'text-red-600 font-bold');
+            this.steps?.fail();
+            const msg = this.ui.querySelector('.ftm-job-message');
+            msg.textContent = e.message; msg.hidden = false;
+        } finally {
+            this.source.release?.();
+        }
+    }
+
     async assemble() {
         this.steps.start('asm');
         this.steps.setTotal('asm', this.stored + this.terrainPlan.length);
@@ -1290,7 +1592,7 @@ class FtmJob {
                 minzoom: String(this.zmin), maxzoom: String(this.zmax),
                 bounds: [w, s, e, nn].map(v => v.toFixed(6)).join(','),
                 center: `${((w + e) / 2).toFixed(6)},${((s + nn) / 2).toFixed(6)},${Math.min(this.zmax, Math.max(this.zmin, this.zmin + 2))}`,
-                description: `${this.source.name} — ${this.source.kind === 'pdf' ? `recalé par ${this.pointsUsed} points d'appui` : `${this.source.kind === 'jp2' ? 'JP2' : 'GeoTIFF'} EPSG:${this.source.epsg}`} (Carroyage-JMT)`,
+                description: `${this.source.name} — ${this.georefText()} (Carroyage-JMT)`,
             };
             if (this.includeMnt) Object.assign(meta, { mnt_storage: 'terrain_tiles', mnt_minzoom: String(MNT_MIN_ZOOM),
                 mnt_maxzoom: String(MNT_MAX_ZOOM), mnt_encoding: 'terrarium',
@@ -1312,15 +1614,24 @@ class FtmJob {
     }
 }
 
+// Nature d'une source, pour les libellés.
+function ftmKindLabel(src) {
+    return { pdf: 'PDF', image: 'Image', jp2: 'JP2', tiff: 'GeoTIFF' }[src.kind] || src.kind;
+}
+
 async function ftmSaveBytes(data, fname) {
+    const tif = /\.tif$/i.test(fname);
+    const type = tif ? 'image/tiff' : 'application/x-sqlite3';
     if (window.showSaveFilePicker) {
         try {
-            const fh = await window.showSaveFilePicker({ suggestedName: fname, types: [{ description: 'MBTiles', accept: { 'application/x-sqlite3': ['.mbtiles'] } }] });
+            const fh = await window.showSaveFilePicker({ suggestedName: fname, types: [tif
+                ? { description: 'GeoTIFF', accept: { 'image/tiff': ['.tif', '.tiff'] } }
+                : { description: 'MBTiles', accept: { 'application/x-sqlite3': ['.mbtiles'] } }] });
             const w = await fh.createWritable(); await w.write(data); await w.close();
             return;
         } catch (e) { if (e.name === 'AbortError') return; }
     }
-    const a = ftmEl('a', { href: URL.createObjectURL(new Blob([data], { type: 'application/x-sqlite3' })), download: fname });
+    const a = ftmEl('a', { href: URL.createObjectURL(data instanceof Blob ? data : new Blob([data], { type })), download: fname });
     a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 10000);
 }
 
