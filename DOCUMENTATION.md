@@ -343,11 +343,18 @@ Interface Mode 3 (carte Leaflet + contrôles + barre de progression).
   qu'une version ancienne ne prenne pas une tuile de fond du niveau 12 pour une
   carte d'altitude.
 - Zone : rectangle, carré autour d'un point, **polygone** (Leaflet Draw) ou **couloir le
-  long d'une trace** (bouton « 📍 Trace GPX / KML… », `#creator-track-file`, largeur de
+  long d'une trace** (bouton « 📍 Trace GPX / KML / KMZ… », `#creator-track-file`, largeur de
   part et d'autre `#creator-track-width`). Une zone qui n'est pas un rectangle est un jeu de
   polygones Mercator (`currentCreatorZone`) : le couloir d'une ligne réunit un quadrilatère
   par segment et un disque circonscrit par sommet (`ftmCorridorPolygons`), les surfaces
-  KML/GeoJSON sont prises telles quelles (`ftmParseTrackText`). Seules les tuiles qui le
+  KML/GeoJSON sont prises telles quelles (`ftmParseTrackText`). KMZ : tous ses `.kml` sont
+  lus (JSZip). Traces `gx:Track` reconnues. Flèches de CadoTour : son export KMZ
+  (`kmzExport.js`) les écrit en un trait arrêté à la base de la pointe, plus un triangle
+  plein ; `ftmJoinArrowHeads` reconnaît le triangle dont le milieu de la base touche un bout
+  de trait, prolonge le trait jusqu'au sommet et ne garde pas le triangle comme surface.
+  Fixture : `tools/fixtures/cadotour/traces-cadotour.kmz`, régénérée par
+  `node tools/fixtures/cadotour/genere-traces-kmz.mjs <dossier CadoTour>` avec le code
+  d'export de CadoTour lui-même. Seules les tuiles qui le
   recoupent sont comptées et téléchargées (`ftmTilesForZone`, chaque polygone n'examinant que
   sa propre emprise), fond et MNT ; `bounds` des métadonnées = emprise de la zone. Calculs
   dans `fileToMbtilesCore.js`, chargé avec le créateur. Tests : `node

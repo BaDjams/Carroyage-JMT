@@ -7,6 +7,7 @@
 // et couloir autour d'une trace (« Créer MBTiles »).
 
 import { readFileSync } from 'node:fs';
+import zlib from 'node:zlib';
 import { fileURLToPath } from 'node:url';
 import vm from 'node:vm';
 import assert from 'node:assert/strict';
@@ -21,7 +22,7 @@ vm.runInContext(readFileSync(`${ROOT}fileToMbtilesCore.js`, 'utf8') + `
   ftmPolygonArea, ftmTilesForPolygons, ftmGroupBlocks, ftmMercToBlockMatrix, ftmParentTiles,
   ftmPyramidCounts, ftmLocalAffine, ftmGeoTiffPixelTransform, ftmGeoTiffEpsg, ftmProjDefinition,
   ftmSniffImage, ftmPrintScale, ftmGroupInputFiles, ftmParseWorldFile, ftmEpsgFromText,
-  ftmParseTrackText, ftmCorridorPolygons, ftmTilesForZone });`, context, { filename: 'fileToMbtilesCore.js' });
+  ftmParseTrackText, ftmCorridorPolygons, ftmTilesForZone, ftmJoinArrowHeads });`, context, { filename: 'fileToMbtilesCore.js' });
 const C = context;
 const plain = x => JSON.parse(JSON.stringify(x));
 const near = (a, b, tol, msg) => assert.ok(Math.abs(a - b) <= tol, `${msg ?? ''} ${a} ≠ ${b} (±${tol})`);
@@ -251,6 +252,55 @@ test('traces : GPX (segments, routes), KML (lignes, surfaces), GeoJSON', () => {
     assert.deepEqual(plain(C.ftmParseTrackText(gj)), { lines: [[[0, 0], [1, 1]], [[2, 2], [3, 3]]], polygons: [[[0, 0], [1, 0], [1, 1], [0, 0]]] });
     assert.throws(() => C.ftmParseTrackText('lat;lon\n1;2'), /non reconnu/);
     assert.throws(() => C.ftmParseTrackText('{ pas du json'), /GeoJSON illisible/);
+});
+
+// Fichiers .kml d'un KMZ (ZIP), lus par le répertoire central — de quoi ouvrir
+// la fixture sans dépendance.
+function kmlDuKmz(buffer) {
+    const b = Buffer.from(buffer), textes = [];
+    let eocd = b.length - 22;
+    while (eocd >= 0 && b.readUInt32LE(eocd) !== 0x06054b50) eocd--;
+    let p = b.readUInt32LE(eocd + 16);
+    for (let i = 0; i < b.readUInt16LE(eocd + 10); i++) {
+        const methode = b.readUInt16LE(p + 10), taille = b.readUInt32LE(p + 20);
+        const nl = b.readUInt16LE(p + 28), el = b.readUInt16LE(p + 30), cl = b.readUInt16LE(p + 32), local = b.readUInt32LE(p + 42);
+        const nom = b.toString('utf8', p + 46, p + 46 + nl);
+        const debut = local + 30 + b.readUInt16LE(local + 26) + b.readUInt16LE(local + 28);
+        const data = b.subarray(debut, debut + taille);
+        if (/\.kml$/i.test(nom)) textes.push((methode === 8 ? zlib.inflateRawSync(data) : data).toString('utf8'));
+        p += 46 + nl + el + cl;
+    }
+    return textes;
+}
+
+test('KMZ exporté par CadoTour : flèches, polyligne, trace enregistrée, itinéraire', () => {
+    // tools/fixtures/cadotour/traces-cadotour.kmz, écrit par le code d'export de CadoTour.
+    const [kml] = kmlDuKmz(readFileSync(`${ROOT}tools/fixtures/cadotour/traces-cadotour.kmz`));
+    const { lines, polygons } = plain(C.ftmParseTrackText(kml));
+    // Les trois pointes ont rejoint leur trait : plus aucune surface.
+    assert.equal(polygons.length, 0);
+    assert.equal(lines.length, 5);
+    const bouts = lines.map(l => [l[0].slice(0, 2), l[l.length - 1].slice(0, 2)]);
+    // Flèche « Axe nord » : le trait va désormais jusqu'au sommet, le dernier point dessiné.
+    assert.deepEqual(bouts[0], [[-4.5, 48.38], [-4.44, 48.4]]);
+    // Polyligne, intacte.
+    assert.deepEqual(lines[1].map(p => p.slice(0, 2)), [[-4.44, 48.4], [-4.43, 48.42], [-4.425, 48.44]]);
+    // Flèche à deux pointes, sans nom : prolongée à ses deux bouts.
+    assert.deepEqual(bouts[2], [[-4.52, 48.36], [-4.505, 48.365]]);
+    // Trace enregistrée et itinéraire.
+    assert.deepEqual(bouts[3], [[-4.425, 48.44], [-4.4, 48.46]]);
+    assert.deepEqual(bouts[4], [[-4.4, 48.46], [-4.39, 48.47]]);
+});
+
+test('gx:Track (traces enregistrées de Google Earth), triangle sans trait gardé', () => {
+    const kml = `<kml xmlns:gx="http://www.google.com/kml/ext/2.2"><Document><Placemark><gx:MultiTrack><gx:Track>
+        <when>2026-10-20T08:00:00Z</when><when>2026-10-20T08:01:00Z</when>
+        <gx:coord>-4.5 48.3 12</gx:coord><gx:coord>-4.49 48.31 15</gx:coord></gx:Track></gx:MultiTrack></Placemark>
+        <Placemark><Polygon><outerBoundaryIs><LinearRing><coordinates>0,0 1,0 0.5,1 0,0</coordinates></LinearRing></outerBoundaryIs></Polygon></Placemark>
+        </Document></kml>`;
+    const r = plain(C.ftmParseTrackText(kml));
+    assert.deepEqual(r.lines, [[[-4.5, 48.3, 12], [-4.49, 48.31, 15]]]);
+    assert.equal(r.polygons.length, 1);
 });
 
 // Distance AU SOL (mètres, approchée localement) entre une tuile et un segment.

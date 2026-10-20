@@ -3,8 +3,8 @@
 //
 // La trace chargée donne un couloir de la largeur choisie ; le compte affiché et
 // le fichier produit ne portent que les tuiles qu'il recoupe — moins que le
-// rectangle qui l'englobe —, et changer la largeur refait la zone. Un polygone
-// tracé fait de même. Tuiles servies par le parcours : aucune requête ne sort.
+// rectangle qui l'englobe —, et changer la largeur refait la zone. Un KMZ
+// exporté par CadoTour (flèches, traces) se lit de même ; un polygone tracé aussi. Tuiles servies par le parcours : aucune requête ne sort.
 import http from 'node:http';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
@@ -103,6 +103,23 @@ try {
     assert.equal(contenu.meta.minzoom, '15');
     const [o, s, e, n] = contenu.meta.bounds.split(',').map(Number);
     assert.ok(o < -4.5 && e > -4.4 && s < 48.38 && n > 48.46, contenu.meta.bounds);
+
+    // ---- KMZ exporté par CadoTour : flèches, polyligne, trace enregistrée, itinéraire ----
+    await page.locator('#creator-track-file').setInputFiles(path.join(root, 'tools/fixtures/cadotour/traces-cadotour.kmz'));
+    await page.waitForFunction(() => /traces-cadotour\.kmz/.test(document.getElementById('creator-track-info').textContent));
+    // Cinq traits, et aucune surface : les trois pointes de flèche ont rejoint leur trait.
+    assert.equal(await page.locator('#creator-track-info').textContent(), "traces-cadotour.kmz : 5 trace(s), 500 m de part et d'autre");
+    const kmz = await page.evaluate(() => {
+        // Le sommet de la flèche « Axe nord » (-4.44, 48.40) est dans la zone,
+        // au-delà de son trait exporté, qui s'arrête à la base de la pointe.
+        const n = 2 ** 15, x = Math.floor((-4.44 + 180) / 360 * n);
+        const y = Math.floor((1 - Math.log(Math.tan(Math.PI / 4 + 48.40 * Math.PI / 360)) / Math.PI) / 2 * n);
+        return { sommet: creatorZoneTiles(currentCreatorZone, 15).some(t => t.x === x && t.y === y),
+            affiche: Number(document.getElementById('creator-total-tiles').textContent.replace(/\D/g, '')),
+            attendu: creatorZoneTiles(currentCreatorZone, 15).length };
+    });
+    assert.equal(kmz.sommet, true);
+    assert.equal(kmz.affiche, kmz.attendu);
 
     // ---- Polygone tracé : la trace s'efface, la zone est le polygone ----
     const poly = await page.evaluate(() => {

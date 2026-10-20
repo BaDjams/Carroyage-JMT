@@ -1,12 +1,20 @@
 // version.js
 
 // Source unique de vérité pour la version de l'application.
-const APP_VERSION = '23.44';
+const APP_VERSION = '23.45';
 
 // Une ligne courte par changement, telle que l'utilisateur la voit : ce qui change,
 // sans le pourquoi ni le comment. Guillemets doubles : les apostrophes françaises
 // s'écrivent telles quelles.
 const CHANGELOG = [
+  {
+    version: "23.45",
+    date: "2026-10-20",
+    changes: [
+      "Créer MBTiles, zone le long d'une trace : les KMZ sont acceptés, dont ceux exportés par CadoTour — flèches (jusqu'à leur pointe), polylignes, traces enregistrées ou modifiées, itinéraires",
+      "Traces enregistrées de Google Earth et des traceurs GPS (gx:Track) reconnues dans les KML et KMZ",
+    ],
+  },
   {
     version: "23.44",
     date: "2026-10-20",
