@@ -151,13 +151,16 @@ async function tileSourceLoad(file) {
 
     // Niveaux de zoom : privilégier minzoom/maxzoom des métadonnées (immédiat) ;
     // sinon DISTINCT sur l'index (zoom_level, …) — évite de scanner toute la base.
+    // La liste n'est publiée (_tsZooms) qu'une fois vérifiée : lue pendant le
+    // chargement, elle annonçait encore des niveaux absents.
+    let annonces;
     const zMin = parseInt(meta.minzoom, 10), zMax = parseInt(meta.maxzoom, 10);
     if (Number.isFinite(zMin) && Number.isFinite(zMax) && zMax >= zMin) {
-        _tsZooms = [];
-        for (let z = zMin; z <= zMax; z++) _tsZooms.push(z);
+        annonces = [];
+        for (let z = zMin; z <= zMax; z++) annonces.push(z);
     } else {
         try {
-            _tsZooms = (await _all('SELECT DISTINCT zoom_level FROM tiles ORDER BY zoom_level ASC'))
+            annonces = (await _all('SELECT DISTINCT zoom_level FROM tiles ORDER BY zoom_level ASC'))
                 .map(r => Number(r[0]));
         } catch (e) {
             await tileSourceClear();
@@ -169,7 +172,7 @@ async function tileSourceLoad(file) {
     // dans l'index (zoom_level, …), sans parcours ; un niveau vide est retiré, et
     // tileSourceGetBestZoom ne le choisit plus pour une impression ou un export.
     const present = [];
-    for (const z of _tsZooms) {
+    for (const z of annonces) {
         try {
             if ((await _all(`SELECT 1 FROM tiles WHERE zoom_level=${z | 0} LIMIT 1`)).length) present.push(z);
         } catch (e) { present.push(z); }

@@ -456,6 +456,34 @@ class TestBoutEnBout(Base):
                                 etiquettes=True).tuile(z, x, y)
         self.assertEqual(np.asarray(img).tobytes(), np.asarray(attendu).tobytes())
 
+    def test_webp_sans_perte(self):
+        """format = "webp" : memes pixels que le PNG, fichier plus leger, format annonce."""
+        code, sortie = self.lance(self.ecrit_config())
+        self.assertEqual(code, 0, sortie)
+        os.replace(self.chemin('carte.mbtiles'), self.chemin('carte-png.mbtiles'))
+        code, sortie = self.lance(self.ecrit_config(rendu={'format': 'webp'}))
+        self.assertEqual(code, 0, sortie)
+        png = sqlite3.connect(self.chemin('carte-png.mbtiles'))
+        webp = sqlite3.connect(self.chemin('carte.mbtiles'))
+        self.assertEqual(dict(webp.execute('SELECT name, value FROM metadata'))['format'], 'webp')
+        requete = 'SELECT zoom_level, tile_column, tile_row, tile_data FROM tiles ORDER BY 1, 2, 3'
+        a, b = png.execute(requete).fetchall(), webp.execute(requete).fetchall()
+        self.assertEqual([t[:3] for t in a], [t[:3] for t in b])
+        for (*_, p), (*_, w) in zip(a, b):
+            iw = Image.open(io.BytesIO(w))
+            self.assertEqual(iw.format, 'WEBP')
+            ip, iw = np.asarray(Image.open(io.BytesIO(p)).convert('RGBA')), np.asarray(iw.convert('RGBA'))
+            # Pixels transparents : leur couleur ne compte pas.
+            visibles = ip[:, :, 3] > 0
+            self.assertTrue((ip[:, :, 3] == iw[:, :, 3]).all())
+            self.assertTrue((ip[visibles] == iw[visibles]).all())
+        self.assertLess(sum(len(t[3]) for t in b), sum(len(t[3]) for t in a))
+
+    def test_format_inconnu(self):
+        code, sortie = self.lance(self.ecrit_config(rendu={'format': 'jpg'}))
+        self.assertNotEqual(code, 0)
+        self.assertIn('format', sortie)
+
     def test_cache_de_preparation(self):
         chemin = self.ecrit_config()
         self.lance(chemin)

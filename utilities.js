@@ -1159,3 +1159,60 @@ function attachEdgeMeasures(map) {
     map.on(L.Draw.Event.DRAWSTART, () => render(null));
     return render;
 }
+
+// ===== Format des tuiles MBTiles =====
+// WebP : le navigateur sait-il l'ÉCRIRE ? Certains le lisent sans savoir
+// l'encoder (canvas.toBlob rend alors du PNG sans le dire).
+function canEncodeWebp() {
+    try {
+        const c = document.createElement('canvas');
+        c.width = c.height = 1;
+        return c.toDataURL('image/webp').startsWith('data:image/webp');
+    } catch (e) { return false; }
+}
+
+// Encode une tuile. WebP « sans perte » (qualité 1 sous Chromium) pour ce qui est
+// dessiné : traits, textes, cartes en PNG — les mêmes pixels qu'en PNG ; le WebP
+// avec perte bave sur les traits fins (écart mesuré jusqu'à 109 niveaux sur 255).
+// WebP avec perte (qualité 0,92) pour les photos.
+function encodeTileBlob(canvas, format, { lossless = false, quality = 0.92 } = {}) {
+    const mime = format === 'jpg' ? 'image/jpeg' : format === 'webp' ? 'image/webp' : 'image/png';
+    const q = format === 'webp' && lossless ? 1 : quality;
+    return new Promise(r => canvas.toBlob(r, mime, q));
+}
+
+// Choix du format des tuiles du calque de carroyage (.mbtiles « overlay ») :
+// visible quand le format de fichier choisi est MBTiles ; PNG par défaut, que les
+// drones DJI lisent à coup sûr. WebP sans perte en option, lu par CadoTour et
+// Carroyage-JMT — sans gain de poids garanti : sur un carroyage UTM épars (traits
+// fins semi-transparents, tuiles presque vides), l'encodeur de Chromium le rend
+// même plus lourd que le PNG (mesuré : +47 %). Retenu d'une fois sur l'autre.
+const MBTILES_FORMAT_KEY = 'mbtilesOverlayFormat';
+function bindMbtilesTileFormat(radioName, rowId, selectId) {
+    const row = document.getElementById(rowId), select = document.getElementById(selectId);
+    if (!row || !select) return;
+    if (!canEncodeWebp()) select.querySelector('option[value="webp"]')?.remove();
+    try {
+        const saved = localStorage.getItem(MBTILES_FORMAT_KEY);
+        if (saved && select.querySelector(`option[value="${saved}"]`)) select.value = saved;
+    } catch (e) { /* stockage indisponible : PNG */ }
+    select.addEventListener('change', () => {
+        try { localStorage.setItem(MBTILES_FORMAT_KEY, select.value); } catch (e) { /* sans mémoire */ }
+    });
+    const update = () => {
+        const checked = document.querySelector(`input[name="${radioName}"]:checked`);
+        row.classList.toggle('hidden', checked?.value !== 'MBTILES');
+    };
+    document.querySelectorAll(`input[name="${radioName}"]`).forEach(r => r.addEventListener('change', update));
+    update();
+}
+function readMbtilesTileFormat(selectId) {
+    const v = document.getElementById(selectId)?.value;
+    return v === 'webp' && canEncodeWebp() ? 'webp' : 'png';
+}
+function _bindMbtilesTileFormats() {
+    bindMbtilesTileFormat('file-format', 'cado-mbtiles-format-row', 'cado-mbtiles-format');
+    bindMbtilesTileFormat('zone-file-format', 'zone-mbtiles-format-row', 'zone-mbtiles-format');
+}
+if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', _bindMbtilesTileFormats);
+else _bindMbtilesTileFormats();

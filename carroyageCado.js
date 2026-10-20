@@ -467,7 +467,8 @@ async function generateGrid() {
                 const manualCadoData = { config: config, gridData: gridData };
                 // Pas d'UTM ni CFSI en Mode 1
                 fileBlob = await generateMbtilesProcess(config.gridName, false, false, true, bbox, baseZoom, window.userPOIs, manualCadoData,
-                    'utm', false, recreationCode ? { code_recreation: recreationCode } : {});
+                    'utm', false, recreationCode ? { code_recreation: recreationCode } : {},
+                    readMbtilesTileFormat('cado-mbtiles-format'));
                 fileName = `${config.gridName}.mbtiles`;
             } else {
                 throw new Error("Module MBTiles manquant (carroyageToMbtiles.js).");

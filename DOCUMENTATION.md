@@ -342,6 +342,14 @@ Interface Mode 3 (carte Leaflet + contrôles + barre de progression).
   plus écrit, mais reste lu par CadoTour ; il n'est délibérément plus annoncé pour
   qu'une version ancienne ne prenne pas une tuile de fond du niveau 12 pour une
   carte d'altitude.
+- Choix « Format des tuiles » (`#creator-tile-format`) : **WebP** (conseillé, proposé
+  si le navigateur sait l'écrire), **format d'origine**, **JPEG** ou **PNG**. Format
+  imposé : une tuile reçue déjà dans ce format est gardée octet pour octet ; les autres
+  sont ré-encodées — en WebP sans perte celles venues en PNG (cartes, textes), avec
+  perte (qualité 0,92) les photos. Format d'origine : passthrough des couches simples ;
+  les couches composées (plusieurs sources, Yandex) sont rangées en WebP, en JPEG si le
+  navigateur ne sait pas écrire le WebP. Le relief (`terrain_tiles`) reste en PNG.
+  Test : `node tools/test_mbtiles_webp_browser.mjs <module-playwright>`.
 - Case « Ajouter les lignes de profondeur aquatiques » : isobathes cuites dans les
   tuiles du fond aux zooms 11 et plus, demandées en même temps que chaque tuile
   (`isobathTile`, cf. §7.9). Seules les tuiles qui portent une ligne sont
@@ -907,6 +915,7 @@ emprise = [-4.80, 48.25, -4.30, 48.45]
 
 [rendu]
 fond = "plan-ign"            # « aucun » : tuiles transparentes (drone, QGIS)
+format = "png"               # ou « webp » : sans perte, plus léger, lu par CadoTour
 
 [[source]]
 nom = "Litto3D"
@@ -935,6 +944,7 @@ reference = "ZH"
 | `processus`, `max_tuiles`, `travail` | parallélisme, garde-fou de volume, dossier de cache |
 | `[rendu]` `fond` | `aucun`, `plan-ign`, `ortho-ign`, ou un gabarit `{z}/{x}/{y}` |
 | `[rendu]` `teintes`, `etiquettes` | bandes teintées (m), cotes des maîtresses |
+| `[rendu]` `format` | `png` (défaut, drones DJI) ou `webp` : sans perte, mêmes pixels, fichier plus léger (Pillow) |
 | `[[source]]` `fichiers` | motif, `**` récursif accepté |
 | `type` | `grille` (défaut), `sondes`, `s57` |
 | `crs` | système imposé aux fichiers qui ne le portent pas |
@@ -1092,7 +1102,12 @@ Format compatible QGIS/Google Earth Pro : une colonne `WKT` + colonnes label/typ
 ### 8.5 MBTiles (drone DJI)
 
 - SQLite 3 (sql.js) en mémoire
-- Tuiles PNG 256×256 transparentes (overlay)
+- Tuiles 256×256 transparentes (overlay), PNG par défaut — lu à coup sûr par les
+  drones DJI — ou WebP sans perte au choix (« Tuiles du .mbtiles », visible quand le
+  format MBTiles est coché ; `readMbtilesTileFormat`, `encodeTileBlob` dans
+  `utilities.js`). Mêmes pixels qu'en PNG ; pas de gain de poids garanti : sur un
+  carroyage UTM épars (traits fins semi-transparents), l'encodeur de Chromium le rend
+  plus lourd (mesuré : +47 %)
 - Convention TMS (Y inversé)
 - Plage de zoom typique : 17-19
 - Limite canvas : 8192 px (alerte au-delà)
