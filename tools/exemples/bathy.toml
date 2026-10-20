@@ -33,6 +33,9 @@ emprise = [-4.80, 48.25, -4.30, 48.45]
 # autonome dans l'application (mode MBTiles), ou la terre serait sinon vide.
 # Ou tout gabarit d'URL : "https://.../{z}/{x}/{y}.png".
 fond = "plan-ign"
+# Format des tuiles : « png » (defaut, lu par les drones DJI) ou « webp » (sans perte,
+# deux a trois fois plus leger ; CadoTour et Carroyage-JMT le lisent).
+format = "png"
 teintes = [2, 5, 10, 20]   # bandes teintees, en metres de profondeur ; [] pour aucune
 etiquettes = true          # cotes sur les isobathes maitresses
 

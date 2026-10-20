@@ -472,6 +472,13 @@
                                     <label class="inline-flex items-center"><input type="radio" name="file-format" value="GPX" class="custom-radio"><span class="px-3 py-1 border border-default rounded cursor-pointer text-sm button-outline w-24 text-center">GPX</span></label>
                                     <label class="inline-flex items-center"><input type="radio" name="file-format" value="CSV" class="custom-radio"><span class="px-3 py-1 border border-default rounded cursor-pointer text-sm button-outline w-24 text-center">CSV</span></label>
                                 </div>
+                            <div id="cado-mbtiles-format-row" class="hidden mt-2 text-center">
+                                <label for="cado-mbtiles-format" class="text-sm text-content mr-2">Tuiles du .mbtiles :</label>
+                                <select id="cado-mbtiles-format" class="input-field px-2 py-1 border rounded text-sm dark:bg-gray-700 dark:text-white">
+                                    <option value="png">PNG (drones DJI)</option>
+                                    <option value="webp">WebP sans perte (CadoTour, Carroyage-JMT)</option>
+                                </select>
+                            </div>
                             </div>
                             <div>
                                 <h4 class="font-medium text-content text-center mb-2">Contenu :</h4>
@@ -894,6 +901,13 @@
                                 <label class="inline-flex items-center"><input type="radio" name="zone-file-format" value="CSV" class="custom-radio"><span class="px-3 py-1 border border-default rounded cursor-pointer text-sm button-outline w-24 text-center">CSV</span></label>
                                 <label class="inline-flex items-center" title="Modèle numérique de terrain ASTER GDEM V3 (résolution ~30 m) de la zone dessinée, format ESRI ASCII Grid (.dem) ouvrable dans QGIS/ArcGIS. Récupéré via l'API OpenTopography (clé gratuite requise dans config.private.js)."><input type="radio" name="zone-file-format" value="DEM" class="custom-radio"><span class="px-3 py-1 border border-default rounded cursor-pointer text-sm button-outline w-24 text-center">DEM (ASTER)</span></label>
                             </div>
+                            <div id="zone-mbtiles-format-row" class="hidden mt-2 text-center">
+                                <label for="zone-mbtiles-format" class="text-sm text-content mr-2">Tuiles du .mbtiles :</label>
+                                <select id="zone-mbtiles-format" class="input-field px-2 py-1 border rounded text-sm dark:bg-gray-700 dark:text-white">
+                                    <option value="png">PNG (drones DJI)</option>
+                                    <option value="webp">WebP sans perte (CadoTour, Carroyage-JMT)</option>
+                                </select>
+                            </div>
                         </div>
 
                         <div class="text-xs text-secondary text-center italic">
@@ -967,6 +981,13 @@
                             <div>
                                 <label for="creator-filename" class="block mb-2 text-sm font-bold text-gray-900 dark:text-white">Nom du fichier :</label>
                                 <input type="text" id="creator-filename" class="input-field w-full px-3 py-2 border rounded dark:bg-gray-700 dark:text-white" placeholder="Mon_Export_Offline">
+                            </div>
+
+                            <!-- Format des tuiles (options posées par mbtilesCreator.js) -->
+                            <div>
+                                <label for="creator-tile-format" class="block mb-2 text-sm font-bold text-gray-900 dark:text-white">Format des tuiles :</label>
+                                <select id="creator-tile-format" class="input-field w-full px-3 py-2 border rounded dark:bg-gray-700 dark:text-white"></select>
+                                <p class="text-xs text-gray-500 mt-1">WebP : sans perte pour les cartes, avec perte pour les photos. Le relief (MNT) reste en PNG.</p>
                             </div>
                         </div>
 

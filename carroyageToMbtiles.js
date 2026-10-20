@@ -5,8 +5,10 @@
  * Accepte optionalCadoData { config, gridData } pour le Mode 1.
  * gridMode ('utm' ou 'mgrs') choisit la désignation de la grille UTM dessinée.
  * useDfci ajoute le carroyage DFCI (sécurité civile).
+ * tileFormat : 'png' (drones DJI) ou 'webp' (sans perte, cf. encodeTileBlob).
  */
-async function generateMbtilesProcess(filename, useUtm, useCfsi, useCado, bbox, baseZoom, userPOIs, optionalCadoData = null, gridMode = 'utm', useDfci = false, extraMetadata = {}) {
+async function generateMbtilesProcess(filename, useUtm, useCfsi, useCado, bbox, baseZoom, userPOIs, optionalCadoData = null, gridMode = 'utm', useDfci = false, extraMetadata = {}, tileFormat = 'png') {
+    if (tileFormat !== 'webp') tileFormat = 'png';
     if (typeof window.initSqlJs !== 'function') throw new Error("SQL.js non chargé.");
 
    
@@ -27,7 +29,7 @@ async function generateMbtilesProcess(filename, useUtm, useCfsi, useCado, bbox, 
 
     // Métadonnées
     db.run("INSERT INTO metadata VALUES (?, ?)", ["name", filename]);
-    db.run("INSERT INTO metadata VALUES (?, ?)", ["format", "png"]);
+    db.run("INSERT INTO metadata VALUES (?, ?)", ["format", tileFormat]);
     db.run("INSERT INTO metadata VALUES (?, ?)", ["type", "baselayer"]); /* DJI ne semble pas accepter le type Overlay*/
     db.run("INSERT INTO metadata VALUES (?, ?)", ["version", "1.0"]);/*passage à 1.0 au lieu de 1.2 pour baselayer*/
     db.run("INSERT INTO metadata VALUES (?, ?)", ["bounds", `${bbox.west},${bbox.south},${bbox.east},${bbox.north}`]);
@@ -81,7 +83,7 @@ async function generateMbtilesProcess(filename, useUtm, useCfsi, useCado, bbox, 
 
     // 4. Boucle de génération sur les niveaux de zoom
     for (let z = minZ; z <= maxZ; z++) {
-        await processZoomLevel(db, z, bbox, useUtm, useCfsi, cadoConfig, cadoGridData, userPOIs, maxCanvasSize, poiImgCache, gridMode, useDfci);
+        await processZoomLevel(db, z, bbox, useUtm, useCfsi, cadoConfig, cadoGridData, userPOIs, maxCanvasSize, poiImgCache, gridMode, useDfci, tileFormat);
     }
 
     // 4. Export
@@ -92,7 +94,7 @@ async function generateMbtilesProcess(filename, useUtm, useCfsi, useCado, bbox, 
 /**
  * Traite un niveau de zoom : Dessin Vectoriel -> Rasterisation -> Tuilage
  */
-async function processZoomLevel(db, zoom, bbox, useUtm, useCfsi, cadoConfig, cadoGridData, userPOIs, maxLimit, poiImgCache = {}, gridMode = 'utm', useDfci = false) {
+async function processZoomLevel(db, zoom, bbox, useUtm, useCfsi, cadoConfig, cadoGridData, userPOIs, maxLimit, poiImgCache = {}, gridMode = 'utm', useDfci = false, tileFormat = 'png') {
     const nwPx = mbtLatLonToPx(bbox.north, bbox.west, zoom);
     const sePx = mbtLatLonToPx(bbox.south, bbox.east, zoom);
     
@@ -155,13 +157,13 @@ async function processZoomLevel(db, zoom, bbox, useUtm, useCfsi, cadoConfig, cad
     }
 
     // --- DECOUPAGE ---
-    await sliceAndStore(db, canvas, zoom, nwPx, sePx);
+    await sliceAndStore(db, canvas, zoom, nwPx, sePx, tileFormat);
 }
 
 /**
  * Découpe le canvas géant en tuiles 256x256 et les stocke
  */
-async function sliceAndStore(db, sourceCanvas, zoom, globalNwPx, globalSePx) {
+async function sliceAndStore(db, sourceCanvas, zoom, globalNwPx, globalSePx, tileFormat = 'png') {
     const TILE_SIZE = 256;
     const tMinX = Math.floor(globalNwPx.x / TILE_SIZE);
     const tMinY = Math.floor(globalNwPx.y / TILE_SIZE);
@@ -187,7 +189,7 @@ async function sliceAndStore(db, sourceCanvas, zoom, globalNwPx, globalSePx) {
             const hasContent = pixels.some(p => p !== 0);
 
             if (hasContent) {
-                const blob = await new Promise(r => tileCan.toBlob(r, 'image/png'));
+                const blob = await encodeTileBlob(tileCan, tileFormat, { lossless: true });
                 const buf = await blob.arrayBuffer();
                 const u8 = new Uint8Array(buf);
                 const tmsY = (1 << zoom) - 1 - ty;

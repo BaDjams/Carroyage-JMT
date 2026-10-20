@@ -51,11 +51,6 @@ function ftmFormatMeters(m) {
     return `${ftmNum(m / 1000, 2)} km`;
 }
 
-async function ftmWebpSupported() {
-    const c = document.createElement('canvas'); c.width = c.height = 1;
-    return c.toDataURL('image/webp').startsWith('data:image/webp');
-}
-
 // ===== Sources : PDF =====
 
 async function ftmLoadPdfJs() {
@@ -669,7 +664,7 @@ async function openFileToMbtiles() {
     const $ = id => modal.querySelector('#' + id);
     const st = ftmState = {
         modal, $, source: null, points: [], selected: -1, awaiting: null, T: null,
-        kind: 'similarity', webp: await ftmWebpSupported(),
+        kind: 'similarity', webp: canEncodeWebp(),
     };
     st.viewer = new FtmViewer($('ftm-viewer'), {
         onPlace: (x, y) => ftmPlaceOnPlan(x, y),

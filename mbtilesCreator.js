@@ -29,17 +29,21 @@ const OPFS_BROWSER_LINKS = [
 ];
 const TILE_SIZE_ESTIMATE_KB = 15;     // estimation JPEG q0.85 (~12 Ko/tuile observé)
 
-// Encodage des tuiles — uniquement pour les couches COMPOSITES (multi-couches),
-// où la fusion de plusieurs images impose un ré-encodage sur canvas.
-// Pour les couches simples (1 seule source), les tuiles sont stockées dans leur
-// format natif tel quel, sans décodage ni recompression (passthrough).
-// JPEG ≈ 8x plus léger que PNG RGBA sur de l'imagerie ortho/satellite.
-// JPEG n'a pas de canal alpha : un fond opaque est appliqué avant composition.
-const TILE_FORMAT  = 'image/jpeg';
-const TILE_QUALITY = 0.92;            // 0..1, ignoré si TILE_FORMAT === 'image/png'
-                                      // ré-encodage composite : qualité élevée pour
+// Format des tuiles du fond (choix « Format des tuiles », #creator-tile-format) :
+// - 'webp' (conseillé, si le navigateur sait l'écrire), 'jpg', 'png' : toutes les
+//   tuiles dans ce format. Une tuile reçue déjà dans ce format est gardée octet
+//   pour octet (aucune perte de génération) ; les autres sont ré-encodées — en
+//   WebP sans perte celles venues en PNG (cartes, textes), avec perte les photos
+//   (cf. encodeTileBlob, utilities.js) ;
+// - 'origine' : chaque tuile d'une couche simple stockée telle que le serveur
+//   l'envoie (passthrough). Les couches COMPOSÉES (plusieurs sources, ou Yandex
+//   reprojeté), qu'il faut de toute façon ré-encoder, le sont en WebP — en JPEG
+//   si le navigateur ne sait pas écrire le WebP.
+// Le relief (MNT, table terrain_tiles) reste toujours en PNG Terrarium d'origine.
+const TILE_QUALITY = 0.92;            // ré-encodage avec perte : qualité élevée pour
                                       // rester au plus près de l'ortho d'origine
 const TILE_BG      = '#ffffff';       // fond pour les zones transparentes (JPEG only)
+const CREATOR_TILE_FORMATS = ['webp', 'origine', 'jpg', 'png'];
 
 // Relief 3D hors-ligne (MNT) — source mondiale "Terrarium" (Mapzen/AWS Open Data
 // Terrain Tiles), la même que celle utilisée en ligne par la vue 3D de CadoTour.
@@ -322,6 +326,7 @@ function initCreatorMode() {
     updateZoomDisplay();
 
     populateCreatorLayers();
+    populateCreatorTileFormats();
     generateZoomCheckboxes(19); // Default init
     setupCreatorAddressSearch();
 
@@ -373,6 +378,17 @@ function populateCreatorLayers() {
     }
     const def = MAP_LAYERS?.find(m => m.name === "Ortho IGN + Routes Google");
     if (def && select.querySelector(`option[value="${def.id}"]`)) select.value = def.id;
+}
+
+// Options du format des tuiles ; WebP en tête (conseillé) quand le navigateur sait
+// l'écrire, sinon le format d'origine.
+function populateCreatorTileFormats() {
+    const select = document.getElementById('creator-tile-format');
+    if (!select || select.options.length) return;
+    if (canEncodeWebp()) select.append(new Option('WebP (léger, conseillé)', 'webp'));
+    select.append(new Option("Format d'origine (sans recompression)", 'origine'),
+        new Option('JPEG (photos, sans transparence)', 'jpg'),
+        new Option('PNG (sans perte, plus lourd)', 'png'));
 }
 
 function generateZoomCheckboxes(maxZoom) {
@@ -532,7 +548,7 @@ function getTileRange(bounds, zoom) {
 // --- JOB MANAGEMENT ---
 
 class MbtilesJob {
-    constructor(id, bounds, zooms, layerConfig, filename, includeMnt = false, isobaths = null) {
+    constructor(id, bounds, zooms, layerConfig, filename, includeMnt = false, isobaths = null, outputFormat = 'origine') {
         this.id = id;
         this.bounds = bounds;
         this.zooms = zooms;
@@ -553,15 +569,21 @@ class MbtilesJob {
         this.useOPFS = false;
         this.opfsDir = null;
 
-        // Format de sortie des tuiles écrit dans les métadonnées MBTiles.
-        // - Multi-couches OU Yandex (reprojection toujours par canvas, même
-        //   mono-couche) : ré-encodage obligatoire (TILE_FORMAT).
-        // - Mono-couche sans Yandex : null = passthrough natif, détecté sur
-        //   les octets reçus.
+        // Format des tuiles (cf. CREATOR_TILE_FORMATS en tête de fichier), et
+        // format écrit dans les métadonnées MBTiles :
+        // - imposé ('webp', 'jpg', 'png') : celui-là ;
+        // - 'origine', multi-couches OU Yandex (reprojection toujours par canvas,
+        //   même mono-couche) : celui du ré-encodage (composeFormat) ;
+        // - 'origine', mono-couche sans Yandex : null = passthrough natif,
+        //   détecté sur les octets reçus.
+        const webp = canEncodeWebp();
+        this.outputFormat = CREATOR_TILE_FORMATS.includes(outputFormat) && (outputFormat !== 'webp' || webp)
+            ? outputFormat : 'origine';
+        this.composeFormat = this.outputFormat !== 'origine' ? this.outputFormat : (webp ? 'webp' : 'jpg');
         const hasYandexLayer = layerConfig.layers.some(l => l.type === 'yandex');
-        this.tileFormat = (layerConfig.layers.length > 1 || hasYandexLayer)
-            ? (TILE_FORMAT === 'image/jpeg' ? 'jpg' : 'png')
-            : null;
+        const composite = layerConfig.layers.length > 1 || hasYandexLayer;
+        this.tileFormat = this.outputFormat !== 'origine' ? this.outputFormat
+            : composite ? this.composeFormat : null;
 
         this.totalTiles = this.computeTotalTiles();
         this.createUI();
@@ -804,10 +826,11 @@ class MbtilesJob {
             ? isobathTile(tile.z, tile.x, tile.y, this.isobaths, this.isoState)
             : null;
 
-        // --- Cas mono-couche SANS Yandex : passthrough natif (AUCUNE recompression) ---
+        // --- Cas mono-couche SANS Yandex : passthrough natif quand c'est possible ---
         // On stocke l'octet pour octet ce que renvoie le serveur, dans son
-        // format d'origine (JPEG/PNG/WebP). Évite la perte de génération
-        // d'un re-encodage canvas.toBlob() d'un JPEG en JPEG. Une couche Yandex
+        // format d'origine (JPEG/PNG/WebP) — en mode « origine », ou quand il
+        // est déjà au format choisi. Évite la perte de génération d'un
+        // re-encodage canvas.toBlob() d'un JPEG en JPEG. Une couche Yandex
         // DOIT toujours passer par le canvas : sa reprojection (1-2 bandes
         // source) ne peut jamais être un simple octet-pour-octet.
         if (this.layerConfig.layers.length === 1 && !hasYandex) {
@@ -815,9 +838,11 @@ class MbtilesJob {
                 this._fetchRawTile(this._layerUrl(this.layerConfig.layers[0], tile)),
                 isoPromise,
             ]);
-            // Seules les tuiles qui portent des isobathes sont ré-encodées ; les
-            // autres gardent l'octet près du serveur.
-            return drawIso ? this._overlayIsobaths(raw, drawIso) : raw;
+            // Seules les tuiles qui portent des isobathes, ou qui ne sont pas au
+            // format choisi, sont ré-encodées ; les autres gardent l'octet près
+            // du serveur.
+            const target = this.outputFormat === 'origine' ? null : this.outputFormat;
+            return (drawIso || target) ? this._redraw(raw, drawIso, target) : raw;
         }
 
         // --- Cas multi-couches ou reprojection Yandex : composition sur canvas ---
@@ -828,7 +853,7 @@ class MbtilesJob {
         const ctx = canvas.getContext('2d');
         // JPEG ne gère pas la transparence : on pose un fond opaque avant
         // composition pour éviter que les zones vides deviennent noires.
-        if (TILE_FORMAT === 'image/jpeg') {
+        if (this.composeFormat === 'jpg') {
             ctx.fillStyle = TILE_BG;
             ctx.fillRect(0, 0, 256, 256);
         }
@@ -842,29 +867,34 @@ class MbtilesJob {
         const drawIso = await isoPromise;
         if (drawIso) { drawIso(ctx); hasContent = true; }
         if (!hasContent) return null;
-        return new Promise(r => canvas.toBlob(r, TILE_FORMAT, TILE_QUALITY));
+        return encodeTileBlob(canvas, this.composeFormat, { quality: TILE_QUALITY });
     }
 
-    // Superpose les isobathes à une tuile passthrough et la ré-encode dans son
-    // propre format (JPEG, PNG ou WebP), pour ne pas mêler les formats dans le
-    // fichier. Sans tuile de fond (mer vide chez certains serveurs), les lignes
-    // sont posées sur un fond blanc (JPEG) ou transparent.
-    async _overlayIsobaths(raw, drawIso) {
-        let fmt = this.tileFormat || 'png';
+    // Redessine une tuile passthrough — pour y superposer les isobathes
+    // (drawIso), et/ou la ranger au format choisi (target). Sans format imposé,
+    // elle garde le sien (JPEG, PNG ou WebP), pour ne pas mêler les formats dans
+    // le fichier. Une tuile venue en PNG (carte, textes) passe en WebP SANS
+    // perte ; une photo, avec perte. Sans tuile de fond (mer vide chez certains
+    // serveurs), les lignes sont posées sur un fond blanc (JPEG) ou transparent.
+    async _redraw(raw, drawIso, target = null) {
+        let src = this.tileFormat || 'png';
         let bitmap = null;
         if (raw) {
-            fmt = this._sniffFormat(new Uint8Array(await raw.slice(0, 16).arrayBuffer())) || fmt;
+            src = this._sniffFormat(new Uint8Array(await raw.slice(0, 16).arrayBuffer())) || src;
+            if (!drawIso && src === target) return raw;   // déjà au bon format : intacte
             try { bitmap = await createImageBitmap(raw); }
             catch { return raw; }                     // image illisible : la tuile reste telle quelle
+        } else if (!drawIso) {
+            return null;
         }
+        const fmt = target || src;
         const canvas = document.createElement('canvas');
         canvas.width = 256; canvas.height = 256;
         const ctx = canvas.getContext('2d');
         if (fmt === 'jpg') { ctx.fillStyle = TILE_BG; ctx.fillRect(0, 0, 256, 256); }
         if (bitmap) { ctx.drawImage(bitmap, 0, 0, 256, 256); bitmap.close?.(); }
-        drawIso(ctx);
-        const mime = fmt === 'jpg' ? 'image/jpeg' : fmt === 'webp' ? 'image/webp' : 'image/png';
-        return new Promise(r => canvas.toBlob(r, mime, TILE_QUALITY));
+        drawIso?.(ctx);
+        return encodeTileBlob(canvas, fmt, { lossless: src === 'png', quality: TILE_QUALITY });
     }
 
     // Références des isobathes, écrites avant le COMMIT (les sources réellement
@@ -1159,6 +1189,7 @@ async function startMbtilesJob() {
     let filename = document.getElementById('creator-filename').value.trim();
     if (!filename) filename = `Carte_Offline_${Date.now()}`;
     const includeMnt = document.getElementById('creator-include-mnt')?.checked || false;
+    const outputFormat = document.getElementById('creator-tile-format')?.value || 'origine';
     let isobaths = null;
     try {
         isobaths = readIsobathOptions('creator');
@@ -1168,7 +1199,7 @@ async function startMbtilesJob() {
         return;
     }
 
-    const job = new MbtilesJob(jobIdCounter++, currentCreatorBounds, zooms, layerConfig, filename, includeMnt, isobaths);
+    const job = new MbtilesJob(jobIdCounter++, currentCreatorBounds, zooms, layerConfig, filename, includeMnt, isobaths, outputFormat);
     activeJobs.push(job);
     job.start();
 }

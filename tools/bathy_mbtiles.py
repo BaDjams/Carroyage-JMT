@@ -226,6 +226,7 @@ class Config:
     surzoom: int = None             # None : chaque source est rendue jusqu'au zoom maximal
     emprise: list = None
     fond: str = 'aucun'
+    format: str = 'png'             # 'png' (drones DJI) ou 'webp' (sans perte, plus leger)
     teintes: list = field(default_factory=lambda: [2, 5, 10, 20])
     etiquettes: bool = True
     processus: int = None
@@ -236,7 +237,8 @@ class Config:
 CLES_SOURCE = {f.name for f in fields(Source)} - {'nom', 'motifs'} | {'nom'}
 CLES_CONFIG = {'sortie', 'nom', 'reference', 'intervalle', 'zoom_min', 'zoom_max', 'zoom_detail',
                'surzoom', 'emprise', 'processus', 'travail', 'max_tuiles', 'rendu', 'source'}
-CLES_RENDU = {'fond', 'teintes', 'etiquettes'}
+CLES_RENDU = {'fond', 'format', 'teintes', 'etiquettes'}
+FORMATS_TUILES = ('png', 'webp')
 
 
 def lit_fichier_config(chemin):
@@ -339,6 +341,8 @@ def verifie_config(cfg):
     if cfg.fond not in FONDS and cfg.fond != 'aucun' and '{z}' not in str(cfg.fond):
         raise Erreur(f'fond = « {cfg.fond} » : « aucun », {", ".join(FONDS)}, '
                      f'ou un gabarit d\'URL contenant {{z}}, {{x}} et {{y}}.')
+    if cfg.format not in FORMATS_TUILES:
+        raise Erreur(f'format = « {cfg.format} » : « png » (drones DJI) ou « webp » (sans perte, plus leger).')
     if cfg.emprise is not None:
         if len(cfg.emprise) != 4 or not (cfg.emprise[0] < cfg.emprise[2] and cfg.emprise[1] < cfg.emprise[3]):
             raise Erreur('emprise = [lon_min, lat_min, lon_max, lat_max], en degres.')
@@ -938,6 +942,7 @@ class Rendu:
         self.teintes = etat['teintes']
         self.etiquettes = etat['etiquettes']
         self.fond = etat['fond']
+        self.format = etat.get('format', 'png')
         self.couleurs_teintes = couleurs_teintes(len(self.teintes))
         try:
             self.police = ImageFont.load_default(size=10 * SUR)
@@ -1177,7 +1182,11 @@ def rend_tuile(zxy):
     elif img.getextrema()[3][1] == 0:
         return z, x, y, None, True
     tampon = io.BytesIO()
-    img.save(tampon, format='PNG', compress_level=6)
+    if _RENDU.format == 'webp':
+        # Sans perte : traits fins et cotes restent au pixel pres, comme en PNG.
+        img.save(tampon, format='WEBP', lossless=True, quality=80, method=4)
+    else:
+        img.save(tampon, format='PNG', compress_level=6)
     return z, x, y, tampon.getvalue(), fond_ok
 
 
@@ -1187,7 +1196,7 @@ def rend_tuile(zxy):
 
 def ecrit_mbtiles(cfg, familles, par_zoom, zdetail, intervalles, bavard=True):
     etat = dict(familles=familles, intervalles=intervalles, teintes=cfg.teintes,
-                etiquettes=cfg.etiquettes, fond=cfg.fond, zoom_detail=zdetail)
+                etiquettes=cfg.etiquettes, fond=cfg.fond, format=cfg.format, zoom_detail=zdetail)
     provisoire = cfg.sortie + '.partiel'
     if os.path.exists(provisoire):
         os.remove(provisoire)
@@ -1256,7 +1265,7 @@ def ecrit_mbtiles(cfg, familles, par_zoom, zdetail, intervalles, bavard=True):
     zmin_e, zmax_e = min(zooms_ecrits), max(zooms_ecrits)
     meta = {
         'name': cfg.nom or os.path.splitext(os.path.basename(cfg.sortie))[0],
-        'format': 'png',
+        'format': cfg.format,
         'type': 'baselayer',     # comme carroyageToMbtiles.js : les drones DJI refusent « overlay »
         'version': '1.0',
         'scheme': 'tms',

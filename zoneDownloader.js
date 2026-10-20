@@ -1314,7 +1314,8 @@ async function generateZoneMBTiles(filename, useUtm, useCfsi, useCado, gridMode 
         null,
         gridMode,
         useDfci,
-        extraMetadata
+        extraMetadata,
+        readMbtilesTileFormat('zone-mbtiles-format')
     );
 
     // 3. Téléchargement

@@ -1,12 +1,21 @@
 // version.js
 
 // Source unique de vérité pour la version de l'application.
-const APP_VERSION = '23.42';
+const APP_VERSION = '23.43';
 
 // Une ligne courte par changement, telle que l'utilisateur la voit : ce qui change,
 // sans le pourquoi ni le comment. Guillemets doubles : les apostrophes françaises
 // s'écrivent telles quelles.
 const CHANGELOG = [
+  {
+    version: "23.43",
+    date: "2026-10-20",
+    changes: [
+      "Créer MBTiles : choix du format des tuiles, WebP conseillé — sans perte pour les cartes, avec perte pour les photos ; ou format d'origine, JPEG, PNG",
+      "Calque de carroyage en .mbtiles : tuiles en PNG (drones DJI) ou en WebP sans perte",
+      "Outil de bathymétrie : option format = \"webp\" (sans perte, fichier plus léger)",
+    ],
+  },
   {
     version: "23.42",
     date: "2026-10-20",
