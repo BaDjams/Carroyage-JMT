@@ -655,6 +655,10 @@ body.ftm-open { overflow: hidden; }
 .ftm-sheet [data-sheet-act="remove"] { grid-area: del; }
 .ftm-panes { flex: 1; min-width: 0; display: flex; }
 .ftm-pane { flex: 1; min-width: 0; display: flex; flex-direction: column; border-right: 1px solid var(--ftm-border); }
+.ftm-mbtiles { display: inline-flex; align-items: center; gap: 4px; margin-right: auto; margin-left: 8px; font-weight: 400; }
+.ftm-link { cursor: pointer; color: #2563eb; background: none; border: 0; padding: 0; }
+.ftm-link:hover { text-decoration: underline; }
+.ftm-offline { margin: 0; padding: 4px 10px; background: #fef3c7; color: #92400e; }
 .ftm-pane-title { padding: 4px 10px; font-weight: 600; display: flex; align-items: center; gap: 8px; justify-content: space-between; border-bottom: 1px solid var(--ftm-border); }
 .ftm-viewer { flex: 1; min-height: 0; position: relative; overflow: hidden; background: repeating-conic-gradient(#e5e7eb 0% 25%, #f9fafb 0% 50%) 50% / 20px 20px; }
 .ftm-viewer-canvas { display: block; touch-action: none; cursor: grab; }

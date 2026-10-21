@@ -251,7 +251,14 @@ function _tileSourceUpdateUI() {
 }
 
 async function _handleMbtilesInput(e) {
-    const file = e.target.files[0] || null;
+    await tileSourceOpenFile(e.target.files[0] || null);
+}
+
+// Ouvre (ou, sans fichier, retire) le MBTiles de fond et met à jour toutes les
+// cartes et tous les badges. Sert aux champs « Charger » des cartes et à celui
+// de la carte de repérage de « Générer depuis un fichier » (fileToMbtiles.js),
+// créée après le chargement de la page.
+async function tileSourceOpenFile(file) {
     // Statut intermédiaire
     document.querySelectorAll('.mbtiles-status-badge').forEach(el => {
         el.textContent = file ? 'Chargement…' : 'Aucun';
@@ -300,6 +307,7 @@ function _initTileSourceUI() {
 // consommateurs adaptés (await / Promise.then).
 Object.assign(window, {
     tileSourceLoad,
+    tileSourceOpenFile,
     tileSourceClear,
     tileSourceIsActive,
     tileSourceGetZooms,

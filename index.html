@@ -1702,7 +1702,10 @@
                     if (defaultLayer && !map.hasLayer(defaultLayer)) defaultLayer.addTo(map);
                 }
             });
+            // Cartes créées plus tard (repérage de « Générer depuis un fichier »).
+            document.dispatchEvent(new CustomEvent('cado-tilesource-change', { detail: info }));
         };
+        window.MbtilesLeafletLayer = MbtilesLeafletLayer;
 
         function updateCadoOverlayDefaults() {
             const nwCoordsStr = document.getElementById("zone-nw-coords").value;
