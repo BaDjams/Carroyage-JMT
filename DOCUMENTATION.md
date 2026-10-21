@@ -407,6 +407,12 @@ CadoTour, ou GeoTIFF Web Mercator. Chargés au premier clic
   (panneau Coordonnées) — `mapX` longitude, `mapY` latitude, `sourceX`/`sourceY` position sur
   le plan, `sourceY` négatif ; une source (0, 0) = point à pointer sur le plan. Points aussi
   posables à la souris (plan puis carte), désactivables, exportables complétés.
+- **Fond de repérage hors ligne** (`ftmSyncMbtilesBase`) : « 📦 Fond .mbtiles… » au-dessus de la
+  carte ouvre un MBTiles par `tileSourceOpenFile` (tileSource.js), le même que celui des autres
+  cartes ; index.html le signale par l'événement `cado-tilesource-change` et expose
+  `MbtilesLeafletLayer`. Il devient le fond affiché, entre au sélecteur de fonds, et cadre la
+  carte tant qu'aucun repère n'est placé. Hors ligne (`navigator.onLine`) sans ce fond, un
+  bandeau invite à le charger. Test : `tools/test_file_mbtiles_base_browser.mjs`.
 - **Transformation** (`ftmFitTransform`, moindres carrés) : similitude (2 points, plan à
   l'échelle ; le retournement y bas → Mercator haut est inclus) ou affine (3 points et plus).
   Écart de chaque point au sol (`ftmResiduals`), échelle d'impression (1 pt = 0,3528 mm) et

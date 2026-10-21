@@ -1,12 +1,19 @@
 // version.js
 
 // Source unique de vérité pour la version de l'application.
-const APP_VERSION = '23.48';
+const APP_VERSION = '23.49';
 
 // Une ligne courte par changement, telle que l'utilisateur la voit : ce qui change,
 // sans le pourquoi ni le comment. Guillemets doubles : les apostrophes françaises
 // s'écrivent telles quelles.
 const CHANGELOG = [
+  {
+    version: "23.49",
+    date: "2026-10-21",
+    changes: [
+      "Générer depuis un fichier : les repères se placent aussi hors ligne, sur un fond .mbtiles de la zone (préparé auparavant en ligne avec « Créer un MBTiles ») chargé depuis la carte de la fenêtre",
+    ],
+  },
   {
     version: "23.48",
     date: "2026-10-20",

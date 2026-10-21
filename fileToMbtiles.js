@@ -828,7 +828,7 @@ function ftmBuildModal() {
         </aside>
         <div class="ftm-panes">
           <div class="ftm-pane"><div class="ftm-pane-title">Fichier <span class="ftm-note">— molette : zoom, glisser : déplacer</span></div><div id="ftm-viewer" class="ftm-viewer"></div></div>
-          <div class="ftm-pane"><div class="ftm-pane-title">Carte <label class="ftm-note">aperçu <input type="range" id="ftm-opacity" min="0" max="100" value="60"></label></div><div id="ftm-map" class="ftm-map"></div></div>
+          <div class="ftm-pane"><div class="ftm-pane-title">Carte <span class="ftm-mbtiles"><label class="ftm-note ftm-link" title="Fond de repérage lu dans un fichier .mbtiles de la zone, sans réseau (à préparer en ligne avec « Créer un MBTiles »)">📦 Fond .mbtiles…<input type="file" id="ftm-mbtiles" accept=".mbtiles" hidden></label> <span id="ftm-mbtiles-name" class="ftm-note"></span><button type="button" id="ftm-mbtiles-clear" class="ftm-note ftm-link" hidden title="Revenir aux fonds en ligne">✕</button></span><label class="ftm-note">aperçu <input type="range" id="ftm-opacity" min="0" max="100" value="60"></label></div><p id="ftm-offline" class="ftm-note ftm-offline" hidden>Hors ligne : les fonds en ligne ne s'affichent pas. Chargez un fond .mbtiles de la zone (préparé en ligne avec « Créer un MBTiles ») pour placer les repères.</p><div id="ftm-map" class="ftm-map"></div></div>
         </div>
       </div>`;
     document.body.appendChild(modal);
@@ -872,7 +872,17 @@ async function openFileToMbtiles() {
     });
     const first = Object.values(bases)[0] || L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 22, maxNativeZoom: 19 });
     first.addTo(st.map);
-    if (Object.keys(bases).length > 1) L.control.layers(bases, null, { collapsed: true }).addTo(st.map);
+    st.layerControl = L.control.layers(bases, null, { collapsed: true }).addTo(st.map);
+    st.firstBase = first;
+    // Fond de repérage hors ligne : le MBTiles ouvert dans l'application
+    // (tileSource.js), ici ou depuis une autre carte.
+    $('ftm-mbtiles').addEventListener('change', e => { const f = e.target.files[0]; e.target.value = ''; if (f) window.tileSourceOpenFile?.(f); });
+    $('ftm-mbtiles-clear').addEventListener('click', () => window.tileSourceOpenFile?.(null));
+    document.addEventListener('cado-tilesource-change', e => ftmSyncMbtilesBase(e.detail));
+    if (window.tileSourceIsActive?.()) ftmSyncMbtilesBase({ name: window.tileSourceGetName(), zooms: window.tileSourceGetZooms(), bounds: window.tileSourceGetBounds() });
+    const online = () => { $('ftm-offline').hidden = navigator.onLine !== false || !!st.mbtilesBase; };
+    window.addEventListener('online', online); window.addEventListener('offline', online);
+    st.syncOffline = online; online();
     st.markers = L.layerGroup().addTo(st.map);
     st.footprint = L.layerGroup().addTo(st.map);
     st.opacity = 0.6;
@@ -1283,6 +1293,33 @@ function ftmPlaceOnPlan(x, y) {
     p.x = x; p.y = y;
     st.awaiting = Number.isFinite(p.lat) ? null : 'map';
     ftmAdvance();
+}
+
+// Pose (info) ou retire (null) le fond MBTiles de la carte de repérage. Ouvert,
+// il devient le fond affiché (les fonds en ligne restent au choix) ; la carte se
+// cadre sur lui tant qu'aucun repère n'est placé.
+function ftmSyncMbtilesBase(info) {
+    const st = ftmState, map = st.map;
+    if (!map) return;
+    if (st.mbtilesBase) { map.removeLayer(st.mbtilesBase); st.layerControl.removeLayer(st.mbtilesBase); st.mbtilesBase = null; }
+    st.$('ftm-mbtiles-name').textContent = info ? info.name : '';
+    st.$('ftm-mbtiles-clear').hidden = !info;
+    if (info && window.MbtilesLeafletLayer && info.zooms?.length) {
+        const zMin = info.zooms[0], zMax = info.zooms[info.zooms.length - 1];
+        const layer = new window.MbtilesLeafletLayer('', { minNativeZoom: zMin, maxNativeZoom: zMax, minZoom: 0, maxZoom: 22 });
+        map.eachLayer(l => { if (l !== layer && Object.values(st.layerControl._layers).some(e => e.layer === l)) map.removeLayer(l); });
+        const placed = st.sheets.some(sh => sh.points.some(p => Number.isFinite(p.lat)));
+        if (!placed && info.bounds) {
+            const [w, s, e, n] = info.bounds;
+            map.fitBounds([[s, w], [n, e]], { maxZoom: zMax, animate: false });
+        }
+        layer.addTo(map);
+        st.layerControl.addBaseLayer(layer, `📦 ${info.name}`);
+        st.mbtilesBase = layer;
+    } else if (!Object.values(st.layerControl._layers).some(e => !e.overlay && map.hasLayer(e.layer))) {
+        st.firstBase.addTo(map);
+    }
+    st.syncOffline?.();
 }
 
 function ftmPlaceOnMap(lon, lat) {
