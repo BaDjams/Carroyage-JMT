@@ -778,6 +778,7 @@ Voir §10 pour la stratégie complète.
 | `bing_hybrid` | Bing Maps Hybride | virtualearth.net | 19 | non |
 | `google_hybrid` | Google Hybrid | mt0.google.com | 21 | non |
 | `google_hybrid_NOPOI` | Google Hybrid sans POI | mt0.google.com (apistyle) | 21 | non |
+| `google_roadmap` | Google Maps (plan) | mt0.google.com | 21 | non |
 | `ign_scan_composite` | IGN Cartes (privé) | data.geopf.fr/private | 18 | `IGN_PRIVATE_API_KEY` |
 | `ign_public_hybrid` | Plan IGN | data.geopf.fr | 19 | non |
 | `mapy_outdoor` | Mapy.CZ Outdoor | api.mapy.com | 19 | `MAPY_API_KEY` |
