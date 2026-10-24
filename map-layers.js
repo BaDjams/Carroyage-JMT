@@ -212,6 +212,20 @@ const MAP_LAYERS = [
             }
         ]
     },
+    {
+        // Plan routier Google Maps classique (lyrs=m), sans imagerie.
+        "id": "google_roadmap",
+        "name": "Google Maps",
+        "shortName": "Google Plan",
+        "attribution": "&copy; Google",
+        "maxZoom": 21,
+        "layers": [
+            {
+                "url": "https://mt0.google.com/vt/lyrs=m&hl=fr&x={x}&y={y}&z={z}",
+                "type": "xyz"
+            }
+        ]
+    },
     /*{
         "id": "esri_hybrid",
         "name": "Satellite Esri + Routes Google",

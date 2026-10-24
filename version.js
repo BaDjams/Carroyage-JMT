@@ -1,12 +1,19 @@
 // version.js
 
 // Source unique de vérité pour la version de l'application.
-const APP_VERSION = '23.49';
+const APP_VERSION = '23.50';
 
 // Une ligne courte par changement, telle que l'utilisateur la voit : ce qui change,
 // sans le pourquoi ni le comment. Guillemets doubles : les apostrophes françaises
 // s'écrivent telles quelles.
 const CHANGELOG = [
+  {
+    version: "23.50",
+    date: "2026-10-24",
+    changes: [
+      "Nouveau fond de carte « Google Maps » : le plan routier Google classique, à côté des fonds Google hybrides",
+    ],
+  },
   {
     version: "23.49",
     date: "2026-10-21",
