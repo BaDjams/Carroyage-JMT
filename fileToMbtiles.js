@@ -857,22 +857,19 @@ async function openFileToMbtiles() {
         onPlace: (x, y) => ftmPlaceOnPlan(x, y),
         onSelectionChange: () => ftmRefresh(),
     });
-    // Carte : fonds de map-layers.js (couches simples, WMS et ArcGIS).
+    // Carte : fonds et surcouches de map-layers.js, au choix dans le sélecteur de
+    // Leaflet. Le fond est celui choisi ailleurs dans l'application (fonds.js).
     st.map = L.map($('ftm-map'), { zoomControl: true }).setView([46.6, 2.4], 6);
-    const bases = {};
-    (typeof MAP_LAYERS !== 'undefined' ? MAP_LAYERS : []).forEach(cfg => {
-        if (cfg.requiresKey && !window[cfg.requiresKey]) return;
-        if (cfg.layers.some(l => l.type === 'yandex' || l.type === 'quadkey')) return;
-        const mk = l => l.type === 'wms'
-            ? L.tileLayer.wms(l.url, { layers: l.layers, styles: l.styles || '', format: l.format || 'image/png', transparent: l.transparent !== false, version: l.version || '1.3.0', maxZoom: 22, maxNativeZoom: l.maxZoom ?? cfg.maxZoom ?? 19 })
-            : l.type === 'arcgis-cache'
-            ? agcLeafletLayer(l, { maxZoom: 22, maxNativeZoom: l.maxZoom ?? cfg.maxZoom ?? 19 })
-            : L.tileLayer(l.url, { maxZoom: 22, maxNativeZoom: l.maxZoom ?? cfg.maxZoom ?? 19, subdomains: l.subdomains || 'abc' });
-        bases[cfg.name] = cfg.layers.length > 1 ? L.layerGroup(cfg.layers.map(mk)) : mk(cfg.layers[0]);
-    });
-    const first = Object.values(bases)[0] || L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 22, maxNativeZoom: 19 });
+    const { bases: baseCfgs, overlays: overlayCfgs } = fondsCatalogue();
+    const bases = {}, overlays = {};
+    baseCfgs.forEach(cfg => { const layer = createMapLayer(cfg, { zIndex: FONDS_STACK_Z.BASE }); if (layer) bases[cfg.name] = layer; });
+    overlayCfgs.forEach(cfg => { const layer = createMapLayer(cfg, { zIndex: FONDS_STACK_Z.OVERLAY }); if (layer) overlays[cfg.name] = layer; });
+    const chosen = fondsConfig();
+    const first = (chosen && bases[baseCfgs.find(c => c.id === chosen.base)?.name]) || Object.values(bases)[0]
+        || L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 22, maxNativeZoom: 19 });
     first.addTo(st.map);
-    st.layerControl = L.control.layers(bases, null, { collapsed: true }).addTo(st.map);
+    (chosen?.overlays || []).forEach(id => overlays[overlayCfgs.find(c => c.id === id)?.name]?.addTo(st.map));
+    st.layerControl = L.control.layers(bases, overlays, { collapsed: true }).addTo(st.map);
     st.firstBase = first;
     // Fond de repérage hors ligne : le MBTiles ouvert dans l'application
     // (tileSource.js), ici ou depuis une autre carte.

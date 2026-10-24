@@ -58,8 +58,7 @@ try {
     // Source de tuiles du parcours ; zoom 15 seul, format d'origine.
     await page.evaluate(() => {
         MAP_LAYERS.push({ id: 'essai', name: 'Essai', maxZoom: 19, layers: [{ url: 'https://tuiles.test/{z}/{x}/{y}.png', type: 'xyz' }] });
-        const s = document.getElementById('creator-layer-select');
-        s.append(new Option('Essai', 'essai')); s.value = 'essai';
+        fondsSet({ base: 'essai', overlays: [] });
         document.getElementById('creator-tile-format').value = 'origine';
         document.querySelectorAll('.zoom-checkbox-label').forEach(el => el.classList.toggle('checked', el.dataset.zoom === '15'));
     });
@@ -90,7 +89,8 @@ try {
     const telechargement = page.waitForEvent('download', { timeout: 120000 });
     await page.locator('#creator-start-btn').click();
     const fichier = await (await telechargement).path();
-    assert.deepEqual([...new Set(tuilesDemandees)].sort(), zone500.tuiles);
+    // Niveau 15 seul : la carte affiche aussi la source d'essai, à son propre zoom.
+    assert.deepEqual([...new Set(tuilesDemandees)].filter(t => t.startsWith('15/')).sort(), zone500.tuiles);
     const contenu = await page.evaluate(async b64 => {
         const SQL = await window.initSqlJs({ locateFile: f => f });
         const db = new SQL.Database(Uint8Array.from(atob(b64), c => c.charCodeAt(0)));
