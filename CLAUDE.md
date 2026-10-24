@@ -57,3 +57,14 @@ conseillé (`printSuggestion`) des deux côtés.
 Tests de l'export par bandes : `node tools/test_image_stream.mjs`,
 `node tools/test_geotiff_stream.mjs` (relecture par libtiff si Python et Pillow
 sont installés), `node tools/test_zone_bands.mjs`.
+
+## Fonds de carte et surcouches comme CadoTour
+
+`fonds.js` reprend `fondsModel.js` (modèle) et `baseSelect.js` (menu) de CadoTour :
+un fond est UNE image (`MAP_LAYERS`, famille `kind` 'sat' ou 'carto'), routes et
+noms sont des surcouches cumulables (`MAP_OVERLAYS`, `group` exclusif), les
+anciens fonds composites se relisent par `FONDS_LEGACY_BASES`. Un seul choix pour
+toutes les cartes ; les exports lisent `fondsConfig()`. Une règle qui change d'un
+côté (groupes, ordre, ancien identifiant) change de l'autre, et les deux
+catalogues `map-layers.js` restent en phase. Tests : `node tools/test_fonds.mjs`,
+`node tools/test_fonds_browser.mjs`.

@@ -80,7 +80,8 @@ L'ordre dans `index.html` est important — plusieurs fichiers exposent des vari
 1. version.js          → APP_VERSION
 2. JSZip / FileSaver   → libs tierces
 3. utilities.js        → fonctions partagées (rotation, conversions)
-4. map-layers.js       → MAP_LAYERS, clés API
+4. map-layers.js       → MAP_LAYERS (fonds), MAP_OVERLAYS (surcouches), clés API
+   fonds.js            → choix du fond et des surcouches, menu de la carte
 5. icons.js / icons-catalog.js → ICON_LIBRARY, ICON_CATALOG
 6. carroyageCado.js    → générateur CADO + init Leaflet mode 1
 7. carroyageCFSI.js    → CFSI_UTILS
@@ -109,7 +110,7 @@ L'ordre dans `index.html` est important — plusieurs fichiers exposent des vari
 | `loadedCadoKmlFeatures`, `loadedZoneKmlFeatures` | features KML importées |
 | `cadoKmlResources`, `kmlResources` | images embarquées dans KMZ importés |
 | `currentIconLibrary` | bibliothèque d'icônes courante (modifiable) |
-| `MAP_LAYERS`, `ICON_LIBRARY`, `ICON_CATALOG` | catalogues statiques |
+| `MAP_LAYERS`, `MAP_OVERLAYS`, `ICON_LIBRARY`, `ICON_CATALOG` | catalogues statiques |
 | `CFSI_UTILS`, `DFCI_UTILS`, `WGS84_to_UTM`, `WGS84_to_MGRS` | namespaces de conversion |
 
 ### 3.4 Contrats inter-modules via le DOM
@@ -654,7 +655,7 @@ Catalogue statique. Voir §7 pour la structure détaillée.
 **Pattern de clés privées** — il porte aussi bien une clé d'accès réservée (IGN) que l'adresse d'un service local sous licence (i-Boating) :
 1. `config.private.js` (gitignored) déclare `var IGN_PRIVATE_API_KEY`, `var MAPY_API_KEY`, `var GOOGLE_MAPS_API_KEY`, `var IBOATING_WMTS_URL`, `var SHOM_API_KEY`
 2. `map-layers.js` a des **fallbacks** `if (typeof X === 'undefined') var X = '';`
-3. Les couches avec `"requiresKey": "VAR_NAME"` sont **filtrées** dans `createBaseLayers()` si la variable est vide
+3. Les fonds et surcouches avec `"requiresKey": "VAR_NAME"` sont **filtrés** (`mapLayerAvailable`) si la variable est vide : ni proposés dans le menu, ni construits
 
 > **Pourquoi `var` et non `const`** : `var` autorise la redéclaration entre `config.private.js` et `map-layers.js`. Avec `const`, redéclaration = erreur fatale.
 
@@ -750,17 +751,34 @@ Voir §10 pour la stratégie complète.
 
 ---
 
-## 7. Couches cartographiques (`map-layers.js`)
+## 7. Couches cartographiques (`map-layers.js`, `fonds.js`)
+
+Fonds et surcouches se gèrent **comme dans CadoTour** (`fondsModel.js` et `baseSelect.js` là-bas) : un **fond** est UNE image, satellite ou plan ; les routes, les noms, les amers… sont des **surcouches** cumulables sur n'importe quel fond. Les anciens fonds composites (« Ortho IGN + Routes Google », « Google Hybrid »…) sont devenus un fond et ses surcouches.
+
+**Empilement**, du bas vers le haut : le fond, puis les surcouches cochées, dans l'ordre du catalogue (option `zIndex` des couches, `FONDS_STACK_Z`). Un `.mbtiles` chargé remplace l'un et les autres, à l'écran comme à l'export ; le menu le dit et rend le choix à sa fermeture (`control.setOffline`).
+
+**Un choix pour toute l'application** (`fondsState()` / `fondsSet()`) : les cartes du carroyage rapide, de l'export de zone et de Créer MBTiles le partagent, et il est retenu dans `localStorage` (`cjmt.fonds`). Choix de départ : Ortho IGN sous « Routes Google », l'ancien fond par défaut. Deux surcouches d'un même `group` s'excluent (les deux variantes des routes Google). La carte de repérage de « Générer depuis un fichier » part du même choix, dans le sélecteur de Leaflet.
+
+**Menu** (`fondsAttach(map)`) : un bouton au nom du fond, en haut à droite de chaque carte, ouvre le panneau *Fond* (familles Satellite et Cartes) / *Surcouches*. Dans les panneaux d'export, « Fond de carte : » rappelle le choix complet et ouvre ce menu.
+
+**Exports** : impression, export de zone, MBTiles de zone et Créer MBTiles lisent `fondsConfig()` — une entrée de la forme du catalogue dont les `layers` sont ceux du fond puis ceux des surcouches, peints dans cet ordre. Son `maxZoom` est le plus bas des étages, pour qu'aucun ne manque à l'export ; son `shortName` (cartouche, nom de fichier) les enchaîne : « Ortho IGN + Google ».
+
+**Anciens identifiants** (`FONDS_LEGACY_BASES`) : `fondsSet({ base: 'igc_carrieres' })` donne OpenStreetMap sous l'atlas IGC, etc. (table ci-dessous).
+
+**Tests** : `node tools/test_fonds.mjs` (règles du modèle, mêmes que CadoTour), `node tools/test_fonds_browser.mjs <playwright>` (menu, choix partagé et retenu, image exportée avec ses surcouches).
 
 ### 7.1 Structure
 
 ```js
 {
-  id: "google_hybrid",          // identifiant interne
-  name: "Google Hybrid",        // libellé UI
+  id: "google_satellite",       // identifiant interne
+  kind: "sat",                  // fonds seulement : 'sat' ou 'carto', famille du menu
+  group: "google_routes",       // surcouches seulement, facultatif : variantes exclusives
+  name: "Google Satellite",     // libellé du menu
+  shortName: "Google Sat",      // cartouche des images exportées
   maxZoom: 21,
-  requiresKey: "GOOGLE_MAPS_API_KEY",  // optionnel
-  layers: [                     // empilement de couches
+  requiresKey: "IGN_PRIVATE_API_KEY",  // optionnel
+  layers: [                     // un fond : UNE couche ; une surcouche : une ou plusieurs
     { url: "...", type: "xyz" | "quadkey" | "yandex" | "wms" | "arcgis-cache" }
     // wms : + layers (obligatoire), styles, format, transparent, version
     // arcgis-cache : url du MapServer ; + crs, origin, resolution0, levels (§7.10)
@@ -768,32 +786,58 @@ Voir §10 pour la stratégie complète.
 }
 ```
 
+`createMapLayer(cfg, { zIndex })` (map-layers.js) construit la couche Leaflet d'une entrée — un seul code pour toutes les cartes (Yandex reprojeté, Bing en quadkey, WMS, cache ArcGIS).
+
 ### 7.2 Couches disponibles
 
-| ID | Nom | Source | maxZoom | Clé requise |
-|---|---|---|---|---|
-| `ign_ign_hybrid` | Ortho IGN + Routes IGN | data.geopf.fr (public) | 19 | non |
-| `ign_google_hybrid` | Ortho IGN + Routes Google | IGN + Google | 19 | non |
-| `yandex_hybrid` | Yandex Hybride (FR) | maps.yandex.net | 18 | non |
-| `bing_hybrid` | Bing Maps Hybride | virtualearth.net | 19 | non |
-| `google_hybrid` | Google Hybrid | mt0.google.com | 21 | non |
-| `google_hybrid_NOPOI` | Google Hybrid sans POI | mt0.google.com (apistyle) | 21 | non |
-| `google_roadmap` | Google Maps (plan) | mt0.google.com | 21 | non |
-| `ign_scan_composite` | IGN Cartes (privé) | data.geopf.fr/private | 18 | `IGN_PRIVATE_API_KEY` |
-| `ign_public_hybrid` | Plan IGN | data.geopf.fr | 19 | non |
-| `mapy_outdoor` | Mapy.CZ Outdoor | api.mapy.com | 19 | `MAPY_API_KEY` |
-| `inland_waters` | Eaux intérieures (i-Boating privé, sinon libre) | WMTS i-Boating local, sinon Plan IGN + OpenSeaMap | 17 (réglable) ou 19 | `IBOATING_WMTS_URL` (facultative) |
-| `shom_raster` | Cartes marines SHOM (privé) | services.data.shom.fr (abonnement) | 18 | `SHOM_API_KEY` |
-| `shom_inspire` | SHOM INSPIRE (libre) | services.data.shom.fr/INSPIRE | 18 | `SHOM_INSPIRE_LAYER` |
-| `emodnet_bathy` | Lignes de profondeur (EMODnet) | OSM + WMS EMODnet | 19 | non |
-| `igc_carrieres` | Carrières souterraines de Paris (atlas IGC) | OSM + MapServer IGC (Ville de Paris, §7.10) | 19 | non |
-| `osm_standard` | OpenStreetMap | tile.openstreetmap.org | 19 | non |
+**Fonds** (`MAP_LAYERS`)
+
+| ID | Famille | Nom | Source | maxZoom | Clé requise |
+|---|---|---|---|---|---|
+| `ign_ortho` | Satellite | Ortho IGN | data.geopf.fr (public) | 19 | non |
+| `google_satellite` | Satellite | Google Satellite | mt0.google.com (lyrs=s) | 21 | non |
+| `yandex_satellite` | Satellite | Yandex Satellite | maps.yandex.net | 18 | non |
+| `bing_hybrid` | Satellite | Bing Maps Hybride (routes incrustées) | virtualearth.net | 19 | non |
+| `ign_public_hybrid` | Cartes | Plan IGN | data.geopf.fr | 19 | non |
+| `ign_scan_composite` | Cartes | IGN Cartes (privé) | data.geopf.fr/private | 18 | `IGN_PRIVATE_API_KEY` |
+| `google_roadmap` | Cartes | Google Maps (plan) | mt0.google.com | 21 | non |
+| `osm_standard` | Cartes | OpenStreetMap | tile.openstreetmap.org | 19 | non |
+| `mapy_outdoor` | Cartes | Mapy.CZ Outdoor | api.mapy.com | 19 | `MAPY_API_KEY` |
+| `inland_waters` | Cartes | Eaux intérieures (i-Boating, privé) | WMTS i-Boating local | 17 (réglable) | `IBOATING_WMTS_URL` |
+| `shom_raster` | Cartes | Cartes marines SHOM (privé) | services.data.shom.fr (abonnement) | 18 | `SHOM_API_KEY` |
+| `shom_inspire` | Cartes | SHOM INSPIRE (libre) | services.data.shom.fr/INSPIRE | 18 | `SHOM_INSPIRE_LAYER` |
+
+**Surcouches** (`MAP_OVERLAYS`)
+
+| ID | Nom | Source | maxZoom |
+|---|---|---|---|
+| `ign_routes` | Routes IGN (routes et noms) | data.geopf.fr | 19 |
+| `google_routes` | Routes Google (sans POI) — groupe `google_routes` | mt0.google.com (lyrs=h, apistyle) | 21 |
+| `google_routes_poi` | Routes Google + POI — groupe `google_routes` | mt0.google.com (lyrs=h) | 21 |
+| `yandex_routes` | Routes Yandex | maps.yandex.net | 18 |
+| `openseamap` | Amers OpenSeaMap | tiles.openseamap.org | 18 |
+| `emodnet_contours` | Lignes de profondeur (EMODnet) | WMS EMODnet | 19 |
+| `igc_atlas` | Carrières souterraines de Paris (atlas IGC) | MapServer IGC (Ville de Paris, §7.10) | 19 |
+
+**Anciens fonds composites** (jusqu'à la v23.50)
+
+| Ancien ID | Fond | Surcouches |
+|---|---|---|
+| `ign_ign_hybrid` | `ign_ortho` | `ign_routes` |
+| `ign_google_hybrid` | `ign_ortho` | `google_routes` |
+| `google_hybrid` | `google_satellite` | `google_routes_poi` |
+| `google_hybrid_NOPOI` | `google_satellite` | `google_routes` |
+| `yandex_hybrid` | `yandex_satellite` | `yandex_routes` |
+| `emodnet_bathy` | `osm_standard` | `emodnet_contours` |
+| `igc_carrieres` | `osm_standard` | `igc_atlas` |
+| `inland_waters` sans licence | `ign_public_hybrid` | `openseamap` |
 
 ### 7.3 Ajout d'une couche
 
-1. Ajouter une entrée à `MAP_LAYERS` dans `map-layers.js`
+1. Ajouter une entrée à `MAP_LAYERS` (fond : une seule image, avec son `kind`) ou à `MAP_OVERLAYS` (surcouche transparente) dans `map-layers.js`
 2. Si privée : ajouter un fallback `if (typeof X === 'undefined') var X = '';` en haut du fichier, et `requiresKey: "X"` dans l'entrée
 3. Documenter la clé dans `config.private.js` (template à demander au mainteneur)
+4. Garder le catalogue de CadoTour (`map-layers.js` là-bas) en phase quand l'entrée vaut pour les deux outils
 
 ### 7.4 HERE Maps (différé)
 
@@ -808,12 +852,12 @@ Tâche en attente : ajout des couches HERE Maps dès qu'une clé sera obtenue su
 
 ### 7.5 Eaux intérieures : i-Boating (privé) ou flux libre
 
-Couche `inland_waters`, **toujours proposée** dans le sélecteur : elle bascule d'elle-même selon que le poste dispose ou non d'une licence i-Boating.
+Les eaux intérieures restent **toujours servies**, selon que le poste dispose ou non d'une licence i-Boating.
 
-| État du poste | Nom affiché | Source | Export |
+| État du poste | Dans le menu | Source | Export |
 |---|---|---|---|
-| `IBOATING_WMTS_URL` renseignée | Eaux intérieures (i-Boating, privé) | WMTS i-Boating local | interne seulement |
-| variable absente ou vide | Eaux intérieures (libre) | OpenStreetMap + amers OpenSeaMap | sans restriction |
+| `IBOATING_WMTS_URL` renseignée | fond « Eaux intérieures (i-Boating, privé) » (`inland_waters`) | WMTS i-Boating local | interne seulement |
+| variable absente ou vide | fond « Plan IGN » sous la surcouche « Amers OpenSeaMap » (l'ancien `inland_waters` y mène) | Plan IGN + amers OpenSeaMap | sans restriction |
 
 #### Avec licence — WMTS i-Boating local
 
@@ -909,7 +953,7 @@ Le SHOM couvre la mer, les estuaires et les approches, pas les canaux ni les riv
 
 ### 7.7 Lignes de profondeur EMODnet, et le type `wms`
 
-Couche `emodnet_bathy` : fond OpenStreetMap surmonté des **isobathes EMODnet**, l'infrastructure bathymétrique européenne. Ces isobathes sont espacées de 50 m : pour des isobathes métriques, voir la case « lignes de profondeur » des trois modes (§7.9), ou l'outil hors ligne du §7.8 pour d'autres sources. Services OGC libres d'accès, donc exportables et rediffusables — contrairement au SHOM et à i-Boating. Couverture : mers européennes.
+Surcouche `emodnet_contours` (l'ancien fond `emodnet_bathy` : OpenStreetMap sous elle) : les **isobathes EMODnet**, sur n'importe quel fond, l'infrastructure bathymétrique européenne. Ces isobathes sont espacées de 50 m : pour des isobathes métriques, voir la case « lignes de profondeur » des trois modes (§7.9), ou l'outil hors ligne du §7.8 pour d'autres sources. Services OGC libres d'accès, donc exportables et rediffusables — contrairement au SHOM et à i-Boating. Couverture : mers européennes.
 
 Les isobathes ne sont pas servies en tuiles pré-calculées mais en **WMS**, d'où un quatrième type de couche.
 
@@ -1144,7 +1188,7 @@ Les altitudes voyagent en flottants non compressés : environ **1,5 Mo par km²*
 
 ### 7.10 Carrières souterraines de Paris (atlas IGC), et le type `arcgis-cache`
 
-Couche `igc_carrieres` : fond OpenStreetMap surmonté de l'**atlas des anciennes carrières** de l'Inspection générale des carrières (Ville de Paris). Ce sont les 458 planches au 1/1000 (révisions de 1955 à 2025), que l'IGC a déjà assemblées et géoréférencées. On y lit les galeries étage par étage, les consolidations, les fontis, les puits et les cotes. Couverture : Paris et les communes limitrophes sous-minées. Hors des zones de carrières, l'atlas est transparent et seul le fond OSM reste visible.
+Surcouche `igc_atlas` (l'ancien fond `igc_carrieres` : OpenStreetMap sous elle) : l'**atlas des anciennes carrières** de l'Inspection générale des carrières (Ville de Paris). Ce sont les 458 planches au 1/1000 (révisions de 1955 à 2025), que l'IGC a déjà assemblées et géoréférencées. On y lit les galeries étage par étage, les consolidations, les fontis, les puits et les cotes. Couverture : Paris et les communes limitrophes sous-minées. Hors des zones de carrières, l'atlas est transparent et seul le fond reste visible.
 
 **Source.** MapServer public de la Ville, `https://capgeo2.paris.fr/public/rest/services/IGC/IGC_Atlas/MapServer` :
 
@@ -1310,6 +1354,7 @@ Le sens des lettres est géométrique (il place les lignes au nord ou au sud de 
 - *Grille complétée* (valeur 7) : une grille « milieu » agrandie ou réduite d'un seul côté dans CadoTour garde son A1 et son centre de rotation ; seule l'étendue des cases change. Le centre n'est alors plus le milieu des bornes : son écart, en demi-cases, est dans `config.centerShift` { cols, rows }, et `gridCenterOffsetCells` (`utilities.js`) donne la position du centre depuis A1 pour `calculateGridData`, la boîte de téléchargement, l'A1 des étiquettes et `getA1CornerCoordsForPrint` (`imagetoprint.js`) — une seule définition. Appliqué en carroyage rapide, l'écart est retenu (`window.cadoCenterShiftFromCode`) tant que point, échelle, bornes, référence et sens restent ceux du code (`centerShiftKey`) ; en export de zone, il suit `window.zoneCadoFromCode`.
 - *Export de zone* : le rectangle est retracé, la carte placée au zoom du code. Un code CADO retrace le cadre non tourné de sa grille et la mémorise dans `window.zoneCadoFromCode` : `getZoneCadoConfigAndBounds` la reprend telle quelle (`zoneCadoConfigFromCode`) tant que rectangle, échelle et sens des lettres restent ceux du code, plutôt que de la recalculer depuis le rectangle, ce qui perdrait les bornes et le point de référence.
 - *Déviation* : dans les deux modes, le fond pivote autour du point de référence du carroyage (en export de zone, `zdPlanZone(..., rotationPivot)`), comme dans les KML. Un code tourné donne donc la même grille sur le terrain d'un mode à l'autre.
+- *Aperçu tourné de l'export de zone* : la carte fait pivoter son fond, en CSS, autour de son **centre** (`applyZoneTileRotation`, index.html), tandis que rectangle, points et clics restent dans le repère non tourné de Leaflet. Le terrain vu dans le rectangle n'est donc pas celui que ses coordonnées désignent dès qu'il n'est pas au centre de la carte. `zoneRectangle()` (zoneDownloader.js) rend la zone réellement recouverte — même taille, centrée sur le terrain vu au milieu du rectangle —, et l'export la fait pivoter autour de ce milieu : l'image montre ce que montrait l'aperçu. Clics (zone autour d'un point, points d'intérêt) et marqueurs passent de l'écran au terrain par `zoneScreenToGround` / `zoneGroundToScreen` ; tracés KML et points d'intérêt sont dessinés dans le repère tourné du fond. Test : `tools/test_zone_rotation_browser.mjs`.
 
 **Tests** : `node tools/test_code_recreation.mjs` (aller-retour, longueurs, détection des fautes et inversions, lecture d'un nom de fichier).
 

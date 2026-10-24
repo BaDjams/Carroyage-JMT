@@ -97,16 +97,18 @@ try {
     osmPng = (() => { const b = Buffer.alloc(256 * 256 * 4); for (let k = 0; k < b.length; k += 4) b.set([...green, 255], k); return png(b, 256, 256); })();
 
     // ---- Catalogue ----
-    const cfg = await page.evaluate(() => MAP_LAYERS.find(l => l.id === 'igc_carrieres'));
-    assert.equal(cfg.name, 'Carrières souterraines de Paris (atlas IGC)');
+    // L'atlas est une surcouche ; l'ancien fond « Carrières souterraines » est
+    // OpenStreetMap sous elle (fonds.js).
+    const atlas = await page.evaluate(() => MAP_OVERLAYS.find(l => l.id === 'igc_atlas'));
+    assert.equal(atlas.name, 'Carrières souterraines de Paris (atlas IGC)');
+    assert.match(atlas.attribution, /IGC/);
+    const cfg = await page.evaluate(() => fondsConfig({ base: 'osm_standard', overlays: ['igc_atlas'] }));
     assert.deepEqual(cfg.layers.map(l => l.type), ['xyz', 'arcgis-cache']);
-    assert.match(cfg.attribution, /IGC/);
 
     // ---- Affichage : la carte du créateur lit le cache, niveau 9 au zoom 17 ----
     const [lon, lat] = proj4(L93, 'WGS84', MARK);
     await page.evaluate(([lat, lon]) => {
-        const s = document.getElementById('creator-layer-select');
-        s.value = 'igc_carrieres'; s.dispatchEvent(new Event('change'));
+        fondsSet({ base: 'igc_carrieres' });   // ancien identifiant : OSM sous l'atlas
         creatorMap.setView([lat, lon], 17, { animate: false });
     }, [lat, lon]);
     await page.waitForFunction(() => document.querySelectorAll('#creator-interactive-map canvas.leaflet-tile-loaded').length >= 4, null, { timeout: 30000 });
@@ -175,7 +177,7 @@ try {
     // appelés tels que l'application les appelle ; origine fractionnaire pour la zone.
     const [mx, my] = worldPixel(MARK, 18);
     const exports = await page.evaluate(async ([s, w, n, e, mx, my]) => {
-        const cfg = MAP_LAYERS.find(l => l.id === 'igc_carrieres');
+        const cfg = fondsConfig();
         const redCentroid = canvas => {
             const d = canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height).data;
             let sx = 0, sy = 0, cnt = 0;

@@ -46,6 +46,65 @@ function _worldPixels3857ToLatLon(px, zoom) {
     const lat = Math.asin(Math.tanh(M / 2)) * 180 / Math.PI;
     return { lat, lon };
 }
+
+// APERÇU TOURNÉ. Avec une rotation, seul le fond de la carte de zone pivote, en CSS,
+// autour du CENTRE de la carte (index.html, applyZoneTileRotation) ; rectangle, points
+// et clics restent dans le repère non tourné de Leaflet. Le terrain vu à un endroit
+// de l'écran n'est donc pas celui que Leaflet y lit : ces fonctions passent de l'un
+// à l'autre. Sans rotation, elles ne changent rien.
+function zoneViewTurn() {
+    const map = window.zoneMap;
+    const deviation = parseFloat(document.getElementById('zone-deviation')?.value || 0);
+    if (!map || !deviation) return null;
+    const zoom = map.getZoom();
+    return { map, zoom, rad: deviation * Math.PI / 180, center: map.project(map.getCenter(), zoom) };
+}
+
+// Point en pixels Leaflet tourné de `sign` × la rotation autour du centre de la carte.
+function zoneTurnPoint(turn, p, sign) {
+    const dx = p.x - turn.center.x, dy = p.y - turn.center.y;
+    const cos = Math.cos(sign * turn.rad), sin = Math.sin(sign * turn.rad);
+    return L.point(turn.center.x + dx * cos - dy * sin, turn.center.y + dx * sin + dy * cos);
+}
+
+// Terrain affiché au point `latlng` lu par Leaflet (un clic, par exemple). Le fond
+// est tourné de -rotation (CSS rotate) : le terrain vu s'obtient par +rotation.
+function zoneScreenToGround(latlng) {
+    const turn = zoneViewTurn();
+    if (!turn) return L.latLng(latlng);
+    return turn.map.unproject(zoneTurnPoint(turn, turn.map.project(latlng, turn.zoom), 1), turn.zoom);
+}
+
+// Endroit de l'écran (repère Leaflet) où l'aperçu montre le terrain `latlng`.
+function zoneGroundToScreen(latlng) {
+    const turn = zoneViewTurn();
+    if (!turn) return L.latLng(latlng);
+    return turn.map.unproject(zoneTurnPoint(turn, turn.map.project(latlng, turn.zoom), -1), turn.zoom);
+}
+
+// Zone exportée { north, west, south, east } : le rectangle tracé, ou, avec une
+// rotation, le terrain qu'il recouvre à l'écran. Le rectangle reste horizontal à
+// l'écran et le fond tourne autour du centre de la carte : le terrain recouvert a la
+// même taille en pixels, centré sur le terrain vu au milieu du rectangle. L'export
+// fait tourner le fond autour de ce milieu (zdPlanZone) et retrouve ainsi l'aperçu.
+// null si aucune zone n'est tracée.
+function zoneRectangle() {
+    const nwStr = document.getElementById('zone-nw-coords')?.value;
+    const seStr = document.getElementById('zone-se-coords')?.value;
+    if (!nwStr || !seStr) return null;
+    const [north, west] = nwStr.split(',').map(c => parseFloat(c.trim()));
+    const [south, east] = seStr.split(',').map(c => parseFloat(c.trim()));
+    const turn = zoneViewTurn();
+    if (!turn || ![north, west, south, east].every(Number.isFinite)) return { north, west, south, east };
+    const nw = turn.map.project([north, west], turn.zoom);
+    const se = turn.map.project([south, east], turn.zoom);
+    const mid = nw.add(se).divideBy(2);
+    const shift = zoneTurnPoint(turn, mid, 1).subtract(mid);
+    const a = turn.map.unproject(nw.add(shift), turn.zoom);
+    const b = turn.map.unproject(se.add(shift), turn.zoom);
+    return { north: a.lat, west: a.lng, south: b.lat, east: b.lng };
+}
+
 let loadedZoneKmlFeatures = [];
 let kmlResources = { images: {} };
 
@@ -297,8 +356,10 @@ function toggleAddPointMode() {
 
 function handleMapClickForPOI(e) {
     if (!isAddingPoint) return;
-    const lat = e.latlng.lat;
-    const lon = e.latlng.lng;
+    // Aperçu tourné : le point est posé sur le terrain vu sous le clic.
+    const ground = zoneScreenToGround(e.latlng);
+    const lat = ground.lat;
+    const lon = ground.lng;
     const typeId = document.getElementById('poi-type-selector').value; 
     const name = document.getElementById('poi-name-input').value.trim();
     const allIcons = getIconsSync();
@@ -333,7 +394,8 @@ function updatePOIMarkers() {
             iconAnchor: [anchorPos, anchorPos], 
             popupAnchor: [0, -anchorPos]
         });
-        const marker = L.marker([poi.lat, poi.lon], { icon: customIcon });
+        // Aperçu tourné : le marqueur suit son terrain, l'icône reste droite.
+        const marker = L.marker(zoneGroundToScreen([poi.lat, poi.lon]), { icon: customIcon });
         if (poi.name) marker.bindTooltip(poi.name, { permanent: true, direction: 'top', offset: [0, -(anchorPos + 5)] });
         marker.on('click', () => { if (confirm(`Supprimer le point "${poi.name || poi.type}" ?`)) removePOI(poi.id); });
         poiMarkersLayer.addLayer(marker);
@@ -477,8 +539,8 @@ function getZoneCadoConfigAndBounds() {
     const seCoordsStr = document.getElementById("zone-se-coords").value;
     if (!nwCoordsStr || !seCoordsStr) throw new Error("Veuillez d'abord dessiner une zone rectangulaire.");
     
-    const [nwLat, nwLon] = nwCoordsStr.split(',').map(c => parseFloat(c.trim()));
-    const [seLat, seLon] = seCoordsStr.split(',').map(c => parseFloat(c.trim()));
+    // Terrain recouvert par le rectangle, aperçu tourné compris (cf. zoneRectangle).
+    const { north: nwLat, west: nwLon, south: seLat, east: seLon } = zoneRectangle();
 
     // Lecture du Panel 5 (Nouvelle logique)
     const scale = roundGridScale(document.getElementById('zone-cado-scale').value);
@@ -610,9 +672,7 @@ function zoneRecreationCodeFor(useCado, zoom = null) {
     const deviation = parseFloat(document.getElementById('zone-deviation')?.value || 0);
     try {
         if (useCado) return cadoRecreationCode(getZoneCadoConfigAndBounds().config, { deviation, zoom });
-        const [north, west] = document.getElementById("zone-nw-coords").value.split(',').map(c => parseFloat(c.trim()));
-        const [south, east] = document.getElementById("zone-se-coords").value.split(',').map(c => parseFloat(c.trim()));
-        return zoneRecreationCode({ north, west, south, east }, { deviation, zoom });
+        return zoneRecreationCode(zoneRectangle(), { deviation, zoom });
     } catch (e) {
         return null; // zone non définie : l'export s'arrêtera plus loin, avec son message
     }
@@ -640,8 +700,9 @@ function zoneGridChoice() {
 
 // Emprise exportée : la zone saisie, ou la grille CADO et ses marges d'étiquettes.
 function zoneExportBounds(useCado) {
-    const [north, west] = document.getElementById("zone-nw-coords").value.split(',').map(c => parseFloat(c.trim()));
-    const [south, east] = document.getElementById("zone-se-coords").value.split(',').map(c => parseFloat(c.trim()));
+    const rect = zoneRectangle();
+    if (!rect) throw new Error("Veuillez d'abord dessiner une zone rectangulaire sur la carte.");
+    const { north, west, south, east } = rect;
     if (!useCado) return { finalBoundingBox: { north, west, south, east }, cadoData: null, zone: { north, west, south, east } };
 
     const cadoData = getZoneCadoConfigAndBounds();
@@ -675,9 +736,10 @@ function zoneExportLayer() {
         return { zoom, mapLayerName, selectedMap: { layers: [], maxZoom: zoom, name: mapLayerName } };
     }
     const rawZoom = parseInt(document.getElementById("zone-info-zoom").textContent, 10);
-    const mapLayerName = document.getElementById("zone-info-layer").textContent;
-    const selectedMap = MAP_LAYERS.find(m => m.name === mapLayerName);
+    // Fond et surcouches choisis sur la carte, empilés (fonds.js).
+    const selectedMap = fondsConfig();
     if (!selectedMap) throw new Error("Impossible de trouver la configuration du fond de carte.");
+    const mapLayerName = selectedMap.name;
     // Limiter au zoom natif du provider (évite de demander des tuiles inexistantes en sur-zoom)
     const zoom = selectedMap.maxZoom ? Math.min(rawZoom, selectedMap.maxZoom) : rawZoom;
     return { zoom, mapLayerName, selectedMap };
@@ -789,6 +851,21 @@ async function generateZonePNG() {
                 y: (worldPixels.y - plan.origin.y) * scaleFactor + dynamicMargin
             };
         };
+        // Repère du TERRAIN : celui du fond, tourné avec lui autour du point de
+        // référence (cf. zdDrawBackground). Tracés KML et points d'intérêt y sont
+        // posés ; la grille CADO, droite dans l'image, garde latLonToCanvasPixels.
+        const groundToCanvasPixels = !plan.rotRad ? latLonToCanvasPixels : (() => {
+            const cos = Math.cos(plan.rotRad), sin = Math.sin(plan.rotRad);
+            const pivot = {
+                x: (plan.pivotPx.x - plan.origin.x) * scaleFactor + dynamicMargin,
+                y: (plan.pivotPx.y - plan.origin.y) * scaleFactor + dynamicMargin,
+            };
+            return (lat, lon) => {
+                const w = zdLatLonToWorldPixels(lat, lon, actualZoom);
+                const dx = (w.x - plan.pivotPx.x) * scaleFactor, dy = (w.y - plan.pivotPx.y) * scaleFactor;
+                return { x: pivot.x + dx * cos + dy * sin, y: pivot.y - dx * sin + dy * cos };
+            };
+        })();
 
         // Épaisseur rapportée à l'image livrée (cf. gridLineWidthPx) : celle-ci n'est
         // plus ré-étirée après dessin, l'upscale se fait au dessin, d'un facteur entier.
@@ -839,14 +916,14 @@ async function generateZonePNG() {
                 for (const [type, label] of [['LineString', 'Traces'], ['Polygon', 'Zones'], ['Point', 'Points']]) {
                     loadingMessage.textContent = `Dessin des ${label} KML...`;
                     const features = loadedZoneKmlFeatures.filter(f => f.type === type);
-                    if (features.length > 0) drawZoneKmlFeatures(ctx, zoom, features, latLonToCanvasPixels);
+                    if (features.length > 0) drawZoneKmlFeatures(ctx, zoom, features, groundToCanvasPixels);
                 }
             }
             if (userPOIs.length > 0) {
                 loadingMessage.textContent = "Dessin des points d'intérêt...";
                 const userScaleInput = document.getElementById('poi-icon-scale');
                 const userScalePreference = userScaleInput ? parseFloat(userScaleInput.value) : 1.0;
-                await drawUserPOIsOnCanvas(ctx, latLonToCanvasPixels, scaleFactor * userScalePreference);
+                await drawUserPOIsOnCanvas(ctx, groundToCanvasPixels, scaleFactor * userScalePreference);
             }
 
             // FINITIONS (CARTOUCHE)
@@ -1228,8 +1305,7 @@ async function generateZoneDEM(filenameBase) {
     if (!nwCoordsStr || !seCoordsStr) {
         throw new Error("Veuillez d'abord dessiner une zone rectangulaire sur la carte.");
     }
-    const [north, west] = nwCoordsStr.split(',').map(c => parseFloat(c.trim()));
-    const [south, east] = seCoordsStr.split(',').map(c => parseFloat(c.trim()));
+    const { north, west, south, east } = zoneRectangle();
     if ([north, west, south, east].some(Number.isNaN)) {
         throw new Error("Coordonnées de la zone invalides.");
     }
@@ -1263,15 +1339,11 @@ async function generateZoneMBTiles(filename, useUtm, useCfsi, useCado, gridMode 
     }
 
     const rawZoomForMbtiles = parseInt(document.getElementById("zone-info-zoom").textContent, 10);
-    const mbtilesSrcName = document.getElementById("zone-info-layer")?.textContent;
-    const mbtilesSrcLayer = typeof MAP_LAYERS !== 'undefined' ? MAP_LAYERS.find(m => m.name === mbtilesSrcName) : null;
+    const mbtilesSrcLayer = typeof fondsConfig === 'function' ? fondsConfig() : null;
     const zoom = mbtilesSrcLayer ? Math.min(rawZoomForMbtiles, mbtilesSrcLayer.maxZoom) : rawZoomForMbtiles;
 
-    // 1. Bbox
-    const nwCoordsStr = document.getElementById("zone-nw-coords").value;
-    const seCoordsStr = document.getElementById("zone-se-coords").value;
-    const [north, west] = nwCoordsStr.split(',').map(c => parseFloat(c.trim()));
-    const [south, east] = seCoordsStr.split(',').map(c => parseFloat(c.trim()));
+    // 1. Bbox : terrain recouvert par le rectangle, aperçu tourné compris.
+    const { north, west, south, east } = zoneRectangle() || {};
     
     // --- CORRECTION BUG 1 : BBOX "LARGE" POUR CADO ---
     // On doit s'assurer que la Bbox couvre bien toute la grille (qui peut déborder du rectangle user)

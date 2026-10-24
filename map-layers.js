@@ -1,7 +1,7 @@
 // map-layers.js
 // Les clés privées sont définies dans config.private.js (chargé avant ce fichier).
 // Si config.private.js est absent ou vide, les variables sont vides ici par défaut
-// et les layers privés sont simplement masqués (voir createBaseLayers dans index.html).
+// et les couches privées sont simplement masquées (voir mapLayerAvailable plus bas).
 const IGN_API_KEY = "ign_scan_ws";
 if (typeof IGN_PRIVATE_API_KEY === 'undefined') var IGN_PRIVATE_API_KEY = '';
 if (typeof MAPY_API_KEY === 'undefined') var MAPY_API_KEY = '';
@@ -21,9 +21,9 @@ if (typeof OPENTOPOGRAPHY_API_KEY === 'undefined') var OPENTOPOGRAPHY_API_KEY = 
 if (typeof IBOATING_WMTS_URL === 'undefined') var IBOATING_WMTS_URL = '';
 if (typeof IBOATING_WMTS_MAXZOOM === 'undefined') var IBOATING_WMTS_MAXZOOM = 17;
 
-// Bascule du fond « Eaux intérieures » : le WMTS i-Boating local quand le poste en
-// dispose, sinon un flux libre de droits (OpenStreetMap + amers OpenSeaMap). La
-// couche est ainsi toujours proposée, licence ou pas. Cf. DOCUMENTATION.md §7.5.
+// Eaux intérieures : le fond i-Boating local quand le poste en dispose, sinon le
+// Plan IGN sous les amers OpenSeaMap, libres de droits (FONDS_LEGACY_BASES,
+// fonds.js). Cf. DOCUMENTATION.md §7.5.
 const INLAND_LICENSED = !!IBOATING_WMTS_URL;
 
 // Cartes marines SHOM — même motif que IGN_PRIVATE_API_KEY : les cartes scannées
@@ -106,151 +106,105 @@ function tileUrlFor(layer, z, x, y) {
     return layer.url.replace('{z}', z).replace('{x}', x).replace('{y}', y);
 }
 
+// FONDS ET SURCOUCHES, comme dans CadoTour (github.com/BaDjams/CadoTour,
+// map-layers.js et fondsModel.js) : un FOND est UNE image, satellite ou plan ; les
+// routes et les noms qu'on posait autrefois dessus (« Ortho IGN + Routes Google »,
+// « Google Hybrid »…) sont des SURCOUCHES (MAP_OVERLAYS, plus bas), cumulables sur
+// n'importe quel fond. Empilement, du bas vers le haut : le fond, puis les
+// surcouches, dans l'ordre du catalogue. Un .mbtiles chargé remplace l'un et les
+// autres, à l'écran comme à l'export (tileSource.js). Choix et menu : fonds.js.
+//
+// « kind » : 'sat' (image aérienne) ou 'carto' (plan) — les deux familles du menu.
 // « shortName » : nom court pour le cartouche des images exportees, ou la place
-// manque (« 1 carre = 10m, OSM z16 »). Le « name » complet reste celui du selecteur.
+// manque (« 1 carre = 10m, OSM z16 ») ; fond et surcouches s'y suivent
+// (« Ortho IGN + Google »). Le « name » complet reste celui du menu.
 // « attribution » : mention affichee sur la carte (Leaflet accepte du HTML). La
 // politique d'usage des tuiles OSM impose « © les contributeurs OpenStreetMap »
 // visible sur la carte ; son absence est un motif de blocage manuel. Les guillemets
 // internes sont SIMPLES : la valeur est elle-meme une chaine JS entre guillemets doubles.
+// « requiresKey » : nom de la variable globale (config.private.js) sans laquelle
+// l'entree n'est pas proposee.
+const IGN_ATTRIBUTION = "&copy; <a href='https://www.ign.fr/' target='_blank' rel='noopener'>IGN</a>";
+const OSM_ATTRIBUTION = "&copy; les <a href='https://www.openstreetmap.org/copyright' target='_blank' rel='noopener'>contributeurs OpenStreetMap</a>";
+const GEOPF_WMTS = (layer, format) => `https://data.geopf.fr/wmts?Layer=${layer}&Style=normal&TileMatrixSet=PM`
+    + `&SERVICE=WMTS&REQUEST=GetTile&Version=1.0.0&FORMAT=${format}&TileMatrix={z}&TileCol={x}&TileRow={y}`;
+const GOOGLE_NOPOI = '&apistyle=s.t%3a2|s.e%3al|p.v%3aoff';
+
 const MAP_LAYERS = [
+    // ---- Satellite ----
     {
-        "id": "ign_ign_hybrid",
-        "name": "Ortho IGN + Routes IGN",
-        "shortName": "Ortho IGN + IGN",
-        "attribution": "&copy; <a href='https://www.ign.fr/' target='_blank' rel='noopener'>IGN</a>",
-        "maxZoom": 19,
+        // L'orthophoto seule : routes et noms de l'IGN ou de Google se posent
+        // dessus en surcouche. L'ancien fond par défaut, « Ortho IGN + Routes
+        // Google », est ce fond sous la surcouche « Routes Google ».
+        "id": "ign_ortho",
+        "kind": "sat",
+        "name": "Ortho IGN",
+        "shortName": "Ortho IGN",
+        "attribution": IGN_ATTRIBUTION,
+        "maxZoom": 19, // plafond du service WMTS IGN
         "layers": [
-            {
-                "url": "https://data.geopf.fr/wmts?Layer=ORTHOIMAGERY.ORTHOPHOTOS&Style=normal&TileMatrixSet=PM&SERVICE=WMTS&REQUEST=GetTile&Version=1.0.0&FORMAT=image/jpeg&TileMatrix={z}&TileCol={x}&TileRow={y}",
-                "type": "xyz"
-            },
-            {
-                "url": "https://data.geopf.fr/wmts?Layer=TRANSPORTNETWORKS.ROADS&Style=normal&TileMatrixSet=PM&SERVICE=WMTS&REQUEST=GetTile&Version=1.0.0&FORMAT=image/png&TileMatrix={z}&TileCol={x}&TileRow={y}",
-                "type": "xyz"
-            },
-            {
-                "url": "https://data.geopf.fr/wmts?Layer=GEOGRAPHICALNAMES.NAMES&Style=normal&TileMatrixSet=PM&SERVICE=WMTS&REQUEST=GetTile&Version=1.0.0&FORMAT=image/png&TileMatrix={z}&TileCol={x}&TileRow={y}",
-                "type": "xyz"
-            }
+            { "url": GEOPF_WMTS('ORTHOIMAGERY.ORTHOPHOTOS', 'image/jpeg'), "type": "xyz" }
         ]
     },
     {
-        "id": "ign_google_hybrid",
-        "name": "Ortho IGN + Routes Google",
-        "shortName": "Ortho IGN + Google",
-        "attribution": "&copy; <a href='https://www.ign.fr/' target='_blank' rel='noopener'>IGN</a> &mdash; &copy; Google",
-        "maxZoom": 19, // CORRECTION : Limité à 19 pour correspondre au service WMTS IGN
+        // Les images seules (lyrs=s) : l'ancien « Google Hybrid » est ce fond sous
+        // la surcouche « Routes Google + POI ».
+        "id": "google_satellite",
+        "kind": "sat",
+        "name": "Google Satellite",
+        "shortName": "Google Sat",
+        "attribution": "&copy; Google",
+        "maxZoom": 21,
         "layers": [
-            // Couche 1: Le fond de carte Ortho-imagerie de l'IGN (souvent en JPEG)
-            {
-                "url" : "https://data.geopf.fr/wmts?Layer=ORTHOIMAGERY.ORTHOPHOTOS&Style=normal&Timestamp=&TileMatrixSet=PM&SERVICE=WMTS&REQUEST=GetTile&Version=1.0.0&FORMAT=image/jpeg&TileMatrix={z}&TileCol={x}&TileRow={y}",
-                "type": "xyz"
-            },
-            // Couche 2: La surcouche de routes/étiquettes Google (fond transparent)
-            {
-                "url": "https://mt0.google.com/vt/lyrs=h&hl=fr&x={x}&y={y}&z={z}&apistyle=s.t%3a2|s.e%3al|p.v%3aoff",
-                "type": "xyz"
-            }
+            { "url": "https://mt0.google.com/vt/lyrs=s&hl=fr&x={x}&y={y}&z={z}", "type": "xyz" }
         ]
     },
     {
-        // Hybride Yandex 100% : sat + routes/labels Yandex en français.
-        // Pas de décalage de projection car les deux couches viennent du même serveur.
-        "id": "yandex_hybrid",
-        "name": "Yandex Hybride (FR)",
+        // Images Yandex ; ses routes et noms en français sont la surcouche « Routes
+        // Yandex » (même serveur, même projection : aucun décalage).
+        "id": "yandex_satellite",
+        "kind": "sat",
+        "name": "Yandex Satellite",
         "shortName": "Yandex",
         "attribution": "&copy; Yandex",
         "maxZoom": 18,
         "layers": [
-            {
-                "url": "https://core-sat.maps.yandex.net/tiles?l=sat&x={x}&y={y}&z={z}&scale=1&lang=fr_FR",
-                "type": "yandex"
-            },
-            {
-                "url": "https://core-renderer-tiles.maps.yandex.net/tiles?l=skl&x={x}&y={y}&z={z}&scale=1&lang=fr_FR",
-                "type": "yandex"
-            }
+            { "url": "https://core-sat.maps.yandex.net/tiles?l=sat&x={x}&y={y}&z={z}&scale=1&lang=fr_FR", "type": "yandex" }
         ]
     },
     {
+        // Routes et noms incrustés dans l'image : Bing ne sert pas de surcouche
+        // transparente. Gardé tel quel, comme fond satellite.
         "id": "bing_hybrid",
+        "kind": "sat",
         "name": "Bing Maps Hybride",
         "shortName": "Bing",
         "attribution": "&copy; Microsoft",
         "maxZoom": 19,
         "layers": [
-            {
-                // Notez le 'h' devant {q} pour Hybrid et mkt=fr-FR pour le français
-                "url": "https://ecn.t{s}.tiles.virtualearth.net/tiles/h{q}.jpeg?g=12933&mkt=fr-FR",
-                "type": "quadkey"
-            }
+            // 'h' devant {q} pour Hybrid, mkt=fr-FR pour le français
+            { "url": "https://ecn.t{s}.tiles.virtualearth.net/tiles/h{q}.jpeg?g=12933&mkt=fr-FR", "type": "quadkey" }
         ]
     },
+    // ---- Cartes ----
     {
-        "id": "google_hybrid",
-        "name": "Google Hybrid",
-        "shortName": "Google",
-        "attribution": "&copy; Google",
-        "maxZoom": 21,
+        "id": "ign_public_hybrid",
+        "kind": "carto",
+        "name": "Plan IGN",
+        "shortName": "Plan IGN",
+        "attribution": IGN_ATTRIBUTION,
+        "maxZoom": 19,
         "layers": [
-            {
-                "url": "https://mt0.google.com/vt/lyrs=y&hl=fr&x={x}&y={y}&z={z}",
-                "type": "xyz"
-            }
+            { "url": GEOPF_WMTS('GEOGRAPHICALGRIDSYSTEMS.PLANIGNV2', 'image/png'), "type": "xyz" }
         ]
     },
-    {
-        "id": "google_hybrid_NOPOI",
-        "name": "Google Hybrid sans POI",
-        "shortName": "Google sans POI",
-        "attribution": "&copy; Google",
-        "maxZoom": 21,
-        "layers": [
-            {
-                "url": "https://mt0.google.com/vt/lyrs=y&hl=fr&x={x}&y={y}&z={z}&apistyle=s.t%3a2|s.e%3al|p.v%3aoff",
-                "type": "xyz"
-            }
-        ]
-    },
-    {
-        // Plan routier Google Maps classique (lyrs=m), sans imagerie.
-        "id": "google_roadmap",
-        "name": "Google Maps",
-        "shortName": "Google Plan",
-        "attribution": "&copy; Google",
-        "maxZoom": 21,
-        "layers": [
-            {
-                "url": "https://mt0.google.com/vt/lyrs=m&hl=fr&x={x}&y={y}&z={z}",
-                "type": "xyz"
-            }
-        ]
-    },
-    /*{
-        "id": "esri_hybrid",
-        "name": "Satellite Esri + Routes Google",
-        "shortName": "Esri + Google",
-        "attribution": "&copy; Esri &mdash; &copy; Google",
-        "maxZoom": 21,
-        "layers": [
-            // Couche 1: Le fond de carte satellite Esri (fiable)
-            {
-                "url": "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
-                "type": "xyz"
-            },
-            // Couche 2: La surcouche de routes/étiquettes OSM sur fond transparent (par CARTO)
-            {
-                "url": "https://mt0.google.com/vt/lyrs=h&hl=fr&x={x}&y={y}&z={z}&apistyle=s.t%3a2|s.e%3al|p.v%3aoff",
-                "type": "xyz"
-            }
-        ]
-    },*/
     {
         // Pyramide composite IGN privée z6-17, puis Plan IGN public z18-19.
         "id": "ign_scan_composite",
+        "kind": "carto",
         "name": "IGN Cartes (privé - multi-échelles)",
         "shortName": "IGN Cartes",
-        "attribution": "&copy; <a href='https://www.ign.fr/' target='_blank' rel='noopener'>IGN</a>",
+        "attribution": IGN_ATTRIBUTION,
         "requiresKey": "IGN_PRIVATE_API_KEY",
         "maxZoom": 18,
         "layers": [
@@ -261,70 +215,58 @@ const MAP_LAYERS = [
         ]
     },
     {
-        "id": "ign_public_hybrid",
-        "name": "Plan IGN",
-        "shortName": "Plan IGN",
-        "attribution": "&copy; <a href='https://www.ign.fr/' target='_blank' rel='noopener'>IGN</a>",
+        // Plan routier Google Maps classique (lyrs=m), sans imagerie.
+        "id": "google_roadmap",
+        "kind": "carto",
+        "name": "Google Maps",
+        "shortName": "Google Plan",
+        "attribution": "&copy; Google",
+        "maxZoom": 21,
+        "layers": [
+            { "url": "https://mt0.google.com/vt/lyrs=m&hl=fr&x={x}&y={y}&z={z}", "type": "xyz" }
+        ]
+    },
+    {
+        "id": "osm_standard",
+        "kind": "carto",
+        "name": "OpenStreetMap",
+        "shortName": "OSM",
+        "attribution": OSM_ATTRIBUTION,
         "maxZoom": 19,
         "layers": [
-            {
-                "url": "https://data.geopf.fr/wmts?Layer=GEOGRAPHICALGRIDSYSTEMS.PLANIGNV2&Style=normal&TileMatrixSet=PM&SERVICE=WMTS&REQUEST=GetTile&Version=1.0.0&FORMAT=image/png&TileMatrix={z}&TileCol={x}&TileRow={y}",
-                "type": "xyz"
-            }
+            { "url": "https://tile.openstreetmap.org/{z}/{x}/{y}.png", "type": "xyz" }
         ]
     },
     {
         "id": "mapy_outdoor",
+        "kind": "carto",
         "name": "Mapy.CZ Outdoor",
         "shortName": "Mapy.CZ",
         "attribution": "&copy; <a href='https://mapy.cz/' target='_blank' rel='noopener'>Seznam.cz</a>",
         "requiresKey": "MAPY_API_KEY",
         "maxZoom": 19,
         "layers": [
-            {
-                "url": `https://api.mapy.com/v1/maptiles/outdoor/256/{z}/{x}/{y}?apikey=${MAPY_API_KEY}&lang=fr`,
-                "type": "xyz"
-            }
+            { "url": `https://api.mapy.com/v1/maptiles/outdoor/256/{z}/{x}/{y}?apikey=${MAPY_API_KEY}&lang=fr`, "type": "xyz" }
         ]
     },
     {
-        // Fond des eaux intérieures, en deux états selon le poste :
-        //  - avec licence : le WMTS i-Boating lancé en local (cartes marines, lacs,
-        //    rivières). Leaflet substitue {z}, {x} et {y} dans le gabarit de
-        //    config.private.js, ce qui couvre une URL RESTful (…/{z}/{x}/{y}.png)
-        //    comme une URL KVP (…&TileMatrix={z}&TileCol={x}&TileRow={y}) ;
-        //  - sans licence : OpenStreetMap surmonté des amers OpenSeaMap, libres de
-        //    droits, donc exportables et rediffusables sans restriction.
-        // Service local à l'arrêt ou cellules non téléchargées = tuiles vides.
+        // Eaux intérieures sous licence : le WMTS i-Boating lancé en local (cartes
+        // marines, lacs, rivières). Leaflet substitue {z}, {x} et {y} dans le gabarit
+        // de config.private.js, ce qui couvre une URL RESTful (…/{z}/{x}/{y}.png)
+        // comme une URL KVP (…&TileMatrix={z}&TileCol={x}&TileRow={y}). Service local
+        // à l'arrêt ou cellules non téléchargées = tuiles vides. Sans licence, le
+        // même usage passe par « Plan IGN » sous la surcouche « Amers OpenSeaMap »,
+        // libres de droits (cf. FONDS_LEGACY_BASES, fonds.js).
         "id": "inland_waters",
-        "name": INLAND_LICENSED ? "Eaux intérieures (i-Boating, privé)" : "Eaux intérieures (libre)",
-        "shortName": INLAND_LICENSED ? "i-Boating" : "Plan IGN + OpenSeaMap",
-        "attribution": INLAND_LICENSED
-            ? "&copy; i-Boating &mdash; usage privé interne"
-            : "&copy; <a href='https://www.ign.fr/' target='_blank' rel='noopener'>IGN</a> &mdash; amers <a href='https://www.openseamap.org/' target='_blank' rel='noopener'>OpenSeaMap</a> (CC-BY-SA)",
-        "maxZoom": INLAND_LICENSED ? IBOATING_WMTS_MAXZOOM : 19,
-        "layers": INLAND_LICENSED
-            ? [
-                {
-                    "url": IBOATING_WMTS_URL,
-                    "type": "xyz"
-                }
-            ]
-            : [
-                {
-                    // Plan IGN v2 : canaux, écluses et cours d'eau bien mieux rendus
-                    // que l'OSM standard — mais emprise France, tuiles vides ailleurs.
-                    "url": "https://data.geopf.fr/wmts?Layer=GEOGRAPHICALGRIDSYSTEMS.PLANIGNV2&Style=normal&TileMatrixSet=PM&SERVICE=WMTS&REQUEST=GetTile&Version=1.0.0&FORMAT=image/png&TileMatrix={z}&TileCol={x}&TileRow={y}",
-                    "type": "xyz",
-                    "maxZoom": 19
-                },
-                {
-                    // Amers, écluses et balisage ; fond transparent, tuiles jusqu'à z18.
-                    "url": "https://tiles.openseamap.org/seamark/{z}/{x}/{y}.png",
-                    "type": "xyz",
-                    "maxZoom": 18
-                }
-            ]
+        "kind": "carto",
+        "name": "Eaux intérieures (i-Boating, privé)",
+        "shortName": "i-Boating",
+        "attribution": "&copy; i-Boating &mdash; usage privé interne",
+        "requiresKey": "IBOATING_WMTS_URL",
+        "maxZoom": IBOATING_WMTS_MAXZOOM,
+        "layers": [
+            { "url": IBOATING_WMTS_URL, "type": "xyz" }
+        ]
     },
     {
         // Cartes marines scannées du SHOM. Sous abonnement ou convention : la couche
@@ -333,16 +275,14 @@ const MAP_LAYERS = [
         // (tools/ogc_layers.py) ; SHOM_RASTER_LAYER permet de le corriger sans
         // toucher au code.
         "id": "shom_raster",
+        "kind": "carto",
         "name": "Cartes marines SHOM (privé)",
         "shortName": "SHOM",
         "attribution": "&copy; <a href='https://data.shom.fr/' target='_blank' rel='noopener'>SHOM</a>",
         "requiresKey": "SHOM_API_KEY",
         "maxZoom": 18,
         "layers": [
-            {
-                "url": SHOM_WMTS(`https://services.data.shom.fr/${SHOM_API_KEY}/wmts`, SHOM_RASTER_LAYER),
-                "type": "xyz"
-            }
+            { "url": SHOM_WMTS(`https://services.data.shom.fr/${SHOM_API_KEY}/wmts`, SHOM_RASTER_LAYER), "type": "xyz" }
         ]
     },
     {
@@ -351,40 +291,89 @@ const MAP_LAYERS = [
         // d'où SHOM_INSPIRE_LAYER, vide par défaut : mieux vaut une couche absente
         // qu'une couche qui ne renverrait que des tuiles vides.
         "id": "shom_inspire",
+        "kind": "carto",
         "name": "SHOM INSPIRE (libre)",
         "shortName": "SHOM INSPIRE",
         "attribution": "&copy; <a href='https://data.shom.fr/' target='_blank' rel='noopener'>SHOM</a>",
         "requiresKey": "SHOM_INSPIRE_LAYER",
         "maxZoom": 18,
         "layers": [
-            {
-                "url": SHOM_WMTS('https://services.data.shom.fr/INSPIRE/wmts', SHOM_INSPIRE_LAYER),
-                "type": "xyz"
-            }
+            { "url": SHOM_WMTS('https://services.data.shom.fr/INSPIRE/wmts', SHOM_INSPIRE_LAYER), "type": "xyz" }
+        ]
+    }
+];
+
+// Surcouches : sur fond TRANSPARENT, posées au-dessus du fond. Même structure que
+// MAP_LAYERS. Deux surcouches d'un même `group` s'excluent (fondsToggleOverlay,
+// fonds.js) : ce sont deux variantes du même dessin, qui se superposeraient en double.
+const MAP_OVERLAYS = [
+    {
+        "id": "ign_routes",
+        "name": "Routes IGN",
+        "shortName": "IGN",
+        "attribution": IGN_ATTRIBUTION,
+        "maxZoom": 19,
+        "layers": [
+            { "url": GEOPF_WMTS('TRANSPORTNETWORKS.ROADS', 'image/png'), "type": "xyz" },
+            { "url": GEOPF_WMTS('GEOGRAPHICALNAMES.NAMES', 'image/png'), "type": "xyz" }
         ]
     },
     {
-        // Lignes de profondeur EMODnet sur fond OpenStreetMap. Les isobathes
-        // arrivent en WMS transparent : si l'identifiant de couche ne convient
-        // pas au service, il reste le fond OSM plutôt qu'une carte blanche.
-        // Couverture : mers européennes.
-        "id": "emodnet_bathy",
+        // Routes et étiquettes Google (lyrs=h), sans les points d'intérêt.
+        "id": "google_routes",
+        "group": "google_routes",
+        "name": "Routes Google",
+        "shortName": "Google",
+        "attribution": "&copy; Google",
+        "maxZoom": 21,
+        "layers": [
+            { "url": "https://mt0.google.com/vt/lyrs=h&hl=fr&x={x}&y={y}&z={z}" + GOOGLE_NOPOI, "type": "xyz" }
+        ]
+    },
+    {
+        // La même, avec commerces, restaurants et autres points d'intérêt.
+        "id": "google_routes_poi",
+        "group": "google_routes",
+        "name": "Routes Google + POI",
+        "shortName": "Google POI",
+        "attribution": "&copy; Google",
+        "maxZoom": 21,
+        "layers": [
+            { "url": "https://mt0.google.com/vt/lyrs=h&hl=fr&x={x}&y={y}&z={z}", "type": "xyz" }
+        ]
+    },
+    {
+        "id": "yandex_routes",
+        "name": "Routes Yandex",
+        "shortName": "Yandex",
+        "attribution": "&copy; Yandex",
+        "maxZoom": 18,
+        "layers": [
+            { "url": "https://core-renderer-tiles.maps.yandex.net/tiles?l=skl&x={x}&y={y}&z={z}&scale=1&lang=fr_FR", "type": "yandex" }
+        ]
+    },
+    {
+        // Amers, écluses et balisage, libres de droits (CC-BY-SA) ; tuiles jusqu'à z18.
+        "id": "openseamap",
+        "name": "Amers OpenSeaMap",
+        "shortName": "OpenSeaMap",
+        "attribution": "amers <a href='https://www.openseamap.org/' target='_blank' rel='noopener'>OpenSeaMap</a> (CC-BY-SA)",
+        "maxZoom": 18,
+        "layers": [
+            { "url": "https://tiles.openseamap.org/seamark/{z}/{x}/{y}.png", "type": "xyz" }
+        ]
+    },
+    {
+        // Lignes de profondeur EMODnet. Les isobathes arrivent en WMS transparent :
+        // si l'identifiant de couche ne convient pas au service, le fond reste
+        // visible plutôt qu'une carte blanche. Couverture : mers européennes.
+        "id": "emodnet_contours",
         "name": "Lignes de profondeur (EMODnet)",
         "shortName": "EMODnet",
-        "attribution": "&copy; les <a href='https://www.openstreetmap.org/copyright' target='_blank' rel='noopener'>contributeurs OpenStreetMap</a> &mdash; bathym&eacute;trie <a href='https://emodnet.ec.europa.eu/en/bathymetry' target='_blank' rel='noopener'>EMODnet</a>",
+        "attribution": "bathym&eacute;trie <a href='https://emodnet.ec.europa.eu/en/bathymetry' target='_blank' rel='noopener'>EMODnet</a>",
         "maxZoom": 19,
         "layers": [
-            {
-                "url": "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
-                "type": "xyz",
-                "maxZoom": 19
-            },
-            {
-                "url": EMODNET_WMS,
-                "type": "wms",
-                "layers": EMODNET_CONTOURS_LAYER,
-                "transparent": true
-            }
+            { "url": EMODNET_WMS, "type": "wms", "layers": EMODNET_CONTOURS_LAYER, "transparent": true }
         ]
     },
     {
@@ -393,18 +382,13 @@ const MAP_LAYERS = [
         // géoréférencées par l'IGC, servies par le MapServer public de la Ville.
         // Son cache est en Lambert 93 : reprojeté dans le navigateur
         // (arcgisCache.js). Hors des zones de carrières, l'atlas est transparent
-        // et le fond OSM reste. Couverture : Paris et communes limitrophes sous-minées.
-        "id": "igc_carrieres",
+        // et le fond reste. Couverture : Paris et communes limitrophes sous-minées.
+        "id": "igc_atlas",
         "name": "Carrières souterraines de Paris (atlas IGC)",
         "shortName": "Atlas IGC",
-        "attribution": "&copy; les <a href='https://www.openstreetmap.org/copyright' target='_blank' rel='noopener'>contributeurs OpenStreetMap</a> &mdash; carri&egrave;res <a href='https://www.paris.fr/pages/tout-savoir-sur-les-sous-sols-2317' target='_blank' rel='noopener'>Ville de Paris &ndash; IGC</a>",
+        "attribution": "carri&egrave;res <a href='https://www.paris.fr/pages/tout-savoir-sur-les-sous-sols-2317' target='_blank' rel='noopener'>Ville de Paris &ndash; IGC</a>",
         "maxZoom": 19,
         "layers": [
-            {
-                "url": "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
-                "type": "xyz",
-                "maxZoom": 19
-            },
             {
                 // Schéma du cache, relevé sur …/MapServer?f=json (tileInfo et
                 // fullExtent) : origine, résolution du niveau 0, 13 niveaux (de
@@ -418,22 +402,157 @@ const MAP_LAYERS = [
                 "extent": [637827, 6849420, 670591, 6874798]
             }
         ]
-    },
-    {
-        "id": "osm_standard",
-        "name": "OpenStreetMap",
-        "shortName": "OSM",
-        "attribution": "&copy; les <a href='https://www.openstreetmap.org/copyright' target='_blank' rel='noopener'>contributeurs OpenStreetMap</a>",
-        "maxZoom": 19,
-        "layers": [
-            {
-                "url": "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
-                "type": "xyz"
-            }
-        ]
     }
 ];
 
+// Entrée proposée : sans `requiresKey`, ou avec sa variable globale renseignée.
+function mapLayerAvailable(cfg) {
+    if (!cfg || !cfg.requiresKey) return !!cfg;
+    const value = (typeof window[cfg.requiresKey] !== 'undefined') ? window[cfg.requiresKey] : '';
+    return !!value;
+}
+
+// ---------------------------------------------------------------------------
+// Couches Leaflet. Une seule construction pour toutes les cartes de
+// l'application (carroyage rapide, export de zone, Créer MBTiles, Générer depuis
+// un fichier), qui en tenaient chacune une copie.
+// ---------------------------------------------------------------------------
+
+// Correction de projection Yandex : EPSG:3395 (Mercator ellipsoïdal WGS84) vs
+// EPSG:3857 (Pseudo-Mercator sphérique) utilisé par Leaflet. Chaque tuile Leaflet
+// est un <canvas> sur lequel on REPROJETTE les 1-2 tuiles Yandex couvrant
+// exactement sa plage de latitudes. Deux tuiles Leaflet voisines se partagent
+// mathématiquement la même frontière 3395 → aucun jour possible entre les rangées.
+const _YANDEX_E = 0.0818191908426215;
+function _fondsYMerc3395(latRad) {
+    const sinLat = Math.sin(latRad);
+    return Math.log(Math.tan(Math.PI / 4 + latRad / 2) *
+        Math.pow((1 - _YANDEX_E * sinLat) / (1 + _YANDEX_E * sinLat), _YANDEX_E / 2));
+}
+function _fondsLat3857(yTile, n) {
+    return Math.atan(Math.sinh(Math.PI * (1 - 2 * yTile / n)));
+}
+
+// Classes créées à la première couche : `L` n'est pas encore là quand ce script
+// est lu.
+let _FondsYandexLayer = null;
+let _FondsQuadKeyLayer = null;
+function _fondsLayerClasses() {
+    if (_FondsYandexLayer) return;
+    _FondsYandexLayer = L.GridLayer.extend({
+        initialize: function (url, options) {
+            this._url = url;
+            L.GridLayer.prototype.initialize.call(this, options);
+        },
+        createTile: function (coords, done) {
+            const ts = this.getTileSize().y; // généralement 256
+            const tile = document.createElement('canvas');
+            tile.width = ts; tile.height = ts;
+
+            const z = coords.z, n = Math.pow(2, z);
+            // Plage de pixels VERTICAUX du monde EPSG:3395 (à ce zoom) couverte par
+            // la tuile EPSG:3857 demandée. Les X sont identiques dans les deux
+            // projections (même découpage en longitude).
+            const py = (yTile) => n * ts / 2 * (1 - _fondsYMerc3395(_fondsLat3857(yTile, n)) / Math.PI);
+            const pyN = py(coords.y), pyS = py(coords.y + 1);
+            const H = pyS - pyN; // hauteur 3395 correspondante (≈ ts, pas exactement)
+
+            // Tuiles sources 3395 couvrant [pyN, pyS) — 1 ou 2 en pratique.
+            const ty0 = Math.max(0, Math.floor(pyN / ts));
+            const ty1 = Math.min(n - 1, Math.floor((pyS - 1e-9) / ts));
+            const srcs = [];
+            for (let ty = ty0; ty <= ty1; ty++)
+                srcs.push({ ty, url: L.Util.template(this._url, L.extend({}, this.options, { x: coords.x, y: ty, z })) });
+
+            // Chargement en CORS d'abord (Yandex sert les en-têtes quand on les
+            // demande) : le canvas reste « propre » et réutilisable (export,
+            // capture…). Repli sans crossOrigin si le CORS échoue.
+            const load = (url) => new Promise(resolve => {
+                const img = new Image();
+                img.crossOrigin = 'anonymous';
+                img.onload = () => resolve(img);
+                img.onerror = () => {
+                    const raw = new Image();
+                    raw.onload = () => resolve(raw);
+                    raw.onerror = () => resolve(null);
+                    raw.src = url;
+                };
+                img.src = url;
+            });
+
+            Promise.all(srcs.map(s => load(s.url))).then(imgs => {
+                const ctx = tile.getContext('2d');
+                let drawn = 0;
+                for (let i = 0; i < srcs.length; i++) {
+                    const img = imgs[i];
+                    if (!img) continue;
+                    const ty = srcs[i].ty;
+                    // Bande de la tuile source comprise dans [pyN, pyS], remappée
+                    // linéairement sur la hauteur du canvas (la non-linéarité
+                    // 3857↔3395 sur 256 px est très en dessous du pixel).
+                    const srcTop = Math.max(pyN, ty * ts);
+                    const srcBot = Math.min(pyS, (ty + 1) * ts);
+                    const sy = srcTop - ty * ts, sh = srcBot - srcTop;
+                    const dy = (srcTop - pyN) * ts / H, dh = sh * ts / H;
+                    // +1 px de recouvrement (sauf dernière bande) : la bande
+                    // suivante, opaque, repeint par-dessus — supprime le liseré
+                    // d'anticrénelage aux frontières fractionnaires.
+                    const over = (i < srcs.length - 1) ? 1 : 0;
+                    ctx.drawImage(img, 0, sy, img.width, sh, 0, dy, ts, dh + over);
+                    drawn++;
+                }
+                done(drawn ? null : new Error('tuiles Yandex indisponibles'), tile);
+            });
+            return tile;
+        }
+    });
+    _FondsQuadKeyLayer = L.TileLayer.extend({
+        getTileUrl: function (coords) {
+            const x = coords.x, y = coords.y, z = coords.z;
+            let quadKey = '';
+            for (let i = z; i > 0; i--) {
+                let digit = 0;
+                const mask = 1 << (i - 1);
+                if ((y & mask) !== 0) { digit += 2; }
+                if ((x & mask) !== 0) { digit += 1; }
+                quadKey += digit.toString();
+            }
+            return L.Util.template(this._url, { s: (x + y) % 4, q: quadKey, z: z });
+        }
+    });
+}
+
+// Couche Leaflet d'une entrée du catalogue (fond ou surcouche), ou null si elle
+// n'est pas proposée sur ce poste. `zIndex` : rang dans le panneau des tuiles
+// (fond sous les surcouches, cf. FONDS_STACK_Z dans fonds.js).
+function createMapLayer(cfg, { zIndex } = {}) {
+    if (!mapLayerAvailable(cfg)) return null;
+    _fondsLayerClasses();
+    // `attribution` : la mention legale du fournisseur ; le nom part dans
+    // `layerName`, option a nous.
+    const base = { attribution: cfg.attribution || cfg.name, layerName: cfg.name,
+                   maxNativeZoom: cfg.maxZoom || 19, maxZoom: 22, keepBuffer: 0, updateWhenZooming: false };
+    if (zIndex !== undefined) base.zIndex = zIndex;
+    const make = (layerData) => {
+        const opts = { ...base };
+        if (layerData.minZoom !== undefined) opts.minZoom = layerData.minZoom;
+        if (layerData.maxZoom !== undefined) opts.maxNativeZoom = layerData.maxZoom;
+        if (layerData.type === 'quadkey') return new _FondsQuadKeyLayer(layerData.url, opts);
+        if (layerData.type === 'yandex') return new _FondsYandexLayer(layerData.url, opts);
+        // WMS : Leaflet compose lui-meme le GetMap a partir du CRS de la carte.
+        // L'export, lui, passe par tileUrlFor() — meme emprise.
+        if (layerData.type === 'wms') return L.tileLayer.wms(layerData.url, { ...opts,
+            layers: layerData.layers, styles: layerData.styles || '',
+            format: layerData.format || 'image/png',
+            transparent: layerData.transparent !== false,
+            version: layerData.version || '1.3.0' });
+        // Cache ArcGIS hors Web Mercator : reprojete tuile par tuile (arcgisCache.js).
+        if (layerData.type === 'arcgis-cache') return agcLeafletLayer(layerData, opts);
+        return L.tileLayer(layerData.url, opts);
+    };
+    return cfg.layers.length > 1 ? L.layerGroup(cfg.layers.map(make)) : make(cfg.layers[0]);
+}
+
 // Les modules d'export (imagetoprint.js, zoneDownloader.js, mbtilesCreator.js)
 // sont des scripts classiques : ils consomment ces helpers en global.
-Object.assign(window, { tileUrlFor, wmsTileUrl, tileBBox3857 });
+Object.assign(window, { tileUrlFor, wmsTileUrl, tileBBox3857, mapLayerAvailable, createMapLayer });

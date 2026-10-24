@@ -22,8 +22,8 @@ const C = context;
 // Couche de l'atlas IGC, lue dans map-layers.js lui-même.
 const catalogue = { window: {}, Math, Number, String, Object, Array, URLSearchParams };
 vm.createContext(catalogue);
-vm.runInContext(readFileSync(`${ROOT}map-layers.js`, 'utf8') + ';globalThis.MAP_LAYERS = MAP_LAYERS;', catalogue, { filename: 'map-layers.js' });
-const ATLAS = catalogue.MAP_LAYERS.find(l => l.id === 'igc_carrieres').layers.find(l => l.type === 'arcgis-cache');
+vm.runInContext(readFileSync(`${ROOT}map-layers.js`, 'utf8') + ';globalThis.MAP_OVERLAYS = MAP_OVERLAYS;', catalogue, { filename: 'map-layers.js' });
+const ATLAS = catalogue.MAP_OVERLAYS.find(l => l.id === 'igc_atlas').layers.find(l => l.type === 'arcgis-cache');
 assert.ok(ATLAS && ATLAS.extent, 'couche arcgis-cache de l\'atlas IGC absente de map-layers.js');
 
 let n = 0;

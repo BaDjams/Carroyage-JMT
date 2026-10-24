@@ -1,12 +1,20 @@
 // version.js
 
 // Source unique de vérité pour la version de l'application.
-const APP_VERSION = '23.50';
+const APP_VERSION = '23.51';
 
 // Une ligne courte par changement, telle que l'utilisateur la voit : ce qui change,
 // sans le pourquoi ni le comment. Guillemets doubles : les apostrophes françaises
 // s'écrivent telles quelles.
 const CHANGELOG = [
+  {
+    version: "23.51",
+    date: "2026-10-24",
+    changes: [
+      "Fonds de carte comme dans CadoTour : un menu en haut à droite de chaque carte propose le fond (Satellite ou Cartes) et des surcouches à cocher — routes IGN, Google ou Yandex, amers OpenSeaMap, lignes de profondeur EMODnet, atlas des carrières de Paris — sur n'importe quel fond. Le choix vaut pour toutes les cartes et est retenu ; les images et les MBTiles exportés empilent le fond et les surcouches cochées",
+      "Correction : en export de zone avec rotation, l'image ne montrait pas la zone vue à l'écran dès que le rectangle n'était pas au centre de la carte ; les points d'intérêt et les tracés KML ne tournaient pas avec le fond",
+    ],
+  },
   {
     version: "23.50",
     date: "2026-10-24",

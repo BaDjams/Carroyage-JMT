@@ -110,8 +110,8 @@ async function generateImageToPrint() {
         if (usingMbtiles) {
             mapConfig = { layers: [], maxZoom: Math.max(...tileSourceGetZooms()), name: tileSourceGetName() };
         } else {
-            const selectedMapId = document.getElementById('map-tile-provider').value;
-            mapConfig = MAP_LAYERS.find(m => m.id === selectedMapId);
+            // Fond et surcouches choisis sur la carte, empilés (fonds.js).
+            mapConfig = fondsConfig();
             if (!mapConfig) throw new Error("Carte non trouvée !");
         }
 

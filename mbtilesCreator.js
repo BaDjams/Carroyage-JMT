@@ -16,7 +16,6 @@ let creatorTrack = null;        // { lines, polygons, name } lus dans le fichier
 let creatorTrackLayer = null;   // affichage de la trace et de son couloir
 let activeJobs = [];
 let jobIdCounter = 1;
-let creatorBaseMaps = {};
 
 // Limites de sécurité
 const MAX_SAFE_TILES_MEMORY = 8000;   // sans OPFS (in-memory sql-wasm)
@@ -113,144 +112,24 @@ function initCreatorMode() {
     // 1. Initialisation Carte
     creatorMap = L.map('creator-interactive-map').setView([46.2276, 2.2137], 5);
     
-    // Definition locale QuadKey pour Creator
-    const L_QuadKeyLayer = L.TileLayer.extend({
-        getTileUrl: function (coords) {
-            const x = coords.x, y = coords.y, z = coords.z;
-            let quadKey = '';
-            for (let i = z; i > 0; i--) {
-                let digit = 0;
-                const mask = 1 << (i - 1);
-                if ((y & mask) !== 0) { digit += 2; }
-                if ((x & mask) !== 0) { digit += 1; }
-                quadKey += digit.toString();
+    // Fond et surcouches : le menu commun à toutes les cartes (fonds.js). Le
+    // fichier les télécharge empilés, tels qu'à l'écran (cf. MbtilesJob).
+    window.creatorFonds = fondsAttach(creatorMap);
+    // Les niveaux proposés suivent le zoom natif du choix (le plus bas des étages).
+    let creatorMaxZoom = fondsConfig()?.maxZoom || 19;
+    creatorMap.on('fondschange', (e) => {
+        const maxZ = e.config?.maxZoom || 19;
+        if (maxZ === creatorMaxZoom) return;
+        creatorMaxZoom = maxZ;
+        const previouslyChecked = getSelectedZooms();
+        generateZoomCheckboxes(maxZ);
+        previouslyChecked.forEach(z => {
+            if (z <= maxZ) {
+                const el = document.querySelector(`.zoom-checkbox-label[data-zoom="${z}"]`);
+                if (el) el.classList.add('checked');
             }
-            return L.Util.template(this._url, { s: (x + y) % 4, q: quadKey, z: z });
-        }
-    });
-
-    // Correction projection Yandex EPSG:3395 — reprojection EXACTE sur canvas
-    // (même logique que index.html/createBaseLayers : chaque tuile Leaflet
-    // assemble au pixel près les 1-2 tuiles Yandex couvrant sa plage de
-    // latitudes, au lieu de l'ancien décalage CSS approché qui laissait des
-    // jours horizontaux entre les rangées). _lat3857/_yMerc3395 : zoneDownloader.js.
-    const L_YandexLayerCreator = L.GridLayer.extend({
-        initialize: function (url, options) {
-            this._url = url;
-            L.GridLayer.prototype.initialize.call(this, options);
-        },
-        createTile: function (coords, done) {
-            const ts = this.getTileSize().y;
-            const tile = document.createElement('canvas');
-            tile.width = ts; tile.height = ts;
-
-            const z = coords.z, n = Math.pow(2, z);
-            const py = (yTile) => n * ts / 2 * (1 - _yMerc3395(_lat3857(yTile, n)) / Math.PI);
-            const pyN = py(coords.y), pyS = py(coords.y + 1);
-            const H = pyS - pyN;
-
-            const ty0 = Math.max(0, Math.floor(pyN / ts));
-            const ty1 = Math.min(n - 1, Math.floor((pyS - 1e-9) / ts));
-            const srcs = [];
-            for (let ty = ty0; ty <= ty1; ty++)
-                srcs.push({ ty, url: L.Util.template(this._url, L.extend({}, this.options, { x: coords.x, y: ty, z })) });
-
-            const load = (url) => new Promise(resolve => {
-                const img = new Image();
-                img.crossOrigin = 'anonymous';
-                img.onload = () => resolve(img);
-                img.onerror = () => {
-                    const raw = new Image();
-                    raw.onload = () => resolve(raw);
-                    raw.onerror = () => resolve(null);
-                    raw.src = url;
-                };
-                img.src = url;
-            });
-
-            Promise.all(srcs.map(s => load(s.url))).then(imgs => {
-                const ctx = tile.getContext('2d');
-                let drawn = 0;
-                for (let i = 0; i < srcs.length; i++) {
-                    const img = imgs[i];
-                    if (!img) continue;
-                    const ty = srcs[i].ty;
-                    const srcTop = Math.max(pyN, ty * ts), srcBot = Math.min(pyS, (ty + 1) * ts);
-                    const sy = srcTop - ty * ts, sh = srcBot - srcTop;
-                    const dy = (srcTop - pyN) * ts / H, dh = sh * ts / H;
-                    const over = (i < srcs.length - 1) ? 1 : 0;
-                    ctx.drawImage(img, 0, sy, img.width, sh, 0, dy, ts, dh + over);
-                    drawn++;
-                }
-                done(drawn ? null : new Error('tuiles Yandex indisponibles'), tile);
-            });
-            return tile;
-        }
-    });
-
-    creatorBaseMaps = {};
-    if (typeof MAP_LAYERS !== 'undefined') {
-        MAP_LAYERS.forEach(layerConfig => {
-            if (layerConfig.requiresKey) {
-                const keyVal = (typeof window[layerConfig.requiresKey] !== 'undefined') ? window[layerConfig.requiresKey] : '';
-                if (!keyVal) return;
-            }
-            let leafletLayer;
-            if (layerConfig.layers.length > 1) {
-                const groupLayers = layerConfig.layers.map(l => {
-                    const nativeZ = l.maxZoom ?? layerConfig.maxZoom ?? (l.type === 'yandex' ? 18 : 19);
-                    if (l.type === 'yandex') return new L_YandexLayerCreator(l.url, { maxZoom: nativeZ, attribution: layerConfig.attribution || layerConfig.name, layerName: layerConfig.name, keepBuffer: 0, updateWhenZooming: false });
-                    if (l.type === 'wms') return L.tileLayer.wms(l.url, { maxZoom: nativeZ, layers: l.layers, styles: l.styles || '', format: l.format || 'image/png', transparent: l.transparent !== false, version: l.version || '1.3.0', attribution: layerConfig.attribution || layerConfig.name, layerName: layerConfig.name, keepBuffer: 0, updateWhenZooming: false });
-                    if (l.type === 'arcgis-cache') return agcLeafletLayer(l, { maxZoom: nativeZ, attribution: layerConfig.attribution || layerConfig.name, layerName: layerConfig.name, keepBuffer: 0, updateWhenZooming: false });
-                    return L.tileLayer(l.url, { maxZoom: nativeZ, attribution: layerConfig.attribution || layerConfig.name, layerName: layerConfig.name, keepBuffer: 0, updateWhenZooming: false });
-                });
-                leafletLayer = L.layerGroup(groupLayers);
-            } else {
-                const l = layerConfig.layers[0];
-                const nativeZ = l.maxZoom ?? layerConfig.maxZoom ?? (l.type === 'yandex' ? 18 : 19);
-                if (l.type === 'quadkey') leafletLayer = new L_QuadKeyLayer(l.url, { maxZoom: nativeZ, attribution: layerConfig.attribution || layerConfig.name, layerName: layerConfig.name });
-                else if (l.type === 'yandex') leafletLayer = new L_YandexLayerCreator(l.url, { maxZoom: nativeZ, attribution: layerConfig.attribution || layerConfig.name, layerName: layerConfig.name, keepBuffer: 0, updateWhenZooming: false });
-                else if (l.type === 'wms') leafletLayer = L.tileLayer.wms(l.url, { maxZoom: nativeZ, layers: l.layers, styles: l.styles || '', format: l.format || 'image/png', transparent: l.transparent !== false, version: l.version || '1.3.0', attribution: layerConfig.attribution || layerConfig.name, layerName: layerConfig.name, keepBuffer: 0, updateWhenZooming: false });
-                else if (l.type === 'arcgis-cache') leafletLayer = agcLeafletLayer(l, { maxZoom: nativeZ, attribution: layerConfig.attribution || layerConfig.name, layerName: layerConfig.name, keepBuffer: 0, updateWhenZooming: false });
-                else leafletLayer = L.tileLayer(l.url, { maxZoom: nativeZ, attribution: layerConfig.attribution || layerConfig.name, layerName: layerConfig.name, keepBuffer: 0, updateWhenZooming: false });
-            }
-            if (leafletLayer) creatorBaseMaps[layerConfig.name] = leafletLayer;
         });
-    }
-
-    // Layer défaut : Ortho IGN + Routes Google
-    const defaultCreatorLayer = creatorBaseMaps["Ortho IGN + Routes Google"] || creatorBaseMaps[Object.keys(creatorBaseMaps)[0]];
-    if (defaultCreatorLayer) defaultCreatorLayer.addTo(creatorMap);
-
-    L.control.layers(creatorBaseMaps).addTo(creatorMap);
-
-    // Synchro bidirectionnelle select ↔ map (mbtiles creator)
-    const select = document.getElementById('creator-layer-select');
-
-    select?.addEventListener('change', function() {
-        const ml = MAP_LAYERS.find(l => l.id === this.value);
-        if (ml && creatorBaseMaps[ml.name]) {
-            Object.values(creatorBaseMaps).forEach(l => creatorMap.removeLayer(l));
-            creatorBaseMaps[ml.name].addTo(creatorMap);
-        }
-    });
-
-    creatorMap.on('baselayerchange', function(e) {
-        const correspondingMapLayer = MAP_LAYERS.find(layer => layer.name === e.name);
-        if (correspondingMapLayer) {
-            select.value = correspondingMapLayer.id;
-            // Update Zoom Checkboxes based on new layer max zoom
-            const maxZ = correspondingMapLayer.maxZoom || 19;
-            const previouslyChecked = getSelectedZooms();
-            generateZoomCheckboxes(maxZ);
-            previouslyChecked.forEach(z => {
-                if (z <= maxZ) {
-                    const el = document.querySelector(`.zoom-checkbox-label[data-zoom="${z}"]`);
-                    if(el) el.classList.add('checked');
-                }
-            });
-            updateCreatorUI();
-        }
+        updateCreatorUI();
     });
 
     creatorDrawnItems = new L.FeatureGroup();
@@ -347,9 +226,8 @@ function initCreatorMode() {
     creatorMap.on('zoomend', updateZoomDisplay);
     updateZoomDisplay();
 
-    populateCreatorLayers();
     populateCreatorTileFormats();
-    generateZoomCheckboxes(19); // Default init
+    generateZoomCheckboxes(creatorMaxZoom);
     setupCreatorAddressSearch();
 
     document.getElementById('creator-start-btn').addEventListener('click', startMbtilesJob);
@@ -382,25 +260,6 @@ function initCreatorMode() {
 window.initCreatorMode = initCreatorMode;
 
 // --- UI HELPERS ---
-
-function populateCreatorLayers() {
-    const select = document.getElementById('creator-layer-select');
-    select.innerHTML = '';
-    if (typeof MAP_LAYERS !== 'undefined') {
-        MAP_LAYERS.forEach(layer => {
-            if (layer.requiresKey) {
-                const keyVal = (typeof window[layer.requiresKey] !== 'undefined') ? window[layer.requiresKey] : '';
-                if (!keyVal) return;
-            }
-            const opt = document.createElement('option');
-            opt.value = layer.id;
-            opt.textContent = `${layer.name} (Max Z${layer.maxZoom || 19})`;
-            select.appendChild(opt);
-        });
-    }
-    const def = MAP_LAYERS?.find(m => m.name === "Ortho IGN + Routes Google");
-    if (def && select.querySelector(`option[value="${def.id}"]`)) select.value = def.id;
-}
 
 // Options du format des tuiles ; WebP en tête (conseillé) quand le navigateur sait
 // l'écrire, sinon le format d'origine.
@@ -909,7 +768,7 @@ class MbtilesJob {
     }
 
     // Bandes source EPSG:3395 nécessaires pour reprojeter EXACTEMENT une tuile
-    // EPSG:3857 (tile.z/x/y) — même calcul que L_YandexLayerCreator (tuile
+    // EPSG:3857 (tile.z/x/y) — même calcul que la couche Yandex de map-layers.js (tuile
     // Leaflet), exprimé directement en coordonnées pixel source→destination
     // pour un dessin sur canvas 256×256. Sans ce découpage (ancien code :
     // 1 seule tuile 3395 "la plus proche" étirée sur toute la tuile 256×256),
@@ -1342,8 +1201,8 @@ async function startMbtilesJob() {
         return;
     }
 
-    const layerId = document.getElementById('creator-layer-select').value;
-    const layerConfig = MAP_LAYERS.find(l => l.id === layerId);
+    // Fond et surcouches choisis sur la carte, empilés (fonds.js).
+    const layerConfig = fondsConfig();
     let filename = document.getElementById('creator-filename').value.trim();
     if (!filename) filename = `Carte_Offline_${Date.now()}`;
     const includeMnt = document.getElementById('creator-include-mnt')?.checked || false;

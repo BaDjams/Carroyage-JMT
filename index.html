@@ -41,6 +41,7 @@
 <script src="config.private.js" defer onerror="console.warn('config.private.js absent : layers privés désactivés.')"></script>
 <script src="map-layers.js" defer></script>
 <script src="arcgisCache.js" defer></script>
+<script src="fonds.js" defer></script>
 <script src="icons.js" defer></script>
 <script src="settingsManager.js" defer></script>
 <script src="utilities.js"></script>
@@ -433,8 +434,9 @@
                         <div class="flex flex-col items-center justify-center gap-4 mt-4">
                             <div class="w-full flex flex-col items-center gap-4">
                                 <div id="cado-map-provider-wrapper" class="flex items-center gap-2 w-full sm:w-auto">
-                                    <label for="map-tile-provider" class="text-sm text-content">Fond de carte :</label>
-                                    <select id="map-tile-provider" class="input-field flex-grow px-2 py-1 border rounded shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white text-sm"></select>
+                                    <span class="text-sm text-content whitespace-nowrap">Fond de carte :</span>
+                                    <!-- Rappel du fond et des surcouches choisis sur la carte (fonds.js) ; ouvre leur menu -->
+                                    <button type="button" data-fonds-label="cado" class="fonds-label flex-grow min-w-0 px-2 py-1 border rounded shadow-sm text-left text-sm truncate bg-white text-gray-900 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:hover:bg-gray-600" title="Fond et surcouches : menu en haut à droite de la carte"></button>
                                 </div>
                                 <div class="flex items-center gap-4">
                                     <label class="inline-flex items-center"><input type="radio" name="image-format-cado" value="png" class="custom-radio"><span class="ml-2 text-content">PNG</span></label>
@@ -873,8 +875,9 @@
                         <div id="zone-iso-slot" class="w-full text-left"></div>
                         <p class="text-xs text-secondary italic text-center">L'image inclura les grilles sélectionnées dans le Panel 5.</p>
                         <div class="flex items-center gap-2 w-full">
-                            <label for="zone-layer-select" class="text-sm text-content whitespace-nowrap">Fond de carte :</label>
-                            <select id="zone-layer-select" class="input-field flex-grow px-2 py-1 border rounded shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white text-sm"></select>
+                            <span class="text-sm text-content whitespace-nowrap">Fond de carte :</span>
+                            <!-- Rappel du fond et des surcouches choisis sur la carte (fonds.js) ; ouvre leur menu -->
+                            <button type="button" data-fonds-label="zone" class="fonds-label flex-grow min-w-0 px-2 py-1 border rounded shadow-sm text-left text-sm truncate bg-white text-gray-900 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:hover:bg-gray-600" title="Fond et surcouches : menu en haut à droite de la carte"></button>
                         </div>
                     </div>
                     <div class="mt-6">
@@ -984,8 +987,9 @@
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <!-- Source -->
                             <div>
-                                <label for="creator-layer-select" class="block mb-2 text-sm font-bold text-gray-900 dark:text-white">Source du fond de carte :</label>
-                                <select id="creator-layer-select" class="input-field w-full px-3 py-2 border rounded dark:bg-gray-700 dark:text-white"></select>
+                                <span class="block mb-2 text-sm font-bold text-gray-900 dark:text-white">Source du fond de carte :</span>
+                                <!-- Fond et surcouches choisis sur la carte (fonds.js), téléchargés ensemble ; ouvre leur menu -->
+                                <button type="button" data-fonds-label="creator" class="fonds-label w-full min-w-0 px-3 py-2 border rounded shadow-sm text-left text-sm truncate bg-white text-gray-900 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:hover:bg-gray-600" title="Fond et surcouches : menu en haut à droite de la carte"></button>
                                 <p class="text-xs text-gray-500 mt-1">Note : Certains serveurs peuvent bloquer le téléchargement massif.</p>
                             </div>
 
@@ -1155,8 +1159,9 @@
         let drawnItems = null;
         let zonePointCenter = null;        // centre de la zone, pour le redimensionnement au rayon
         let renderZoneMeasures = null;     // fourni par attachEdgeMeasures (utilities.js)
-        let cadoBaseMaps = {};
-        let zoneBaseMaps = {};
+        // Menus des fonds de carte et surcouches de chaque carte (fonds.js).
+        let cadoFonds = null;
+        let zoneFonds = null;
         let cadoMbtilesLayer = null;
         let zoneMbtilesLayer = null;
         const TILE_LIMIT = 2000;
@@ -1197,7 +1202,7 @@
                 initializeZoneMap();
                 
 
-                populateMapSelectorForPNG();
+                setupFondsLabels();
                 initUI();
                 setupEventListeners();
                 displayAppVersion();
@@ -1217,226 +1222,14 @@
             }
         }
 
-        // Création des couches de base (Base Layers)
-        function createBaseLayers() {
-            const baseMaps = {};
-            // Correction de projection Yandex : EPSG:3395 (Mercator ellipsoïdal WGS84)
-            // vs EPSG:3857 (Pseudo-Mercator sphérique) utilisé par Leaflet. Chaque tuile
-            // Leaflet est un <canvas> sur lequel on REPROJETTE les 1-2 tuiles Yandex
-            // couvrant exactement sa plage de latitudes (cf. createTile ci-dessous).
-            // Deux tuiles Leaflet voisines se partagent mathématiquement la même
-            // frontière 3395 → aucun jour possible entre les rangées (contrairement à
-            // l'ancien décalage CSS approché — marginTop + étirement de hauteur —
-            // qui laissait des jours horizontaux et déformait légèrement l'image).
-            const e_WGS84 = 0.0818191908426215;
-
-            function yMerc3395(latRad) {
-                const sinLat = Math.sin(latRad);
-                return Math.log(Math.tan(Math.PI / 4 + latRad / 2) *
-                    Math.pow((1 - e_WGS84 * sinLat) / (1 + e_WGS84 * sinLat), e_WGS84 / 2));
-            }
-
-            function lat3857(yTile, n) {
-                return Math.atan(Math.sinh(Math.PI * (1 - 2 * yTile / n)));
-            }
-
-            const L_YandexLayer = L.GridLayer.extend({
-                initialize: function (url, options) {
-                    this._url = url;
-                    L.GridLayer.prototype.initialize.call(this, options);
-                },
-                createTile: function (coords, done) {
-                    const ts = this.getTileSize().y; // généralement 256
-                    const tile = document.createElement('canvas');
-                    tile.width = ts; tile.height = ts;
-
-                    const z = coords.z, n = Math.pow(2, z);
-                    // Plage de pixels VERTICAUX du monde EPSG:3395 (à ce zoom) couverte
-                    // par la tuile EPSG:3857 demandée : bords nord et sud convertis via
-                    // lat 3857 → ordonnée Mercator 3395. Les X sont identiques dans les
-                    // deux projections (même découpage en longitude).
-                    const py = (yTile) => n * ts / 2 * (1 - yMerc3395(lat3857(yTile, n)) / Math.PI);
-                    const pyN = py(coords.y), pyS = py(coords.y + 1);
-                    const H = pyS - pyN; // hauteur 3395 correspondante (≈ ts, pas exactement)
-
-                    // Tuiles sources 3395 couvrant [pyN, pyS) — 1 ou 2 en pratique.
-                    const ty0 = Math.max(0, Math.floor(pyN / ts));
-                    const ty1 = Math.min(n - 1, Math.floor((pyS - 1e-9) / ts));
-                    const srcs = [];
-                    for (let ty = ty0; ty <= ty1; ty++)
-                        srcs.push({ ty, url: L.Util.template(this._url, L.extend({}, this.options, { x: coords.x, y: ty, z })) });
-
-                    // Chargement en CORS d'abord (Yandex sert les en-têtes quand on les
-                    // demande) : le canvas reste « propre » et réutilisable (export,
-                    // capture…). Repli sans crossOrigin si le CORS échoue.
-                    const load = (url) => new Promise(resolve => {
-                        const img = new Image();
-                        img.crossOrigin = 'anonymous';
-                        img.onload = () => resolve(img);
-                        img.onerror = () => {
-                            const raw = new Image();
-                            raw.onload = () => resolve(raw);
-                            raw.onerror = () => resolve(null);
-                            raw.src = url;
-                        };
-                        img.src = url;
-                    });
-
-                    Promise.all(srcs.map(s => load(s.url))).then(imgs => {
-                        const ctx = tile.getContext('2d');
-                        let drawn = 0;
-                        for (let i = 0; i < srcs.length; i++) {
-                            const img = imgs[i];
-                            if (!img) continue;
-                            const ty = srcs[i].ty;
-                            // Bande de la tuile source comprise dans [pyN, pyS], remappée
-                            // linéairement sur la hauteur du canvas (la non-linéarité
-                            // 3857↔3395 sur 256 px est très en dessous du pixel).
-                            const srcTop = Math.max(pyN, ty * ts);
-                            const srcBot = Math.min(pyS, (ty + 1) * ts);
-                            const sy = srcTop - ty * ts, sh = srcBot - srcTop;
-                            const dy = (srcTop - pyN) * ts / H, dh = sh * ts / H;
-                            // +1 px de recouvrement (sauf dernière bande) : la bande
-                            // suivante, opaque, repeint par-dessus — supprime le liseré
-                            // d'anticrénelage aux frontières fractionnaires.
-                            const over = (i < srcs.length - 1) ? 1 : 0;
-                            ctx.drawImage(img, 0, sy, img.width, sh, 0, dy, ts, dh + over);
-                            drawn++;
-                        }
-                        done(drawn ? null : new Error('tuiles Yandex indisponibles'), tile);
-                    });
-                    return tile;
-                }
-            });
-
-            // Layer zoom_switch : un tileLayer ordinaire dont on remplace getTileUrl.
-            // Leaflet ne voit qu'un tileLayer normal — pas de classe custom, pas de initialize.
-            function makeZoomSwitchLayer(sources, options) {
-                const layer = L.tileLayer(sources[0].url, options);
-                layer.getTileUrl = function(coords) {
-                    const src = sources.find(s =>
-                        (s.minZoom === undefined || coords.z >= s.minZoom) &&
-                        (s.maxZoom === undefined || coords.z <= s.maxZoom)
-                    ) || sources[sources.length - 1];
-                    return src.url
-                        .replace('{z}', coords.z)
-                        .replace('{x}', coords.x)
-                        .replace('{y}', coords.y);
-                };
-                return layer;
-            }
-
-            const L_QuadKeyLayer = L.TileLayer.extend({
-                getTileUrl: function (coords) {
-                    const x = coords.x, y = coords.y, z = coords.z;
-                    let quadKey = '';
-                    for (let i = z; i > 0; i--) {
-                        let digit = 0;
-                        const mask = 1 << (i - 1);
-                        if ((y & mask) !== 0) { digit += 2; }
-                        if ((x & mask) !== 0) { digit += 1; }
-                        quadKey += digit.toString();
-                    }
-                    return L.Util.template(this._url, { s: (x + y) % 4, q: quadKey, z: z });
-                }
-            });
-
-            if (typeof MAP_LAYERS !== 'undefined') {
-                MAP_LAYERS.forEach(layerConfig => {
-                    // Ignorer les layers dont la clé API requise est vide ou absente
-                    if (layerConfig.requiresKey) {
-                        const keyVal = (typeof window[layerConfig.requiresKey] !== 'undefined') ? window[layerConfig.requiresKey] : '';
-                        if (!keyVal) return;
-                    }
-                    let leafletLayer;
-                    // `attribution` portait le NOM du calque, faute de mieux : il affiche desormais la
-                    // mention legale du fournisseur, et le nom part dans `layerName`, option a nous.
-                    const tileOpts = { attribution: layerConfig.attribution || layerConfig.name, layerName: layerConfig.name,
-                                       maxNativeZoom: layerConfig.maxZoom || 19, maxZoom: 22, keepBuffer: 0, updateWhenZooming: false };
-                    const makeTileLayer = (layerData) => {
-                        const opts = { ...tileOpts };
-                        if (layerData.minZoom !== undefined) opts.minZoom = layerData.minZoom;
-                        if (layerData.maxZoom !== undefined) opts.maxNativeZoom = layerData.maxZoom;
-                        if (layerData.type === 'quadkey') return new L_QuadKeyLayer(layerData.url, opts);
-                        if (layerData.type === 'yandex')  return new L_YandexLayer(layerData.url, opts);
-                        // WMS : Leaflet compose lui-meme le GetMap a partir du CRS de la carte.
-                        // L'export, lui, passe par tileUrlFor() (map-layers.js) — meme emprise.
-                        if (layerData.type === 'wms') return L.tileLayer.wms(layerData.url, { ...opts,
-                            layers: layerData.layers, styles: layerData.styles || '',
-                            format: layerData.format || 'image/png',
-                            transparent: layerData.transparent !== false,
-                            version: layerData.version || '1.3.0' });
-                        // Cache ArcGIS hors Web Mercator : reprojete tuile par tuile (arcgisCache.js).
-                        if (layerData.type === 'arcgis-cache') return agcLeafletLayer(layerData, opts);
-
-                        return L.tileLayer(layerData.url, opts);
-                    };
-                    if (layerConfig.layers.length > 1) {
-                        leafletLayer = L.layerGroup(layerConfig.layers.map(makeTileLayer));
-                    } else {
-                        leafletLayer = makeTileLayer(layerConfig.layers[0]);
-                    }
-                    if (leafletLayer) baseMaps[layerConfig.name] = leafletLayer;
-                });
-            }
-            return baseMaps;
-        }
-
-        // Les tuiles Leaflet sont des <img> insérées dans le DOM : tant qu'elles arrivent,
-        // le navigateur tient la page pour « en cours de chargement » et l'onglet garde son
-        // indicateur d'activité. Le fond par défaut « Ortho IGN + Routes Google » empile
-        // DEUX couches de tuiles, soit ~70 requêtes pour un seul écran — et sur un
-        // rechargement forcé (Maj+F5), qui contourne le cache HTTP du navigateur, le WMTS
-        // de l'IGN met parfois plus de 15 s pour une seule tuile. D'où une page annoncée
-        // « en chargement » pendant ~30 s alors qu'elle est utilisable depuis le début.
-        //
-        // Poser le fond APRÈS l'événement load sort ces tuiles du calcul : la page est
-        // déclarée chargée tout de suite, les tuiles continuent d'arriver ensuite. Seul
-        // l'habillage attend — la carte elle-même est créée avec le reste de l'interface,
-        // pour que rien de ce qui en dépend n'ait à guetter son apparition.
-        function addBaseLayerWhenLoaded(layer, map) {
-            if (!layer) return;
-            if (document.readyState === 'complete') layer.addTo(map);
-            else window.addEventListener('load', () => layer.addTo(map), { once: true });
-        }
-
         function initializeCadoMap() {
             cadoMap = L.map('cado-interactive-map', { maxZoom: 22 }).setView([46.2276, 2.2137], 5);
             window.cadoMap = cadoMap;
-            cadoBaseMaps = createBaseLayers();
-            const defaultLayer = cadoBaseMaps["Ortho IGN + Routes Google"] || cadoBaseMaps["Google Hybrid"] || (Object.keys(cadoBaseMaps).length > 0 ? cadoBaseMaps[Object.keys(cadoBaseMaps)[0]] : null);
-
-            addBaseLayerWhenLoaded(defaultLayer, cadoMap);
-            if(Object.keys(cadoBaseMaps).length > 0) {
-                const cadoLayers = L.control.layers(cadoBaseMaps);
-                // La carte fait 200 % de la hauteur de son cadre (rotation) : Leaflet, qui
-                // mesure la carte, laisserait la liste des fonds déborder du cadre sans
-                // barre de défilement. On la borne au cadre visible. Posé avant addTo :
-                // Leaflet lie this.expand à l'ouverture de la liste.
-                cadoLayers.expand = function () {
-                    L.Control.Layers.prototype.expand.call(this);
-                    const frame = document.getElementById('map-viewport');
-                    const list = this._section;
-                    if (!frame || !list) return this;
-                    list.style.height = null;
-                    const room = frame.clientHeight - (this._container.offsetTop + 50);
-                    if (room < list.clientHeight) {
-                        L.DomUtil.addClass(list, 'leaflet-control-layers-scrollbar');
-                        list.style.height = room + 'px';
-                    } else {
-                        L.DomUtil.removeClass(list, 'leaflet-control-layers-scrollbar');
-                    }
-                    return this;
-                };
-                cadoLayers.addTo(cadoMap);
-            }
-
-            // Initialise le zoom natif à partir du layer par défaut
-            if (typeof MAP_LAYERS !== 'undefined') {
-                const defName = ["Ortho IGN + Routes Google", "Google Hybrid"].find(n => cadoBaseMaps[n]) || Object.keys(cadoBaseMaps)[0] || '';
-                const defML = MAP_LAYERS.find(l => l.name === defName);
-                if (defML) cadoLayerNativeMax = defML.maxZoom;
-            }
+            // Fond et surcouches : un menu commun à toutes les cartes (fonds.js). La
+            // carte fait 200 % de la hauteur de son cadre (rotation) : le menu borne
+            // son panneau à la partie visible.
+            cadoFonds = fondsAttach(cadoMap);
+            cadoLayerNativeMax = fondsConfig()?.maxZoom || 19;
 
             const updateCadoZoom = () => {
                 const z = cadoMap.getZoom();
@@ -1455,23 +1248,10 @@
             cadoMap.on('click', handleCadoMapClick);
             initSVContextMenu(cadoMap);
 
-            // Synchro bidirectionnelle select ↔ map (mode rapide)
-            cadoMap.on('baselayerchange', function(e) {
-                const selector = document.getElementById('map-tile-provider');
-                if (typeof MAP_LAYERS !== 'undefined') {
-                    const ml = MAP_LAYERS.find(l => l.name === e.name);
-                    if (ml && selector) selector.value = ml.id;
-                    if (ml) { cadoLayerNativeMax = ml.maxZoom; updateCadoZoom(); }
-                }
-            });
-            document.getElementById('map-tile-provider')?.addEventListener('change', function() {
-                const ml = MAP_LAYERS.find(l => l.id === this.value);
-                if (ml && cadoBaseMaps[ml.name]) {
-                    Object.values(cadoBaseMaps).forEach(l => cadoMap.removeLayer(l));
-                    cadoBaseMaps[ml.name].addTo(cadoMap);
-                    cadoLayerNativeMax = ml.maxZoom;
-                    updateCadoZoom();
-                }
+            // Zoom natif : celui du fond et de ses surcouches (le plus bas des étages).
+            cadoMap.on('fondschange', (e) => {
+                cadoLayerNativeMax = e.config?.maxZoom || 19;
+                updateCadoZoom();
             });
 
             setTimeout(() => {
@@ -1486,17 +1266,8 @@
 
         function initializeZoneMap() {
             zoneMap = L.map('zone-interactive-map', { maxZoom: 22 }).setView([46.2276, 2.2137], 5);
-            zoneBaseMaps = createBaseLayers();
-            const defaultLayer = zoneBaseMaps["Ortho IGN + Routes Google"] || zoneBaseMaps["Google Hybrid"];
-            addBaseLayerWhenLoaded(defaultLayer, zoneMap);
-            if(Object.keys(zoneBaseMaps).length > 0) L.control.layers(zoneBaseMaps).addTo(zoneMap);
-
-            // Initialise le zoom natif à partir du layer par défaut
-            if (typeof MAP_LAYERS !== 'undefined') {
-                const defName = ["Ortho IGN + Routes Google", "Google Hybrid"].find(n => zoneBaseMaps[n]) || Object.keys(zoneBaseMaps)[0] || '';
-                const defML = MAP_LAYERS.find(l => l.name === defName);
-                if (defML) zoneLayerNativeMax = defML.maxZoom;
-            }
+            zoneFonds = fondsAttach(zoneMap);
+            zoneLayerNativeMax = fondsConfig()?.maxZoom || 19;
 
             const updateZoneZoom = () => {
                 const z = zoneMap.getZoom();
@@ -1537,7 +1308,9 @@
             zoneMap.on(L.Draw.Event.CREATED, (e) => {
                 drawnItems.clearLayers();
                 if (e.layerType === 'marker') {
-                    zonePointCenter = e.layer.getLatLng();
+                    // Aperçu tourné : la zone se centre sur le terrain vu sous le clic
+                    // (cf. zoneScreenToGround), que fitBounds amène au centre de la carte.
+                    zonePointCenter = zoneScreenToGround(e.layer.getLatLng());
                     const bounds = boundsAroundPoint(zonePointCenter, getZonePointRadius());
                     drawnItems.addLayer(L.rectangle(bounds, { color: '#14b8a6' }));
                     // Le rectangle doit rester entierement lisible juste apres le pointage.
@@ -1586,24 +1359,11 @@
                 updateZoneCoordsFromBounds(bounds);
             });
             zoneMap.on('zoomend', updateZoneInfo);
-            zoneMap.on('baselayerchange', function(e) {
-                const selector = document.getElementById('zone-layer-select');
-                if (typeof MAP_LAYERS !== 'undefined') {
-                    const ml = MAP_LAYERS.find(l => l.name === e.name);
-                    if (ml && selector) selector.value = ml.id;
-                    if (ml) { zoneLayerNativeMax = ml.maxZoom; updateZoneZoom(); }
-                }
-                updateZoneInfo(e);
-            });
-            // Synchro select → map (mode zone)
-            document.getElementById('zone-layer-select')?.addEventListener('change', function() {
-                const ml = MAP_LAYERS.find(l => l.id === this.value);
-                if (ml && zoneBaseMaps[ml.name]) {
-                    Object.values(zoneBaseMaps).forEach(l => zoneMap.removeLayer(l));
-                    zoneBaseMaps[ml.name].addTo(zoneMap);
-                    zoneLayerNativeMax = ml.maxZoom;
-                    updateZoneZoom();
-                }
+            // Fond et surcouches (fonds.js) : nom du panneau 3 et zoom natif.
+            zoneMap.on('fondschange', (e) => {
+                zoneLayerNativeMax = e.config?.maxZoom || 19;
+                updateZoneZoom();
+                updateZoneInfo();
             });
             
             zoneMap.on('click', (e) => {
@@ -1613,7 +1373,7 @@
             });
             initSVContextMenu(zoneMap);
             window.zoneMap = zoneMap;
-            setTimeout(() => { updateZoneInfo({name: "Ortho IGN + Routes Google"})}, 500);
+            setTimeout(() => updateZoneInfo(), 500);
             setupZoneAddressSearch();
         }
 
@@ -1652,11 +1412,11 @@
         // Appelé par tileSource.js après chaque chargement ou retrait de MBTiles
         window.tileSourceOnChange = function(info) {
             const entries = [
-                { map: cadoMap, baseMaps: cadoBaseMaps, getLayer: () => cadoMbtilesLayer, setLayer: l => { cadoMbtilesLayer = l; } },
-                { map: zoneMap, baseMaps: zoneBaseMaps, getLayer: () => zoneMbtilesLayer, setLayer: l => { zoneMbtilesLayer = l; } }
+                { map: cadoMap, fonds: cadoFonds, getLayer: () => cadoMbtilesLayer, setLayer: l => { cadoMbtilesLayer = l; } },
+                { map: zoneMap, fonds: zoneFonds, getLayer: () => zoneMbtilesLayer, setLayer: l => { zoneMbtilesLayer = l; } }
             ];
 
-            entries.forEach(({ map, baseMaps, getLayer, setLayer }) => {
+            entries.forEach(({ map, fonds, getLayer, setLayer }) => {
                 if (!map) return;
 
                 // Retirer l'ancien calque MBTiles si présent
@@ -1664,10 +1424,10 @@
                 if (existing && map.hasLayer(existing)) map.removeLayer(existing);
                 setLayer(null);
 
+                // Fond et surcouches en ligne : retirés tant qu'un MBTiles est chargé,
+                // rétablis tels que choisis à sa fermeture (fonds.js).
+                fonds?.setOffline(info ? info.name : null);
                 if (info) {
-                    // Masquer les calques en ligne
-                    Object.values(baseMaps).forEach(l => { if (map.hasLayer(l)) map.removeLayer(l); });
-
                     // Ajouter le calque MBTiles
                     const zooms = tileSourceGetZooms();
                     const zMin = zooms[0], zMax = zooms[zooms.length - 1];
@@ -1694,12 +1454,6 @@
                     }
                     layer.addTo(map);
                     setLayer(layer);
-                } else {
-                    // Rétablir le calque en ligne par défaut
-                    const defaultLayer = baseMaps["Ortho IGN + Routes Google"]
-                        || baseMaps["Google Hybrid"]
-                        || Object.values(baseMaps)[0];
-                    if (defaultLayer && !map.hasLayer(defaultLayer)) defaultLayer.addTo(map);
                 }
             });
             // Cartes créées plus tard (repérage de « Générer depuis un fichier »).
@@ -1747,16 +1501,9 @@
             const zoomLabel = document.getElementById('zone-info-zoom');
             if(zoomLabel) zoomLabel.textContent = zoneMap.getZoom();
             
-            let layerName = "N/A";
-            if (e && e.name) {
-                layerName = e.name;
-            } else {
-                zoneMap.eachLayer((layer) => { 
-                     if (layer.options && layer.options.layerName) {
-                        layerName = layer.options.layerName;
-                     }
-                });
-            }
+            // Fond et surcouches choisis (fonds.js), ou le MBTiles qui les remplace.
+            const layerName = (typeof tileSourceIsActive === 'function' && tileSourceIsActive())
+                ? tileSourceGetName() : (fondsName() || "N/A");
             const layerLabel = document.getElementById('zone-info-layer');
             if(layerLabel) layerLabel.textContent = layerName;
             
@@ -1912,28 +1659,31 @@
             } catch (err) { showError("Impossible de pointer sur la carte: " + err.message); }
         }
 
-        // Remplit un <select> avec les layers autorisés (filtre clés API vides)
-        function populateLayerSelect(selectorId, defaultName) {
-            const selector = document.getElementById(selectorId);
-            if (!selector || typeof MAP_LAYERS === 'undefined') return;
-            selector.innerHTML = '';
-            MAP_LAYERS.forEach(map => {
-                if (map.requiresKey) {
-                    const keyVal = (typeof window[map.requiresKey] !== 'undefined') ? window[map.requiresKey] : '';
-                    if (!keyVal) return;
-                }
-                const option = document.createElement('option');
-                option.value = map.id;
-                option.textContent = map.name;
-                selector.appendChild(option);
-            });
-            const def = MAP_LAYERS.find(m => m.name === (defaultName || "Ortho IGN + Routes Google"));
-            selector.value = (def && selector.querySelector(`option[value="${def.id}"]`)) ? def.id : selector.options[0]?.value;
-        }
-
-        function populateMapSelectorForPNG() {
-            populateLayerSelect('map-tile-provider');
-            populateLayerSelect('zone-layer-select');
+        // Rappels du fond choisi dans les panneaux (data-fonds-label) : le nom du fond
+        // et de ses surcouches, ou du MBTiles qui les remplace ; un clic ouvre le menu
+        // de la carte du même mode.
+        function setupFondsLabels() {
+            const controls = { cado: () => cadoFonds, zone: () => zoneFonds, creator: () => window.creatorFonds };
+            const refresh = () => {
+                const offline = typeof tileSourceIsActive === 'function' && tileSourceIsActive();
+                const config = fondsConfig();
+                document.querySelectorAll('[data-fonds-label]').forEach(el => {
+                    // Créer MBTiles télécharge toujours en ligne : le MBTiles chargé ne le concerne pas.
+                    const showOffline = offline && el.dataset.fondsLabel !== 'creator';
+                    el.textContent = showOffline ? `📦 ${tileSourceGetName()}`
+                        : (config ? config.name + (el.dataset.fondsLabel === 'creator' ? ` (Max Z${config.maxZoom})` : '') : 'N/A');
+                });
+            };
+            document.querySelectorAll('[data-fonds-label]').forEach(el => el.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const control = controls[el.dataset.fondsLabel]?.();
+                if (!control) return;
+                control.getContainer()?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+                control.open();
+            }));
+            fondsSubscribe(refresh);
+            document.addEventListener('cado-tilesource-change', refresh);
+            refresh();
         }
         
         function setDefaultGridName() {
@@ -2200,6 +1950,7 @@
             let zoneGuideTimeout;
             let zoneTileDeviation = 0;
             let zoneInjectedGuide = null;
+            let zonePoiTurned = false;
 
             function getZoneGuide() {
                 if (!zoneInjectedGuide && zoneMap) {
@@ -2220,11 +1971,17 @@
                 if (!zoneMap) return;
                 const tilePane = zoneMap.getPanes().tilePane;
                 if (!tilePane) return;
+                // Les points d'intérêt suivent leur terrain (cf. zoneGroundToScreen) : à
+                // replacer tant qu'une rotation est appliquée, et une fois à son retrait.
+                if ((val !== 0 || zonePoiTurned) && typeof updatePOIMarkers === 'function') updatePOIMarkers();
+                zonePoiTurned = val !== 0;
                 if (val === 0) {
                     tilePane.style.transform = '';
                     tilePane.style.transformOrigin = '';
                     return;
                 }
+                // Pivot : le centre de la carte. L'export retrouve ce terrain (zoneRectangle,
+                // zoneDownloader.js) : les deux doivent changer ensemble.
                 const container = zoneMap.getContainer();
                 const mapPanePos = L.DomUtil.getPosition(zoneMap.getPanes().mapPane);
                 const cx = container.clientWidth / 2 - mapPanePos.x;
