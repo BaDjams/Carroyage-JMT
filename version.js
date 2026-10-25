@@ -1,12 +1,19 @@
 // version.js
 
 // Source unique de vérité pour la version de l'application.
-const APP_VERSION = '23.51';
+const APP_VERSION = '23.52';
 
 // Une ligne courte par changement, telle que l'utilisateur la voit : ce qui change,
 // sans le pourquoi ni le comment. Guillemets doubles : les apostrophes françaises
 // s'écrivent telles quelles.
 const CHANGELOG = [
+  {
+    version: "23.52",
+    date: "2026-10-25",
+    changes: [
+      "Correction : une tuile refusée ou trop lente (fond IGN surtout) laissait un carré blanc dans l'image exportée, en export de zone comme en carroyage rapide. Elle est maintenant retentée plusieurs fois, en ralentissant le rythme des demandes ; si elle manque encore, un message le dit. Même chose pour Créer MBTiles",
+    ],
+  },
   {
     version: "23.51",
     date: "2026-10-24",

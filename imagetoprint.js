@@ -196,9 +196,13 @@ async function generateImageToPrint() {
 
         // 3. TÉLÉCHARGEMENT
         loadingMessage.textContent = `Téléchargement de la zone étendue (0%)...`;
+        beginExportTileStats();
         const { canvas: worldCanvas, originX: worldOriginX, originY: worldOriginY, actualZoom } = await createFinalCanvasWithLayers(downloadBoundingBox, zoomLevel, mapConfig, (progress) => {
             loadingMessage.textContent = `Téléchargement des tuiles (${progress.toFixed(0)}%)...`;}
         );
+        // Tuiles perdues malgré les reprises : l'image est livrée, mais on le dit.
+        const tileWarning = exportTileWarning(endExportTileStats());
+        if (tileWarning) showError(tileWarning);
 
         loadingMessage.textContent = "Assemblage et découpe finale...";
 
@@ -511,6 +515,7 @@ async function generateImageToPrint() {
         console.error("Erreur génération image:", error);
         showError(error.message);
     } finally {
+        endExportTileStats();
         loadingIndicator.classList.add("hidden");
     }
 }
@@ -689,13 +694,12 @@ async function createFinalCanvasWithLayers(boundingBox, zoom, mapConfig, onProgr
                         tileJobs.push({ safeUrl, tx, ty });
                     }
                 }
-                (await mapWithConcurrency(tileJobs, 8, job => new Promise((resolve) => {
-                    const img = new Image();
-                    img.crossOrigin = "Anonymous";
-                    img.onload = () => { downloadedCount++; if (onProgress) onProgress(downloadedCount * progressFactor); resolve({ img, tx: job.tx, ty: job.ty, success: true }); };
-                    img.onerror = () => { downloadedCount++; if (onProgress) onProgress(downloadedCount * progressFactor); resolve({ success: false }); };
-                    img.src = job.safeUrl;
-                }))).forEach(tileResult => {
+                // Reprises d'une tuile refusée ou sans réponse (loadExportTile, utilities.js).
+                (await mapWithConcurrency(tileJobs, 8, async job => {
+                    const img = await loadExportTile(job.safeUrl);
+                    downloadedCount++; if (onProgress) onProgress(downloadedCount * progressFactor);
+                    return img ? { img, tx: job.tx, ty: job.ty, success: true } : { success: false };
+                })).forEach(tileResult => {
                     if (tileResult.success) {
                         const northLat = _tile3395NorthLatDeg(tileResult.ty, actualZoom);
                         const southLat = _tile3395NorthLatDeg(tileResult.ty + 1, actualZoom);
@@ -716,13 +720,12 @@ async function createFinalCanvasWithLayers(boundingBox, zoom, mapConfig, onProgr
                         tileJobs.push({ safeUrl, x, y });
                     }
                 }
-                (await mapWithConcurrency(tileJobs, 8, job => new Promise((resolve) => {
-                    const img = new Image();
-                    img.crossOrigin = "Anonymous";
-                    img.onload = () => { downloadedCount++; if (onProgress) onProgress(downloadedCount * progressFactor); resolve({ img, x: job.x, y: job.y, success: true }); };
-                    img.onerror = () => { downloadedCount++; if (onProgress) onProgress(downloadedCount * progressFactor); resolve({ success: false }); };
-                    img.src = job.safeUrl;
-                }))).forEach(tileResult => {
+                // Reprises d'une tuile refusée ou sans réponse (loadExportTile, utilities.js).
+                (await mapWithConcurrency(tileJobs, 8, async job => {
+                    const img = await loadExportTile(job.safeUrl);
+                    downloadedCount++; if (onProgress) onProgress(downloadedCount * progressFactor);
+                    return img ? { img, x: job.x, y: job.y, success: true } : { success: false };
+                })).forEach(tileResult => {
                     if (tileResult.success) {
                         tempCtx.drawImage(tileResult.img, tileResult.x * TILE_SIZE - originX, tileResult.y * TILE_SIZE - originY);
                     }

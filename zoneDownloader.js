@@ -1011,6 +1011,10 @@ async function generateZonePNG() {
             tiePointJ: dynamicMargin,
         };
         const onIso = (f) => { loadingMessage.textContent = `Lignes de profondeur : altitudes IGN (${Math.round(f * 100)} %)...`; };
+        // Tuiles perdues malgré les reprises (loadExportTile) : l'image est livrée,
+        // mais on le dit.
+        beginExportTileStats();
+        const warnLostTiles = () => { const w = exportTileWarning(endExportTileStats()); if (w) showError(w); };
 
         if (banded) {
             const { blob, isoSummary } = await zdExportBanded({
@@ -1020,6 +1024,7 @@ async function generateZonePNG() {
             });
             showIsobathReport('zone', isoSummary);
             downloadFile(blob, fileName);
+            warnLostTiles();
             return;
         }
 
@@ -1032,6 +1037,7 @@ async function generateZonePNG() {
         ctx.fillStyle = 'white';
         ctx.fillRect(0, 0, W, H);
         await zdDrawBackground(ctx, plan, selectedMap, { x: 0, y: 0, w: W, h: H });
+        warnLostTiles();
         const isoSummary = isobaths ? await zdDrawIsobaths(ctx, plan, isobaths, onIso) : null;
         showIsobathReport('zone', isoSummary);
         await drawOverlays(ctx, isoSummary);
@@ -1071,6 +1077,7 @@ async function generateZonePNG() {
             ? "Export impossible : une tuile du fond de carte bloque la lecture de l'image (CORS)."
             : error.message);
     } finally {
+        endExportTileStats();
         loadingIndicator.classList.add("hidden");
     }
 }
@@ -1866,12 +1873,11 @@ async function zdPaintTiles(tempCtx, dlNwPx, dlSePx, actualZoom, mapConfig, cach
                     }
                 }
                 let _dbg = true;
-                (await mapWithConcurrency(tileJobs, 8, job => new Promise(r => {
-                    const i = new Image(); i.crossOrigin = "Anonymous";
-                    i.onload = () => r({ i, tx: job.tx, ty: job.ty, ok: true });
-                    i.onerror = () => r({ ok: false });
-                    i.src = job.safeUrl;
-                }))).forEach(res => {
+                // Reprises d'une tuile refusée ou sans réponse (loadExportTile, utilities.js).
+                (await mapWithConcurrency(tileJobs, 8, async job => {
+                    const i = await loadExportTile(job.safeUrl);
+                    return i ? { i, tx: job.tx, ty: job.ty, ok: true } : { ok: false };
+                })).forEach(res => {
                     if (res.ok) {
                         // Bords nord et sud de la tuile 3395 → latitude géographique
                         const northLat = _tile3395NorthLatDeg(res.ty, actualZoom);
@@ -1897,12 +1903,11 @@ async function zdPaintTiles(tempCtx, dlNwPx, dlSePx, actualZoom, mapConfig, cach
                         tileJobs.push({ safeUrl, x, y });
                     }
                 }
-                (await mapWithConcurrency(tileJobs, 8, job => new Promise(r => {
-                    const i = new Image(); i.crossOrigin = "Anonymous";
-                    i.onload = () => r({ i, x: job.x, y: job.y, ok: true });
-                    i.onerror = () => r({ ok: false });
-                    i.src = job.safeUrl;
-                }))).forEach(res => {
+                // Reprises d'une tuile refusée ou sans réponse (loadExportTile, utilities.js).
+                (await mapWithConcurrency(tileJobs, 8, async job => {
+                    const i = await loadExportTile(job.safeUrl);
+                    return i ? { i, x: job.x, y: job.y, ok: true } : { ok: false };
+                })).forEach(res => {
                     if (res.ok) {
                         // Taille native, comme en MBTiles : aucun rééchantillonnage.
                         const destX = Math.floor((res.x * ZD_TILE_SIZE) - dlNwPx.x);

@@ -96,8 +96,10 @@ function agcTilePlan(layer, z, x, y) {
 }
 
 // Chargement des tuiles du cache : image décodée, ou null (absente, refusée,
-// hors couverture). Une seconde tentative avant de renoncer.
+// hors couverture). Dans l'application, les reprises des exports
+// (loadExportTile, utilities.js) ; seule, une seconde tentative avant de renoncer.
 function agcLoadImage(url) {
+    if (typeof loadExportTile === 'function') return loadExportTile(url);
     const once = () => new Promise(resolve => {
         const img = new Image();
         img.crossOrigin = 'anonymous';
