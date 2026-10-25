@@ -713,3 +713,51 @@ body.ftm-open { overflow: hidden; }
 .dark .job-step.is-running .job-step-bar > span { background: #3b82f6; }
 .dark .job-step.is-done .job-step-info { color: #4ade80; }
 .dark .job-step.is-error .job-step-info { color: #f87171; }
+
+/* Menu des fonds de carte (fonds.js), repris de CadoTour (baseSelect.js) : un
+   bouton au nom du fond affiché, qui ouvre le panneau Fond / Surcouches — dans
+   l'ordre de l'empilement, du plus bas au plus haut. */
+.map-base-select {
+  display: block; min-width: 170px; max-width: 260px; height: 34px;
+  padding: 0 30px 0 14px;
+  background: #fff url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="%23333" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>') no-repeat right 8px center;
+  background-size: 16px;
+  color: #222; border: 1px solid rgba(0,0,0,0.2); border-radius: 17px;
+  font-size: 13px; font-family: inherit; cursor: pointer;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.25);
+  overflow: hidden; white-space: nowrap; text-overflow: ellipsis; text-align: left;
+}
+.map-base-select:hover { background-color: #f4f4f4; }
+.map-base-select:focus { outline: 2px solid #1a73e8; outline-offset: 1px; }
+.map-base-control { position: relative; z-index: 2; }
+.map-base-panel {
+  position: absolute; right: 0; top: calc(100% + 6px);
+  width: 280px; max-width: calc(100vw - 24px);
+  max-height: min(70vh, 560px); overflow-y: auto;
+  background: #fff; color: #222;
+  border: 1px solid rgba(0,0,0,0.2); border-radius: 10px;
+  box-shadow: 0 6px 24px rgba(0,0,0,0.25);
+  padding: 4px 0; font-size: 13px; text-align: left;
+}
+.map-base-panel.hidden { display: none; }
+.map-base-section { padding: 6px 12px; }
+.map-base-section + .map-base-section { border-top: 1px solid rgba(0,0,0,0.12); }
+.map-base-section.hidden { display: none; }
+.map-base-section h3 { margin: 2px 0 4px; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; opacity: .7; }
+.map-base-family h4 { margin: 6px 0 2px; font-size: 12px; font-weight: 600; opacity: .8; }
+.map-base-row { display: flex; align-items: center; gap: 8px; min-height: 28px; cursor: pointer; }
+.map-base-row input { flex: none; margin: 0; }
+.map-base-note { margin: 4px 12px 6px; padding: 6px 8px; border-radius: 6px; background: #ecfdf5; color: #065f46; font-size: 12px; }
+.map-base-note.hidden { display: none; }
+.dark .map-base-select {
+  background-color: #374151; color: #f3f4f6; border-color: #4b5563;
+  background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="%23e5e7eb" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>');
+}
+.dark .map-base-select:hover { background-color: #4b5563; }
+.dark .map-base-panel { background: #1f2937; color: #f3f4f6; border-color: #4b5563; color-scheme: dark; }
+.dark .map-base-section + .map-base-section { border-top-color: #374151; }
+.dark .map-base-note { background: #064e3b; color: #d1fae5; }
+@media (pointer: coarse) {
+  .map-base-select { height: 44px; }
+  .map-base-row { min-height: 44px; }
+}
