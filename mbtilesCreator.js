@@ -554,6 +554,8 @@ class MbtilesJob {
         // Polygone ou couloir d'une trace : seules ses tuiles (creatorZoneTiles) ;
         // null : tout le rectangle `bounds`.
         this.zone = zone;
+        // Tuiles perdues malgré les reprises (fetchExportTile, utilities.js) : dites à la fin.
+        this.tileStats = newExportTileStats();
         this.id = id;
         this.bounds = bounds;
         this.zooms = zooms;
@@ -800,13 +802,8 @@ class MbtilesJob {
     // dessinée. Chargement des sources en parallèle, dessin nord→sud ensuite.
     async _drawYandexLayer(canvas, ctx, layer, tile) {
         const bands = this._yandexBands(layer, tile);
-        const imgs = await Promise.all(bands.map(b => new Promise(resolve => {
-            const img = new Image();
-            img.crossOrigin = 'anonymous';
-            img.onload = () => resolve(img);
-            img.onerror = () => resolve(null);
-            img.src = b.url;
-        })));
+        // Reprises d'une tuile refusée ou sans réponse (loadExportTile, utilities.js).
+        const imgs = await Promise.all(bands.map(b => loadExportTile(b.url, { stats: this.tileStats })));
         let drawn = 0;
         for (let i = 0; i < bands.length; i++) {
             const img = imgs[i];
@@ -935,12 +932,11 @@ class MbtilesJob {
 
     // Télécharge une tuile et renvoie le blob brut, sans la décoder ni la
     // ré-encoder. Détecte le format réel (une fois par job) pour les métadonnées.
+    // Reprises d'une tuile refusée ou sans réponse (fetchExportTile, utilities.js).
     async _fetchRawTile(url, detectBaseFormat = true) {
         try {
-            const res = await fetch(url, { mode: 'cors', credentials: 'omit' });
-            if (!res.ok) return null;
-            const blob = await res.blob();
-            if (!blob.size) return null;
+            const blob = await fetchExportTile(url, { stats: this.tileStats });
+            if (!blob) return null;
             const head = new Uint8Array(await blob.slice(0, 16).arrayBuffer());
             const sniffed = this._sniffFormat(head);
             // Rejette les réponses non-image (erreurs XML/HTML renvoyées en HTTP 200)
@@ -1080,14 +1076,11 @@ class MbtilesJob {
         this.finish();
     }
 
-    fetchAndDrawLayer(url, canvas, ctx) {
-        return new Promise((resolve) => {
-            const img = new Image();
-            img.crossOrigin = "Anonymous";
-            img.onload = () => { ctx.drawImage(img, 0, 0, 256, 256); resolve(true); };
-            img.onerror = () => resolve(false);
-            img.src = url;
-        });
+    // Reprises d'une tuile refusée ou sans réponse (loadExportTile, utilities.js).
+    async fetchAndDrawLayer(url, canvas, ctx) {
+        const img = await loadExportTile(url, { stats: this.tileStats });
+        if (img) ctx.drawImage(img, 0, 0, 256, 256);
+        return !!img;
     }
 
     finish() {
@@ -1128,6 +1121,14 @@ class MbtilesJob {
                 a.href = url; a.download = fname; a.click();
                 setTimeout(() => URL.revokeObjectURL(url), 10000);
             };
+
+            const lost = exportTileCounts(this.tileStats);
+            if (lost.failed) {
+                const note = document.createElement('p');
+                note.className = "mt-1 text-xs font-semibold text-orange-600 dark:text-orange-400";
+                note.textContent = `${lost.failed} tuile${lost.failed > 1 ? 's' : ''} sur ${lost.requested} n'${lost.failed > 1 ? 'ont' : 'a'} pas pu être téléchargée${lost.failed > 1 ? 's' : ''} malgré plusieurs tentatives (serveur saturé) : elle${lost.failed > 1 ? 's manquent' : ' manque'} au fichier. Relancez le travail dans quelques instants pour une carte complète.`;
+                container.appendChild(note);
+            }
 
             if (this.isobaths) {
                 const note = document.createElement('p');

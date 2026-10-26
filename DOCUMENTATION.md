@@ -1250,6 +1250,8 @@ Branchements :
 
 Toutes les exports passent par le même `gridData` (lignes + étiquettes) calculé une seule fois, puis dispatché.
 
+**Téléchargement des tuiles du fond** (impression, export de zone, atlas IGC, Créer MBTiles) : toujours par `fetchExportTile` / `loadExportTile` (utilities.js), jamais par une `Image` chargée une seule fois. Un serveur saturé — le WMTS de l'IGN surtout — refuse (429, 503), coupe ou laisse sans réponse une partie des tuiles d'un gros export ; chargées une fois, elles laissaient des carrés blancs. Chaque tuile a droit à six essais (délai de 20 s chacun), séparés de pauses croissantes (0,5 à 8 s) que toutes les demandes en cours marquent ensemble : le serveur qui refuse veut qu'on ralentisse. Une tuile absente (204, 400, 404, 410 : hors couverture ou hors de la grille du service) n'est pas retentée ; 401/403 (clé) non plus, mais compte comme perdue. Le bilan (`beginExportTileStats` / `endExportTileStats`, ou `newExportTileStats` pour un travail de Créer MBTiles) compte les tuiles distinctes ; s'il en manque, l'image est livrée et `exportTileWarning` le dit. Les images téléchargées sont décodées depuis un Blob local : le canevas reste lisible. Test : `tools/test_tile_retry_browser.mjs`.
+
 ### 8.1 KML / KMZ
 
 - KML : XML simple

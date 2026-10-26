@@ -449,6 +449,123 @@ function readIsobathOptions(prefix) {
     return { finestStep: step, chartDatumBelowNgf: zh };
 }
 
+// =======================================================================
+// TUILES DES EXPORTS : reprises et bilan
+// =======================================================================
+// Un serveur chargé (le WMTS de l'IGN surtout) refuse ou laisse sans réponse une
+// partie des tuiles quand un export en demande des centaines d'affilée. Chargée
+// une seule fois, une tuile refusée laissait un carré blanc dans l'image, sans
+// que rien ne le dise. Chaque tuile est désormais retentée, après une pause qui
+// s'allonge ; toutes les demandes marquent cette pause ensemble (le serveur qui
+// refuse veut qu'on ralentisse). Une tuile qui n'existe pas (404 : hors de la
+// couverture du fond) n'est pas retentée : elle est vide, sans erreur.
+const EXPORT_TILE_TRIES = 6;                              // 1 essai + 5 reprises
+const EXPORT_TILE_TIMEOUT_MS = 20000;                     // sans réponse : on retente
+const EXPORT_TILE_PAUSES_MS = [500, 1500, 3000, 5000, 8000];
+// Réponses définitives : tuile absente (hors couverture, ou hors de la grille du
+// service : 400 au WMTS de l'IGN), ou accès refusé (clé absente ou expirée).
+const EXPORT_TILE_ABSENT = new Set([204, 400, 404, 410]);
+const EXPORT_TILE_DENIED = new Set([401, 403]);
+
+let _exportTilePauseUntil = 0;
+let _exportTileStats = null;
+// Essais réels du navigateur, remplaçables par les tests (délais raccourcis).
+const exportTileTiming = { pauses: EXPORT_TILE_PAUSES_MS, timeout: EXPORT_TILE_TIMEOUT_MS, tries: EXPORT_TILE_TRIES };
+
+const _sleep = ms => new Promise(r => setTimeout(r, ms));
+
+// Ouvre le bilan d'un export : tuiles demandées, et celles perdues malgré les reprises.
+// Tuiles comptées une fois chacune : un export par bandes redemande à son voisin
+// une tuile qu'ils se partagent.
+function newExportTileStats() {
+    return { requested: new Set(), failed: new Set(), retried: 0 };
+}
+function beginExportTileStats() {
+    _exportTileStats = newExportTileStats();
+    return _exportTileStats;
+}
+
+// Bilan en nombres : { requested, failed, retried }.
+function exportTileCounts(s) {
+    return s ? { requested: s.requested.size, failed: s.failed.size, retried: s.retried } : { requested: 0, failed: 0, retried: 0 };
+}
+
+// Ferme le bilan et le rend : { requested, failed, retried } en nombres.
+function endExportTileStats() {
+    const s = _exportTileStats;
+    _exportTileStats = null;
+    return exportTileCounts(s);
+}
+
+// Phrase d'avertissement pour un bilan, ou null si rien n'a manqué.
+function exportTileWarning(stats) {
+    if (!stats || !stats.failed) return null;
+    const n = stats.failed;
+    return `Attention : ${n} tuile${n > 1 ? 's' : ''} du fond de carte (sur ${stats.requested}) `
+        + `n'${n > 1 ? 'ont' : 'a'} pas pu être téléchargée${n > 1 ? 's' : ''} malgré ${exportTileTiming.tries - 1} nouvelles tentatives : `
+        + `l'image présente des carrés blancs. Le serveur est sans doute saturé ; relancez l'export dans quelques instants.`;
+}
+
+// Contenu d'une tuile (Blob), ou null si elle est absente ou perdue. Reprises et
+// pause commune comme décrit plus haut. La tuile entre au bilan `stats`
+// (newExportTileStats : un travail de Créer MBTiles a le sien), sinon à celui de
+// l'export en cours ; `count: false` l'en dispense.
+async function fetchExportTile(url, { count = true, stats: own = null } = {}) {
+    const stats = own || (count ? _exportTileStats : null);
+    if (stats) stats.requested.add(url);
+    const { tries, timeout, pauses } = exportTileTiming;
+    for (let attempt = 0; attempt < tries; attempt++) {
+        const wait = _exportTilePauseUntil - Date.now();
+        if (wait > 0) await _sleep(wait);
+        let status = 0;
+        const ctrl = typeof AbortController === 'function' ? new AbortController() : null;
+        const timer = ctrl ? setTimeout(() => ctrl.abort(), timeout) : null;
+        try {
+            // Une reprise ne doit pas retomber sur une réponse gardée en cache.
+            const res = await fetch(url, { mode: 'cors', credentials: 'omit', cache: attempt ? 'no-store' : 'default', signal: ctrl?.signal });
+            status = res.status;
+            if (res.ok && status !== 204) {
+                const blob = await res.blob();
+                // Une page d'erreur (XML, HTML) servie en 200 n'est pas une tuile.
+                if (blob.size && !/xml|html|json|text/i.test(blob.type || '')) return blob;
+            }
+        } catch (e) {
+            status = 0;   // réseau coupé, délai dépassé, ou serveur sans CORS
+        } finally {
+            if (timer) clearTimeout(timer);
+        }
+        if (EXPORT_TILE_ABSENT.has(status)) return null;
+        if (EXPORT_TILE_DENIED.has(status)) break;
+        if (attempt < tries - 1) {
+            if (stats) stats.retried++;
+            const pause = pauses[Math.min(attempt, pauses.length - 1)] * (0.75 + Math.random() * 0.5);
+            _exportTilePauseUntil = Math.max(_exportTilePauseUntil, Date.now() + pause);
+        }
+    }
+    if (stats) stats.failed.add(url);
+    return null;
+}
+
+// Image décodée d'une tuile (même règles que fetchExportTile), ou null. Lue depuis
+// un Blob local : le canevas où on la dessine reste lisible.
+async function loadExportTile(url, options) {
+    const blob = await fetchExportTile(url, options);
+    if (!blob) return null;
+    const src = URL.createObjectURL(blob);
+    try {
+        const img = new Image();
+        img.src = src;
+        await img.decode();
+        return img;
+    } catch (e) {
+        const stats = options?.stats || (options?.count !== false ? _exportTileStats : null);
+        if (stats) stats.failed.add(url);
+        return null;
+    } finally {
+        URL.revokeObjectURL(src);
+    }
+}
+
 async function mapWithConcurrency(items, concurrency, mapper) {
     const results = new Array(items.length);
     let nextIndex = 0;
