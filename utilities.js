@@ -477,17 +477,23 @@ const _sleep = ms => new Promise(r => setTimeout(r, ms));
 // Ouvre le bilan d'un export : tuiles demandées, et celles perdues malgré les reprises.
 // Tuiles comptées une fois chacune : un export par bandes redemande à son voisin
 // une tuile qu'ils se partagent.
+// `accepted` : tuiles perdues que l'utilisateur a choisi de laisser vides
+// (askLostTiles) — plus redemandées ni signalées pendant cet export ;
+// `autoContinue` : « ne plus demander pour cet export ».
 function newExportTileStats() {
-    return { requested: new Set(), failed: new Set(), retried: 0 };
+    return { requested: new Set(), failed: new Set(), accepted: new Set(), retried: 0, autoContinue: false };
 }
 function beginExportTileStats() {
     _exportTileStats = newExportTileStats();
     return _exportTileStats;
 }
 
-// Bilan en nombres : { requested, failed, retried }.
+// Bilan en nombres : { requested, failed, retried, accepted }. `failed` ne compte
+// pas les tuiles laissées vides de l'accord de l'utilisateur (`accepted`).
 function exportTileCounts(s) {
-    return s ? { requested: s.requested.size, failed: s.failed.size, retried: s.retried } : { requested: 0, failed: 0, retried: 0 };
+    if (!s) return { requested: 0, failed: 0, retried: 0, accepted: 0 };
+    const failed = [...s.failed].filter(u => !s.accepted.has(u)).length;
+    return { requested: s.requested.size, failed, retried: s.retried, accepted: s.accepted.size };
 }
 
 // Ferme le bilan et le rend : { requested, failed, retried } en nombres.
@@ -513,6 +519,8 @@ function exportTileWarning(stats) {
 async function fetchExportTile(url, { count = true, stats: own = null } = {}) {
     const stats = own || (count ? _exportTileStats : null);
     if (stats) stats.requested.add(url);
+    // Laissée vide de l'accord de l'utilisateur : un bloc voisin ne la redemande pas.
+    if (stats?.accepted.has(url)) return null;
     const { tries, timeout, pauses } = exportTileTiming;
     for (let attempt = 0; attempt < tries; attempt++) {
         const wait = _exportTilePauseUntil - Date.now();
@@ -563,6 +571,88 @@ async function loadExportTile(url, options) {
         return null;
     } finally {
         URL.revokeObjectURL(src);
+    }
+}
+
+// =======================================================================
+// TUILES PERDUES : l'utilisateur choisit
+// =======================================================================
+// Une tuile qui échoue encore après toutes les reprises n'est pas forcément une
+// panne : certains serveurs répondent par une erreur là où ils n'ont rien (en
+// pleine mer, hors de leur couverture). L'export s'arrête et demande : réessayer
+// ces tuiles, continuer sans elles (cases vides), ou annuler.
+
+class ExportCancelledError extends Error {
+    constructor(message = "Export annulé : des tuiles du fond de carte n'ont pas pu être téléchargées.") {
+        super(message);
+        this.name = 'ExportCancelledError';
+    }
+}
+
+// Fenêtre de choix. Rend { choice: 'retry' | 'continue' | 'cancel', remember }.
+// `remember` : « ne plus demander pour cet export » (continuer d'office).
+// `askLostTiles.answer`, si posé, répond à la place de l'utilisateur (essais).
+function askLostTiles(count, { layerName = '', total = 0, offerRemember = false } = {}) {
+    if (typeof askLostTiles.answer === 'function') return Promise.resolve(askLostTiles.answer(count, { layerName, total }));
+    return new Promise(resolve => {
+        const s = count > 1;
+        const overlay = document.createElement('div');
+        overlay.className = 'lost-tiles-dialog';
+        overlay.setAttribute('role', 'dialog');
+        overlay.setAttribute('aria-modal', 'true');
+        overlay.innerHTML = `
+            <div class="lost-tiles-box">
+                <h3>Tuiles non téléchargées</h3>
+                <p class="lost-tiles-count"></p>
+                <p class="lost-tiles-help">Serveur saturé : réessayez dans un instant. Tuiles qui n'existent pas
+                    (en pleine mer, hors de la zone couverte par ce fond) : continuez, leurs cases resteront vides.</p>
+                <label class="lost-tiles-remember" hidden><input type="checkbox"> Continuer d'office si d'autres tuiles échouent pendant cet export</label>
+                <div class="lost-tiles-actions">
+                    <button type="button" data-choice="cancel" class="lost-btn lost-btn-cancel">Annuler</button>
+                    <button type="button" data-choice="continue" class="lost-btn">Continuer sans elles</button>
+                    <button type="button" data-choice="retry" class="lost-btn lost-btn-retry">Réessayer</button>
+                </div>
+            </div>`;
+        overlay.querySelector('.lost-tiles-count').textContent = `${count} tuile${s ? 's' : ''}${layerName ? ` du fond « ${layerName} »` : ''}`
+            + `${total ? ` (sur ${total})` : ''} n'${s ? 'ont' : 'a'} pas pu être téléchargée${s ? 's' : ''} malgré `
+            + `${exportTileTiming.tries} tentatives espacées.`;
+        const remember = overlay.querySelector('.lost-tiles-remember');
+        remember.hidden = !offerRemember;
+        overlay.addEventListener('click', e => {
+            const choice = e.target.closest('[data-choice]')?.dataset.choice;
+            if (!choice) return;
+            overlay.remove();
+            resolve({ choice, remember: offerRemember && remember.querySelector('input').checked });
+        });
+        document.body.appendChild(overlay);
+        overlay.querySelector('[data-choice="retry"]').focus();
+    });
+}
+
+// Charge les tuiles `jobs` ({ url, ... }) par `loadOne` (rend un résultat, ou null
+// pour une tuile absente ou perdue), puis, s'il en reste de perdues, demande quoi
+// faire (askLostTiles) : réessayer — autant de fois que voulu —, continuer sans
+// elles (null à leur place), ou annuler (ExportCancelledError). Rend les résultats
+// dans l'ordre des jobs. Sans bilan d'export en cours, rien n'est demandé.
+// `offerRemember` : l'export recharge par blocs (bandes) et peut redemander.
+async function loadExportTiles(jobs, loadOne, { concurrency = 8, layerName = '', offerRemember = false, stats = _exportTileStats } = {}) {
+    const results = await mapWithConcurrency(jobs, concurrency, loadOne);
+    if (!stats) return results;
+    for (;;) {
+        const lost = [];
+        jobs.forEach((job, i) => { if (!results[i] && stats.failed.has(job.url) && !stats.accepted.has(job.url)) lost.push(i); });
+        if (!lost.length) return results;
+        const answer = stats.autoContinue ? { choice: 'continue' }
+            : await askLostTiles(lost.length, { layerName, total: jobs.length, offerRemember });
+        if (answer.remember) stats.autoContinue = true;
+        if (answer.choice === 'cancel') throw new ExportCancelledError();
+        if (answer.choice !== 'retry') {
+            lost.forEach(i => stats.accepted.add(jobs[i].url));
+            return results;
+        }
+        lost.forEach(i => stats.failed.delete(jobs[i].url));
+        const again = await mapWithConcurrency(lost, concurrency, i => loadOne(jobs[i]));
+        lost.forEach((i, k) => { results[i] = again[k]; });
     }
 }
 

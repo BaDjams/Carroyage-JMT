@@ -1869,16 +1869,17 @@ async function zdPaintTiles(tempCtx, dlNwPx, dlSePx, actualZoom, mapConfig, cach
                     for (let ty = nwTile3395.y; ty <= seTile3395.y; ty++) {
                         const url = layer.url.replace('{z}', actualZoom).replace('{x}', tx).replace('{y}', ty);
                         const safeUrl = url + (url.includes('?') ? '&' : '?') + cacheBust;
-                        tileJobs.push({ safeUrl, tx, ty });
+                        tileJobs.push({ url: safeUrl, tx, ty });
                     }
                 }
                 let _dbg = true;
-                // Reprises d'une tuile refusée ou sans réponse (loadExportTile, utilities.js).
-                (await mapWithConcurrency(tileJobs, 8, async job => {
-                    const i = await loadExportTile(job.safeUrl);
-                    return i ? { i, tx: job.tx, ty: job.ty, ok: true } : { ok: false };
-                })).forEach(res => {
-                    if (res.ok) {
+                // Reprises d'une tuile refusée ou sans réponse, puis choix de
+                // l'utilisateur pour celles perdues (loadExportTiles, utilities.js).
+                (await loadExportTiles(tileJobs, async job => {
+                    const i = await loadExportTile(job.url);
+                    return i ? { i, tx: job.tx, ty: job.ty, ok: true } : null;
+                }, { layerName: fondsLayerName(layer), offerRemember: true })).forEach(res => {
+                    if (res) {
                         // Bords nord et sud de la tuile 3395 → latitude géographique
                         const northLat = _tile3395NorthLatDeg(res.ty, actualZoom);
                         const southLat = _tile3395NorthLatDeg(res.ty + 1, actualZoom);
@@ -1900,15 +1901,17 @@ async function zdPaintTiles(tempCtx, dlNwPx, dlSePx, actualZoom, mapConfig, cach
                     for (let y = nwTile.y; y <= seTile.y; y++) {
                         const url = tileUrlFor(layer, actualZoom, x, y);
                         const safeUrl = url + (url.includes('?') ? '&' : '?') + cacheBust;
-                        tileJobs.push({ safeUrl, x, y });
+                        tileJobs.push({ url: safeUrl, x, y });
                     }
                 }
-                // Reprises d'une tuile refusée ou sans réponse (loadExportTile, utilities.js).
-                (await mapWithConcurrency(tileJobs, 8, async job => {
-                    const i = await loadExportTile(job.safeUrl);
-                    return i ? { i, x: job.x, y: job.y, ok: true } : { ok: false };
-                })).forEach(res => {
-                    if (res.ok) {
+                // Reprises d'une tuile refusée ou sans réponse, puis choix de
+                // l'utilisateur pour celles perdues (loadExportTiles, utilities.js).
+                // Par bandes, chaque bloc peut redemander : « continuer d'office » est proposé.
+                (await loadExportTiles(tileJobs, async job => {
+                    const i = await loadExportTile(job.url);
+                    return i ? { i, x: job.x, y: job.y, ok: true } : null;
+                }, { layerName: fondsLayerName(layer), offerRemember: true })).forEach(res => {
+                    if (res) {
                         // Taille native, comme en MBTiles : aucun rééchantillonnage.
                         const destX = Math.floor((res.x * ZD_TILE_SIZE) - dlNwPx.x);
                         const destY = Math.floor((res.y * ZD_TILE_SIZE) - dlNwPx.y);

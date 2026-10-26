@@ -691,16 +691,17 @@ async function createFinalCanvasWithLayers(boundingBox, zoom, mapConfig, onProgr
                     for (let ty = nwT3395.y; ty <= seT3395.y; ty++) {
                         const tileUrl = layer.url.replace('{z}', actualZoom).replace('{x}', tx).replace('{y}', ty);
                         const safeUrl = tileUrl + (tileUrl.includes('?') ? '&' : '?') + cacheBust;
-                        tileJobs.push({ safeUrl, tx, ty });
+                        tileJobs.push({ url: safeUrl, tx, ty });
                     }
                 }
-                // Reprises d'une tuile refusée ou sans réponse (loadExportTile, utilities.js).
-                (await mapWithConcurrency(tileJobs, 8, async job => {
-                    const img = await loadExportTile(job.safeUrl);
-                    downloadedCount++; if (onProgress) onProgress(downloadedCount * progressFactor);
-                    return img ? { img, tx: job.tx, ty: job.ty, success: true } : { success: false };
-                })).forEach(tileResult => {
-                    if (tileResult.success) {
+                // Reprises d'une tuile refusée ou sans réponse, puis choix de
+                // l'utilisateur pour celles perdues (loadExportTiles, utilities.js).
+                (await loadExportTiles(tileJobs, async job => {
+                    const img = await loadExportTile(job.url);
+                    downloadedCount++; if (onProgress) onProgress(Math.min(100, downloadedCount * progressFactor));
+                    return img ? { img, tx: job.tx, ty: job.ty, success: true } : null;
+                }, { layerName: fondsLayerName(layer) })).forEach(tileResult => {
+                    if (tileResult) {
                         const northLat = _tile3395NorthLatDeg(tileResult.ty, actualZoom);
                         const southLat = _tile3395NorthLatDeg(tileResult.ty + 1, actualZoom);
                         const westLon  = tileResult.tx / n3395 * 360 - 180;
@@ -717,16 +718,17 @@ async function createFinalCanvasWithLayers(boundingBox, zoom, mapConfig, onProgr
                     for (let y = nwTile.y; y <= seTile.y; y++) {
                         const tileUrl = tileUrlFor(layer, actualZoom, x, y);
                         const safeUrl = tileUrl + (tileUrl.includes('?') ? '&' : '?') + cacheBust;
-                        tileJobs.push({ safeUrl, x, y });
+                        tileJobs.push({ url: safeUrl, x, y });
                     }
                 }
-                // Reprises d'une tuile refusée ou sans réponse (loadExportTile, utilities.js).
-                (await mapWithConcurrency(tileJobs, 8, async job => {
-                    const img = await loadExportTile(job.safeUrl);
-                    downloadedCount++; if (onProgress) onProgress(downloadedCount * progressFactor);
-                    return img ? { img, x: job.x, y: job.y, success: true } : { success: false };
-                })).forEach(tileResult => {
-                    if (tileResult.success) {
+                // Reprises d'une tuile refusée ou sans réponse, puis choix de
+                // l'utilisateur pour celles perdues (loadExportTiles, utilities.js).
+                (await loadExportTiles(tileJobs, async job => {
+                    const img = await loadExportTile(job.url);
+                    downloadedCount++; if (onProgress) onProgress(Math.min(100, downloadedCount * progressFactor));
+                    return img ? { img, x: job.x, y: job.y, success: true } : null;
+                }, { layerName: fondsLayerName(layer) })).forEach(tileResult => {
+                    if (tileResult) {
                         tempCtx.drawImage(tileResult.img, tileResult.x * TILE_SIZE - originX, tileResult.y * TILE_SIZE - originY);
                     }
                 });

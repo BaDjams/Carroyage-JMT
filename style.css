@@ -761,3 +761,34 @@ body.ftm-open { overflow: hidden; }
   .map-base-select { height: 44px; }
   .map-base-row { min-height: 44px; }
 }
+
+/* Tuiles perdues malgré les reprises (askLostTiles, utilities.js) : l'export
+   attend la décision — réessayer, continuer sans elles, annuler. */
+.lost-tiles-dialog { position: fixed; inset: 0; z-index: 10000; display: flex; align-items: center; justify-content: center; padding: 16px; background: rgba(0,0,0,0.5); }
+.lost-tiles-box { width: 100%; max-width: 28rem; background: #fff; color: #111827; border-radius: 10px; padding: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.3); }
+.lost-tiles-box h3 { margin: 0 0 8px; font-size: 1.1rem; font-weight: 600; }
+.lost-tiles-count { margin: 0 0 8px; font-size: 0.9rem; }
+.lost-tiles-help { margin: 0 0 12px; font-size: 0.78rem; color: #4b5563; }
+.lost-tiles-remember { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; font-size: 0.78rem; }
+.lost-tiles-remember[hidden] { display: none; }
+.lost-tiles-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
+.lost-btn { padding: 8px 12px; border-radius: 6px; border: 1px solid #d1d5db; background: transparent; color: inherit; font-size: 0.875rem; cursor: pointer; }
+.lost-btn:hover { background: #f3f4f6; }
+.lost-btn-cancel { border-color: transparent; color: #dc2626; }
+.lost-btn-retry { border-color: #2563eb; background: #2563eb; color: #fff; font-weight: 600; }
+.lost-btn-retry:hover { background: #1d4ed8; }
+.dark .lost-tiles-box { background: #1f2937; color: #f3f4f6; }
+.dark .lost-tiles-help { color: #d1d5db; }
+.dark .lost-btn { border-color: #4b5563; }
+.dark .lost-btn:hover { background: #374151; }
+.dark .lost-btn-cancel { border-color: transparent; color: #f87171; }
+.dark .lost-btn-retry { border-color: #2563eb; background: #2563eb; }
+/* Rappel du fond choisi (fonds.js) : ce Tailwind précompilé n'a pas de variantes « dark: ». */
+.dark .fonds-label { background-color: #374151; border-color: #4b5563; color: #fff; }
+.dark .fonds-label:hover { background-color: #4b5563; }
+/* Même choix dans la carte d'un travail de Créer MBTiles. */
+.job-lost-tiles { margin-top: 8px; padding: 8px 10px; border: 1px solid #fdba74; border-radius: 6px; background: #fff7ed; color: #7c2d12; font-size: 0.8rem; }
+.job-lost-text { margin: 0 0 4px; font-weight: 600; }
+.job-lost-help { margin: 0 0 8px; font-size: 0.75rem; }
+.job-lost-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; }
+.dark .job-lost-tiles { background: #431407; border-color: #9a3412; color: #fed7aa; }

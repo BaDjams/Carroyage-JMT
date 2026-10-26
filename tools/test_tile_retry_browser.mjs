@@ -84,6 +84,7 @@ try {
             default: return route.fulfill({ status: 200, headers, body: VERT });
         }
     });
+    await page.exposeFunction('reparerServeur', () => { perdues = new Set(); });
     await page.goto(base, { waitUntil: 'load' });
     await page.locator('button[data-mode="zone"]').click();
     await page.waitForFunction(() => window.zoneMap && typeof generateZonePNG === 'function' && typeof fetchExportTile === 'function');
@@ -99,23 +100,38 @@ try {
     // (zoneDownloader.js), appelés tels que l'application les appelle. Rend le
     // bilan des tuiles et le nombre de pixels restés vides.
     const BBOX = { north: 48.41, south: 48.38, west: -4.49, east: -4.44 };
-    const assembler = (quoi) => page.evaluate(async ({ quoi, b }) => {
+    // `reponse` : ce que l'utilisateur choisit devant des tuiles perdues
+    // (askLostTiles) — 'continue', 'cancel', ou 'retry' après réparation du serveur.
+    const assembler = (quoi, reponse = null) => page.evaluate(async ({ quoi, b, reponse }) => {
+        const questions = [];
+        askLostTiles.answer = reponse && (async (count, info) => {
+            questions.push({ count, layerName: info.layerName });
+            if (reponse === 'retry') { await window.reparerServeur(); return { choice: 'retry' }; }
+            return { choice: reponse };
+        });
         beginExportTileStats();
         let canvas;
-        if (quoi === 'rapide') {
-            canvas = (await createFinalCanvasWithLayers(b, 15, fondsConfig(), () => {})).canvas;
-        } else {
-            const nw = zdLatLonToWorldPixels(b.north, b.west, 15), se = zdLatLonToWorldPixels(b.south, b.east, 15);
-            canvas = document.createElement('canvas');
-            canvas.width = Math.ceil(se.x - nw.x); canvas.height = Math.ceil(se.y - nw.y);
-            await zdPaintTiles(canvas.getContext('2d'), nw, se, 15, fondsConfig(), 't=1');
+        try {
+            if (quoi === 'rapide') {
+                canvas = (await createFinalCanvasWithLayers(b, 15, fondsConfig(), () => {})).canvas;
+            } else {
+                const nw = zdLatLonToWorldPixels(b.north, b.west, 15), se = zdLatLonToWorldPixels(b.south, b.east, 15);
+                canvas = document.createElement('canvas');
+                canvas.width = Math.ceil(se.x - nw.x); canvas.height = Math.ceil(se.y - nw.y);
+                await zdPaintTiles(canvas.getContext('2d'), nw, se, 15, fondsConfig(), 't=1');
+            }
+        } catch (e) {
+            endExportTileStats();
+            return { annule: e.name, questions };
+        } finally {
+            askLostTiles.answer = null;
         }
         const stats = endExportTileStats();
         const d = canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height).data;
         let vides = 0;
         for (let i = 3; i < d.length; i += 4) if (d[i] === 0) vides++;
-        return { stats, vides, total: canvas.width * canvas.height };
-    }, { quoi, b: BBOX });
+        return { stats, vides, total: canvas.width * canvas.height, questions };
+    }, { quoi, b: BBOX, reponse });
 
     for (const quoi of ['rapide', 'zone']) {
         essais.clear();
@@ -135,14 +151,30 @@ try {
     assert.ok(absente.vides >= 200 * 200 && absente.vides <= 256 * 256, `tuile absente : ${absente.vides} pixels vides`);
     absentes = new Set();
 
-    // Tuile perdue pour de bon : tous les essais, puis le bilan la compte.
-    essais.clear();
-    perdues = new Set(['15/15977/11336']);
-    const perdue = await assembler('zone');
-    assert.equal(essais.get('15/15977/11336'), 6, 'une tuile refusée a droit à six essais');
-    assert.equal(perdue.stats.failed, 1);
+    // Tuile perdue pour de bon : tous les essais, puis la question. Sans perte
+    // (plus haut), aucune question n'a été posée.
+    const T = '15/15977/11336';
+    // « Continuer sans elles » : case vide, bilan sans perte (choix de l'utilisateur).
+    essais.clear(); perdues = new Set([T]);
+    const continuer = await assembler('zone', 'continue');
+    assert.equal(essais.get(T), 6, 'une tuile refusée a droit à six essais');
+    assert.deepEqual(continuer.questions, [{ count: 1, layerName: 'Essai' }]);
+    assert.equal(continuer.stats.failed, 0);
+    assert.equal(continuer.stats.accepted, 1);
+    assert.ok(continuer.vides >= 200 * 200, `case laissée vide : ${continuer.vides} pixels`);
+    // « Réessayer » une fois le serveur revenu : la tuile est là.
+    essais.clear(); perdues = new Set([T]);
+    const reessayer = await assembler('rapide', 'retry');
+    assert.equal(reessayer.questions.length, 1);
+    assert.equal(essais.get(T), 7, 'six essais, la question, puis le septième réussit');
+    assert.equal(reessayer.vides, 0);
+    assert.equal(reessayer.stats.failed, 0);
+    // « Annuler » : l'export s'arrête.
+    essais.clear(); perdues = new Set([T]);
+    const annuler = await assembler('zone', 'cancel');
+    assert.equal(annuler.annule, 'ExportCancelledError');
 
-    // Export de zone complet : l'image sort, et l'alerte dit ce qui manque.
+    // Export de zone complet, fenêtre réelle : elle dit combien de tuiles et de quel fond.
     await page.evaluate(() => {
         zoneMap.invalidateSize();
         zoneMap.setView([48.395, -4.465], 15, { animate: false });
@@ -151,29 +183,80 @@ try {
         document.querySelector('input[name="image-format-zone"][value="png"]').checked = true;
         zoneMap.fire(L.Draw.Event.CREATED, { layer: L.rectangle([[48.38, -4.49], [48.41, -4.44]]), layerType: 'rectangle' });
     });
-    const [download] = await Promise.all([page.waitForEvent('download', { timeout: 60000 }), page.evaluate(() => generateZonePNG())]);
-    assert.ok(await download.path());
-    const alerte = await page.locator('#error-message').textContent();
-    assert.equal(await page.locator('#error-message').isVisible(), true, 'aucune alerte');
-    assert.match(alerte, /1 tuile du fond de carte \(sur \d+\) n'a pas pu être téléchargée malgré 5 nouvelles tentatives/);
+    const fenetre = page.locator('.lost-tiles-dialog');
+    // Annuler : aucune image, l'export le dit.
+    essais.clear(); perdues = new Set([T]);
+    const enCours = page.evaluate(() => generateZonePNG());
+    await fenetre.waitFor({ timeout: 60000 });
+    assert.match(await fenetre.locator('.lost-tiles-count').textContent(), /^1 tuile du fond « Essai » \(sur \d+\) n'a pas pu être téléchargée malgré 6 tentatives espacées\.$/);
+    assert.match(await fenetre.textContent(), /en pleine mer/);
+    await fenetre.locator('[data-choice="cancel"]').click();
+    await enCours;
+    assert.equal(await fenetre.count(), 0);
+    assert.match(await page.locator('#error-message').textContent(), /Export annulé/);
+    // Continuer : l'image sort, sans alerte (l'utilisateur a choisi).
+    essais.clear();
+    const telechargement = page.waitForEvent('download', { timeout: 60000 });
+    const enCours2 = page.evaluate(() => generateZonePNG());
+    await fenetre.waitFor({ timeout: 60000 });
+    await fenetre.locator('[data-choice="continue"]').click();
+    assert.ok(await (await telechargement).path());
+    await enCours2;
+    assert.equal(await page.locator('#error-message').isVisible(), false, 'alerte après « continuer »');
     perdues = new Set();
 
-    // Sans perte, aucune alerte.
+    // Sans perte, ni question ni alerte.
     essais.clear();
     const [download2] = await Promise.all([page.waitForEvent('download', { timeout: 60000 }), page.evaluate(() => generateZonePNG())]);
     assert.ok(await download2.path());
     assert.equal(await page.locator('#error-message').isVisible(), false, 'alerte sans tuile perdue');
 
-    // Créer MBTiles : le travail tient son propre bilan.
-    const mbtiles = await page.evaluate(async () => {
-        const stats = newExportTileStats();
-        const blobs = await Promise.all(['15/15975/11334', '15/15976/11335', '15/15977/11336'].map(k => fetchExportTile(`https://tuiles.test/${k}.png`, { stats })));
-        return { ok: blobs.every(b => b && b.size > 0), ...exportTileCounts(stats) };
-    });
-    assert.deepEqual({ ok: mbtiles.ok, failed: mbtiles.failed, requested: mbtiles.requested }, { ok: true, failed: 0, requested: 3 });
+    // ---- Créer MBTiles : la question dans la carte du travail ----
+    await page.locator('button[data-mode="creator"]').click();
+    await page.waitForFunction(() => typeof MbtilesJob === 'function' && typeof creatorMap !== 'undefined' && creatorMap && typeof window.initSqlJs === 'function');
+    const travail = async () => {
+        await page.evaluate(() => {
+            window.showSaveFilePicker = undefined;
+            const job = new MbtilesJob(window.__jobId = (window.__jobId || 900) + 1, L.latLngBounds([48.38, -4.49], [48.41, -4.44]), [15], fondsConfig(), 'essai-tuiles', false, null, 'origine', null);
+            activeJobs.push(job); window.__job = job; job.start();
+        });
+        return page.locator('#job-' + await page.evaluate(() => window.__job.id));
+    };
+    const lireMbtiles = async (dl) => page.evaluate(async b64 => {
+        const SQL = await window.initSqlJs({ locateFile: f => f });
+        const db = new SQL.Database(Uint8Array.from(atob(b64), c => c.charCodeAt(0)));
+        const n = db.exec('SELECT COUNT(*) FROM tiles')[0].values[0][0];
+        db.close();
+        return n;
+    }, readFileSync(await dl.path()).toString('base64'));
+    // Réessayer une fois le serveur revenu : le fichier est complet.
+    essais.clear(); perdues = new Set([T]);
+    let carte = await travail();
+    await carte.locator('.job-lost-tiles').waitFor({ timeout: 60000 });
+    assert.match(await carte.locator('.job-lost-text').textContent(), /^1 tuile sur 25 n'a pas pu être téléchargée/);
+    assert.equal(await page.locator(`#job-status-${await page.evaluate(() => window.__job.id)}`).textContent(), 'TUILES MANQUANTES');
+    perdues = new Set();
+    let dl = page.waitForEvent('download', { timeout: 60000 });
+    await carte.locator('[data-choice="retry"]').click();
+    assert.equal(await lireMbtiles(await dl), 25);
+    // Continuer sans elle : 24 tuiles, et la carte le rappelle.
+    essais.clear(); perdues = new Set([T]);
+    carte = await travail();
+    await carte.locator('.job-lost-tiles').waitFor({ timeout: 60000 });
+    dl = page.waitForEvent('download', { timeout: 60000 });
+    await carte.locator('[data-choice="continue"]').click();
+    assert.equal(await lireMbtiles(await dl), 24);
+    assert.match(await carte.textContent(), /1 tuile laissée de côté à votre demande/);
+    // Annuler : pas de fichier.
+    essais.clear();
+    carte = await travail();
+    await carte.locator('.job-lost-tiles').waitFor({ timeout: 60000 });
+    await carte.locator('[data-choice="cancel"]').click();
+    assert.equal(await page.evaluate(() => window.__job.status), 'cancelled');
+    perdues = new Set();
 
     assert.deepEqual(errors, []);
-    console.log('Tuiles refusées, coupées ou sans réponse : retentées, image complète ; tuile perdue signalée.');
+    console.log('Tuiles refusées, coupées ou sans réponse : retentées ; tuile perdue : réessayer, continuer ou annuler, en image comme en MBTiles.');
 } finally {
     await browser.close();
     server.close();
