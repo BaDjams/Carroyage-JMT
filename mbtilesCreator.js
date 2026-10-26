@@ -556,6 +556,7 @@ class MbtilesJob {
         this.zone = zone;
         // Tuiles perdues malgré les reprises (fetchExportTile, utilities.js) : dites à la fin.
         this.tileStats = newExportTileStats();
+        this.lostTiles = [];   // [{ tile, urls }] perdues malgré les reprises
         this.id = id;
         this.bounds = bounds;
         this.zooms = zooms;
@@ -694,7 +695,8 @@ class MbtilesJob {
     updateUI() {
         const status = document.getElementById(`job-status-${this.id}`);
         if (!status) return;
-        status.textContent = { pending: 'EN ATTENTE', running: 'EN COURS', paused: 'EN PAUSE', done: 'TERMINÉ', error: 'ERREUR', cancelled: 'ANNULÉ' }[this.status] || '';
+        status.textContent = { pending: 'EN ATTENTE', running: 'EN COURS', paused: 'EN PAUSE', attention: 'TUILES MANQUANTES', done: 'TERMINÉ', error: 'ERREUR', cancelled: 'ANNULÉ' }[this.status] || '';
+        if (this.status === 'attention') status.className = "text-xs font-mono text-orange-600 font-bold";
         if (this.status === 'done') status.className = "text-xs font-mono text-green-600 font-bold";
         else if (this.status === 'error' || this.status === 'cancelled') status.className = "text-xs font-mono text-red-600 font-bold";
     }
@@ -800,10 +802,10 @@ class MbtilesJob {
     // Dessine une couche Yandex reprojetée sur le canvas de la tuile (1-2
     // bandes assemblées au pixel près) → true si au moins une bande a pu être
     // dessinée. Chargement des sources en parallèle, dessin nord→sud ensuite.
-    async _drawYandexLayer(canvas, ctx, layer, tile) {
+    async _drawYandexLayer(canvas, ctx, layer, tile, stats = this.tileStats) {
         const bands = this._yandexBands(layer, tile);
         // Reprises d'une tuile refusée ou sans réponse (loadExportTile, utilities.js).
-        const imgs = await Promise.all(bands.map(b => loadExportTile(b.url, { stats: this.tileStats })));
+        const imgs = await Promise.all(bands.map(b => loadExportTile(b.url, { stats, offshore: stats?.tileBounds })));
         let drawn = 0;
         for (let i = 0; i < bands.length; i++) {
             const img = imgs[i];
@@ -820,13 +822,32 @@ class MbtilesJob {
     }
 
     // Récupère une tuile → retourne le blob à stocker (ou null si vide/échec).
+    // Une tuile dont un téléchargement est perdu malgré les reprises entre dans
+    // `lostTiles` : l'utilisateur choisira à la fin (cf. processQueue).
     async _processTile(tile) {
+        const stats = newExportTileStats();
+        // Emprise de la tuile : en échec au large, elle est abandonnée d'office
+        // (isOffshore, utilities.js). Pas pour le relief, qui EST la donnée d'altitude.
+        stats.tileBounds = tile.mnt ? null : tileBoundsLonLat(tile.z, tile.x, tile.y);
+        try {
+            return await this._processTileWith(tile, stats);
+        } finally {
+            stats.requested.forEach(u => this.tileStats.requested.add(u));
+            stats.failed.forEach(u => this.tileStats.failed.add(u));
+            stats.offshore.forEach(u => { this.tileStats.offshore.add(u); this.tileStats.accepted.add(u); });
+            if (stats.offshore.size && !stats.failed.size) this.offshoreTileCount = (this.offshoreTileCount || 0) + 1;
+            this.tileStats.retried += stats.retried;
+            if (stats.failed.size) this.lostTiles.push({ tile, urls: [...stats.failed] });
+        }
+    }
+
+    async _processTileWith(tile, stats) {
         // Tuile MNT : toujours mono-source, passthrough — jamais composée avec le
         // fond, même si celui-ci est multi-couches ou Yandex.
         if (tile.mnt) {
             return this._fetchRawTile(
                 MNT_TILE_URL.replace('{z}', tile.z).replace('{x}', tile.x).replace('{y}', tile.y),
-                false
+                false, stats
             );
         }
 
@@ -847,7 +868,7 @@ class MbtilesJob {
         // source) ne peut jamais être un simple octet-pour-octet.
         if (this.layerConfig.layers.length === 1 && !hasYandex) {
             const [raw, drawIso] = await Promise.all([
-                this._fetchRawTile(this._layerUrl(this.layerConfig.layers[0], tile)),
+                this._fetchRawTile(this._layerUrl(this.layerConfig.layers[0], tile), true, stats),
                 isoPromise,
             ]);
             // Seules les tuiles qui portent des isobathes, ou qui ne sont pas au
@@ -872,10 +893,10 @@ class MbtilesJob {
         let hasContent = false;
         for (const layer of this.layerConfig.layers) {
             const ok = layer.type === 'yandex'
-                ? await this._drawYandexLayer(canvas, ctx, layer, tile)
+                ? await this._drawYandexLayer(canvas, ctx, layer, tile, stats)
                 : layer.type === 'arcgis-cache'
                 ? await agcDrawTile(layer, ctx, tile.z, tile.x, tile.y, 0, 0, this._agcLoad ??= agcImageCache(256))
-                : await this.fetchAndDrawLayer(this._layerUrl(layer, tile), canvas, ctx);
+                : await this.fetchAndDrawLayer(this._layerUrl(layer, tile), canvas, ctx, stats);
             if (ok) hasContent = true;
         }
         const drawIso = await isoPromise;
@@ -933,9 +954,9 @@ class MbtilesJob {
     // Télécharge une tuile et renvoie le blob brut, sans la décoder ni la
     // ré-encoder. Détecte le format réel (une fois par job) pour les métadonnées.
     // Reprises d'une tuile refusée ou sans réponse (fetchExportTile, utilities.js).
-    async _fetchRawTile(url, detectBaseFormat = true) {
+    async _fetchRawTile(url, detectBaseFormat = true, stats = this.tileStats) {
         try {
-            const blob = await fetchExportTile(url, { stats: this.tileStats });
+            const blob = await fetchExportTile(url, { stats, offshore: stats?.tileBounds });
             if (!blob) return null;
             const head = new Uint8Array(await blob.slice(0, 16).arrayBuffer());
             const sniffed = this._sniffFormat(head);
@@ -969,7 +990,7 @@ class MbtilesJob {
         const CONCURRENCY = 6;
         const tiles = [...this.tileGenerator()];  // on matérialise pour pouvoir gérer la pause
 
-        let i = 0;
+        let queue = tiles, i = 0, retrying = false;
         this.storedTiles = 0;
         const writeTile = async (tile, blob) => {
             const tmsY = (1 << tile.z) - 1 - tile.y;
@@ -1001,11 +1022,11 @@ class MbtilesJob {
                 if (this.isCancelled) return;
 
                 const idx = i++;
-                if (idx >= tiles.length) return;
+                if (idx >= queue.length) return;
 
-                const tile = tiles[idx];
+                const tile = queue[idx];
                 const step = tile.mnt ? 'mnt' : `z${tile.z}`;
-                this.steps.start(step);
+                if (!retrying) this.steps.start(step);
                 try {
                     const blob = await this._processTile(tile);
                     if (blob) await writeTile(tile, blob);
@@ -1013,6 +1034,7 @@ class MbtilesJob {
                     console.warn(`Failed tile ${tile.z}/${tile.x}/${tile.y}`, err);
                 }
 
+                if (retrying) continue;   // déjà comptées au premier passage
                 this.processedTiles++;
                 this.steps.advance(step);
                 if (this.processedTiles % CONCURRENCY === 0) {
@@ -1024,6 +1046,25 @@ class MbtilesJob {
 
         // Lance CONCURRENCY workers en parallèle, attend qu'ils aient tous fini
         await Promise.all(Array.from({ length: CONCURRENCY }, worker));
+
+        // Tuiles perdues malgré les reprises : l'utilisateur choisit — réessayer
+        // (autant de fois que voulu), continuer sans elles (en pleine mer, un
+        // serveur répond parfois par une erreur là où il n'a rien), ou annuler.
+        while (this.lostTiles.length && !this.isCancelled) {
+            const choice = await this._askLostTiles(this.lostTiles.length, queue === tiles ? tiles.length : null);
+            if (choice === 'cancel') { this.cancel(); return; }
+            if (choice === 'continue') {
+                this.acceptedTileCount = (this.acceptedTileCount || 0) + this.lostTiles.length;
+                this.lostTiles.forEach(l => l.urls.forEach(u => this.tileStats.accepted.add(u)));
+                this.lostTiles = [];
+                break;
+            }
+            const again = this.lostTiles;
+            this.lostTiles = [];
+            again.forEach(l => l.urls.forEach(u => this.tileStats.failed.delete(u)));
+            queue = again.map(l => l.tile); i = 0; retrying = true;
+            await Promise.all(Array.from({ length: CONCURRENCY }, worker));
+        }
 
         if (!this.isCancelled) {
             this.steps.start('asm');
@@ -1077,8 +1118,8 @@ class MbtilesJob {
     }
 
     // Reprises d'une tuile refusée ou sans réponse (loadExportTile, utilities.js).
-    async fetchAndDrawLayer(url, canvas, ctx) {
-        const img = await loadExportTile(url, { stats: this.tileStats });
+    async fetchAndDrawLayer(url, canvas, ctx, stats = this.tileStats) {
+        const img = await loadExportTile(url, { stats, offshore: stats?.tileBounds });
         if (img) ctx.drawImage(img, 0, 0, 256, 256);
         return !!img;
     }
@@ -1129,6 +1170,20 @@ class MbtilesJob {
                 note.textContent = `${lost.failed} tuile${lost.failed > 1 ? 's' : ''} sur ${lost.requested} n'${lost.failed > 1 ? 'ont' : 'a'} pas pu être téléchargée${lost.failed > 1 ? 's' : ''} malgré plusieurs tentatives (serveur saturé) : elle${lost.failed > 1 ? 's manquent' : ' manque'} au fichier. Relancez le travail dans quelques instants pour une carte complète.`;
                 container.appendChild(note);
             }
+            if (this.offshoreTileCount) {
+                const n = this.offshoreTileCount;
+                const note = document.createElement('p');
+                note.className = "mt-1 text-xs text-gray-600 dark:text-gray-300";
+                note.textContent = `${n} tuile${n > 1 ? 's' : ''} en mer, à plus de ${OFFSHORE_SKIP_KM} km des côtes, non servie${n > 1 ? 's' : ''} : laissée${n > 1 ? 's' : ''} de côté d'office.`;
+                container.appendChild(note);
+            }
+            if (this.acceptedTileCount) {
+                const n = this.acceptedTileCount;
+                const note = document.createElement('p');
+                note.className = "mt-1 text-xs text-gray-600 dark:text-gray-300";
+                note.textContent = `${n} tuile${n > 1 ? 's' : ''} laissée${n > 1 ? 's' : ''} de côté à votre demande (non téléchargeable${n > 1 ? 's' : ''}).`;
+                container.appendChild(note);
+            }
 
             if (this.isobaths) {
                 const note = document.createElement('p');
@@ -1170,6 +1225,43 @@ class MbtilesJob {
             document.getElementById(`job-pause-${this.id}`).textContent = "Pause";
         }
         this.updateUI();
+    }
+
+    // Choix dans la carte du travail (le travail tourne en arrière-plan : pas de
+    // fenêtre qui bloquerait la page). Rend 'retry', 'continue' ou 'cancel'.
+    // `askLostTiles.answer` (utilities.js), si posé, répond à la place (essais).
+    _askLostTiles(count, total) {
+        if (typeof askLostTiles.answer === 'function') {
+            const a = askLostTiles.answer(count, { total, job: this.id });
+            return Promise.resolve(a?.choice || a);
+        }
+        const container = document.getElementById(`job-${this.id}`);
+        if (!container) return Promise.resolve('continue');
+        const previous = this.status;
+        this.status = 'attention';
+        this.updateUI();
+        return new Promise(resolve => {
+            const s = count > 1;
+            const box = document.createElement('div');
+            box.className = 'job-lost-tiles';
+            box.innerHTML = `<p class="job-lost-text"></p>
+                <p class="job-lost-help">Serveur saturé : réessayez dans un instant. Tuiles qui n'existent pas (en pleine mer, hors de la zone couverte par ce fond) : continuez, elles manqueront au fichier.</p>
+                <div class="job-lost-actions">
+                    <button type="button" data-choice="cancel" class="lost-btn lost-btn-cancel">Annuler</button>
+                    <button type="button" data-choice="continue" class="lost-btn">Continuer sans elles</button>
+                    <button type="button" data-choice="retry" class="lost-btn lost-btn-retry">Réessayer</button>
+                </div>`;
+            box.querySelector('.job-lost-text').textContent = `${count} tuile${s ? 's' : ''}${total ? ` sur ${total}` : ''} n'${s ? 'ont' : 'a'} pas pu être téléchargée${s ? 's' : ''} malgré ${exportTileTiming.tries} tentatives espacées.`;
+            box.addEventListener('click', e => {
+                const choice = e.target.closest('[data-choice]')?.dataset.choice;
+                if (!choice) return;
+                box.remove();
+                if (choice !== 'cancel') { this.status = previous; this.updateUI(); }
+                resolve(choice);
+            });
+            const steps = container.querySelector('.job-steps');
+            if (steps) steps.after(box); else container.appendChild(box);
+        });
     }
 
     cancel() {

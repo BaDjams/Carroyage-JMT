@@ -157,6 +157,12 @@ function fondsConfig(state = fondsState()) {
     };
 }
 
+/** Nom de l'entrée du catalogue (fond ou surcouche) à laquelle appartient une couche de `layers`. */
+function fondsLayerName(layer) {
+    const all = [...(typeof MAP_LAYERS !== 'undefined' ? MAP_LAYERS : []), ...(typeof MAP_OVERLAYS !== 'undefined' ? MAP_OVERLAYS : [])];
+    return all.find(c => c.layers.includes(layer))?.name || '';
+}
+
 /** Nom du choix en cours, tel que le montre le menu (« Ortho IGN + Routes Google »). */
 function fondsName(state = fondsState()) {
     return fondsConfig(state)?.name || '';
@@ -311,5 +317,5 @@ function fondsAttach(map, { position = 'topright' } = {}) {
 Object.assign(window, {
     FONDS_STACK_Z, FOND_KINDS, FONDS_LEGACY_BASES, FONDS_STORAGE_KEY, FONDS_DEFAULT_BASE, FONDS_DEFAULT_OVERLAYS,
     fondsCurrentBaseId, fondsToggleOverlay, fondsNormalizeState, fondsCatalogue,
-    fondsState, fondsSet, fondsSubscribe, fondsConfig, fondsName, fondsAttach,
+    fondsState, fondsSet, fondsSubscribe, fondsConfig, fondsName, fondsLayerName, fondsAttach,
 });

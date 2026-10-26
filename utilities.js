@@ -477,17 +477,26 @@ const _sleep = ms => new Promise(r => setTimeout(r, ms));
 // Ouvre le bilan d'un export : tuiles demandées, et celles perdues malgré les reprises.
 // Tuiles comptées une fois chacune : un export par bandes redemande à son voisin
 // une tuile qu'ils se partagent.
+// `accepted` : tuiles perdues que l'utilisateur a choisi de laisser vides
+// (askLostTiles) — plus redemandées ni signalées pendant cet export ;
+// `autoContinue` : « ne plus demander pour cet export ».
 function newExportTileStats() {
-    return { requested: new Set(), failed: new Set(), retried: 0 };
+    return { requested: new Set(), failed: new Set(), accepted: new Set(), offshore: new Set(), retried: 0, autoContinue: false };
 }
 function beginExportTileStats() {
     _exportTileStats = newExportTileStats();
     return _exportTileStats;
 }
 
-// Bilan en nombres : { requested, failed, retried }.
+// Bilan en nombres : { requested, failed, retried, accepted }. `failed` ne compte
+// pas les tuiles laissées vides de l'accord de l'utilisateur (`accepted`).
+// `offshore` : tuiles en échec au large, abandonnées d'office (isOffshore) ;
+// `accepted` : celles que l'utilisateur a choisi de laisser vides.
 function exportTileCounts(s) {
-    return s ? { requested: s.requested.size, failed: s.failed.size, retried: s.retried } : { requested: 0, failed: 0, retried: 0 };
+    if (!s) return { requested: 0, failed: 0, retried: 0, accepted: 0, offshore: 0 };
+    const failed = [...s.failed].filter(u => !s.accepted.has(u)).length;
+    const offshore = s.offshore ? s.offshore.size : 0;
+    return { requested: s.requested.size, failed, retried: s.retried, accepted: s.accepted.size - offshore, offshore };
 }
 
 // Ferme le bilan et le rend : { requested, failed, retried } en nombres.
@@ -509,11 +518,16 @@ function exportTileWarning(stats) {
 // Contenu d'une tuile (Blob), ou null si elle est absente ou perdue. Reprises et
 // pause commune comme décrit plus haut. La tuile entre au bilan `stats`
 // (newExportTileStats : un travail de Créer MBTiles a le sien), sinon à celui de
-// l'export en cours ; `count: false` l'en dispense.
-async function fetchExportTile(url, { count = true, stats: own = null } = {}) {
+// l'export en cours ; `count: false` l'en dispense. `offshore` : emprise de la
+// tuile ({ west, south, east, north }) ; au premier échec, une tuile au large
+// (isOffshore) est abandonnée d'office, sans reprise ni question.
+async function fetchExportTile(url, { count = true, stats: own = null, offshore = null } = {}) {
     const stats = own || (count ? _exportTileStats : null);
     if (stats) stats.requested.add(url);
+    // Laissée vide de l'accord de l'utilisateur : un bloc voisin ne la redemande pas.
+    if (stats?.accepted.has(url)) return null;
     const { tries, timeout, pauses } = exportTileTiming;
+    let auLarge = false;
     for (let attempt = 0; attempt < tries; attempt++) {
         const wait = _exportTilePauseUntil - Date.now();
         if (wait > 0) await _sleep(wait);
@@ -536,6 +550,19 @@ async function fetchExportTile(url, { count = true, stats: own = null } = {}) {
         }
         if (EXPORT_TILE_ABSENT.has(status)) return null;
         if (EXPORT_TILE_DENIED.has(status)) break;
+        // Au large : une seule reprise, après une pause propre à la tuile (un
+        // refus passager du serveur ne doit pas trouer une image de la mer qui
+        // existe), puis abandon d'office, sans pause commune ni question.
+        if (offshore && attempt === 0 && await isOffshore(offshore)) auLarge = true;
+        if (auLarge) {
+            if (attempt >= OFFSHORE_TRIES - 1) {
+                if (stats) { stats.offshore.add(url); stats.accepted.add(url); }
+                return null;
+            }
+            if (stats) stats.retried++;
+            await _sleep(pauses[0]);
+            continue;
+        }
         if (attempt < tries - 1) {
             if (stats) stats.retried++;
             const pause = pauses[Math.min(attempt, pauses.length - 1)] * (0.75 + Math.random() * 0.5);
@@ -563,6 +590,184 @@ async function loadExportTile(url, options) {
         return null;
     } finally {
         URL.revokeObjectURL(src);
+    }
+}
+
+// =======================================================================
+// TUILES AU LARGE : abandonnées d'office
+// =======================================================================
+// En pleine mer, certains serveurs répondent par une erreur là où ils n'ont rien.
+// Une tuile qui échoue et se trouve à plus de OFFSHORE_SKIP_KM de toute terre
+// n'a droit qu'à une reprise, sans les pauses communes qui ralentiraient tout
+// l'export, et n'est pas soumise à l'utilisateur : sa case reste vide. Une tuile de mer qui arrive
+// normalement (image satellite de la mer) est gardée : seul l'échec est concerné.
+//
+// La terre se lit sur les tuiles d'altitude Terrarium (SRTM à terre, bathymétrie
+// ETOPO en mer), déjà employées pour le relief de Créer MBTiles. « Au large » :
+// tous les points de la tuile élargie de 5 km sont à plus de 10 m sous le niveau
+// de la mer — les polders (−7 m au plus bas) et les hauts-fonds restent « près
+// des côtes », et leurs tuiles en échec sont soumises à l'utilisateur. Sans ces
+// tuiles d'altitude (hors ligne), rien n'est décidé d'office.
+const OFFSHORE_SKIP_KM = 5;
+const OFFSHORE_DEPTH_M = -10;
+const OFFSHORE_TRIES = 2;              // au large : un essai et une reprise
+const OFFSHORE_DEM_URL = 'https://elevation-tiles-prod.s3.amazonaws.com/terrarium/{z}/{x}/{y}.png';
+const OFFSHORE_DEM_ZOOM = 10;          // pixel de ~100 m en France : les îlots se voient
+const OFFSHORE_MAX_DEM_TILES = 36;     // au-delà (tuile d'export immense), on ne décide pas
+const _offshoreDem = new Map();        // 'z/x/y' → Promise<{ w, data } | null>
+
+// Altitudes d'une tuile Terrarium (Float32Array 256 × 256), ou null.
+function _offshoreDemTile(x, y) {
+    const key = `${OFFSHORE_DEM_ZOOM}/${x}/${y}`;
+    if (!_offshoreDem.has(key)) {
+        if (_offshoreDem.size > 64) _offshoreDem.delete(_offshoreDem.keys().next().value);
+        _offshoreDem.set(key, (async () => {
+            const url = OFFSHORE_DEM_URL.replace('{z}', OFFSHORE_DEM_ZOOM).replace('{x}', x).replace('{y}', y);
+            const ctrl = typeof AbortController === 'function' ? new AbortController() : null;
+            const timer = ctrl ? setTimeout(() => ctrl.abort(), 10000) : null;
+            try {
+                const res = await fetch(url, { mode: 'cors', credentials: 'omit', signal: ctrl?.signal });
+                if (!res.ok) return null;
+                const bmp = await createImageBitmap(await res.blob());
+                const c = document.createElement('canvas');
+                c.width = bmp.width; c.height = bmp.height;
+                const ctx = c.getContext('2d', { willReadFrequently: true });
+                ctx.drawImage(bmp, 0, 0);
+                const px = ctx.getImageData(0, 0, c.width, c.height).data;
+                const data = new Float32Array(c.width * c.height);
+                for (let i = 0; i < data.length; i++) data[i] = px[i * 4] * 256 + px[i * 4 + 1] + px[i * 4 + 2] / 256 - 32768;
+                return { w: c.width, data };
+            } catch (e) {
+                return null;
+            } finally {
+                if (timer) clearTimeout(timer);
+            }
+        })());
+    }
+    return _offshoreDem.get(key);
+}
+
+// Emprise { west, south, east, north } (degrés) d'une tuile Web Mercator.
+function tileBoundsLonLat(z, x, y) {
+    const n = Math.pow(2, z);
+    const lat = t => Math.atan(Math.sinh(Math.PI * (1 - 2 * t / n))) * 180 / Math.PI;
+    return { west: x / n * 360 - 180, east: (x + 1) / n * 360 - 180, north: lat(y), south: lat(y + 1) };
+}
+
+// true si toute l'emprise, élargie de OFFSHORE_SKIP_KM, est en mer profonde (cf.
+// plus haut) ; false dès qu'un point en doute ou que l'altitude manque.
+async function isOffshore(bounds) {
+    const lat0 = (bounds.north + bounds.south) / 2;
+    const dLat = OFFSHORE_SKIP_KM / 111.32;
+    const dLon = OFFSHORE_SKIP_KM / (111.32 * Math.max(0.05, Math.cos(lat0 * Math.PI / 180)));
+    const b = { west: bounds.west - dLon, east: bounds.east + dLon, south: Math.max(-85, bounds.south - dLat), north: Math.min(85, bounds.north + dLat) };
+    const n = Math.pow(2, OFFSHORE_DEM_ZOOM), size = 256;
+    const wx = lon => (lon + 180) / 360 * n * size;
+    const wy = lat => { const s = Math.sin(lat * Math.PI / 180); return (0.5 - Math.log((1 + s) / (1 - s)) / (4 * Math.PI)) * n * size; };
+    const x0 = wx(b.west), x1 = wx(b.east), y0 = wy(b.north), y1 = wy(b.south);
+    const tx0 = Math.floor(x0 / size), tx1 = Math.floor(x1 / size), ty0 = Math.floor(y0 / size), ty1 = Math.floor(y1 / size);
+    if ((tx1 - tx0 + 1) * (ty1 - ty0 + 1) > OFFSHORE_MAX_DEM_TILES) return false;
+    // Un point tous les 2 pixels d'altitude (~200 m), 128 par côté au plus.
+    const steps = (a, c) => Math.max(2, Math.min(128, Math.ceil((c - a) / 2)));
+    const nx = steps(x0, x1), ny = steps(y0, y1);
+    const tiles = new Map();
+    for (let tx = tx0; tx <= tx1; tx++) for (let ty = ty0; ty <= ty1; ty++) {
+        const t = await _offshoreDemTile(((tx % n) + n) % n, Math.min(n - 1, Math.max(0, ty)));
+        if (!t) return false;
+        tiles.set(`${tx}/${ty}`, t);
+    }
+    for (let j = 0; j <= ny; j++) {
+        const py = y0 + (y1 - y0) * j / ny;
+        for (let i = 0; i <= nx; i++) {
+            const px = x0 + (x1 - x0) * i / nx;
+            const tx = Math.min(tx1, Math.floor(px / size)), ty = Math.min(ty1, Math.floor(py / size));
+            const t = tiles.get(`${tx}/${ty}`);
+            const u = Math.min(t.w - 1, Math.floor(px - tx * size)), v = Math.min(t.w - 1, Math.floor(py - ty * size));
+            if (!(t.data[v * t.w + u] < OFFSHORE_DEPTH_M)) return false;
+        }
+    }
+    return true;
+}
+
+// =======================================================================
+// TUILES PERDUES : l'utilisateur choisit
+// =======================================================================
+// Une tuile qui échoue encore après toutes les reprises n'est pas forcément une
+// panne : certains serveurs répondent par une erreur là où ils n'ont rien (en
+// pleine mer, hors de leur couverture). L'export s'arrête et demande : réessayer
+// ces tuiles, continuer sans elles (cases vides), ou annuler.
+
+class ExportCancelledError extends Error {
+    constructor(message = "Export annulé : des tuiles du fond de carte n'ont pas pu être téléchargées.") {
+        super(message);
+        this.name = 'ExportCancelledError';
+    }
+}
+
+// Fenêtre de choix. Rend { choice: 'retry' | 'continue' | 'cancel', remember }.
+// `remember` : « ne plus demander pour cet export » (continuer d'office).
+// `askLostTiles.answer`, si posé, répond à la place de l'utilisateur (essais).
+function askLostTiles(count, { layerName = '', total = 0, offerRemember = false } = {}) {
+    if (typeof askLostTiles.answer === 'function') return Promise.resolve(askLostTiles.answer(count, { layerName, total }));
+    return new Promise(resolve => {
+        const s = count > 1;
+        const overlay = document.createElement('div');
+        overlay.className = 'lost-tiles-dialog';
+        overlay.setAttribute('role', 'dialog');
+        overlay.setAttribute('aria-modal', 'true');
+        overlay.innerHTML = `
+            <div class="lost-tiles-box">
+                <h3>Tuiles non téléchargées</h3>
+                <p class="lost-tiles-count"></p>
+                <p class="lost-tiles-help">Serveur saturé : réessayez dans un instant. Tuiles qui n'existent pas
+                    (en pleine mer, hors de la zone couverte par ce fond) : continuez, leurs cases resteront vides.</p>
+                <label class="lost-tiles-remember" hidden><input type="checkbox"> Continuer d'office si d'autres tuiles échouent pendant cet export</label>
+                <div class="lost-tiles-actions">
+                    <button type="button" data-choice="cancel" class="lost-btn lost-btn-cancel">Annuler</button>
+                    <button type="button" data-choice="continue" class="lost-btn">Continuer sans elles</button>
+                    <button type="button" data-choice="retry" class="lost-btn lost-btn-retry">Réessayer</button>
+                </div>
+            </div>`;
+        overlay.querySelector('.lost-tiles-count').textContent = `${count} tuile${s ? 's' : ''}${layerName ? ` du fond « ${layerName} »` : ''}`
+            + `${total ? ` (sur ${total})` : ''} n'${s ? 'ont' : 'a'} pas pu être téléchargée${s ? 's' : ''} malgré `
+            + `${exportTileTiming.tries} tentatives espacées.`;
+        const remember = overlay.querySelector('.lost-tiles-remember');
+        remember.hidden = !offerRemember;
+        overlay.addEventListener('click', e => {
+            const choice = e.target.closest('[data-choice]')?.dataset.choice;
+            if (!choice) return;
+            overlay.remove();
+            resolve({ choice, remember: offerRemember && remember.querySelector('input').checked });
+        });
+        document.body.appendChild(overlay);
+        overlay.querySelector('[data-choice="retry"]').focus();
+    });
+}
+
+// Charge les tuiles `jobs` ({ url, ... }) par `loadOne` (rend un résultat, ou null
+// pour une tuile absente ou perdue), puis, s'il en reste de perdues, demande quoi
+// faire (askLostTiles) : réessayer — autant de fois que voulu —, continuer sans
+// elles (null à leur place), ou annuler (ExportCancelledError). Rend les résultats
+// dans l'ordre des jobs. Sans bilan d'export en cours, rien n'est demandé.
+// `offerRemember` : l'export recharge par blocs (bandes) et peut redemander.
+async function loadExportTiles(jobs, loadOne, { concurrency = 8, layerName = '', offerRemember = false, stats = _exportTileStats } = {}) {
+    const results = await mapWithConcurrency(jobs, concurrency, loadOne);
+    if (!stats) return results;
+    for (;;) {
+        const lost = [];
+        jobs.forEach((job, i) => { if (!results[i] && stats.failed.has(job.url) && !stats.accepted.has(job.url)) lost.push(i); });
+        if (!lost.length) return results;
+        const answer = stats.autoContinue ? { choice: 'continue' }
+            : await askLostTiles(lost.length, { layerName, total: jobs.length, offerRemember });
+        if (answer.remember) stats.autoContinue = true;
+        if (answer.choice === 'cancel') throw new ExportCancelledError();
+        if (answer.choice !== 'retry') {
+            lost.forEach(i => stats.accepted.add(jobs[i].url));
+            return results;
+        }
+        lost.forEach(i => stats.failed.delete(jobs[i].url));
+        const again = await mapWithConcurrency(lost, concurrency, i => loadOne(jobs[i]));
+        lost.forEach((i, k) => { results[i] = again[k]; });
     }
 }
 
