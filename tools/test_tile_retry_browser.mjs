@@ -7,7 +7,8 @@
 // retentées (fetchExportTile, utilities.js) : l'image sort complète. Une tuile
 // perdue pour de bon est signalée ; une tuile absente (404, hors couverture)
 // n'est pas retentée et ne l'est pas non plus. Le serveur du parcours joue ces
-// rôles ; aucune requête ne sort.
+// rôles ; aucune requête ne sort. Une tuile perdue à plus de 5 km des côtes
+// (altitudes Terrarium simulées) est abandonnée d'office, sans question.
 import http from 'node:http';
 import { readFileSync } from 'node:fs';
 import { deflateSync } from 'node:zlib';
@@ -53,9 +54,30 @@ const VERT = (() => {
 // finissent par venir. `perdues` : toujours refusées ; `absentes` : 404.
 const essais = new Map();
 let perdues = new Set(), absentes = new Set();
+// `calme` : plus de refus en série, seulement `unRefus` (refusées une fois).
+let calme = false, unRefus = new Set();
+
+// Altitudes Terrarium (isOffshore) : terre (+50 m) à l'ouest de `cote.ouest` et à
+// l'est de `cote.est`, mer (−60 m) entre les deux. Par défaut, la côte longe la
+// zone du parcours à l'ouest : toutes ses tuiles sont « près des côtes ».
+const PRES = { ouest: -4.50, est: 999 };
+let cote = PRES;
+const demandesAltitude = [];
+function terrarium(z, x, y) {
+    const raw = Buffer.alloc(256 * (1 + 256 * 3));
+    for (let px = 0; px < 256; px++) {
+        const lon = (x + (px + 0.5) / 256) / 2 ** z * 360 - 180;
+        const v = (lon < cote.ouest || lon > cote.est ? 50 : -60) + 32768;
+        for (let py = 0; py < 256; py++) raw.set([v >> 8, v & 255, 0], py * (1 + 256 * 3) + 1 + px * 3);
+    }
+    const ihdr = Buffer.alloc(13);
+    ihdr.writeUInt32BE(256, 0); ihdr.writeUInt32BE(256, 4); ihdr[8] = 8; ihdr[9] = 2;
+    return Buffer.concat([Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]), chunk('IHDR', ihdr), chunk('IDAT', deflateSync(raw)), chunk('IEND', Buffer.alloc(0))]);
+}
 const role = (key, n) => {
     if (absentes.has(key)) return 'absente';
     if (perdues.has(key)) return 'refus';
+    if (calme) return unRefus.has(key) && n === 1 ? 'refus' : 'tuile';
     const [, x, y] = key.split('/').map(Number);
     if (n === 1 && (x + y) % 2 === 0) return 'refus';
     if (n <= 2 && (x + 2 * y) % 3 === 0) return 'coupure';
@@ -71,6 +93,11 @@ try {
     await page.route('**/*', async route => {
         const url = route.request().url();
         if (url.startsWith(base)) return route.continue();
+        const dem = /terrarium\/(\d+)\/(\d+)\/(\d+)\.png/.exec(url);
+        if (dem) {
+            demandesAltitude.push(dem.slice(1).join('/'));
+            return route.fulfill({ status: 200, headers: { 'Access-Control-Allow-Origin': '*', 'Content-Type': 'image/png' }, body: terrarium(...dem.slice(1).map(Number)) });
+        }
         const m = /^https:\/\/tuiles\.test\/(\d+)\/(\d+)\/(\d+)\.png/.exec(url);
         if (!m) return route.abort();
         const key = m.slice(1).join('/'), n = (essais.get(key) || 0) + 1;
@@ -109,6 +136,7 @@ try {
             if (reponse === 'retry') { await window.reparerServeur(); return { choice: 'retry' }; }
             return { choice: reponse };
         });
+        _offshoreDem.clear();   // la côte simulée change d'un scénario à l'autre
         beginExportTileStats();
         let canvas;
         try {
@@ -151,14 +179,37 @@ try {
     assert.ok(absente.vides >= 200 * 200 && absente.vides <= 256 * 256, `tuile absente : ${absente.vides} pixels vides`);
     absentes = new Set();
 
+
     // Tuile perdue pour de bon : tous les essais, puis la question. Sans perte
     // (plus haut), aucune question n'a été posée.
     const T = '15/15977/11336';
+
+    // Au large (côte à 16 km) : une reprise, puis abandon d'office, sans question ni alerte.
+    cote = { ouest: -4.70, est: 999 }; calme = true;
+    for (const quoi of ['rapide', 'zone']) {
+        essais.clear(); perdues = new Set([T]);
+        const large = await assembler(quoi, 'cancel');   // une question annulerait l'export
+        assert.equal(large.annule, undefined, `${quoi} : tuile au large soumise à l'utilisateur`);
+        assert.deepEqual(large.questions, []);
+        assert.equal(essais.get(T), 2, `${quoi} : au large, un essai et une seule reprise`);
+        assert.equal(large.stats.offshore, 1);
+        assert.equal(large.stats.failed, 0);
+    }
+    assert.ok(demandesAltitude.every(k => k.startsWith('10/')), `altitudes : ${demandesAltitude}`);
+    // Au large, une tuile qui ne refuse qu'une fois arrive à la reprise : rien ne manque.
+    essais.clear(); perdues = new Set(); calme = true; unRefus = new Set([T]);
+    const passager = await assembler('rapide', 'cancel');
+    assert.equal(essais.get(T), 2);
+    assert.equal(passager.vides, 0, `au large, refus passager : ${passager.vides} pixels vides`);
+    assert.equal(passager.stats.offshore, 0);
+    calme = false; unRefus = new Set();
+    cote = PRES;
     // « Continuer sans elles » : case vide, bilan sans perte (choix de l'utilisateur).
     essais.clear(); perdues = new Set([T]);
     const continuer = await assembler('zone', 'continue');
     assert.equal(essais.get(T), 6, 'une tuile refusée a droit à six essais');
-    assert.deepEqual(continuer.questions, [{ count: 1, layerName: 'Essai' }]);
+    assert.deepEqual(continuer.questions, [{ count: 1, layerName: 'Essai' }], 'près des côtes, la question est posée');
+    assert.equal(continuer.stats.offshore, 0);
     assert.equal(continuer.stats.failed, 0);
     assert.equal(continuer.stats.accepted, 1);
     assert.ok(continuer.vides >= 200 * 200, `case laissée vide : ${continuer.vides} pixels`);
@@ -255,8 +306,18 @@ try {
     assert.equal(await page.evaluate(() => window.__job.status), 'cancelled');
     perdues = new Set();
 
+    // Au large : pas de question, le fichier sort sans elle et la carte le dit.
+    essais.clear(); perdues = new Set([T]); cote = { ouest: -4.70, est: 999 }; calme = true;
+    await page.evaluate(() => _offshoreDem.clear());
+    dl = page.waitForEvent('download', { timeout: 60000 });
+    carte = await travail();
+    assert.equal(await lireMbtiles(await dl), 24);
+    assert.equal(await carte.locator('.job-lost-tiles').count(), 0);
+    assert.match(await carte.textContent(), /1 tuile en mer, à plus de 5 km des côtes, non servie/);
+    perdues = new Set(); cote = PRES; calme = false;
+
     assert.deepEqual(errors, []);
-    console.log('Tuiles refusées, coupées ou sans réponse : retentées ; tuile perdue : réessayer, continuer ou annuler, en image comme en MBTiles.');
+    console.log('Tuiles refusées, coupées ou sans réponse : retentées ; au large, abandonnées d\'office ; près des côtes : réessayer, continuer ou annuler, en image comme en MBTiles.');
 } finally {
     await browser.close();
     server.close();

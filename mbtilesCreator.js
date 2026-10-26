@@ -805,7 +805,7 @@ class MbtilesJob {
     async _drawYandexLayer(canvas, ctx, layer, tile, stats = this.tileStats) {
         const bands = this._yandexBands(layer, tile);
         // Reprises d'une tuile refusée ou sans réponse (loadExportTile, utilities.js).
-        const imgs = await Promise.all(bands.map(b => loadExportTile(b.url, { stats })));
+        const imgs = await Promise.all(bands.map(b => loadExportTile(b.url, { stats, offshore: stats?.tileBounds })));
         let drawn = 0;
         for (let i = 0; i < bands.length; i++) {
             const img = imgs[i];
@@ -826,11 +826,16 @@ class MbtilesJob {
     // `lostTiles` : l'utilisateur choisira à la fin (cf. processQueue).
     async _processTile(tile) {
         const stats = newExportTileStats();
+        // Emprise de la tuile : en échec au large, elle est abandonnée d'office
+        // (isOffshore, utilities.js). Pas pour le relief, qui EST la donnée d'altitude.
+        stats.tileBounds = tile.mnt ? null : tileBoundsLonLat(tile.z, tile.x, tile.y);
         try {
             return await this._processTileWith(tile, stats);
         } finally {
             stats.requested.forEach(u => this.tileStats.requested.add(u));
             stats.failed.forEach(u => this.tileStats.failed.add(u));
+            stats.offshore.forEach(u => { this.tileStats.offshore.add(u); this.tileStats.accepted.add(u); });
+            if (stats.offshore.size && !stats.failed.size) this.offshoreTileCount = (this.offshoreTileCount || 0) + 1;
             this.tileStats.retried += stats.retried;
             if (stats.failed.size) this.lostTiles.push({ tile, urls: [...stats.failed] });
         }
@@ -951,7 +956,7 @@ class MbtilesJob {
     // Reprises d'une tuile refusée ou sans réponse (fetchExportTile, utilities.js).
     async _fetchRawTile(url, detectBaseFormat = true, stats = this.tileStats) {
         try {
-            const blob = await fetchExportTile(url, { stats });
+            const blob = await fetchExportTile(url, { stats, offshore: stats?.tileBounds });
             if (!blob) return null;
             const head = new Uint8Array(await blob.slice(0, 16).arrayBuffer());
             const sniffed = this._sniffFormat(head);
@@ -1114,7 +1119,7 @@ class MbtilesJob {
 
     // Reprises d'une tuile refusée ou sans réponse (loadExportTile, utilities.js).
     async fetchAndDrawLayer(url, canvas, ctx, stats = this.tileStats) {
-        const img = await loadExportTile(url, { stats });
+        const img = await loadExportTile(url, { stats, offshore: stats?.tileBounds });
         if (img) ctx.drawImage(img, 0, 0, 256, 256);
         return !!img;
     }
@@ -1163,6 +1168,13 @@ class MbtilesJob {
                 const note = document.createElement('p');
                 note.className = "mt-1 text-xs font-semibold text-orange-600 dark:text-orange-400";
                 note.textContent = `${lost.failed} tuile${lost.failed > 1 ? 's' : ''} sur ${lost.requested} n'${lost.failed > 1 ? 'ont' : 'a'} pas pu être téléchargée${lost.failed > 1 ? 's' : ''} malgré plusieurs tentatives (serveur saturé) : elle${lost.failed > 1 ? 's manquent' : ' manque'} au fichier. Relancez le travail dans quelques instants pour une carte complète.`;
+                container.appendChild(note);
+            }
+            if (this.offshoreTileCount) {
+                const n = this.offshoreTileCount;
+                const note = document.createElement('p');
+                note.className = "mt-1 text-xs text-gray-600 dark:text-gray-300";
+                note.textContent = `${n} tuile${n > 1 ? 's' : ''} en mer, à plus de ${OFFSHORE_SKIP_KM} km des côtes, non servie${n > 1 ? 's' : ''} : laissée${n > 1 ? 's' : ''} de côté d'office.`;
                 container.appendChild(note);
             }
             if (this.acceptedTileCount) {

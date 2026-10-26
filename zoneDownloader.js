@@ -1876,7 +1876,10 @@ async function zdPaintTiles(tempCtx, dlNwPx, dlSePx, actualZoom, mapConfig, cach
                 // Reprises d'une tuile refusée ou sans réponse, puis choix de
                 // l'utilisateur pour celles perdues (loadExportTiles, utilities.js).
                 (await loadExportTiles(tileJobs, async job => {
-                    const i = await loadExportTile(job.url);
+                    // Tuile en échec au large : abandonnée d'office (isOffshore, utilities.js).
+                    const i = await loadExportTile(job.url, { offshore: {
+                        west: job.tx / Math.pow(2, actualZoom) * 360 - 180, east: (job.tx + 1) / Math.pow(2, actualZoom) * 360 - 180,
+                        north: _tile3395NorthLatDeg(job.ty, actualZoom), south: _tile3395NorthLatDeg(job.ty + 1, actualZoom) } });
                     return i ? { i, tx: job.tx, ty: job.ty, ok: true } : null;
                 }, { layerName: fondsLayerName(layer), offerRemember: true })).forEach(res => {
                     if (res) {
@@ -1908,7 +1911,8 @@ async function zdPaintTiles(tempCtx, dlNwPx, dlSePx, actualZoom, mapConfig, cach
                 // l'utilisateur pour celles perdues (loadExportTiles, utilities.js).
                 // Par bandes, chaque bloc peut redemander : « continuer d'office » est proposé.
                 (await loadExportTiles(tileJobs, async job => {
-                    const i = await loadExportTile(job.url);
+                    // Tuile en échec au large : abandonnée d'office (isOffshore, utilities.js).
+                    const i = await loadExportTile(job.url, { offshore: tileBoundsLonLat(actualZoom, job.x, job.y) });
                     return i ? { i, x: job.x, y: job.y, ok: true } : null;
                 }, { layerName: fondsLayerName(layer), offerRemember: true })).forEach(res => {
                     if (res) {

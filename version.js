@@ -12,6 +12,7 @@ const CHANGELOG = [
     date: "2026-10-26",
     changes: [
       "Tuiles introuvables malgré les nouvelles tentatives : l'export s'arrête et vous demande de réessayer, de continuer sans elles (en pleine mer par exemple, où certaines tuiles n'existent pas) ou d'annuler — en carroyage rapide, en export de zone et dans Créer MBTiles",
+      "Tuiles en pleine mer, à plus de 5 km des côtes : si le serveur ne les sert pas, elles sont laissées vides d'office, sans question ni attente — celles qui arrivent (images satellite de la mer) restent dans l'image",
     ],
   },
   {
