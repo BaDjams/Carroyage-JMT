@@ -60,6 +60,7 @@ try {
         const url = route.request().url();
         if (url.startsWith(base)) return route.continue();
         const headers = { 'Access-Control-Allow-Origin': '*', 'Content-Type': 'image/png' };
+        if (url.startsWith('https://cadotour-cmap.bureau-cado.workers.dev/')) { demandes.push('C-MAP'); return route.fulfill({ status: 200, headers, body: FOND }); }
         if (/ORTHOIMAGERY|lyrs=s/.test(url)) { demandes.push('fond'); return route.fulfill({ status: 200, headers, body: FOND }); }
         if (/TRANSPORTNETWORKS\.ROADS/.test(url)) { demandes.push('routes IGN'); return route.fulfill({ status: 200, headers, body: ROUTES }); }
         if (/lyrs=h/.test(url)) { demandes.push(/apistyle/.test(url) ? 'routes Google' : 'routes Google POI'); return route.fulfill({ status: 200, headers, body: VIDE }); }
@@ -165,6 +166,20 @@ try {
     assert.equal(await page.evaluate(() => Math.max(...[...document.querySelectorAll('.zoom-checkbox-label')].map(e => Number(e.dataset.zoom)))), 19);
     await page.evaluate(() => fondsSet({ overlays: [] }));
     assert.equal(await page.evaluate(() => Math.max(...[...document.querySelectorAll('.zoom-checkbox-label')].map(e => Number(e.dataset.zoom)))), 21);
+
+    // ---- C-MAP : choix dans le menu, partagé, exportable et retenu ----
+    await page.locator('[data-fonds-label="creator"]').click();
+    await page.locator('#creator-interactive-map input[data-base="cmap_marine"]').check();
+    assert.equal((await page.locator('[data-fonds-label="creator"]').textContent()).trim(), 'Cartes marines C-MAP (Max Z20)');
+    assert.equal(await page.evaluate(() => Math.max(...[...document.querySelectorAll('.zoom-checkbox-label')].map(e => Number(e.dataset.zoom)))), 20);
+    await page.locator('button[data-mode="zone"]').click();
+    assert.equal(await page.locator('#zone-info-layer').textContent(), 'Cartes marines C-MAP');
+    const cmap = await exporter();
+    assert.ok(cmap.vert > cmap.total * 0.3, 'fond C-MAP absent de l’image exportée');
+    assert.ok(demandes.includes('C-MAP'), 'l’export n’a pas demandé les tuiles du relais');
+    await page.reload({ waitUntil: 'load' });
+    await page.waitForFunction(() => typeof fondsState === 'function');
+    assert.equal(await page.evaluate(() => fondsState().base), 'cmap_marine');
 
     assert.deepEqual(errors, []);
     console.log('Fonds et surcouches : menu, choix partagé et retenu, export empilé.');

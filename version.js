@@ -1,12 +1,19 @@
 // version.js
 
 // Source unique de vérité pour la version de l'application.
-const APP_VERSION = '23.54';
+const APP_VERSION = '23.55';
 
 // Une ligne courte par changement, telle que l'utilisateur la voit : ce qui change,
 // sans le pourquoi ni le comment. Guillemets doubles : les apostrophes françaises
 // s'écrivent telles quelles.
 const CHANGELOG = [
+  {
+    version: "23.55",
+    date: "2026-11-04",
+    changes: [
+      "Nouveau fond « Cartes marines C-MAP » pour le carroyage rapide, l'export de zone et Créer MBTiles : Google Maps sous le zoom 7, puis les cartes marines C-MAP jusqu'au zoom 20, comme le script MOBAC",
+    ],
+  },
   {
     version: "23.54",
     date: "2026-11-04",

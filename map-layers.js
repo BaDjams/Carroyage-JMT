@@ -276,6 +276,20 @@ const MAP_LAYERS = [
         ]
     },
     {
+        // Même pyramide que le BSH MOBAC CMAP-Z : Google sous z7, puis C-MAP.
+        // Le relais commun à CadoTour envoie le Referer attendu par C-MAP et
+        // permet la lecture des tuiles par les exports (CORS).
+        "id": "cmap_marine",
+        "kind": "carto",
+        "name": "Cartes marines C-MAP",
+        "shortName": "C-MAP",
+        "attribution": "&copy; <a href='https://www.c-map.com/' target='_blank' rel='noopener'>C-MAP</a> &mdash; vue mondiale &copy; Google",
+        "maxZoom": 20,
+        "layers": [
+            { "url": "https://cadotour-cmap.bureau-cado.workers.dev/{z}/{x}/{y}.png", "type": "xyz" }
+        ]
+    },
+    {
         // Cartes marines scannées du SHOM. Sous abonnement ou convention : la couche
         // reste masquée tant que SHOM_API_KEY est absente de config.private.js.
         // L'identifiant de couche est à confirmer sur le GetCapabilities du service
