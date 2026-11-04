@@ -7,10 +7,11 @@
 // les anciens fonds composites se retrouvent ; la source des exports empile le
 // fond puis les surcouches, au zoom du plus bas des étages.
 import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import vm from 'node:vm';
 import assert from 'node:assert/strict';
 
-const ROOT = new URL('..', import.meta.url).pathname;
+const ROOT = fileURLToPath(new URL('..', import.meta.url));
 
 // Contexte d'une page sans clé personnelle (config.private.js absent), avec un
 // stockage local en mémoire.
@@ -213,6 +214,23 @@ test('clés personnelles : une entrée sans sa clé n\'est pas proposée', () =>
     assert.ok(!ids(sans).includes('inland_waters') && ids(avec).includes('inland_waters'));
     avec.fondsSet({ base: 'inland_waters' });
     assert.equal(avec.fondsState().base, 'inland_waters');
+});
+
+test('C-MAP : fond public commun aux cartes et aux exports, sans clé privée', () => {
+    const { ctx, store } = page();
+    const cfg = ctx.fondsCatalogue().bases.find(b => b.id === 'cmap_marine');
+    assert.ok(cfg);
+    assert.equal(cfg.kind, 'carto');
+    assert.equal(cfg.maxZoom, 20);
+    assert.equal(cfg.layers.length, 1);
+    ctx.fondsSet({ base: 'google_satellite' });
+    ctx.fondsSet({ base: cfg.id });
+    assert.equal(ctx.fondsName(), 'Cartes marines C-MAP');
+    assert.deepEqual(plain(ctx.fondsState().overlays), [], 'les routes du satellite précédent sont retirées');
+    assert.equal(JSON.parse(store.get('cjmt.fonds')).base, cfg.id);
+    const source = ctx.fondsConfig().layers[0];
+    assert.deepEqual(plain(source), plain(cfg.layers[0]), 'affichage et export partagent la source');
+    for (const z of [2, 6, 7, 15, 20]) assert.equal(ctx.tileUrlFor(source, z, 3, 4), `https://cadotour-cmap.bureau-cado.workers.dev/${z}/3/4.png`);
 });
 
 console.log(`${n} tests réussis`);
