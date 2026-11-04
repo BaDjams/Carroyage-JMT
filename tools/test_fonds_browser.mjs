@@ -2,7 +2,8 @@
 // node tools/test_fonds_browser.mjs <module-playwright>
 //
 // Le menu de la carte propose un fond (satellite ou plan) et des surcouches
-// cumulables ; le choix vaut pour toutes les cartes et survit au rechargement ;
+// cumulables, une seule de routes, qui suit le fond (règle des routes de
+// CadoTour) ; le choix vaut pour toutes les cartes et survit au rechargement ;
 // l'image exportée empile le fond et les surcouches cochées, et seulement elles.
 // Tuiles servies par le parcours (fond vert, surcouche : un carré rouge au milieu
 // d'une tuile transparente) : aucune requête ne sort.
@@ -70,21 +71,34 @@ try {
     await page.evaluate(() => cadoMap.setView([48.39, -4.45], 15, { animate: false }));
     await page.waitForTimeout(800);
 
-    // ---- Départ : l'ancien fond par défaut, Ortho IGN sous les routes Google ----
+    // ---- Premier lancement, comme CadoTour : Google Satellite et Routes Google + POI ----
     const menu = page.locator('#map-viewport .map-base-control');
-    assert.equal((await menu.locator('.map-base-select').textContent()).trim(), 'Ortho IGN');
-    assert.equal((await page.locator('[data-fonds-label="cado"]').textContent()).trim(), 'Ortho IGN + Routes Google');
-    assert.ok(demandes.includes('fond') && demandes.includes('routes Google'), `tuiles demandées : ${[...new Set(demandes)]}`);
+    assert.equal((await menu.locator('.map-base-select').textContent()).trim(), 'Google Satellite');
+    assert.equal((await page.locator('[data-fonds-label="cado"]').textContent()).trim(), 'Google Satellite + Routes Google + POI');
+    assert.ok(demandes.includes('fond') && demandes.includes('routes Google POI'), `tuiles demandées : ${[...new Set(demandes)]}`);
 
-    // ---- Menu : fond en deux familles, surcouches cumulables, groupe exclusif ----
+    // ---- Menu : fond en deux familles, surcouches cumulables, une seule de routes ----
     await page.locator('[data-fonds-label="cado"]').click();   // le rappel du panneau ouvre le menu
     await menu.locator('.map-base-panel:not(.hidden)').waitFor();
     assert.deepEqual(await menu.locator('.map-base-family h4').allTextContents(), ['Satellite', 'Cartes']);
+    const cochees = () => menu.locator('input[data-overlay]:checked').evaluateAll(els => els.map(e => e.dataset.overlay));
+    assert.deepEqual(await cochees(), ['google_routes_poi']);
+    await menu.locator('input[data-overlay="google_routes"]').check();
+    assert.deepEqual(await cochees(), ['google_routes'], 'deux variantes des routes Google à la fois');
     await menu.locator('input[data-overlay="ign_routes"]').check();
-    await menu.locator('input[data-overlay="google_routes_poi"]').check();
-    assert.equal(await menu.locator('input[data-overlay="google_routes"]').isChecked(), false, 'deux variantes des routes Google à la fois');
+    assert.deepEqual(await cochees(), ['ign_routes'], 'deux surcouches de routes à la fois');
+    await menu.locator('input[data-overlay="openseamap"]').check();
+    // Un fond choisi reprend sa surcouche de routes ; les amers restent.
+    await menu.locator('input[data-base="yandex_satellite"]').check();
+    assert.deepEqual(await cochees(), ['yandex_routes', 'openseamap']);
+    await menu.locator('input[data-base="ign_ortho"]').check();
+    assert.deepEqual(await cochees(), ['ign_routes', 'openseamap']);
+    await menu.locator('input[data-base="ign_public_hybrid"]').check();
+    assert.deepEqual(await cochees(), ['openseamap'], 'une carte : aucune surcouche de routes');
     await menu.locator('input[data-base="google_satellite"]').check();
-    assert.deepEqual(await page.evaluate(() => fondsState()), { base: 'google_satellite', overlays: ['ign_routes', 'google_routes_poi'] });
+    // Routes IGN choisies à la main sur ce fond.
+    await menu.locator('input[data-overlay="ign_routes"]').check();
+    assert.deepEqual(await page.evaluate(() => fondsState()), { base: 'google_satellite', overlays: ['ign_routes', 'openseamap'], roads: 'ign_routes' });
     await page.keyboard.press('Escape');
     assert.equal(await menu.locator('.map-base-panel').isHidden(), true);
     assert.equal((await menu.locator('.map-base-select').textContent()).trim(), 'Google Satellite');
@@ -94,10 +108,10 @@ try {
     await page.waitForFunction(() => window.zoneMap && typeof generateZonePNG === 'function');
     const zone = page.locator('#zone-interactive-map .map-base-control');
     assert.equal((await zone.locator('.map-base-select').textContent()).trim(), 'Google Satellite');
-    assert.equal(await page.locator('#zone-info-layer').textContent(), 'Google Satellite + Routes IGN + Routes Google + POI');
+    assert.equal(await page.locator('#zone-info-layer').textContent(), 'Google Satellite + Routes IGN + Amers OpenSeaMap');
     await page.reload({ waitUntil: 'load' });
     await page.waitForFunction(() => typeof fondsState === 'function');
-    assert.deepEqual(await page.evaluate(() => fondsState()), { base: 'google_satellite', overlays: ['ign_routes', 'google_routes_poi'] });
+    assert.deepEqual(await page.evaluate(() => fondsState()), { base: 'google_satellite', overlays: ['ign_routes', 'openseamap'], roads: 'ign_routes' });
 
     // ---- Export de zone : fond et surcouches cochées, empilés ----
     await page.locator('button[data-mode="zone"]').click();
@@ -132,10 +146,11 @@ try {
     const avec = await exporter();
     assert.ok(avec.vert > avec.total * 0.3, `fond absent de l'image (${avec.vert} px verts)`);
     assert.ok(avec.rouge > avec.total * 0.02, `routes IGN absentes de l'image (${avec.rouge} px rouges)`);
-    assert.ok(demandes.includes('routes Google POI'), 'routes Google + POI non téléchargées');
+    assert.ok(!demandes.includes('routes Google POI'), 'routes Google + POI téléchargées alors que Routes IGN les remplacent');
 
-    // Surcouche décochée : elle ne part plus à l'export.
-    await page.evaluate(() => fondsSet({ overlays: ['google_routes_poi'] }));
+    // Surcouche décochée : elle ne part plus à l'export, et la place reste vide.
+    await page.evaluate(() => fondsSet({ overlays: ['openseamap'] }));
+    assert.equal(await page.evaluate(() => fondsState().roads), '');
     const sans = await exporter();
     assert.ok(sans.vert > sans.total * 0.3);
     // Seule la pointe rouge de la rose des vents reste.

@@ -1,12 +1,20 @@
 // version.js
 
 // Source unique de vérité pour la version de l'application.
-const APP_VERSION = '23.53';
+const APP_VERSION = '23.54';
 
 // Une ligne courte par changement, telle que l'utilisateur la voit : ce qui change,
 // sans le pourquoi ni le comment. Guillemets doubles : les apostrophes françaises
 // s'écrivent telles quelles.
 const CHANGELOG = [
+  {
+    version: "23.54",
+    date: "2026-11-04",
+    changes: [
+      "Surcouche de routes comme dans CadoTour, sur les trois cartes (carroyage rapide, export de zone, Créer MBTiles) : une seule surcouche de routes à la fois ; un fond satellite affiche d'office la sienne (Ortho IGN → routes IGN, Google Satellite → routes Google + POI, Yandex → routes Yandex ; Bing Maps Hybride, routes déjà dans l'image, aucune) ; une carte, qui a déjà ses routes, aucune. Une surcouche de routes changée à la main vaut pour le fond affiché et est retenue, mais choisir un autre fond reprend la surcouche de ce fond. Les amers, profondeurs et autres surcouches ne changent pas",
+      "Premier lancement : Google Satellite avec les routes Google + POI, comme CadoTour (au lieu d'Ortho IGN sous les routes Google)",
+    ],
+  },
   {
     version: "23.53",
     date: "2026-10-26",

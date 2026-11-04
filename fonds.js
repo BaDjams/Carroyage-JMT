@@ -9,8 +9,8 @@
 // Un .mbtiles chargé (tileSource.js) remplace l'un et les autres, à l'écran comme
 // à l'export : le menu le dit et garde le choix pour le retour en ligne.
 //
-// Le choix est UN pour toute l'application : les cartes du carroyage rapide, de
-// l'export de zone, de Créer MBTiles le partagent, et il est retenu d'une visite
+// Le choix est UN pour toute l'application : les trois cartes Leaflet — carroyage
+// rapide, export de zone, Créer MBTiles — le partagent, règle des routes comprise, et il est retenu d'une visite
 // à l'autre. Les exports en tirent leur source de tuiles par fondsConfig().
 
 /** Rang de chaque étage dans le panneau de tuiles (option `zIndex` des couches Leaflet). */
@@ -43,12 +43,13 @@ const fondsCurrentBaseId = id => FONDS_LEGACY_BASES[id]?.base || id;
 
 /**
  * Surcouches après avoir coché (`on`) ou décoché une surcouche. Cocher une
- * surcouche décoche celles de son `group` : deux variantes du même dessin.
+ * surcouche décoche celles de son `group` (deux variantes du même dessin), et
+ * une surcouche de routes (`roads`) décoche l'autre surcouche de routes.
  * L'ordre rendu est celui du catalogue, quel que soit l'ordre des clics.
  * @param {string[]} current   surcouches cochées
  * @param {string}   id        surcouche visée
  * @param {boolean}  on
- * @param {Array<{id: string, group?: string}>} catalogue
+ * @param {Array<{id: string, group?: string, roads?: boolean}>} catalogue
  */
 function fondsToggleOverlay(current, id, on, catalogue) {
     const entry = catalogue.find(o => o.id === id);
@@ -56,6 +57,8 @@ function fondsToggleOverlay(current, id, on, catalogue) {
     let next = current.filter(x => x !== id);
     if (on) {
         if (entry.group) next = next.filter(x => catalogue.find(o => o.id === x)?.group !== entry.group);
+        // Une seule surcouche de routes : deux réseaux superposés se brouillent.
+        if (entry.roads) next = next.filter(x => !catalogue.find(o => o.id === x)?.roads);
         next.push(id);
     }
     const rank = new Map(catalogue.map((o, i) => [o.id, i]));
@@ -65,31 +68,82 @@ function fondsToggleOverlay(current, id, on, catalogue) {
 const FONDS_STORAGE_KEY = 'cjmt.fonds';
 
 /**
- * Choix de départ, tant que rien n'a été choisi : l'ancien fond par défaut
- * « Ortho IGN + Routes Google », soit l'orthophoto IGN sous les routes Google.
- * Un choix retenu — même « aucune surcouche » — l'emporte.
+ * Premier lancement, comme CadoTour : Google Satellite, avec d'office sa
+ * surcouche « Routes Google + POI » (règle des routes, plus bas). Un choix
+ * retenu — même « aucune surcouche » — l'emporte.
  */
-const FONDS_DEFAULT_BASE = 'ign_ortho';
-const FONDS_DEFAULT_OVERLAYS = Object.freeze(['google_routes']);
+const FONDS_DEFAULT_BASE = 'google_satellite';
+
+// ── Surcouche de routes (comme CadoTour 1.53.404 et 1.53.438) ──────────────
+// Deux réseaux de routes superposés (celui d'une carte et celui d'une
+// surcouche, ou deux surcouches) se brouillent.
+//   • Sur un fond SATELLITE, sa surcouche de routes (`roads` du fond) s'affiche
+//     d'office — c'est le mode automatique.
+//   • Une surcouche de routes cochée ou décochée À LA MAIN devient le choix,
+//     sur ce fond seulement (« aucune » aussi) : il est retenu d'une visite à l'autre.
+//   • Choisir un fond — un autre satellite, une carte — efface ce choix : un
+//     satellite choisi reprend toujours sa propre surcouche de routes.
+//   • Sur une CARTE, qui a déjà ses routes, aucune surcouche de routes.
+// Les autres surcouches (sans `roads`) ne sont pas concernées.
+// `roads` de l'état : null = automatique ; '' = aucune, choisie ; un identifiant = choisie.
+
+const _fondsRoadIds = overlays => new Set(overlays.filter(o => o.roads).map(o => o.id));
+
+/** Surcouche de routes à afficher sur ce fond, ou null. `base` : { kind, roads }. */
+function fondsRoadOverlayFor(base, roads, overlays) {
+    if (base?.kind !== 'sat') return null;
+    if (roads === '') return null;
+    if (roads && _fondsRoadIds(overlays).has(roads)) return roads;
+    return base.roads && _fondsRoadIds(overlays).has(base.roads) ? base.roads : null;
+}
+
+/** Surcouches une fois la règle des routes appliquée au fond : les autres surcouches restent. */
+function fondsWithRoadRule(current, base, roads, overlays) {
+    const ids = _fondsRoadIds(overlays);
+    const route = fondsRoadOverlayFor(base, roads, overlays);
+    const next = current.filter(id => !ids.has(id));
+    return route ? fondsToggleOverlay(next, route, true, overlays) : next;
+}
 
 /**
- * Choix retenu ramené au catalogue : un fond qui existe (sinon `fallback`), des
- * surcouches connues, une seule par groupe. Un ancien fond composite redonne son
- * fond et ses surcouches.
- * Sans liste de surcouches retenue (première utilisation), `defaults` est cochée
- * — sauf pour un ancien fond composite, qui redonne les siennes.
- * @param {*} raw  { base, overlays } lu du stockage
- * @param {{ bases: string[], overlays: Array<{id: string, group?: string}>, fallback: string, defaults?: string[] }} catalogue
+ * État après le choix d'un fond : le choix manuel de surcouche de routes est
+ * effacé, la surcouche du fond reprend (satellite) ou la route part (carte).
+ * Les autres surcouches restent.
+ * @param {{ overlays: string[] }} state
+ * @param {{ kind?: string, roads?: string|null }} base  le fond choisi
+ * @param {Array<{id: string, group?: string, roads?: boolean}>} overlays catalogue
  */
-function fondsNormalizeState(raw, { bases, overlays, fallback, defaults = [] }) {
+function fondsAfterBaseChosen(state, base, overlays) {
+    return { ...state, overlays: fondsWithRoadRule(state.overlays, base, null, overlays), roads: null };
+}
+
+/**
+ * Choix retenu ramené au catalogue, règle des routes appliquée : un fond qui
+ * existe (sinon `fallback`), des surcouches connues, une seule par groupe. Un
+ * ancien fond composite redonne son fond et ses surcouches.
+ * Choix antérieur à la règle (sans `roads`) : sur un satellite, la surcouche de
+ * routes cochée reste — choix manuel si ce n'est pas celle du fond, « aucune »
+ * si rien n'était coché ; sur une carte, automatique (elle est retirée).
+ * @param {*} raw  { base, overlays, roads } lu du stockage
+ * @param {{ bases: Array<string|{id: string, kind?: string, roads?: string|null}>, overlays: Array<{id: string, group?: string, roads?: boolean}>, fallback: string }} catalogue
+ */
+function fondsNormalizeState(raw, { bases, overlays, fallback }) {
     const o = raw && typeof raw === 'object' ? raw : {};
+    const infos = new Map(bases.map(b => (typeof b === 'string' ? [b, { id: b }] : [b.id, b])));
     const legacy = FONDS_LEGACY_BASES[o.base];
-    const base = bases.includes(fondsCurrentBaseId(o.base)) ? fondsCurrentBaseId(o.base) : fallback;
+    const base = infos.has(fondsCurrentBaseId(o.base)) ? fondsCurrentBaseId(o.base) : fallback;
+    const info = infos.get(base) || { id: base };
     let chosen = [];
-    const retained = Array.isArray(o.overlays) ? o.overlays : legacy ? [] : defaults;
-    const wanted = [...retained, ...(legacy?.overlays || [])];
-    for (const id of wanted) if (typeof id === 'string') chosen = fondsToggleOverlay(chosen, id, true, overlays);
-    return { base, overlays: chosen };
+    const retained = Array.isArray(o.overlays) ? o.overlays : [];
+    for (const id of [...retained, ...(legacy?.overlays || [])]) if (typeof id === 'string') chosen = fondsToggleOverlay(chosen, id, true, overlays);
+    const ids = _fondsRoadIds(overlays);
+    let roads = null;
+    if (typeof o.roads === 'string' && (o.roads === '' || ids.has(o.roads))) roads = o.roads;
+    else if (!('roads' in o) && info.kind === 'sat' && (Array.isArray(o.overlays) || legacy)) {
+        const cochee = chosen.find(id => ids.has(id));
+        roads = cochee ? (cochee === info.roads ? null : cochee) : '';
+    }
+    return { base, overlays: fondsWithRoadRule(chosen, info, roads, overlays), roads };
 }
 
 // Catalogue proposé sur ce poste (clés de config.private.js), relu à chaque
@@ -99,30 +153,56 @@ function fondsCatalogue() {
     const overlays = (typeof MAP_OVERLAYS !== 'undefined' ? MAP_OVERLAYS : []).filter(mapLayerAvailable);
     const ids = bases.map(b => b.id);
     const fallback = ids.includes(FONDS_DEFAULT_BASE) ? FONDS_DEFAULT_BASE : ids[0];
-    return { bases, overlays, normalize: raw => fondsNormalizeState(raw, { bases: ids, overlays, fallback, defaults: FONDS_DEFAULT_OVERLAYS }) };
+    return { bases, overlays, normalize: raw => fondsNormalizeState(raw, { bases, overlays, fallback }) };
 }
 
 let _fondsState = null;
 const _fondsListeners = new Set();
 
-/** Fond et surcouches choisis : { base, overlays }. */
+/** Fond et surcouches choisis : { base, overlays, roads } (`roads` : règle des routes, plus haut). */
 function fondsState() {
     if (!_fondsState) {
         let raw = null;
         try { raw = JSON.parse(localStorage.getItem(FONDS_STORAGE_KEY) || 'null'); } catch (e) { /* illisible ou indisponible : défauts */ }
         _fondsState = fondsCatalogue().normalize(raw);
     }
-    return { base: _fondsState.base, overlays: [..._fondsState.overlays] };
+    return { base: _fondsState.base, overlays: [..._fondsState.overlays], roads: _fondsState.roads };
 }
 
 /**
  * Change le choix ({ base?, overlays? }, le reste est gardé ; un ancien
  * identifiant composite est accepté), le retient et l'applique à toutes les cartes.
+ * Règle des routes : un autre fond efface le choix manuel de surcouche de routes
+ * et reprend la sienne ; une liste de surcouches dont la route change en fait le
+ * choix manuel (« aucune » comprise), comme une case cochée à la main.
  */
 function fondsSet(next) {
     const current = fondsState();
-    const wanted = { base: next.base ?? current.base, overlays: next.overlays ?? (FONDS_LEGACY_BASES[next.base] ? [] : current.overlays) };
-    _fondsState = fondsCatalogue().normalize(wanted);
+    const { bases, overlays, normalize } = fondsCatalogue();
+    let wanted;
+    if (FONDS_LEGACY_BASES[next.base] && !next.overlays) {
+        // Ancien fond composite : son fond et ses surcouches, comme à la relecture.
+        wanted = { base: next.base, overlays: [] };
+    } else {
+        const baseId = fondsCurrentBaseId(next.base ?? current.base);
+        wanted = { ...current, base: baseId };
+        if (baseId !== current.base) {
+            const info = bases.find(b => b.id === baseId) || { id: baseId };
+            wanted = { ...fondsAfterBaseChosen(wanted, info, overlays), base: baseId };
+        }
+        if (next.overlays) {
+            let list = [];
+            for (const id of next.overlays) list = fondsToggleOverlay(list, id, true, overlays);
+            const ids = _fondsRoadIds(overlays);
+            const route = list.find(id => ids.has(id)) || '';
+            if (route !== (wanted.overlays.find(id => ids.has(id)) || '')) wanted.roads = route;
+            wanted.overlays = list;
+        }
+    }
+    _fondsState = normalize(wanted);
+    // Une liste donnée (case cochée) s'affiche telle quelle, comme dans CadoTour :
+    // une route cochée à la main sur une carte reste jusqu'au fond suivant.
+    if (next.overlays) _fondsState.overlays = wanted.overlays;
     try { localStorage.setItem(FONDS_STORAGE_KEY, JSON.stringify(_fondsState)); } catch (e) { /* stockage indisponible */ }
     for (const fn of _fondsListeners) fn(fondsState());
 }
@@ -163,7 +243,7 @@ function fondsLayerName(layer) {
     return all.find(c => c.layers.includes(layer))?.name || '';
 }
 
-/** Nom du choix en cours, tel que le montre le menu (« Ortho IGN + Routes Google »). */
+/** Nom du choix en cours, tel que le montre le menu (« Google Satellite + Routes Google + POI »). */
 function fondsName(state = fondsState()) {
     return fondsConfig(state)?.name || '';
 }
@@ -315,7 +395,8 @@ function fondsAttach(map, { position = 'topright' } = {}) {
 }
 
 Object.assign(window, {
-    FONDS_STACK_Z, FOND_KINDS, FONDS_LEGACY_BASES, FONDS_STORAGE_KEY, FONDS_DEFAULT_BASE, FONDS_DEFAULT_OVERLAYS,
-    fondsCurrentBaseId, fondsToggleOverlay, fondsNormalizeState, fondsCatalogue,
+    FONDS_STACK_Z, FOND_KINDS, FONDS_LEGACY_BASES, FONDS_STORAGE_KEY, FONDS_DEFAULT_BASE,
+    fondsCurrentBaseId, fondsToggleOverlay, fondsRoadOverlayFor, fondsWithRoadRule, fondsAfterBaseChosen,
+    fondsNormalizeState, fondsCatalogue,
     fondsState, fondsSet, fondsSubscribe, fondsConfig, fondsName, fondsLayerName, fondsAttach,
 });
