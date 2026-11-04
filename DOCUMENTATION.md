@@ -757,11 +757,20 @@ Fonds et surcouches se gèrent **comme dans CadoTour** (`fondsModel.js` et `base
 
 **Empilement**, du bas vers le haut : le fond, puis les surcouches cochées, dans l'ordre du catalogue (option `zIndex` des couches, `FONDS_STACK_Z`). Un `.mbtiles` chargé remplace l'un et les autres, à l'écran comme à l'export ; le menu le dit et rend le choix à sa fermeture (`control.setOffline`).
 
-**Un choix pour toute l'application** (`fondsState()` / `fondsSet()`) : les cartes du carroyage rapide, de l'export de zone et de Créer MBTiles le partagent, et il est retenu dans `localStorage` (`cjmt.fonds`). Choix de départ : Ortho IGN sous « Routes Google », l'ancien fond par défaut. Deux surcouches d'un même `group` s'excluent (les deux variantes des routes Google). La carte de repérage de « Générer depuis un fichier » part du même choix, dans le sélecteur de Leaflet.
+**Un choix pour toute l'application** (`fondsState()` / `fondsSet()`) : les trois cartes Leaflet — carroyage rapide, export de zone, Créer MBTiles — le partagent, et il est retenu dans `localStorage` (`cjmt.fonds`). Premier lancement, comme CadoTour : Google Satellite, avec d'office « Routes Google + POI ». Deux surcouches d'un même `group` s'excluent (les deux variantes des routes Google).
+
+**Surcouche de routes** (comme CadoTour 1.53.404 et 1.53.438) : deux réseaux de routes superposés se brouillent, d'où **une seule surcouche de routes** (`roads: true`) à la fois.
+- Sur un fond **satellite**, sa surcouche de routes (champ `roads` du fond) s'affiche d'office : Ortho IGN → Routes IGN, Google Satellite → Routes Google + POI, Yandex → Routes Yandex ; Bing Maps Hybride, dont les routes sont dans l'image, aucune (`roads: null`).
+- Une surcouche de routes cochée ou décochée **à la main** devient le choix, sur ce fond seulement (« aucune » aussi) ; il est retenu d'une visite à l'autre.
+- **Choisir un fond** efface ce choix : un satellite reprend toujours sa propre surcouche (`fondsAfterBaseChosen`).
+- Sur une **carte**, qui a déjà ses routes, aucune surcouche de routes.
+- Les autres surcouches (amers, profondeurs, atlas IGC…) ne sont pas concernées.
+
+L'état retenu est `{ base, overlays, roads }` : `roads` vaut `null` (automatique), `''` (aucune, choisie) ou l'identifiant choisi. Un choix enregistré avant la règle se relit sans changement sur un satellite (une autre route que la sienne devient le choix manuel) ; sur une carte, la route part. La carte de repérage de « Générer depuis un fichier » part du même choix, dans le sélecteur de Leaflet.
 
 **Menu** (`fondsAttach(map)`) : un bouton au nom du fond, en haut à droite de chaque carte, ouvre le panneau *Fond* (familles Satellite et Cartes) / *Surcouches*. Dans les panneaux d'export, « Fond de carte : » rappelle le choix complet et ouvre ce menu.
 
-**Exports** : impression, export de zone, MBTiles de zone et Créer MBTiles lisent `fondsConfig()` — une entrée de la forme du catalogue dont les `layers` sont ceux du fond puis ceux des surcouches, peints dans cet ordre. Son `maxZoom` est le plus bas des étages, pour qu'aucun ne manque à l'export ; son `shortName` (cartouche, nom de fichier) les enchaîne : « Ortho IGN + Google ».
+**Exports** : impression, export de zone, MBTiles de zone et Créer MBTiles lisent `fondsConfig()` — une entrée de la forme du catalogue dont les `layers` sont ceux du fond puis ceux des surcouches, peints dans cet ordre. Son `maxZoom` est le plus bas des étages, pour qu'aucun ne manque à l'export ; son `shortName` (cartouche, nom de fichier) les enchaîne : « Google Sat + Google POI ».
 
 **Anciens identifiants** (`FONDS_LEGACY_BASES`) : `fondsSet({ base: 'igc_carrieres' })` donne OpenStreetMap sous l'atlas IGC, etc. (table ci-dessous).
 
@@ -774,6 +783,8 @@ Fonds et surcouches se gèrent **comme dans CadoTour** (`fondsModel.js` et `base
   id: "google_satellite",       // identifiant interne
   kind: "sat",                  // fonds seulement : 'sat' ou 'carto', famille du menu
   group: "google_routes",       // surcouches seulement, facultatif : variantes exclusives
+  roads: "google_routes_poi",   // fond satellite : sa surcouche de routes d'office (null : aucune) ;
+                                // surcouche : true = surcouche de routes, une seule à la fois
   name: "Google Satellite",     // libellé du menu
   shortName: "Google Sat",      // cartouche des images exportées
   maxZoom: 21,

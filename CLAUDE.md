@@ -63,7 +63,10 @@ sont installés), `node tools/test_zone_bands.mjs`.
 `fonds.js` reprend `fondsModel.js` (modèle) et `baseSelect.js` (menu) de CadoTour :
 un fond est UNE image (`MAP_LAYERS`, famille `kind` 'sat' ou 'carto'), routes et
 noms sont des surcouches cumulables (`MAP_OVERLAYS`, `group` exclusif), les
-anciens fonds composites se relisent par `FONDS_LEGACY_BASES`. Un seul choix pour
+anciens fonds composites se relisent par `FONDS_LEGACY_BASES`. Règle des routes
+(CadoTour 1.53.404 et 1.53.438) : une seule surcouche `roads`, celle du fond
+satellite d'office, choix manuel valable pour ce fond seulement, aucune sur une
+carte ; premier lancement Google Satellite + Routes Google + POI. Un seul choix pour
 toutes les cartes ; les exports lisent `fondsConfig()`. Une règle qui change d'un
 côté (groupes, ordre, ancien identifiant) change de l'autre, et les deux
 catalogues `map-layers.js` restent en phase. Tests : `node tools/test_fonds.mjs`,

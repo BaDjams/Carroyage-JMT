@@ -115,6 +115,9 @@ function tileUrlFor(layer, z, x, y) {
 // autres, à l'écran comme à l'export (tileSource.js). Choix et menu : fonds.js.
 //
 // « kind » : 'sat' (image aérienne) ou 'carto' (plan) — les deux familles du menu.
+// « roads » : sur une SURCOUCHE, true = surcouche de routes (une seule à la fois) ;
+// sur un fond satellite, la surcouche de routes qui l'accompagne d'office (null :
+// ses routes sont déjà dans l'image). Règles : fonds.js, comme CadoTour.
 // « shortName » : nom court pour le cartouche des images exportees, ou la place
 // manque (« 1 carre = 10m, OSM z16 ») ; fond et surcouches s'y suivent
 // (« Ortho IGN + Google »). Le « name » complet reste celui du menu.
@@ -134,10 +137,11 @@ const MAP_LAYERS = [
     // ---- Satellite ----
     {
         // L'orthophoto seule : routes et noms de l'IGN ou de Google se posent
-        // dessus en surcouche. L'ancien fond par défaut, « Ortho IGN + Routes
-        // Google », est ce fond sous la surcouche « Routes Google ».
+        // dessus en surcouche (« Routes IGN » d'office). L'ancien fond par défaut,
+        // « Ortho IGN + Routes Google », est ce fond sous la surcouche « Routes Google ».
         "id": "ign_ortho",
         "kind": "sat",
+        "roads": "ign_routes",
         "name": "Ortho IGN",
         "shortName": "Ortho IGN",
         "attribution": IGN_ATTRIBUTION,
@@ -151,6 +155,7 @@ const MAP_LAYERS = [
         // la surcouche « Routes Google + POI ».
         "id": "google_satellite",
         "kind": "sat",
+        "roads": "google_routes_poi",
         "name": "Google Satellite",
         "shortName": "Google Sat",
         "attribution": "&copy; Google",
@@ -164,6 +169,7 @@ const MAP_LAYERS = [
         // Yandex » (même serveur, même projection : aucun décalage).
         "id": "yandex_satellite",
         "kind": "sat",
+        "roads": "yandex_routes",
         "name": "Yandex Satellite",
         "shortName": "Yandex",
         "attribution": "&copy; Yandex",
@@ -177,6 +183,7 @@ const MAP_LAYERS = [
         // transparente. Gardé tel quel, comme fond satellite.
         "id": "bing_hybrid",
         "kind": "sat",
+        "roads": null,
         "name": "Bing Maps Hybride",
         "shortName": "Bing",
         "attribution": "&copy; Microsoft",
@@ -309,6 +316,7 @@ const MAP_LAYERS = [
 const MAP_OVERLAYS = [
     {
         "id": "ign_routes",
+        "roads": true,
         "name": "Routes IGN",
         "shortName": "IGN",
         "attribution": IGN_ATTRIBUTION,
@@ -321,6 +329,7 @@ const MAP_OVERLAYS = [
     {
         // Routes et étiquettes Google (lyrs=h), sans les points d'intérêt.
         "id": "google_routes",
+        "roads": true,
         "group": "google_routes",
         "name": "Routes Google",
         "shortName": "Google",
@@ -333,6 +342,7 @@ const MAP_OVERLAYS = [
     {
         // La même, avec commerces, restaurants et autres points d'intérêt.
         "id": "google_routes_poi",
+        "roads": true,
         "group": "google_routes",
         "name": "Routes Google + POI",
         "shortName": "Google POI",
@@ -344,6 +354,7 @@ const MAP_OVERLAYS = [
     },
     {
         "id": "yandex_routes",
+        "roads": true,
         "name": "Routes Yandex",
         "shortName": "Yandex",
         "attribution": "&copy; Yandex",
