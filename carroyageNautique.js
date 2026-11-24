@@ -34,6 +34,9 @@ const NAUTIC_UTILS = (() => {
     // Au-delà, les libellés de mailles ne sont pas générés (lignes seules).
     const MAX_LABELS = 3000;
     const EPS = 1e-9;
+    // KML : un libellé de maille n'apparaît que lorsque la maille mesure au moins ce
+    // nombre de pixels à l'écran (Region/Lod) ; de loin, seules les lignes restent.
+    const KML_LABEL_MIN_LOD_PIXELS = 160;
 
     // Minutes de degré -> degrés (7 décimales, ~1 cm).
     const deg = (minutes) => Number((minutes / 60).toFixed(7));
@@ -156,7 +159,8 @@ const NAUTIC_UTILS = (() => {
 
     /**
      * Dossier KML : lignes (#commonLineStyle ; #nauticMajorLine toutes les 10 mailles) et
-     * libellés de mailles au centre (#commonLabelStyle). Les styles sont ceux de
+     * libellés de mailles au centre (#commonLabelStyle), masqués de loin par une Region/Lod
+     * (visibles à partir de KML_LABEL_MIN_LOD_PIXELS pixels par maille). Les styles sont ceux de
      * l'en-tête du KML de zone (handleZoneVectorExport).
      */
     function kmlFolder(bbox, step) {
@@ -170,7 +174,9 @@ const NAUTIC_UTILS = (() => {
         if (labelsAllowed(l)) {
             kml += '<Folder><name>Mailles</name>';
             for (const c of cells(l)) {
-                kml += `<Placemark><name>${c.id}</name><styleUrl>#commonLabelStyle</styleUrl><Point><coordinates>${c.centerLon},${c.centerLat},0</coordinates></Point></Placemark>`;
+                kml += `<Placemark><name>${c.id}</name><styleUrl>#commonLabelStyle</styleUrl>`
+                    + `<Region><LatLonAltBox><north>${c.north}</north><south>${c.south}</south><east>${c.east}</east><west>${c.west}</west></LatLonAltBox>`
+                    + `<Lod><minLodPixels>${KML_LABEL_MIN_LOD_PIXELS}</minLodPixels></Lod></Region><Point><coordinates>${c.centerLon},${c.centerLat},0</coordinates></Point></Placemark>`;
             }
             kml += '</Folder>';
         }

@@ -260,7 +260,7 @@ La paire teintée contraste moins, mais ses deux teintes sont étrangères aux v
 
 Carroyage nautique de l'export de zone : mailles de 1' ou 3' de degré, calées sur les minutes entières (multiples de 3' à partir de 0°), comme le carroyage régulier en mer CNIG-GIMeL (Cerema / OFB, diffusé sur Géolittoral). Coordonnées géographiques : ETRS89 et WGS84 diffèrent d'environ 1 m, aucune reprojection. Le module ne dépend d'aucun autre.
 
-- `NAUTIC_UTILS` (IIFE, pur, testé sous Node) : `lattice(bbox, step)` (calcul en minutes entières, refus au-delà de 40 000 mailles), `cellId`, `cellBounds`, `cells`, `lines` (un sommet par méridien sur chaque parallèle), `kmlFolder`, `geoJSON`. Libellés de mailles omis au-delà de 3 000 mailles.
+- `NAUTIC_UTILS` (IIFE, pur, testé sous Node) : `lattice(bbox, step)` (calcul en minutes entières, refus au-delà de 40 000 mailles), `cellId`, `cellBounds`, `cells`, `lines` (un sommet par méridien sur chaque parallèle), `kmlFolder`, `geoJSON`. Libellés de mailles omis au-delà de 3 000 mailles ; en KML, chaque libellé porte une `Region`/`Lod` (`minLodPixels` 160) et disparaît à la vue éloignée (honoré par Google Earth ; un lecteur qui l'ignore affiche tout).
 - `drawNauticGridOnCanvas(...)` : image (encre adaptative, trait double toutes les 10 mailles, graduations en degrés-minutes sur la marge) ; rend « 1' » ou « 3' » pour le cartouche.
 - `drawNauticGridDigital(...)` : overlay MBTiles, trait net sans halo.
 

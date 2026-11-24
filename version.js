@@ -11,7 +11,7 @@ const CHANGELOG = [
     version: "23.56",
     date: "2026-11-24",
     changes: [
-      "Export de zone : nouveaux carroyages nautiques 1' et 3' (mailles de 1 ou 3 minutes de degré, noms de mailles par coin sud-ouest, cohérents INSPIRE) en image, KML/KMZ, GeoJSON et MBTiles",
+      "Export de zone : nouveaux carroyages nautiques 1' et 3' (mailles de 1 ou 3 minutes de degré, noms de mailles par coin sud-ouest, cohérents INSPIRE) en image, KML/KMZ (noms de mailles masqués à la vue éloignée), GeoJSON et MBTiles",
     ],
   },
   {

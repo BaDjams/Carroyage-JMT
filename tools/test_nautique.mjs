@@ -80,6 +80,9 @@ test('GeoJSON et KML : une maille = un polygone / un libellé', () => {
     assert.equal(JSON.parse(U.geoJSON(bbox, 1)).features.length, l.numRows * l.numCols);
     const kml = U.kmlFolder(bbox, 1);
     assert.equal((kml.match(/#commonLabelStyle/g) || []).length, l.numRows * l.numCols);
+    // Chaque libellé est masqué de loin : Region/Lod avant la géométrie, après le style.
+    assert.equal((kml.match(/<minLodPixels>160<\/minLodPixels>/g) || []).length, l.numRows * l.numCols);
+    assert.ok(/<styleUrl>#commonLabelStyle<\/styleUrl><Region>.*?<\/Region><Point>/.test(kml));
 });
 
 let failed = 0;
