@@ -694,6 +694,8 @@ function zoneGridChoice() {
         useUtm: (gridChoice === 'utm' || gridChoice === 'mgrs'),
         useCfsi: (gridChoice === 'cfsi'),
         useDfci: (gridChoice === 'dfci'),
+        // Carroyage nautique : maille en minutes de degré (0 = non choisi).
+        nauticStep: gridChoice === 'nautic1' ? 1 : gridChoice === 'nautic3' ? 3 : 0,
         useCado: (gridChoice === 'cado'),
     };
 }
@@ -792,7 +794,7 @@ async function generateZonePNG() {
     const zoneDeviationDeg = parseFloat(document.getElementById('zone-deviation')?.value || 0);
 
     // LECTURE DU PANEL 5
-    const { gridMode, useUtm, useCfsi, useDfci, useCado } = zoneGridChoice();
+    const { gridMode, useUtm, useCfsi, useDfci, useCado, nauticStep } = zoneGridChoice();
 
     loadingMessage.textContent = "Préparation de l'export de la zone...";
     loadingIndicator.classList.remove("hidden");
@@ -816,6 +818,7 @@ async function generateZonePNG() {
             : useUtm ? (gridMode === 'mgrs' ? 'mgrs' : 'utm')
             : useCfsi ? 'cfsi'
             : useDfci ? 'dfci'
+            : nauticStep ? 'nautic'
             : null;
 
         const format = document.querySelector('input[name="image-format-zone"]:checked').value;
@@ -875,7 +878,7 @@ async function generateZonePNG() {
 
         // SURCOUCHES : grilles, traces, zones, points, cartouche. Dessinées sur
         // l'image entière, ou enregistrées une fois pour être rejouées sur chaque
-        // bloc d'une image par bandes. Rend la maille étiquetée (CFSI, DFCI).
+        // bloc d'une image par bandes. Rend la maille étiquetée (CFSI, DFCI, nautique).
         const drawOverlays = async (ctx, isoSummary) => {
             let cartoucheGridDetail = null;
 
@@ -895,6 +898,11 @@ async function generateZonePNG() {
                 loadingMessage.textContent = "Dessin du carroyage DFCI...";
                 const dfciFontSize = Math.max(10 * scaleFactor, W * 0.006);
                 cartoucheGridDetail = await drawDfciGridOnCanvas(ctx, finalBoundingBox, latLonToCanvasPixels, dynamicMargin, dfciFontSize, gridLineWidth);
+            }
+            if (nauticStep) {
+                loadingMessage.textContent = `Dessin du carroyage nautique ${nauticStep}'...`;
+                const nauticFontSize = Math.max(10 * scaleFactor, W * 0.006);
+                cartoucheGridDetail = await drawNauticGridOnCanvas(ctx, finalBoundingBox, latLonToCanvasPixels, dynamicMargin, nauticFontSize, gridLineWidth, nauticStep);
             }
             if (useCado && cadoData) {
                 loadingMessage.textContent = "Dessin du carroyage CADO...";
@@ -928,7 +936,7 @@ async function generateZonePNG() {
 
             // FINITIONS (CARTOUCHE)
             // Le carroyage CADO pose deja le sien, ancre sur la grille (drawCadoElementsOnCanvas).
-            // Tous les autres cas — UTM, MGRS, CFSI, DFCI, ou export sans carroyage — recoivent
+            // Tous les autres cas — UTM, MGRS, CFSI, DFCI, nautique, ou export sans carroyage — recoivent
             // le meme cartouche.
             if (!useCado) {
                 loadingMessage.textContent = "Finalisation de l'image...";
@@ -950,7 +958,7 @@ async function generateZonePNG() {
                 if (useUtm) {
                     drawZoneCompass(ctx, W, H, dynamicMargin, cartoucheMetrics, zoneDeviationDeg);
                 } else {
-                    // Pour CFSI, DFCI ou Aucun
+                    // Pour CFSI, DFCI, nautique ou Aucun
                     const compassRadius = Math.max(10 * scaleFactor, W * 0.012);
                     const padding = compassRadius * 0.8;
                     const compassCenterX = W - dynamicMargin - padding - compassRadius;
@@ -978,10 +986,11 @@ async function generateZonePNG() {
         if (useUtm) gridTypeStr += (gridMode === 'mgrs') ? "_MGRS" : "_UTM";
         if (useCfsi) gridTypeStr += "_CFSI";
         if (useDfci) gridTypeStr += "_DFCI";
+        if (nauticStep) gridTypeStr += `_NAUTIQUE${nauticStep}`;
 
         const baseName = cartoucheFileName(document.getElementById("zone-title").value);
         const scaleStr = (useCado && cadoData?.config?.scale) ? `_${cadoData.config.scale}m` : '';
-        const colorStr = (useCado || useUtm || useCfsi || useDfci)
+        const colorStr = (useCado || useUtm || useCfsi || useDfci || nauticStep)
             ? `_${document.getElementById('utm-grid-color-name').value || ''}`.replace(/_$/, '')
             : '';
         const deviationStr = zoneDeviationDeg !== 0 ? `_dev${roundDeviation(zoneDeviationDeg)}deg` : '';
@@ -1169,6 +1178,7 @@ async function handleZoneVectorExport() {
     const useUtm = (gridChoice === 'utm' || gridChoice === 'mgrs');
     const useCfsi = (gridChoice === 'cfsi');
     const useDfci = (gridChoice === 'dfci');
+    const nauticStep = gridChoice === 'nautic1' ? 1 : gridChoice === 'nautic3' ? 3 : 0;
     const useCado = (gridChoice === 'cado');
     
     const format = document.querySelector('input[name="zone-file-format"]:checked').value; 
@@ -1179,7 +1189,7 @@ async function handleZoneVectorExport() {
     const recreationCode = zoneRecreationCodeFor(useCado);
     const filenameBase = (document.getElementById('zone-title').value || "Export_Zone") + recreationCodeFilePart(recreationCode);
 
-    if (!useUtm && !useCfsi && !useDfci && !useCado && userPOIs.length === 0 && format !== 'MBTILES' && format !== 'DEM') {
+    if (!useUtm && !useCfsi && !useDfci && !nauticStep && !useCado && userPOIs.length === 0 && format !== 'MBTILES' && format !== 'DEM') {
         if (!confirm("Aucune grille sélectionnée. Voulez-vous exporter uniquement les points d'intérêt ?")) {
             return;
         }
@@ -1193,7 +1203,7 @@ async function handleZoneVectorExport() {
         // --- CAS SPECIAL : EXPORT DJI MBTILES (RASTER TRANSPARENT) ---
         if (format === 'MBTILES') {
             await generateZoneMBTiles(filenameBase, useUtm, useCfsi, useCado, gridMode, useDfci,
-                recreationCode ? { code_recreation: recreationCode } : {});
+                recreationCode ? { code_recreation: recreationCode } : {}, nauticStep);
             return; // STOP ICI
         }
 
@@ -1220,6 +1230,9 @@ async function handleZoneVectorExport() {
         }
         if (useDfci) {
             kmlFolders += generateDfciKmlFolder();
+        }
+        if (nauticStep) {
+            kmlFolders += NAUTIC_UTILS.kmlFolder(zoneRectangle(), nauticStep);
         }
         if (useCado) {
             kmlFolders += await generateCadoKmlFolder(imagesToZip, format === 'KMZ', recreationCode);
@@ -1250,6 +1263,7 @@ async function handleZoneVectorExport() {
     <Style id="cfsi2kLine"><LineStyle><color>${kmlColor}</color><width>2</width></LineStyle></Style>
     <Style id="cfsi100mLine"><LineStyle><color>${kmlColorMinor}</color><width>1</width></LineStyle></Style>
     <Style id="cfsiText"><IconStyle><scale>0</scale></IconStyle><LabelStyle><color>${kmlLabelColor}</color><scale>0.9</scale></LabelStyle></Style>
+    <Style id="nauticMajorLine"><LineStyle><color>${kmlColor}</color><width>3</width></LineStyle></Style>
     <Style id="dfciQuarterLine"><LineStyle><color>${kmlColorMinor}</color><width>1</width></LineStyle></Style>
     <Style id="dfciQuarterText"><IconStyle><scale>0</scale></IconStyle><LabelStyle><color>${kmlLabelColor}</color><scale>0.7</scale></LabelStyle></Style>
 
@@ -1285,8 +1299,11 @@ async function handleZoneVectorExport() {
                      const blob = new Blob([gpx], { type: "application/gpx+xml" });
                      downloadFile(blob, `${filenameBase}.gpx`);
                  }
+            } else if (nauticStep && format === 'GeoJSON') {
+                const blob = new Blob([NAUTIC_UTILS.geoJSON(zoneRectangle(), nauticStep, filenameBase)], { type: "application/geo+json" });
+                downloadFile(blob, `${filenameBase}.geojson`);
             } else {
-                alert("L'export GeoJSON/GPX n'est implémenté complètement que pour le carroyage CADO. Veuillez sélectionner CADO ou utiliser KMZ.");
+                alert("L'export GeoJSON/GPX n'est implémenté complètement que pour le carroyage CADO (et GeoJSON pour le carroyage nautique). Veuillez sélectionner CADO ou utiliser KMZ.");
             }
         }
 
@@ -1334,7 +1351,7 @@ async function generateZoneDEM(filenameBase) {
 }
 
 // --- NOUVELLE FONCTION : GENERATE ZONE MBTILES (OVERLAY TRANSPARENT) ---
-async function generateZoneMBTiles(filename, useUtm, useCfsi, useCado, gridMode = 'utm', useDfci = false, extraMetadata = {}) {
+async function generateZoneMBTiles(filename, useUtm, useCfsi, useCado, gridMode = 'utm', useDfci = false, extraMetadata = {}, nauticStep = 0) {
     await ensureMbtilesOverlayModule();
     if (typeof window.initSqlJs !== 'function') {
         throw new Error("La librairie SQL.js n'est pas chargée.");
@@ -1372,7 +1389,7 @@ async function generateZoneMBTiles(filename, useUtm, useCfsi, useCado, gridMode 
             east: gridBounds.maxLon + mToLon(2.0 * config.scale, avgLat)
         };
     } else {
-        // Buffer standard pour UTM/CFSI/DFCI
+        // Buffer standard pour UTM/CFSI/DFCI/nautique
         const buffer = 0.005; 
         boundingBox.north += buffer;
         boundingBox.south -= buffer;
@@ -1394,7 +1411,8 @@ async function generateZoneMBTiles(filename, useUtm, useCfsi, useCado, gridMode 
         gridMode,
         useDfci,
         extraMetadata,
-        readMbtilesTileFormat('zone-mbtiles-format')
+        readMbtilesTileFormat('zone-mbtiles-format'),
+        nauticStep
     );
 
     // 3. Téléchargement

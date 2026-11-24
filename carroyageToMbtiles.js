@@ -5,9 +5,10 @@
  * Accepte optionalCadoData { config, gridData } pour le Mode 1.
  * gridMode ('utm' ou 'mgrs') choisit la désignation de la grille UTM dessinée.
  * useDfci ajoute le carroyage DFCI (sécurité civile).
+ * nauticStep (1 ou 3, 0 = aucun) ajoute le carroyage nautique en minutes de degré.
  * tileFormat : 'png' (drones DJI) ou 'webp' (sans perte, cf. encodeTileBlob).
  */
-async function generateMbtilesProcess(filename, useUtm, useCfsi, useCado, bbox, baseZoom, userPOIs, optionalCadoData = null, gridMode = 'utm', useDfci = false, extraMetadata = {}, tileFormat = 'png') {
+async function generateMbtilesProcess(filename, useUtm, useCfsi, useCado, bbox, baseZoom, userPOIs, optionalCadoData = null, gridMode = 'utm', useDfci = false, extraMetadata = {}, tileFormat = 'png', nauticStep = 0) {
     if (tileFormat !== 'webp') tileFormat = 'png';
     if (typeof window.initSqlJs !== 'function') throw new Error("SQL.js non chargé.");
 
@@ -83,7 +84,7 @@ async function generateMbtilesProcess(filename, useUtm, useCfsi, useCado, bbox, 
 
     // 4. Boucle de génération sur les niveaux de zoom
     for (let z = minZ; z <= maxZ; z++) {
-        await processZoomLevel(db, z, bbox, useUtm, useCfsi, cadoConfig, cadoGridData, userPOIs, maxCanvasSize, poiImgCache, gridMode, useDfci, tileFormat);
+        await processZoomLevel(db, z, bbox, useUtm, useCfsi, cadoConfig, cadoGridData, userPOIs, maxCanvasSize, poiImgCache, gridMode, useDfci, tileFormat, nauticStep);
     }
 
     // 4. Export
@@ -94,7 +95,7 @@ async function generateMbtilesProcess(filename, useUtm, useCfsi, useCado, bbox, 
 /**
  * Traite un niveau de zoom : Dessin Vectoriel -> Rasterisation -> Tuilage
  */
-async function processZoomLevel(db, zoom, bbox, useUtm, useCfsi, cadoConfig, cadoGridData, userPOIs, maxLimit, poiImgCache = {}, gridMode = 'utm', useDfci = false, tileFormat = 'png') {
+async function processZoomLevel(db, zoom, bbox, useUtm, useCfsi, cadoConfig, cadoGridData, userPOIs, maxLimit, poiImgCache = {}, gridMode = 'utm', useDfci = false, tileFormat = 'png', nauticStep = 0) {
     const nwPx = mbtLatLonToPx(bbox.north, bbox.west, zoom);
     const sePx = mbtLatLonToPx(bbox.south, bbox.east, zoom);
     
@@ -139,6 +140,11 @@ async function processZoomLevel(db, zoom, bbox, useUtm, useCfsi, cadoConfig, cad
     // 2 bis. DFCI : trait net sans halo, comme les autres couches « digital »
     if (useDfci && typeof drawDfciGrid === 'function') {
         drawDfciGrid(ctx, bbox, project, { color, lineWidth: 1.5, fontSize: 14, halo: false });
+    }
+
+    // 2 ter. Nautique : minutes de degré, trait net sans halo
+    if (nauticStep && typeof drawNauticGridDigital === 'function') {
+        drawNauticGridDigital(ctx, bbox, project, color, nauticStep);
     }
 
     // 3. CADO

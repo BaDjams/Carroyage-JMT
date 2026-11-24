@@ -1,12 +1,19 @@
 // version.js
 
 // Source unique de vérité pour la version de l'application.
-const APP_VERSION = '23.55';
+const APP_VERSION = '23.56';
 
 // Une ligne courte par changement, telle que l'utilisateur la voit : ce qui change,
 // sans le pourquoi ni le comment. Guillemets doubles : les apostrophes françaises
 // s'écrivent telles quelles.
 const CHANGELOG = [
+  {
+    version: "23.56",
+    date: "2026-11-24",
+    changes: [
+      "Export de zone : nouveaux carroyages nautiques 1' et 3' (mailles de 1 ou 3 minutes de degré, identifiants officiels CNIG-GIMeL) en image, KML/KMZ, GeoJSON et MBTiles",
+    ],
+  },
   {
     version: "23.55",
     date: "2026-11-04",

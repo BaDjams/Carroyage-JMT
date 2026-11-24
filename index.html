@@ -56,6 +56,7 @@
 <script src="adaptiveInk.js" defer></script>
 <script src="carroyageCFSI.js" defer></script>
 <script src="carroyageDFCI.js" defer></script>
+<script src="carroyageNautique.js" defer></script>
 <script src="seedManager.js" defer></script>
 <script src="jobSteps.js" defer></script>
 <script type="module" src="tileSource.js"></script>
@@ -788,6 +789,28 @@
                                 <div class="ml-3 text-sm">
                                     <span class="font-medium text-gray-900 dark:text-white">Carroyage DFCI</span>
                                     <p class="text-gray-500 dark:text-gray-400 text-xs mt-1">Sécurité civile / CODIS (2 km, quarts .1 à .5).</p>
+                                </div>
+                            </label>
+
+                            <!-- Option nautique 1' -->
+                            <label class="flex items-start p-3 border rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer transition-colors h-full dark:border-gray-600">
+                                <div class="flex items-center h-5">
+                                    <input type="radio" name="zone-grid-choice" value="nautic1" class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 focus:ring-blue-500 dark:bg-gray-600 dark:border-gray-500">
+                                </div>
+                                <div class="ml-3 text-sm">
+                                    <span class="font-medium text-gray-900 dark:text-white">Carroyage nautique 1'</span>
+                                    <p class="text-gray-500 dark:text-gray-400 text-xs mt-1">Mailles de 1' de degré (CNIG-GIMeL), repérées par identifiant.</p>
+                                </div>
+                            </label>
+
+                            <!-- Option nautique 3' -->
+                            <label class="flex items-start p-3 border rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer transition-colors h-full dark:border-gray-600">
+                                <div class="flex items-center h-5">
+                                    <input type="radio" name="zone-grid-choice" value="nautic3" class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 focus:ring-blue-500 dark:bg-gray-600 dark:border-gray-500">
+                                </div>
+                                <div class="ml-3 text-sm">
+                                    <span class="font-medium text-gray-900 dark:text-white">Carroyage nautique 3'</span>
+                                    <p class="text-gray-500 dark:text-gray-400 text-xs mt-1">Mailles de 3' de degré (CNIG-GIMeL), repérées par identifiant.</p>
                                 </div>
                             </label>
 
@@ -2033,10 +2056,10 @@
                     zonePngBtn.textContent = "Télécharger l'image";
                     zonePngBtn.classList.remove('ring-2', 'ring-yellow-400');
                 }
-                // Désactiver UTM, MGRS, CFSI et DFCI si rotation active (incompatibles)
+                // Désactiver UTM, MGRS, CFSI, DFCI et nautique si rotation active (incompatibles)
                 const rotationActive = dev !== 0;
                 document.querySelectorAll('input[name="zone-grid-choice"]').forEach(radio => {
-                    if (radio.value === 'utm' || radio.value === 'mgrs' || radio.value === 'cfsi' || radio.value === 'dfci') {
+                    if (radio.value === 'utm' || radio.value === 'mgrs' || radio.value === 'cfsi' || radio.value === 'dfci' || radio.value === 'nautic1' || radio.value === 'nautic3') {
                         radio.disabled = rotationActive;
                         const label = radio.closest('label');
                         if (label) {

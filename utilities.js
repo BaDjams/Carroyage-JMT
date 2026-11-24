@@ -1037,7 +1037,7 @@ function cartoucheCoords(lat, lon) {
 }
 
 // L'echelle n'a de sens que pour le carroyage CADO, dont la maille est metrique.
-// Les carroyages UTM/MGRS/CFSI/DFCI se nomment, et un export sans carroyage n'annonce
+// Les carroyages UTM/MGRS/CFSI/DFCI/nautique se nomment, et un export sans carroyage n'annonce
 // que son fond. Le fond et le niveau de zoom, eux, sont TOUJOURS indiques.
 function cartoucheScaleLine({ gridKind, gridDetail, scale, layerShort, zoom } = {}) {
     const fond = [layerShort, (zoom !== null && zoom !== undefined) ? `z${zoom}` : null]
@@ -1047,6 +1047,7 @@ function cartoucheScaleLine({ gridKind, gridDetail, scale, layerShort, zoom } = 
         : gridKind === "mgrs" ? "Carroyage MGRS"
         : gridKind === "cfsi" ? "Carroyage CFSI"
         : gridKind === "dfci" ? "Carroyage DFCI"
+        : gridKind === "nautic" ? "Carroyage nautique"
         : null;
     // Les carroyages emboites (CFSI, DFCI) annoncent la maille reellement etiquetee,
     // qui depend de la taille de la zone exportee.
