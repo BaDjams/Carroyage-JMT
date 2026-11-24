@@ -86,6 +86,7 @@ L'ordre dans `index.html` est important — plusieurs fichiers exposent des vari
 6. carroyageCado.js    → générateur CADO + init Leaflet mode 1
 7. carroyageCFSI.js    → CFSI_UTILS
 7b. carroyageDFCI.js   → DFCI_UTILS, drawDfciGrid (s'appuie sur CFSI_UTILS pour la projection)
+7b'. carroyageNautique.js → NAUTIC_UTILS, drawNauticGridOnCanvas, drawNauticGridDigital (export de zone)
 7c. adaptiveInk.js     → createGridInk, resolveStaticGridColor (couleur adaptative)
 8. carroyageUTM.js     → WGS84_to_UTM, WGS84_to_MGRS
 9. zoneDownloader.js   → orchestrateur mode 2
@@ -145,7 +146,7 @@ Génère un quadrillage CADO **centré sur un point unique** (lat/lon en décima
 
 ### Mode 2 — Export de zone
 
-L'utilisateur dessine un rectangle (Leaflet.draw) ou importe un KML/KMZ existant. Génère plusieurs grilles superposées (UTM, MGRS, CFSI, DFCI ou CADO, au choix) sur la zone, gère les POI utilisateur.
+L'utilisateur dessine un rectangle (Leaflet.draw) ou importe un KML/KMZ existant. Génère plusieurs grilles superposées (UTM, MGRS, CFSI, DFCI, nautique 1'/3' ou CADO, au choix) sur la zone, gère les POI utilisateur.
 
 **Fichier pivot** : `zoneDownloader.js`.
 
@@ -254,6 +255,16 @@ La paire teintée contraste moins, mais ses deux teintes sont étrangères aux v
 - sans pixels de fond — KML/KMZ, MBTiles, aperçu Leaflet — `resolveStaticGridColor` impose l'encre claire de la paire (blanc ou jaune)
 
 **Ce que l'encre couvre** : traits et étiquettes des cinq carroyages (CADO, UTM/MGRS, CFSI, DFCI), désignateurs MGRS de 100 km, et coordonnées de bordure UTM/MGRS — celles-ci sont posées sur la marge blanche, où l'encre choisit son ton sombre ; en couleur fixe elles restent en noir, sans quoi une grille blanche les rendrait invisibles. Restent en couleurs fixes, car indépendants de la grille : cartouche, boussole, barre d'échelle, croix de référence, quadrants de la clé de subdivision CADO et des cases repères CFSI, tracés KML importés et points d'intérêt.
+
+#### `carroyageNautique.js`
+
+Carroyage nautique de l'export de zone : mailles de 1' ou 3' de degré, calées sur les minutes entières (multiples de 3' à partir de 0°), comme le carroyage régulier en mer CNIG-GIMeL (Cerema / OFB, diffusé sur Géolittoral). Coordonnées géographiques : ETRS89 et WGS84 diffèrent d'environ 1 m, aucune reprojection. Le module ne dépend d'aucun autre.
+
+- `NAUTIC_UTILS` (IIFE, pur, testé sous Node) : `lattice(bbox, step)` (calcul en minutes entières, refus au-delà de 40 000 mailles), `cellId`, `cellBounds`, `cells`, `lines` (un sommet par méridien sur chaque parallèle), `kmlFolder`, `geoJSON`. Libellés de mailles omis au-delà de 3 000 mailles.
+- `drawNauticGridOnCanvas(...)` : image (encre adaptative, trait double toutes les 10 mailles, graduations en degrés-minutes sur la marge) ; rend « 1' » ou « 3' » pour le cartouche.
+- `drawNauticGridDigital(...)` : overlay MBTiles, trait net sans halo.
+
+Identifiants, règle observée sur les 15 433 mailles officielles de la Manche : 3' = `3_<lat du bord nord ×100, 5 chiffres>_N_<lon du bord ouest ×100, 5 chiffres>_<E|W>` ; 1' = `1_<lat du bord sud DDMM>_N_<lon du bord ouest DDMM>_<E|W>`, sans suffixe E/W sur le méridien de Greenwich. Non vérifiée hors de cette zone (hémisphère sud notamment). La grille générée couvre aussi la terre, les mailles officielles non. Tests : `node tools/test_nautique.mjs` (fixture : `tools/fixtures/nautique-official-cells.json`).
 
 #### `carroyageDFCI.js`
 
