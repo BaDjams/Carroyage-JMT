@@ -25,7 +25,10 @@ test('mailles officielles : identifiant et bornes retrouvés depuis le centre', 
         const l = U.lattice({ south: lat, north: lat, west: lon, east: lon }, c.step);
         assert.equal(l.numRows * l.numCols, 1);
         const b = U.cellBounds(c.step, l.rowMin, l.colMin);
-        assert.equal(U.cellId(c.step, l.rowMin, l.colMin), c.id);
+        // 1' : nom officiel (coin sud-ouest). 3' : nom cohérent INSPIRE (coin sud-ouest),
+        // le nom officiel (coin nord-ouest) restant disponible.
+        if (c.step === 1) assert.equal(U.cellId(1, l.rowMin, l.colMin), c.id);
+        else assert.equal(U.officialId3(l.rowMin, l.colMin), c.id);
         for (const k of ['south', 'north', 'west', 'east']) near(b[k], c[k]);
     }
 });
@@ -39,7 +42,16 @@ test('treillis : une bbox calée sur les minutes ne déborde pas d\'une maille',
 
 test('identifiants : méridien de Greenwich et hémisphère ouest', () => {
     assert.equal(U.cellId(1, 49 * 60 + 21, 0), '1_4921_N_0000');
-    assert.equal(U.cellId(3, 49 * 20 + 6, -10), '3_04935_N_00050_W');
+    assert.equal(U.cellId(3, 49 * 20 + 6, -10), '3_4918_N_0030_W');
+    assert.equal(U.officialId3(49 * 20 + 6, -10), '3_04935_N_00050_W');
+});
+
+test('cohérence INSPIRE : même coin sud-ouest = même suffixe en 1\' et en 3\'', () => {
+    for (const [row3, col3] of [[986, -10], [987, 0], [1000, 40]]) {
+        const id3 = U.cellId(3, row3, col3);
+        const id1 = U.cellId(1, row3 * 3, col3 * 3);
+        assert.equal(id3.slice(1), id1.slice(1));
+    }
 });
 
 test('lignes : un sommet par méridien sur chaque parallèle, majeures toutes les 10 mailles', () => {

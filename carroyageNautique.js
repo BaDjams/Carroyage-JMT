@@ -8,9 +8,11 @@
 //   sur les shapefiles officiels (métropole, ETRS89 / EPSG:4258).
 // - Système : coordonnées géographiques. ETRS89 et WGS84 diffèrent d'environ 1 m au
 //   plus : aucune reprojection pour la cartographie web.
-// - Identifiants des mailles : même règle que les données officielles (cf. cellId).
-//   Vérifiée sur les 15 433 mailles de la Manche (Le Havre - Dunkerque) ; hors de
-//   cette zone (hémisphère sud, etc.) elle n'est pas vérifiée.
+// - Identifiants des mailles : « cohérents INSPIRE » — taille de maille dans le nom, puis
+//   coin SUD-OUEST de la maille, pour le 1' comme pour le 3' (cf. cellId). Le 1' est
+//   identique au nom officiel CNIG-GIMeL. Le 3' officiel, lui, nomme la maille par son
+//   coin NORD-OUEST en centièmes de degré : ce nom reste fourni à part (officialId3 ;
+//   propriété « id_officiel » du GeoJSON), vérifié sur les 15 433 mailles de la Manche.
 // - La grille est régulière et couvre aussi la terre : les mailles officielles sont,
 //   elles, limitées à l'espace maritime.
 //
@@ -18,7 +20,7 @@
 // l'exécute sous Node. Les deux fonctions de dessin, elles, lisent l'interface.
 //
 // Exports globaux :
-//   NAUTIC_UTILS : STEPS, MAX_CELLS, MAX_LABELS, lattice, cellId, cellBounds, cells,
+//   NAUTIC_UTILS : STEPS, MAX_CELLS, MAX_LABELS, lattice, cellId, officialId3, cellBounds, cells,
 //                  labelsAllowed, formatLat, formatLon, lines, kmlFolder, geoJSON
 //   drawNauticGridOnCanvas(ctx, bbox, latLonToPixels, margin, fontSize, lineWidth, step)
 //                  image de l'export de zone ; rend la maille annoncée au cartouche (« 1' »)
@@ -61,29 +63,37 @@ const NAUTIC_UTILS = (() => {
     }
 
     /**
-     * Identifiant officiel d'une maille (règle observée sur les données CNIG-GIMeL) :
-     *  - 3' : « 3_<lat du bord NORD x100, 5 chiffres>_N_<lon du bord OUEST x100, 5 chiffres>_<E|W> »
-     *         ex. 3_04935_N_00030_W (bord nord 49,35 °N, bord ouest 0,30 °O).
-     *  - 1' : « 1_<lat du bord SUD en DDMM>_N_<lon du bord OUEST en DDMM>_<E|W> »
-     *         ex. 1_4918_N_0004_E ; sur le méridien de Greenwich le suffixe E/W est
-     *         absent (1_4921_N_0000).
+     * Identifiant d'une maille, cohérent INSPIRE : taille de maille, puis coin SUD-OUEST
+     * (latitude du bord sud, longitude du bord ouest) en degrés-minutes DDMM.
+     *  - « <1|3>_<lat sud DDMM>_N_<lon ouest DDMM>_<E|W> »
+     *  - 1' : ex. 1_4918_N_0004_E, identique au nom officiel CNIG-GIMeL ;
+     *  - 3' : ex. 3_4930_N_0012_E (le nom officiel est autre, cf. officialId3) ;
+     *  - sur le méridien de Greenwich le suffixe E/W est absent (1_4921_N_0000).
      */
     function cellId(step, row, col) {
         const southMin = row * step;
-        const northMin = (row + 1) * step;
         const westMin = col * step;
         const lonHem = westMin < 0 ? 'W' : 'E';
-        if (step === 3) {
-            const lat = (Math.abs(northMin) / 3) * 5;
-            const lon = (Math.abs(westMin) / 3) * 5;
-            return `3_${pad(lat, 5)}_${northMin < 0 ? 'S' : 'N'}_${pad(lon, 5)}_${lonHem}`;
-        }
         const ddmm = (m) => {
             const a = Math.abs(m);
             return Math.floor(a / 60) * 100 + (a % 60);
         };
         const hem = westMin === 0 ? '' : `_${lonHem}`;
-        return `1_${pad(ddmm(southMin), 4)}_${southMin < 0 ? 'S' : 'N'}_${pad(ddmm(westMin), 4)}${hem}`;
+        return `${step}_${pad(ddmm(southMin), 4)}_${southMin < 0 ? 'S' : 'N'}_${pad(ddmm(westMin), 4)}${hem}`;
+    }
+
+    /**
+     * Nom OFFICIEL (CNIG-GIMeL) d'une maille de 3' : « 3_<lat du bord NORD x100, 5
+     * chiffres>_N_<lon du bord OUEST x100, 5 chiffres>_<E|W> », ex. 3_04935_N_00030_W.
+     * Le 1' officiel est celui de cellId. Sert à retrouver une maille dans les données
+     * Géolittoral.
+     */
+    function officialId3(row, col) {
+        const northMin = (row + 1) * 3;
+        const westMin = col * 3;
+        const lat = (Math.abs(northMin) / 3) * 5;
+        const lon = (Math.abs(westMin) / 3) * 5;
+        return `3_${pad(lat, 5)}_${northMin < 0 ? 'S' : 'N'}_${pad(lon, 5)}_${westMin < 0 ? 'W' : 'E'}`;
     }
 
     function cellBounds(step, row, col) {
@@ -172,16 +182,16 @@ const NAUTIC_UTILS = (() => {
         const l = lattice(bbox, step);
         const features = cells(l).map((c) => ({
             type: 'Feature',
-            properties: { id: c.id, grille: `${step}'`, lat_sud: c.south, lat_nord: c.north, lon_ouest: c.west, lon_est: c.east },
+            properties: { id: c.id, ...(step === 3 ? { id_officiel: officialId3(c.row, c.col) } : {}), grille: `${step}'`, lat_sud: c.south, lat_nord: c.north, lon_ouest: c.west, lon_est: c.east },
             geometry: { type: 'Polygon', coordinates: [[[c.west, c.south], [c.east, c.south], [c.east, c.north], [c.west, c.north], [c.west, c.south]]] },
         }));
         return JSON.stringify({ type: 'FeatureCollection', name: name || `Grille nautique ${step}'`, features });
     }
 
-    return { STEPS, MAX_CELLS, MAX_LABELS, lattice, cellId, cellBounds, cells, labelsAllowed, formatLat, formatLon, lines, kmlFolder, geoJSON };
+    return { STEPS, MAX_CELLS, MAX_LABELS, lattice, cellId, officialId3, cellBounds, cells, labelsAllowed, formatLat, formatLon, lines, kmlFolder, geoJSON };
 })();
 
-// Identifiants de mailles au centre, quand la maille est assez grande pour les contenir.
+// Identifiants de mailles (cohérents INSPIRE) au centre, quand la maille est assez grande pour les contenir.
 // `draw(text, x, y)` pose le texte ; `inside(p)` écarte les mailles hors de la zone dessinée.
 function nauticDrawCellLabels(ctx, cellList, project, inside, draw) {
     for (const c of cellList) {

@@ -264,7 +264,7 @@ Carroyage nautique de l'export de zone : mailles de 1' ou 3' de degré, calées 
 - `drawNauticGridOnCanvas(...)` : image (encre adaptative, trait double toutes les 10 mailles, graduations en degrés-minutes sur la marge) ; rend « 1' » ou « 3' » pour le cartouche.
 - `drawNauticGridDigital(...)` : overlay MBTiles, trait net sans halo.
 
-Identifiants, règle observée sur les 15 433 mailles officielles de la Manche : 3' = `3_<lat du bord nord ×100, 5 chiffres>_N_<lon du bord ouest ×100, 5 chiffres>_<E|W>` ; 1' = `1_<lat du bord sud DDMM>_N_<lon du bord ouest DDMM>_<E|W>`, sans suffixe E/W sur le méridien de Greenwich. Non vérifiée hors de cette zone (hémisphère sud notamment). La grille générée couvre aussi la terre, les mailles officielles non. Tests : `node tools/test_nautique.mjs` (fixture : `tools/fixtures/nautique-official-cells.json`).
+Identifiants **cohérents INSPIRE** (taille de maille, puis coin sud-ouest) pour les deux grilles : `<1|3>_<lat du bord sud DDMM>_N_<lon du bord ouest DDMM>_<E|W>`, sans suffixe E/W sur le méridien de Greenwich. Le 1' est identique au nom officiel CNIG-GIMeL. Le 3' officiel nomme la maille par son coin **nord-ouest** en centièmes de degré (`3_<lat nord ×100, 5 chiffres>_N_<lon ouest ×100, 5 chiffres>_<E|W>`) : `officialId3` le calcule et le GeoJSON le fournit (`id_officiel`). Règles officielles vérifiées sur les 15 433 mailles de la Manche, pas hors de cette zone (hémisphère sud notamment). La grille générée couvre aussi la terre, les mailles officielles non. Tests : `node tools/test_nautique.mjs` (fixture : `tools/fixtures/nautique-official-cells.json`).
 
 #### `carroyageDFCI.js`
 
