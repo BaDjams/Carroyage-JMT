@@ -187,14 +187,25 @@ test('choix retenu : relu, ramené au catalogue, « aucune surcouche » compris'
     assert.deepEqual(plain(m), { base: 'essai', overlays: [], roads: null });
 });
 
-test('source des exports : le fond puis les surcouches, au zoom du plus bas', () => {
+test('source des exports : le fond puis les surcouches, au zoom du fond', () => {
     const { ctx } = page();
     const cfg = ctx.fondsConfig({ base: 'google_satellite', overlays: ['ign_routes', 'google_routes'] });
     const sat = ctx.MAP_LAYERS.find(l => l.id === 'google_satellite');
     const ign = ctx.MAP_OVERLAYS.find(l => l.id === 'ign_routes');
     const ggl = ctx.MAP_OVERLAYS.find(l => l.id === 'google_routes');
     assert.deepEqual(plain(cfg.layers), plain([...sat.layers, ...ign.layers, ...ggl.layers]));
-    assert.equal(cfg.maxZoom, 19, 'Google 21, routes IGN 19 : 19');
+    // Une surcouche qui s'arrête plus bas ne fait pas baisser l'image : elle y est
+    // agrandie (paintExportLayer). Créer MBTiles, lui, s'arrête au plus bas des étages.
+    assert.equal(cfg.maxZoom, 21, 'Google 21, routes IGN 19 : image au zoom 21');
+    assert.equal(cfg.stackMaxZoom, 19, 'Google 21, routes IGN 19 : MBTiles jusqu\'au 19');
+    assert.equal(cfg.baseName, 'Google Satellite');
+    const yandex = ctx.fondsConfig({ base: 'google_satellite', overlays: ['yandex_routes'] });
+    assert.equal(yandex.maxZoom, 21);
+    assert.equal(yandex.stackMaxZoom, 18);
+    // Dernier niveau et nature de chaque couche, pour l'export.
+    assert.deepEqual(plain(ctx.fondsLayerInfo(yandex.layers[1])), { maxZoom: 18, overlay: true });
+    assert.deepEqual(plain(ctx.fondsLayerInfo(yandex.layers[0])), { maxZoom: 21, overlay: false });
+    assert.deepEqual(plain(ctx.fondsLayerInfo(ign.layers[1])), { maxZoom: 19, overlay: true });
     assert.equal(cfg.name, 'Google Satellite + Routes IGN + Routes Google');
     assert.equal(cfg.shortName, 'Google Sat + IGN + Google');
     // L'ancien « Ortho IGN + Routes Google » : mêmes tuiles, même nom court au cartouche.

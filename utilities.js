@@ -786,6 +786,105 @@ async function mapWithConcurrency(items, concurrency, mapper) {
     return results;
 }
 
+// =======================================================================
+// UNE COUCHE À L'EXPORT, MÊME AU-DELÀ DE SON DERNIER NIVEAU
+// =======================================================================
+// Le zoom d'une image exportée est celui du FOND (fondsConfig, fonds.js). Une
+// surcouche cochée qui s'arrête plus bas (routes Yandex au zoom 18 sous une image
+// au zoom 19) est prise à son dernier niveau et agrandie, comme Leaflet le fait à
+// l'écran (maxNativeZoom) : cochée, elle figure sur l'image. Une tuile de
+// surcouche ABSENTE (204, 404 : le service s'arrête plus bas qu'annoncé) cède la
+// place à sa parente, agrandie, jusqu'à EXPORT_OVERZOOM_FALLBACK niveaux plus bas.
+// Le fond n'est jamais agrandi : le zoom de l'image est le sien.
+const EXPORT_OVERZOOM_FALLBACK = 3;
+
+// Pixels monde Web Mercator (tuiles de 256 px) d'un point, au zoom z.
+function _exportWorldPixels(lat, lon, z) {
+    const siny = Math.max(Math.min(Math.sin(lat * Math.PI / 180), 0.9999), -0.9999);
+    const size = 256 * Math.pow(2, z);
+    return { x: (lon + 180) / 360 * size, y: (0.5 - Math.log((1 + siny) / (1 - siny)) / (4 * Math.PI)) * size };
+}
+
+// Pose la couche `layer` du catalogue (xyz, quadkey, wms ou yandex ; un cache
+// ArcGIS passe par agcDrawTiles) sur `ctx`, dont le pixel (0, 0) est le pixel
+// monde `origin` au zoom z, pour l'emprise monde [nwPx, sePx] (pixels au zoom z).
+// Au-delà du dernier niveau de la couche, ses tuiles sont agrandies (cf. plus
+// haut). `onTile(n)` : n tuiles du zoom z traitées (avancement). Reprises et
+// tuiles perdues : loadExportTiles.
+async function paintExportLayer(ctx, layer, z, nwPx, sePx, origin, { cacheBust = 't=' + Date.now(), offerRemember = false, onTile = null } = {}) {
+    const TS = 256;
+    const info = typeof fondsLayerInfo === 'function' ? fondsLayerInfo(layer) : { maxZoom: z, overlay: false };
+    const zf = Math.max(0, Math.min(z, info.maxZoom));   // niveau demandé au serveur
+    const k = Math.pow(2, z - zf);                       // agrandissement de ses tuiles
+    const layerName = typeof fondsLayerName === 'function' ? fondsLayerName(layer) : '';
+    const bust = url => url + (url.includes('?') ? '&' : '?') + cacheBust;
+    const jobs = [];
+
+    if (layer.type === 'yandex') {
+        // Tuiles Yandex (EPSG:3395) : chacune est placée aux bords nord et sud de
+        // son emprise, ramenés en 3857 ; la hauteur rattrape l'écart des projections.
+        const nwLL = _worldPixels3857ToLatLon(nwPx, z), seLL = _worldPixels3857ToLatLon(sePx, z);
+        const nwT = _latLonToTile3395(nwLL.lat, nwLL.lon, zf), seT = _latLonToTile3395(seLL.lat, seLL.lon, zf);
+        const n = Math.pow(2, zf);
+        for (let tx = nwT.x; tx <= seT.x; tx++) {
+            for (let ty = nwT.y; ty <= seT.y; ty++) {
+                jobs.push({ url: bust(layer.url.replace('{z}', zf).replace('{x}', tx).replace('{y}', ty)), tx, ty });
+            }
+        }
+        (await loadExportTiles(jobs, async job => {
+            // Tuile en échec au large : abandonnée d'office (isOffshore).
+            const img = await loadExportTile(job.url, { offshore: {
+                west: job.tx / n * 360 - 180, east: (job.tx + 1) / n * 360 - 180,
+                north: _tile3395NorthLatDeg(job.ty, zf), south: _tile3395NorthLatDeg(job.ty + 1, zf) } });
+            onTile?.(k * k);
+            return img ? { img, tx: job.tx, ty: job.ty } : null;
+        }, { layerName, offerRemember })).forEach(r => {
+            if (!r) return;
+            const westLon = r.tx / n * 360 - 180;
+            const northPx = _exportWorldPixels(_tile3395NorthLatDeg(r.ty, zf), westLon, z);
+            const southPx = _exportWorldPixels(_tile3395NorthLatDeg(r.ty + 1, zf), westLon, z);
+            ctx.drawImage(r.img, Math.floor(northPx.x - origin.x), Math.floor(northPx.y - origin.y),
+                TS * k + 1, Math.ceil(southPx.y - northPx.y) + 1);
+        });
+        return;
+    }
+
+    const x0 = Math.floor(nwPx.x / (TS * k)), x1 = Math.floor(sePx.x / (TS * k));
+    const y0 = Math.floor(nwPx.y / (TS * k)), y1 = Math.floor(sePx.y / (TS * k));
+    for (let x = x0; x <= x1; x++) {
+        for (let y = y0; y <= y1; y++) jobs.push({ url: bust(tileUrlFor(layer, zf, x, y)), x, y });
+    }
+    // Parentes d'une tuile de surcouche absente : une seule demande pour ses enfants.
+    const fallback = info.overlay ? Math.min(EXPORT_OVERZOOM_FALLBACK, zf) : 0;
+    const parents = new Map();
+    const parent = (zz, px, py) => {
+        const url = bust(tileUrlFor(layer, zz, px, py));
+        if (!parents.has(url)) parents.set(url, loadExportTile(url, { count: false, offshore: tileBoundsLonLat(zz, px, py) }));
+        return parents.get(url);
+    };
+    // Absente, et non perdue (soumise à l'utilisateur) ou laissée vide de son accord.
+    const absent = url => !_exportTileStats || !(_exportTileStats.failed.has(url) || _exportTileStats.accepted.has(url));
+    (await loadExportTiles(jobs, async job => {
+        // Tuile en échec au large : abandonnée d'office (isOffshore).
+        let img = await loadExportTile(job.url, { offshore: tileBoundsLonLat(zf, job.x, job.y) });
+        let d = 0;
+        while (!img && d < fallback && absent(job.url)) {
+            d++;
+            img = await parent(zf - d, job.x >> d, job.y >> d);
+        }
+        onTile?.(k * k);
+        return img ? { img, x: job.x, y: job.y, d } : null;
+    }, { layerName, offerRemember })).forEach(r => {
+        if (!r) return;
+        const dx = Math.floor(r.x * TS * k - origin.x), dy = Math.floor(r.y * TS * k - origin.y);
+        // À son niveau : taille native, aucun rééchantillonnage.
+        if (k === 1 && !r.d) { ctx.drawImage(r.img, dx, dy); return; }
+        // Agrandie : le quart (le seizième…) de la parente qui couvre cette tuile.
+        const span = Math.pow(2, r.d), sw = r.img.width / span, sh = r.img.height / span;
+        ctx.drawImage(r.img, (r.x % span) * sw, (r.y % span) * sh, sw, sh, dx, dy, TS * k, TS * k);
+    });
+}
+
 function showError(message) {
     const errorDiv = document.getElementById("error-message");
     errorDiv.textContent = message;

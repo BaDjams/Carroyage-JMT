@@ -1868,78 +1868,14 @@ async function zdPaintTiles(tempCtx, dlNwPx, dlSePx, actualZoom, mapConfig, cach
     } else {
         // --- Mode en ligne ---
         for (const layer of mapConfig.layers) {
-            const tileJobs = [];
             if (layer.type === 'arcgis-cache') {
                 // Cache ArcGIS hors Web Mercator : chaque tuile est recomposée (arcgisCache.js).
                 await agcDrawTiles(layer, tempCtx, actualZoom, nwTile.x, nwTile.y, seTile.x, seTile.y, dlNwPx.x, dlNwPx.y);
-            } else if (layer.type === 'yandex') {
-                console.error('[YANDEX-v26] NEW CODE RUNNING - 3395 iterate approach');
-                // Tuiles Yandex (EPSG:3395) : on itère sur les tuiles 3395 qui couvrent la zone,
-                // puis on place chaque tuile à la position exacte de ses bords nord/sud en 3857.
-                // La hauteur de dessin est ajustée pour compenser la différence d'échelle entre les deux projections.
-                const dlNwLL = _worldPixels3857ToLatLon(dlNwPx, actualZoom);
-                const dlSeLL = _worldPixels3857ToLatLon(dlSePx, actualZoom);
-                const nwTile3395 = _latLonToTile3395(dlNwLL.lat, dlNwLL.lon, actualZoom);
-                const seTile3395 = _latLonToTile3395(dlSeLL.lat, dlSeLL.lon, actualZoom);
-                const n3395 = Math.pow(2, actualZoom);
-                console.error(`[YANDEX-v26] bbox: ${dlNwLL.lat.toFixed(4)}N ${dlNwLL.lon.toFixed(4)}E → ${dlSeLL.lat.toFixed(4)}N ${dlSeLL.lon.toFixed(4)}E | 3395 tiles y: ${nwTile3395.y}→${seTile3395.y} zoom:${actualZoom}`);
-                for (let tx = nwTile3395.x; tx <= seTile3395.x; tx++) {
-                    for (let ty = nwTile3395.y; ty <= seTile3395.y; ty++) {
-                        const url = layer.url.replace('{z}', actualZoom).replace('{x}', tx).replace('{y}', ty);
-                        const safeUrl = url + (url.includes('?') ? '&' : '?') + cacheBust;
-                        tileJobs.push({ url: safeUrl, tx, ty });
-                    }
-                }
-                let _dbg = true;
-                // Reprises d'une tuile refusée ou sans réponse, puis choix de
-                // l'utilisateur pour celles perdues (loadExportTiles, utilities.js).
-                (await loadExportTiles(tileJobs, async job => {
-                    // Tuile en échec au large : abandonnée d'office (isOffshore, utilities.js).
-                    const i = await loadExportTile(job.url, { offshore: {
-                        west: job.tx / Math.pow(2, actualZoom) * 360 - 180, east: (job.tx + 1) / Math.pow(2, actualZoom) * 360 - 180,
-                        north: _tile3395NorthLatDeg(job.ty, actualZoom), south: _tile3395NorthLatDeg(job.ty + 1, actualZoom) } });
-                    return i ? { i, tx: job.tx, ty: job.ty, ok: true } : null;
-                }, { layerName: fondsLayerName(layer), offerRemember: true })).forEach(res => {
-                    if (res) {
-                        // Bords nord et sud de la tuile 3395 → latitude géographique
-                        const northLat = _tile3395NorthLatDeg(res.ty, actualZoom);
-                        const southLat = _tile3395NorthLatDeg(res.ty + 1, actualZoom);
-                        const westLon  = res.tx / n3395 * 360 - 180;
-                        // Position dans le canvas 3857 : on convertit les latitudes réelles en pixels 3857
-                        const northPx  = zdLatLonToWorldPixels(northLat, westLon, actualZoom);
-                        const southPx  = zdLatLonToWorldPixels(southLat, westLon, actualZoom);
-                        const destX = Math.floor(northPx.x - dlNwPx.x);
-                        const destY = Math.floor(northPx.y - dlNwPx.y);
-                        // Hauteur en pixels 3857 que couvre réellement cette tuile 3395
-                        const destH = Math.ceil(southPx.y - northPx.y) + 1;
-                        if (_dbg) { console.error(`[YANDEX-v26] tile ty=${res.ty} northLat=${northLat.toFixed(4)} destY=${destY} destH=${destH}`); _dbg = false; }
-                        // On étire légèrement la tuile verticalement pour combler la différence de projection
-                        tempCtx.drawImage(res.i, destX, destY, ZD_TILE_SIZE + 1, destH);
-                    }
-                });
             } else {
-                for (let x = nwTile.x; x <= seTile.x; x++) {
-                    for (let y = nwTile.y; y <= seTile.y; y++) {
-                        const url = tileUrlFor(layer, actualZoom, x, y);
-                        const safeUrl = url + (url.includes('?') ? '&' : '?') + cacheBust;
-                        tileJobs.push({ url: safeUrl, x, y });
-                    }
-                }
-                // Reprises d'une tuile refusée ou sans réponse, puis choix de
-                // l'utilisateur pour celles perdues (loadExportTiles, utilities.js).
-                // Par bandes, chaque bloc peut redemander : « continuer d'office » est proposé.
-                (await loadExportTiles(tileJobs, async job => {
-                    // Tuile en échec au large : abandonnée d'office (isOffshore, utilities.js).
-                    const i = await loadExportTile(job.url, { offshore: tileBoundsLonLat(actualZoom, job.x, job.y) });
-                    return i ? { i, x: job.x, y: job.y, ok: true } : null;
-                }, { layerName: fondsLayerName(layer), offerRemember: true })).forEach(res => {
-                    if (res) {
-                        // Taille native, comme en MBTiles : aucun rééchantillonnage.
-                        const destX = Math.floor((res.x * ZD_TILE_SIZE) - dlNwPx.x);
-                        const destY = Math.floor((res.y * ZD_TILE_SIZE) - dlNwPx.y);
-                        tempCtx.drawImage(res.i, destX, destY);
-                    }
-                });
+                // Fond et surcouches ; une surcouche qui s'arrête sous le zoom de
+                // l'image y est agrandie (paintExportLayer, utilities.js). Par
+                // bandes, chaque bloc peut redemander : « continuer d'office » est proposé.
+                await paintExportLayer(tempCtx, layer, actualZoom, dlNwPx, dlSePx, dlNwPx, { cacheBust, offerRemember: true });
             }
         }
     }

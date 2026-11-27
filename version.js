@@ -1,12 +1,19 @@
 // version.js
 
 // Source unique de vérité pour la version de l'application.
-const APP_VERSION = '23.56';
+const APP_VERSION = '23.57';
 
 // Une ligne courte par changement, telle que l'utilisateur la voit : ce qui change,
 // sans le pourquoi ni le comment. Guillemets doubles : les apostrophes françaises
 // s'écrivent telles quelles.
 const CHANGELOG = [
+  {
+    version: "23.57",
+    date: "2026-11-27",
+    changes: [
+      "Carroyage et export de zone : une surcouche de routes cochée figure toujours sur l'image, même quand l'image est prise à un zoom plus fin que son dernier niveau (agrandie), et elle ne fait plus baisser le zoom de l'image",
+    ],
+  },
   {
     version: "23.56",
     date: "2026-11-24",

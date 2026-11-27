@@ -596,7 +596,7 @@ function checkForcedZoom(zoom, boundingBox, mapConfig, usingMbtiles) {
     } else {
         const maxLayerZoom = mapConfig.maxZoom || 20;
         if (zoom > maxLayerZoom) {
-            throw new Error(`Zoom forcé ${zoom} indisponible : le fond « ${mapConfig.name} » monte jusqu'au zoom ${maxLayerZoom}. Choisissez un autre zoom dans les options avancées du carroyage, ou un autre fond.`);
+            throw new Error(`Zoom forcé ${zoom} indisponible : le fond « ${mapConfig.baseName || mapConfig.name} » monte jusqu'au zoom ${maxLayerZoom}. Choisissez un autre zoom dans les options avancées du carroyage, ou un autre fond.`);
         }
     }
 
@@ -675,67 +675,15 @@ async function createFinalCanvasWithLayers(boundingBox, zoom, mapConfig, onProgr
         let downloadedCount = 0;
 
         for (const layer of mapConfig.layers) {
-            const tileJobs = [];
             if (layer.type === 'arcgis-cache') {
                 // Cache ArcGIS hors Web Mercator : chaque tuile est recomposée (arcgisCache.js).
                 await agcDrawTiles(layer, tempCtx, actualZoom, nwTile.x, nwTile.y, seTile.x, seTile.y, originX, originY,
                     () => { downloadedCount++; if (onProgress) onProgress(downloadedCount * progressFactor); });
-            } else if (layer.type === 'yandex') {
-                // Tuiles Yandex (EPSG:3395) : même algo que zoneDownloader
-                const nwLL = _worldPixels3857ToLatLon(nwPixel, actualZoom);
-                const seLL = _worldPixels3857ToLatLon(sePixel, actualZoom);
-                const nwT3395 = _latLonToTile3395(nwLL.lat, nwLL.lon, actualZoom);
-                const seT3395 = _latLonToTile3395(seLL.lat, seLL.lon, actualZoom);
-                const n3395 = Math.pow(2, actualZoom);
-                for (let tx = nwT3395.x; tx <= seT3395.x; tx++) {
-                    for (let ty = nwT3395.y; ty <= seT3395.y; ty++) {
-                        const tileUrl = layer.url.replace('{z}', actualZoom).replace('{x}', tx).replace('{y}', ty);
-                        const safeUrl = tileUrl + (tileUrl.includes('?') ? '&' : '?') + cacheBust;
-                        tileJobs.push({ url: safeUrl, tx, ty });
-                    }
-                }
-                // Reprises d'une tuile refusée ou sans réponse, puis choix de
-                // l'utilisateur pour celles perdues (loadExportTiles, utilities.js).
-                (await loadExportTiles(tileJobs, async job => {
-                    // Tuile en échec au large : abandonnée d'office (isOffshore, utilities.js).
-                    const img = await loadExportTile(job.url, { offshore: {
-                        west: job.tx / Math.pow(2, actualZoom) * 360 - 180, east: (job.tx + 1) / Math.pow(2, actualZoom) * 360 - 180,
-                        north: _tile3395NorthLatDeg(job.ty, actualZoom), south: _tile3395NorthLatDeg(job.ty + 1, actualZoom) } });
-                    downloadedCount++; if (onProgress) onProgress(Math.min(100, downloadedCount * progressFactor));
-                    return img ? { img, tx: job.tx, ty: job.ty, success: true } : null;
-                }, { layerName: fondsLayerName(layer) })).forEach(tileResult => {
-                    if (tileResult) {
-                        const northLat = _tile3395NorthLatDeg(tileResult.ty, actualZoom);
-                        const southLat = _tile3395NorthLatDeg(tileResult.ty + 1, actualZoom);
-                        const westLon  = tileResult.tx / n3395 * 360 - 180;
-                        const northPx  = itpLatLonToWorldPixels(northLat, westLon, actualZoom);
-                        const southPx  = itpLatLonToWorldPixels(southLat, westLon, actualZoom);
-                        const destX = Math.floor(northPx.x - originX);
-                        const destY = Math.floor(northPx.y - originY);
-                        const destH = Math.ceil(southPx.y - northPx.y) + 1;
-                        tempCtx.drawImage(tileResult.img, destX, destY, TILE_SIZE + 1, destH);
-                    }
-                });
             } else {
-                for (let x = nwTile.x; x <= seTile.x; x++) {
-                    for (let y = nwTile.y; y <= seTile.y; y++) {
-                        const tileUrl = tileUrlFor(layer, actualZoom, x, y);
-                        const safeUrl = tileUrl + (tileUrl.includes('?') ? '&' : '?') + cacheBust;
-                        tileJobs.push({ url: safeUrl, x, y });
-                    }
-                }
-                // Reprises d'une tuile refusée ou sans réponse, puis choix de
-                // l'utilisateur pour celles perdues (loadExportTiles, utilities.js).
-                (await loadExportTiles(tileJobs, async job => {
-                    // Tuile en échec au large : abandonnée d'office (isOffshore, utilities.js).
-                    const img = await loadExportTile(job.url, { offshore: tileBoundsLonLat(actualZoom, job.x, job.y) });
-                    downloadedCount++; if (onProgress) onProgress(Math.min(100, downloadedCount * progressFactor));
-                    return img ? { img, x: job.x, y: job.y, success: true } : null;
-                }, { layerName: fondsLayerName(layer) })).forEach(tileResult => {
-                    if (tileResult) {
-                        tempCtx.drawImage(tileResult.img, tileResult.x * TILE_SIZE - originX, tileResult.y * TILE_SIZE - originY);
-                    }
-                });
+                // Fond et surcouches ; une surcouche qui s'arrête sous le zoom de
+                // l'image y est agrandie (paintExportLayer, utilities.js).
+                await paintExportLayer(tempCtx, layer, actualZoom, nwPixel, sePixel, { x: originX, y: originY }, { cacheBust,
+                    onTile: n => { downloadedCount += n; if (onProgress) onProgress(Math.min(100, downloadedCount * progressFactor)); } });
             }
         }
     }

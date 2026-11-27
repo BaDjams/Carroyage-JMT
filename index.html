@@ -1694,7 +1694,7 @@
                     // Créer MBTiles télécharge toujours en ligne : le MBTiles chargé ne le concerne pas.
                     const showOffline = offline && el.dataset.fondsLabel !== 'creator';
                     el.textContent = showOffline ? `📦 ${tileSourceGetName()}`
-                        : (config ? config.name + (el.dataset.fondsLabel === 'creator' ? ` (Max Z${config.maxZoom})` : '') : 'N/A');
+                        : (config ? config.name + (el.dataset.fondsLabel === 'creator' ? ` (Max Z${config.stackMaxZoom})` : '') : 'N/A');
                 });
             };
             document.querySelectorAll('[data-fonds-label]').forEach(el => el.addEventListener('click', (e) => {
