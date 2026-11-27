@@ -216,8 +216,13 @@ function fondsSubscribe(fn) {
 /**
  * Source de tuiles des exports pour un choix (par défaut, le choix en cours) :
  * une entrée de la même forme que celles du catalogue, dont les `layers` sont
- * ceux du fond puis ceux des surcouches — dans l'ordre où ils se peignent. Zoom
- * maximal : le plus bas des étages, pour qu'aucun ne manque à l'export.
+ * ceux du fond puis ceux des surcouches — dans l'ordre où ils se peignent.
+ * `maxZoom` : celui du FOND. Une surcouche cochée qui s'arrête plus bas (routes
+ * Yandex au zoom 18 sur Google Satellite) ne fait pas baisser l'image : à
+ * l'export, ses tuiles sont prises à son dernier niveau et agrandies
+ * (paintExportLayer, utilities.js), comme Leaflet le fait à l'écran.
+ * `stackMaxZoom` : le plus bas des étages — Créer MBTiles, dont chaque tuile du
+ * fichier doit exister à son niveau, s'y arrête.
  */
 function fondsConfig(state = fondsState()) {
     const { bases, overlays } = fondsCatalogue();
@@ -230,17 +235,34 @@ function fondsConfig(state = fondsState()) {
         name: all.map(c => c.name).join(' + '),
         shortName: all.map(c => c.shortName || c.name).join(' + '),
         attribution: all.map(c => c.attribution).filter(Boolean).join(' &mdash; '),
-        maxZoom: Math.min(...all.map(c => c.maxZoom || 19)),
+        maxZoom: base.maxZoom || 19,
+        stackMaxZoom: Math.min(...all.map(c => c.maxZoom || 19)),
         layers: all.flatMap(c => c.layers),
         base: base.id,
+        baseName: base.name,
         overlays: over.map(o => o.id),
     };
 }
 
+// Entrée du catalogue (fond ou surcouche) à laquelle appartient une couche de `layers`.
+function _fondsLayerEntry(layer) {
+    const all = [...(typeof MAP_LAYERS !== 'undefined' ? MAP_LAYERS : []), ...(typeof MAP_OVERLAYS !== 'undefined' ? MAP_OVERLAYS : [])];
+    return all.find(c => c.layers.includes(layer)) || null;
+}
+
 /** Nom de l'entrée du catalogue (fond ou surcouche) à laquelle appartient une couche de `layers`. */
 function fondsLayerName(layer) {
-    const all = [...(typeof MAP_LAYERS !== 'undefined' ? MAP_LAYERS : []), ...(typeof MAP_OVERLAYS !== 'undefined' ? MAP_OVERLAYS : [])];
-    return all.find(c => c.layers.includes(layer))?.name || '';
+    return _fondsLayerEntry(layer)?.name || '';
+}
+
+/**
+ * Dernier niveau servi par une couche de `layers` (le sien, sinon celui de son
+ * entrée, comme maxNativeZoom à l'écran), et si elle est une surcouche.
+ */
+function fondsLayerInfo(layer) {
+    const entry = _fondsLayerEntry(layer);
+    const overlay = !!entry && typeof MAP_OVERLAYS !== 'undefined' && MAP_OVERLAYS.includes(entry);
+    return { maxZoom: layer.maxZoom ?? entry?.maxZoom ?? 19, overlay };
 }
 
 /** Nom du choix en cours, tel que le montre le menu (« Google Satellite + Routes Google + POI »). */

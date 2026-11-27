@@ -116,9 +116,9 @@ function initCreatorMode() {
     // fichier les télécharge empilés, tels qu'à l'écran (cf. MbtilesJob).
     window.creatorFonds = fondsAttach(creatorMap);
     // Les niveaux proposés suivent le zoom natif du choix (le plus bas des étages).
-    let creatorMaxZoom = fondsConfig()?.maxZoom || 19;
+    let creatorMaxZoom = fondsConfig()?.stackMaxZoom || 19;
     creatorMap.on('fondschange', (e) => {
-        const maxZ = e.config?.maxZoom || 19;
+        const maxZ = e.config?.stackMaxZoom || 19;
         if (maxZ === creatorMaxZoom) return;
         creatorMaxZoom = maxZ;
         const previouslyChecked = getSelectedZooms();
